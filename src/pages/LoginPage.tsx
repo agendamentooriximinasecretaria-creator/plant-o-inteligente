@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { Activity, Mail, Lock, LogIn } from 'lucide-react';
+import { Activity, Mail, Lock, LogIn, UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,38 +9,66 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isFirstSetup, setIsFirstSetup] = useState(false);
+  const [checkingSetup, setCheckingSetup] = useState(true);
   const { signIn } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check if any user_roles exist — if not, this is first-time setup
+    supabase.from('user_roles').select('id', { count: 'exact', head: true }).then(({ count }) => {
+      setIsFirstSetup((count || 0) === 0);
+      setCheckingSetup(false);
+    });
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await signIn(email, password);
-    if (error) {
-      // Try signup if login fails (first time setup)
+
+    if (isFirstSetup) {
+      // First-time setup: create the gestor master account
       const { error: signUpError } = await supabase.auth.signUp({ email, password });
       if (signUpError) {
-        toast.error('Erro: ' + signUpError.message);
+        toast.error('Erro ao criar conta: ' + signUpError.message);
         setLoading(false);
         return;
       }
-      // Try login again after signup
-      const { error: retryError } = await signIn(email, password);
-      if (retryError) {
-        toast.error('Erro ao fazer login: ' + retryError.message);
+      // Login after signup
+      const { error: loginError } = await signIn(email, password);
+      if (loginError) {
+        toast.error('Conta criada, mas erro ao fazer login: ' + loginError.message);
         setLoading(false);
         return;
       }
+      // Assign gestor_master role
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('user_roles').insert({ user_id: user.id, role: 'gestor_master' as any });
+      }
+      toast.success('Conta de Gestor Master criada com sucesso!');
+    } else {
+      // Normal login
+      const { error } = await signIn(email, password);
+      if (error) {
+        toast.error('Credenciais inválidas.');
+        setLoading(false);
+        return;
+      }
+      toast.success('Login realizado com sucesso!');
     }
+
     setLoading(false);
-    // Assign gestor_master role
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      await supabase.from('user_roles').upsert({ user_id: user.id, role: 'gestor_master' as any }, { onConflict: 'user_id,role' });
-    }
-    toast.success('Login realizado com sucesso!');
     navigate('/');
   };
+
+  if (checkingSetup) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -53,12 +81,20 @@ export default function LoginPage() {
           <p className="text-muted-foreground mt-1">Gestão de Plantões Hospitalares</p>
         </div>
         <form onSubmit={handleSubmit} className="bg-card rounded-xl border border-border p-6 shadow-[var(--shadow-elevated)] space-y-4">
-          <h2 className="font-display text-xl font-semibold text-foreground text-center">Entrar no Sistema</h2>
+          <h2 className="font-display text-xl font-semibold text-foreground text-center">
+            {isFirstSetup ? 'Configuração Inicial' : 'Entrar no Sistema'}
+          </h2>
+          {isFirstSetup && (
+            <div className="p-3 bg-info/10 border border-info/30 rounded-lg text-sm text-info">
+              <p className="font-medium">Primeiro acesso detectado.</p>
+              <p>Crie a conta do Gestor Master com e-mail e senha (mín. 6 caracteres).</p>
+            </div>
+          )}
           <div className="space-y-1">
             <label className="text-sm font-medium text-foreground">E-mail</label>
             <div className="flex items-center gap-2 bg-muted rounded-lg px-3 py-2 border border-border focus-within:ring-2 focus-within:ring-ring">
               <Mail className="h-4 w-4 text-muted-foreground" />
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="gestor@hospital.com" required className="bg-transparent flex-1 text-sm outline-none placeholder:text-muted-foreground" />
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={isFirstSetup ? 'gestor@hospital.com' : 'seu@email.com'} required className="bg-transparent flex-1 text-sm outline-none placeholder:text-muted-foreground" />
             </div>
           </div>
           <div className="space-y-1">
@@ -69,13 +105,12 @@ export default function LoginPage() {
             </div>
           </div>
           <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-2.5 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50">
-            <LogIn className="h-4 w-4" />
-            {loading ? 'Entrando...' : 'Entrar'}
+            {isFirstSetup ? <UserPlus className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
+            {loading ? (isFirstSetup ? 'Criando...' : 'Entrando...') : (isFirstSetup ? 'Criar Gestor Master' : 'Entrar')}
           </button>
-          <div className="text-center text-xs text-muted-foreground mt-4 p-3 bg-muted/50 rounded-lg">
-            <p className="font-medium">Primeiro acesso? Use qualquer e-mail e senha (mín. 6 caracteres).</p>
-            <p>O sistema criará sua conta automaticamente.</p>
-          </div>
+          {!isFirstSetup && (
+            <p className="text-center text-xs text-muted-foreground mt-3">Acesso restrito. Solicite credenciais ao gestor do sistema.</p>
+          )}
         </form>
       </div>
     </div>

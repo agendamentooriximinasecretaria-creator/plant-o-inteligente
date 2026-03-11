@@ -16,12 +16,10 @@ export default function ConfiguracoesPage() {
     },
   });
 
-  // Hospital settings
   const [hospital, setHospital] = useState({ nome: '', cnpj: '', endereco: '' });
   const [conflictRules, setConflictRules] = useState({ limite_horas_dia: 24, limite_horas_semana: 60, descanso_minimo: 6, aprovacao_gestor_trocas: true });
   const [webhookUrl, setWebhookUrl] = useState('');
   const [webhookAtivo, setWebhookAtivo] = useState(false);
-  const [webhookStatus, setWebhookStatus] = useState('inativo');
   const [gmailEmail, setGmailEmail] = useState('');
   const [gmailSenha, setGmailSenha] = useState('');
   const [gmailServidor, setGmailServidor] = useState('smtp.gmail.com');
@@ -34,15 +32,21 @@ export default function ConfiguracoesPage() {
   useEffect(() => {
     if (settings.hospital) { const h = settings.hospital as any; setHospital({ nome: h.nome || '', cnpj: h.cnpj || '', endereco: h.endereco || '' }); }
     if (settings.conflict_rules) { const c = settings.conflict_rules as any; setConflictRules({ limite_horas_dia: c.limite_horas_dia || 24, limite_horas_semana: c.limite_horas_semana || 60, descanso_minimo: c.descanso_minimo || 6, aprovacao_gestor_trocas: c.aprovacao_gestor_trocas ?? true }); }
-    if (settings.webhook) { const w = settings.webhook as any; setWebhookUrl(w.url || ''); setWebhookAtivo(w.ativo || false); setWebhookStatus(w.status || 'inativo'); }
+    if (settings.webhook) { const w = settings.webhook as any; setWebhookUrl(w.url || ''); setWebhookAtivo(w.ativo || false); }
     if (settings.gmail_smtp) { const g = settings.gmail_smtp as any; setGmailEmail(g.email_remetente || ''); setGmailServidor(g.servidor || 'smtp.gmail.com'); setGmailPorta(g.porta || 587); setGmailStatus(g.status || 'pendente'); }
     if (settings.notification_channel) { const n = settings.notification_channel as any; setCanalPaciente(n.canal_paciente || 'ambos'); }
   }, [settings]);
 
   const saveSetting = useMutation({
     mutationFn: async ({ key, value }: { key: string; value: any }) => {
-      const { error } = await supabase.from('system_settings').update({ value }).eq('key', key);
-      if (error) throw error;
+      const { data: existing } = await supabase.from('system_settings').select('id').eq('key', key).maybeSingle();
+      if (existing) {
+        const { error } = await supabase.from('system_settings').update({ value }).eq('key', key);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('system_settings').insert({ key, value });
+        if (error) throw error;
+      }
       await logAudit(`Configuração salva: ${key}`, 'configuracoes', { key });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['system-settings'] }); toast.success('Configuração salva!'); },
@@ -139,7 +143,7 @@ export default function ConfiguracoesPage() {
           </div>
           <p className="text-xs text-muted-foreground mt-3">ℹ️ Gere uma senha de aplicativo em <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="text-primary underline">myaccount.google.com → Segurança → Senhas de app</a></p>
           <div className="flex gap-2 mt-4">
-            <button onClick={() => saveSetting.mutate({ key: 'gmail_smtp', value: { email_remetente: gmailEmail, servidor: gmailServidor, porta: gmailPorta, senha_configurada: !!gmailSenha, status: gmailSenha ? 'ativo' : 'pendente' } })} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90"><Save className="h-4 w-4" /> Salvar</button>
+            <button onClick={() => { const newStatus = gmailSenha ? 'ativo' : 'pendente'; setGmailStatus(newStatus); saveSetting.mutate({ key: 'gmail_smtp', value: { email_remetente: gmailEmail, servidor: gmailServidor, porta: gmailPorta, senha_configurada: !!gmailSenha, status: newStatus } }); }} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90"><Save className="h-4 w-4" /> Salvar</button>
             <button onClick={() => toast.info('Para testar o envio real de e-mail, uma Edge Function SMTP precisa ser configurada no backend.')} className="flex items-center gap-2 border border-border px-4 py-2 rounded-lg text-sm font-medium text-foreground hover:bg-muted"><TestTube className="h-4 w-4" /> Testar Envio</button>
           </div>
         </motion.div>
@@ -150,9 +154,7 @@ export default function ConfiguracoesPage() {
           <div>
             <label className="text-sm font-medium text-foreground">Canal ativo para envio</label>
             <select value={canalPaciente} onChange={e => setCanalPaciente(e.target.value)} className={inputClass}>
-              <option value="webhook">Webhook</option>
-              <option value="gmail">Gmail</option>
-              <option value="ambos">Ambos (Webhook + Gmail)</option>
+              <option value="webhook">Webhook</option><option value="gmail">Gmail</option><option value="ambos">Ambos (Webhook + Gmail)</option>
             </select>
             <p className="text-xs text-muted-foreground mt-2">Se o canal for "Ambos" e o webhook falhar, o Gmail será usado automaticamente como fallback.</p>
           </div>
