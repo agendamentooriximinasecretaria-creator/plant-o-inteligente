@@ -99,11 +99,11 @@ export function AppSidebar() {
           {!collapsed && (
             <div className="flex flex-col flex-1 min-w-0">
               <span className="text-xs font-medium text-sidebar-foreground truncate">Gestor Master</span>
-              <span className="text-[10px] text-sidebar-foreground/50 truncate">gestor@hospital.com</span>
+              <span className="text-[10px] text-sidebar-foreground/50 truncate">{user?.email || ''}</span>
             </div>
           )}
           {!collapsed && (
-            <button className="text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors">
+            <button onClick={async () => { await signOut(); navigate('/login'); }} className="text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors">
               <LogOut className="h-4 w-4" />
             </button>
           )}
