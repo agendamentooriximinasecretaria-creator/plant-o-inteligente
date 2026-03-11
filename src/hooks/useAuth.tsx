@@ -27,26 +27,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [professionalId, setProfessionalId] = useState<string | null>(null);
 
   const loadProfile = async (userId: string) => {
-    const sb = supabase as any;
+    try {
+      const sb = supabase as any;
+      const { data: profile, error } = await sb
+        .from('profiles')
+        .select('role, profissional_id, ativo')
+        .eq('user_id', userId)
+        .maybeSingle();
 
-    const { data: profile } = await sb
-      .from('profiles')
-      .select('role, profissional_id, ativo')
-      .eq('user_id', userId)
-      .maybeSingle();
+      if (error || !profile || profile.ativo === false) {
+        setRole(null);
+        setProfessionalId(null);
+        return;
+      }
 
-    if (!profile || profile.ativo === false) {
+      setRole(profile.role as UserRole);
+      setProfessionalId((profile.profissional_id as string | null) ?? null);
+    } catch {
       setRole(null);
       setProfessionalId(null);
-      return;
     }
-
-    setRole(profile.role as UserRole);
-    setProfessionalId((profile.profissional_id as string | null) ?? null);
   };
 
   useEffect(() => {
+    let mounted = true;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
+      if (!mounted) return;
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
 
@@ -61,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
+      if (!mounted) return;
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
 
@@ -71,7 +79,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsReady(true);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
