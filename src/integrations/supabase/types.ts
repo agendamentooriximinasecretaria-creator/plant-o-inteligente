@@ -14,16 +14,565 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      audit_logs: {
+        Row: {
+          acao: string
+          created_at: string
+          detalhes: Json | null
+          id: string
+          modulo: string
+          status: string
+          user_id: string | null
+          usuario_nome: string | null
+        }
+        Insert: {
+          acao: string
+          created_at?: string
+          detalhes?: Json | null
+          id?: string
+          modulo: string
+          status?: string
+          user_id?: string | null
+          usuario_nome?: string | null
+        }
+        Update: {
+          acao?: string
+          created_at?: string
+          detalhes?: Json | null
+          id?: string
+          modulo?: string
+          status?: string
+          user_id?: string | null
+          usuario_nome?: string | null
+        }
+        Relationships: []
+      }
+      message_templates: {
+        Row: {
+          assunto: string
+          ativo: boolean
+          categoria: string
+          created_at: string
+          id: string
+          mensagem: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          assunto: string
+          ativo?: boolean
+          categoria?: string
+          created_at?: string
+          id?: string
+          mensagem: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          assunto?: string
+          ativo?: boolean
+          categoria?: string
+          created_at?: string
+          id?: string
+          mensagem?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          canal: string | null
+          created_at: string
+          id: string
+          lida: boolean
+          mensagem: string
+          professional_id: string | null
+          status_envio: string | null
+          tipo: string
+          titulo: string
+          user_id: string | null
+        }
+        Insert: {
+          canal?: string | null
+          created_at?: string
+          id?: string
+          lida?: boolean
+          mensagem: string
+          professional_id?: string | null
+          status_envio?: string | null
+          tipo: string
+          titulo: string
+          user_id?: string | null
+        }
+        Update: {
+          canal?: string | null
+          created_at?: string
+          id?: string
+          lida?: boolean
+          mensagem?: string
+          professional_id?: string | null
+          status_envio?: string | null
+          tipo?: string
+          titulo?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      professionals: {
+        Row: {
+          agencia: string | null
+          avatar_url: string | null
+          banco: string | null
+          chave_pix: string | null
+          conselho: string | null
+          conta: string | null
+          cpf: string | null
+          created_at: string
+          data_nascimento: string | null
+          email: string
+          endereco: string | null
+          especialidade: string | null
+          id: string
+          nome: string
+          observacoes: string | null
+          profissao: Database["public"]["Enums"]["profissao_type"]
+          registro: string | null
+          setor_principal_id: string | null
+          status: string
+          telefone: string | null
+          unidade_principal_id: string | null
+          updated_at: string
+          user_id: string | null
+          valor_hora: number
+          valor_plantao: number | null
+          vinculo: string | null
+        }
+        Insert: {
+          agencia?: string | null
+          avatar_url?: string | null
+          banco?: string | null
+          chave_pix?: string | null
+          conselho?: string | null
+          conta?: string | null
+          cpf?: string | null
+          created_at?: string
+          data_nascimento?: string | null
+          email: string
+          endereco?: string | null
+          especialidade?: string | null
+          id?: string
+          nome: string
+          observacoes?: string | null
+          profissao: Database["public"]["Enums"]["profissao_type"]
+          registro?: string | null
+          setor_principal_id?: string | null
+          status?: string
+          telefone?: string | null
+          unidade_principal_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+          valor_hora?: number
+          valor_plantao?: number | null
+          vinculo?: string | null
+        }
+        Update: {
+          agencia?: string | null
+          avatar_url?: string | null
+          banco?: string | null
+          chave_pix?: string | null
+          conselho?: string | null
+          conta?: string | null
+          cpf?: string | null
+          created_at?: string
+          data_nascimento?: string | null
+          email?: string
+          endereco?: string | null
+          especialidade?: string | null
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          profissao?: Database["public"]["Enums"]["profissao_type"]
+          registro?: string | null
+          setor_principal_id?: string | null
+          status?: string
+          telefone?: string | null
+          unidade_principal_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+          valor_hora?: number
+          valor_plantao?: number | null
+          vinculo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "professionals_setor_principal_id_fkey"
+            columns: ["setor_principal_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "professionals_unidade_principal_id_fkey"
+            columns: ["unidade_principal_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sectors: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+          unidade_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+          unidade_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+          unidade_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sectors_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shift_swaps: {
+        Row: {
+          created_at: string
+          destinatario_id: string | null
+          id: string
+          motivo: string
+          observacao_gestor: string | null
+          shift_id: string
+          solicitante_id: string
+          status: Database["public"]["Enums"]["swap_status"]
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          destinatario_id?: string | null
+          id?: string
+          motivo: string
+          observacao_gestor?: string | null
+          shift_id: string
+          solicitante_id: string
+          status?: Database["public"]["Enums"]["swap_status"]
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          destinatario_id?: string | null
+          id?: string
+          motivo?: string
+          observacao_gestor?: string | null
+          shift_id?: string
+          solicitante_id?: string
+          status?: Database["public"]["Enums"]["swap_status"]
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_swaps_destinatario_id_fkey"
+            columns: ["destinatario_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swaps_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swaps_solicitante_id_fkey"
+            columns: ["solicitante_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shifts: {
+        Row: {
+          carga_horaria: number
+          created_at: string
+          created_by: string | null
+          data: string
+          hora_fim: string
+          hora_inicio: string
+          id: string
+          observacoes: string | null
+          profissao: Database["public"]["Enums"]["profissao_type"]
+          profissional_id: string
+          setor_id: string
+          status: Database["public"]["Enums"]["shift_status"]
+          tipo_plantao: string
+          unidade_id: string
+          updated_at: string
+          valor_hora: number
+          valor_total: number
+        }
+        Insert: {
+          carga_horaria: number
+          created_at?: string
+          created_by?: string | null
+          data: string
+          hora_fim: string
+          hora_inicio: string
+          id?: string
+          observacoes?: string | null
+          profissao: Database["public"]["Enums"]["profissao_type"]
+          profissional_id: string
+          setor_id: string
+          status?: Database["public"]["Enums"]["shift_status"]
+          tipo_plantao?: string
+          unidade_id: string
+          updated_at?: string
+          valor_hora?: number
+          valor_total?: number
+        }
+        Update: {
+          carga_horaria?: number
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          hora_fim?: string
+          hora_inicio?: string
+          id?: string
+          observacoes?: string | null
+          profissao?: Database["public"]["Enums"]["profissao_type"]
+          profissional_id?: string
+          setor_id?: string
+          status?: Database["public"]["Enums"]["shift_status"]
+          tipo_plantao?: string
+          unidade_id?: string
+          updated_at?: string
+          valor_hora?: number
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shifts_profissional_id_fkey"
+            columns: ["profissional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shifts_setor_id_fkey"
+            columns: ["setor_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shifts_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      swap_history: {
+        Row: {
+          acao: string
+          created_at: string
+          detalhes: string | null
+          id: string
+          swap_id: string
+          user_id: string | null
+          usuario: string
+        }
+        Insert: {
+          acao: string
+          created_at?: string
+          detalhes?: string | null
+          id?: string
+          swap_id: string
+          user_id?: string | null
+          usuario: string
+        }
+        Update: {
+          acao?: string
+          created_at?: string
+          detalhes?: string | null
+          id?: string
+          swap_id?: string
+          user_id?: string | null
+          usuario?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "swap_history_swap_id_fkey"
+            columns: ["swap_id"]
+            isOneToOne: false
+            referencedRelation: "shift_swaps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      system_settings: {
+        Row: {
+          id: string
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          id?: string
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Update: {
+          id?: string
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
+      units: {
+        Row: {
+          created_at: string
+          endereco: string | null
+          id: string
+          nome: string
+          telefone: string | null
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          endereco?: string | null
+          id?: string
+          nome: string
+          telefone?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          endereco?: string | null
+          id?: string
+          nome?: string
+          telefone?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      check_shift_conflict: {
+        Args: {
+          p_data: string
+          p_exclude_id?: string
+          p_hora_fim: string
+          p_hora_inicio: string
+          p_profissional_id: string
+        }
+        Returns: {
+          conflicting_end: string
+          conflicting_shift_id: string
+          conflicting_start: string
+        }[]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "gestor_master" | "coordenador" | "profissional"
+      profissao_type:
+        | "medico"
+        | "enfermeiro"
+        | "fisioterapeuta"
+        | "tecnico_enfermagem"
+        | "biomedico"
+        | "psicologo"
+        | "terapeuta_ocupacional"
+        | "nutricionista"
+        | "fonoaudiologo"
+        | "farmaceutico"
+        | "outro"
+      shift_status:
+        | "agendado"
+        | "confirmado"
+        | "pendente"
+        | "em_aberto"
+        | "trocando"
+        | "concluido"
+        | "cancelado"
+      swap_status:
+        | "solicitada"
+        | "aguardando_resposta"
+        | "aceita"
+        | "recusada"
+        | "aguardando_aprovacao"
+        | "aprovada"
+        | "rejeitada"
+        | "cancelada"
+        | "concluida"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +699,41 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["gestor_master", "coordenador", "profissional"],
+      profissao_type: [
+        "medico",
+        "enfermeiro",
+        "fisioterapeuta",
+        "tecnico_enfermagem",
+        "biomedico",
+        "psicologo",
+        "terapeuta_ocupacional",
+        "nutricionista",
+        "fonoaudiologo",
+        "farmaceutico",
+        "outro",
+      ],
+      shift_status: [
+        "agendado",
+        "confirmado",
+        "pendente",
+        "em_aberto",
+        "trocando",
+        "concluido",
+        "cancelado",
+      ],
+      swap_status: [
+        "solicitada",
+        "aguardando_resposta",
+        "aceita",
+        "recusada",
+        "aguardando_aprovacao",
+        "aprovada",
+        "rejeitada",
+        "cancelada",
+        "concluida",
+      ],
+    },
   },
 } as const
