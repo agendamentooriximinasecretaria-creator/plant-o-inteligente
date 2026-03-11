@@ -3,7 +3,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { Activity, Mail, Lock, LogIn } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -17,27 +16,11 @@ export default function LoginPage() {
     setLoading(true);
     const { error } = await signIn(email, password);
     if (error) {
-      // Try signup if login fails (first time setup)
-      const { error: signUpError } = await supabase.auth.signUp({ email, password });
-      if (signUpError) {
-        toast.error('Erro: ' + signUpError.message);
-        setLoading(false);
-        return;
-      }
-      // Try login again after signup
-      const { error: retryError } = await signIn(email, password);
-      if (retryError) {
-        toast.error('Erro ao fazer login: ' + retryError.message);
-        setLoading(false);
-        return;
-      }
+      toast.error('Credenciais inválidas. Contate o gestor para obter acesso.');
+      setLoading(false);
+      return;
     }
     setLoading(false);
-    // Assign gestor_master role
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      await supabase.from('user_roles').upsert({ user_id: user.id, role: 'gestor_master' as any }, { onConflict: 'user_id,role' });
-    }
     toast.success('Login realizado com sucesso!');
     navigate('/');
   };
@@ -58,7 +41,7 @@ export default function LoginPage() {
             <label className="text-sm font-medium text-foreground">E-mail</label>
             <div className="flex items-center gap-2 bg-muted rounded-lg px-3 py-2 border border-border focus-within:ring-2 focus-within:ring-ring">
               <Mail className="h-4 w-4 text-muted-foreground" />
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="gestor@hospital.com" required className="bg-transparent flex-1 text-sm outline-none placeholder:text-muted-foreground" />
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" required className="bg-transparent flex-1 text-sm outline-none placeholder:text-muted-foreground" />
             </div>
           </div>
           <div className="space-y-1">
@@ -72,10 +55,7 @@ export default function LoginPage() {
             <LogIn className="h-4 w-4" />
             {loading ? 'Entrando...' : 'Entrar'}
           </button>
-          <div className="text-center text-xs text-muted-foreground mt-4 p-3 bg-muted/50 rounded-lg">
-            <p className="font-medium">Primeiro acesso? Use qualquer e-mail e senha (mín. 6 caracteres).</p>
-            <p>O sistema criará sua conta automaticamente.</p>
-          </div>
+          <p className="text-center text-xs text-muted-foreground mt-3">Acesso restrito. Solicite credenciais ao gestor do sistema.</p>
         </form>
       </div>
     </div>
