@@ -3,7 +3,8 @@ import {
   DollarSign, FileText, Bell, Settings, Shield, LogOut, Activity,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
@@ -33,6 +34,8 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const navigate = useNavigate();
+  const { signOut, user } = useAuth();
   const isActive = (path: string) => location.pathname === path || (path !== "/" && location.pathname.startsWith(path));
 
   const renderGroup = (label: string, items: typeof mainItems) => (
@@ -96,11 +99,11 @@ export function AppSidebar() {
           {!collapsed && (
             <div className="flex flex-col flex-1 min-w-0">
               <span className="text-xs font-medium text-sidebar-foreground truncate">Gestor Master</span>
-              <span className="text-[10px] text-sidebar-foreground/50 truncate">gestor@hospital.com</span>
+              <span className="text-[10px] text-sidebar-foreground/50 truncate">{user?.email || ''}</span>
             </div>
           )}
           {!collapsed && (
-            <button className="text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors">
+            <button onClick={async () => { await signOut(); navigate('/login'); }} className="text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors">
               <LogOut className="h-4 w-4" />
             </button>
           )}
