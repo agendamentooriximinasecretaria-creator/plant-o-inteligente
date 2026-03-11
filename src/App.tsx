@@ -15,8 +15,15 @@ import RelatoriosPage from "@/pages/RelatoriosPage";
 import NotificacoesPage from "@/pages/NotificacoesPage";
 import ConfiguracoesPage from "@/pages/ConfiguracoesPage";
 import AuditoriaPage from "@/pages/AuditoriaPage";
+import UsuariosPage from "@/pages/UsuariosPage";
 import LoginPage from "@/pages/LoginPage";
+import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import NotFound from "@/pages/NotFound";
+import ProfissionalDashboardPage from "@/pages/ProfissionalDashboardPage";
+import MinhaEscalaPage from "@/pages/MinhaEscalaPage";
+import MinhasTrocasPage from "@/pages/MinhasTrocasPage";
+import MeuFinanceiroPage from "@/pages/MeuFinanceiroPage";
+import MeuPerfilPage from "@/pages/MeuPerfilPage";
 
 const queryClient = new QueryClient();
 
@@ -27,11 +34,31 @@ function ProtectedRoutes() {
   return <AppLayout />;
 }
 
+function ManagerOnly({ children }: { children: React.ReactNode }) {
+  const { isMaster, isCoordinator, isReady } = useAuth();
+  if (!isReady) return null;
+  if (!isMaster && !isCoordinator) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
+function MasterOnly({ children }: { children: React.ReactNode }) {
+  const { isMaster, isReady } = useAuth();
+  if (!isReady) return null;
+  if (!isMaster) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
 function LoginRoute() {
   const { user, isReady } = useAuth();
   if (!isReady) return null;
   if (user) return <Navigate to="/" replace />;
   return <LoginPage />;
+}
+
+function RoleBasedDashboard() {
+  const { isProfessional } = useAuth();
+  if (isProfessional) return <ProfissionalDashboardPage />;
+  return <Dashboard />;
 }
 
 const App = () => (
@@ -43,17 +70,26 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginRoute />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route element={<ProtectedRoutes />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/escala" element={<EscalaPage />} />
-              <Route path="/trocas" element={<TrocasPage />} />
-              <Route path="/profissionais" element={<ProfissionaisPage />} />
-              <Route path="/setores" element={<SetoresPage />} />
-              <Route path="/financeiro" element={<FinanceiroPage />} />
-              <Route path="/relatorios" element={<RelatoriosPage />} />
+              <Route path="/" element={<RoleBasedDashboard />} />
+              {/* Professional-only routes */}
+              <Route path="/minha-escala" element={<MinhaEscalaPage />} />
+              <Route path="/minhas-trocas" element={<MinhasTrocasPage />} />
+              <Route path="/meu-financeiro" element={<MeuFinanceiroPage />} />
+              <Route path="/meu-perfil" element={<MeuPerfilPage />} />
+              {/* Manager routes */}
+              <Route path="/escala" element={<ManagerOnly><EscalaPage /></ManagerOnly>} />
+              <Route path="/trocas" element={<ManagerOnly><TrocasPage /></ManagerOnly>} />
+              <Route path="/profissionais" element={<ManagerOnly><ProfissionaisPage /></ManagerOnly>} />
+              <Route path="/setores" element={<ManagerOnly><SetoresPage /></ManagerOnly>} />
+              <Route path="/financeiro" element={<ManagerOnly><FinanceiroPage /></ManagerOnly>} />
+              <Route path="/relatorios" element={<ManagerOnly><RelatoriosPage /></ManagerOnly>} />
               <Route path="/notificacoes" element={<NotificacoesPage />} />
-              <Route path="/configuracoes" element={<ConfiguracoesPage />} />
-              <Route path="/auditoria" element={<AuditoriaPage />} />
+              {/* Master-only routes */}
+              <Route path="/usuarios" element={<MasterOnly><UsuariosPage /></MasterOnly>} />
+              <Route path="/configuracoes" element={<MasterOnly><ConfiguracoesPage /></MasterOnly>} />
+              <Route path="/auditoria" element={<MasterOnly><AuditoriaPage /></MasterOnly>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -1,6 +1,7 @@
 import {
   LayoutDashboard, Calendar, ArrowLeftRight, Users, Building2,
   DollarSign, FileText, Bell, Settings, Shield, LogOut, Activity,
+  UserCog, Wallet, UserCircle,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -10,36 +11,82 @@ import {
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
   SidebarHeader, SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
+import { useMemo } from "react";
 
-const mainItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Escala de Plantões", url: "/escala", icon: Calendar },
-  { title: "Trocas de Plantão", url: "/trocas", icon: ArrowLeftRight },
-  { title: "Profissionais", url: "/profissionais", icon: Users },
-  { title: "Setores e Unidades", url: "/setores", icon: Building2 },
-];
-
-const managementItems = [
-  { title: "Financeiro", url: "/financeiro", icon: DollarSign },
-  { title: "Relatórios", url: "/relatorios", icon: FileText },
-  { title: "Notificações", url: "/notificacoes", icon: Bell },
-];
-
-const systemItems = [
-  { title: "Configurações", url: "/configuracoes", icon: Settings },
-  { title: "Auditoria", url: "/auditoria", icon: Shield },
-];
+interface MenuItem {
+  title: string;
+  url: string;
+  icon: React.ElementType;
+}
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
   const navigate = useNavigate();
-  const { signOut, user } = useAuth();
+  const { signOut, user, isMaster, isCoordinator, isProfessional, role } = useAuth();
   const isActive = (path: string) => location.pathname === path || (path !== "/" && location.pathname.startsWith(path));
 
-  const renderGroup = (label: string, items: typeof mainItems) => (
-    <SidebarGroup>
+  const menuGroups = useMemo(() => {
+    if (isProfessional) {
+      return [
+        {
+          label: "Meu Painel",
+          items: [
+            { title: "Dashboard", url: "/", icon: LayoutDashboard },
+            { title: "Minha Escala", url: "/minha-escala", icon: Calendar },
+            { title: "Minhas Trocas", url: "/minhas-trocas", icon: ArrowLeftRight },
+            { title: "Financeiro", url: "/meu-financeiro", icon: Wallet },
+            { title: "Meu Perfil", url: "/meu-perfil", icon: UserCircle },
+          ] as MenuItem[],
+        },
+        {
+          label: "Sistema",
+          items: [
+            { title: "Notificações", url: "/notificacoes", icon: Bell },
+          ] as MenuItem[],
+        },
+      ];
+    }
+
+    const mainItems: MenuItem[] = [
+      { title: "Dashboard", url: "/", icon: LayoutDashboard },
+      { title: "Escala de Plantões", url: "/escala", icon: Calendar },
+      { title: "Trocas de Plantão", url: "/trocas", icon: ArrowLeftRight },
+      { title: "Profissionais", url: "/profissionais", icon: Users },
+      { title: "Setores e Unidades", url: "/setores", icon: Building2 },
+    ];
+
+    const managementItems: MenuItem[] = [
+      { title: "Financeiro", url: "/financeiro", icon: DollarSign },
+      { title: "Relatórios", url: "/relatorios", icon: FileText },
+      { title: "Notificações", url: "/notificacoes", icon: Bell },
+    ];
+
+    const systemItems: MenuItem[] = [];
+    if (isMaster) {
+      systemItems.push({ title: "Usuários", url: "/usuarios", icon: UserCog });
+      systemItems.push({ title: "Configurações", url: "/configuracoes", icon: Settings });
+      systemItems.push({ title: "Auditoria", url: "/auditoria", icon: Shield });
+    }
+
+    const groups = [
+      { label: "Principal", items: mainItems },
+      { label: "Gestão", items: managementItems },
+    ];
+
+    if (systemItems.length > 0) {
+      groups.push({ label: "Sistema", items: systemItems });
+    }
+
+    return groups;
+  }, [isMaster, isCoordinator, isProfessional]);
+
+  const roleLabel = role === "gestor_master" ? "Gestor Master" : role === "coordenador" ? "Coordenador" : "Profissional";
+  const initials = roleLabel.split(" ").map(w => w[0]).join("").substring(0, 2).toUpperCase();
+
+  const renderGroup = (label: string, items: MenuItem[]) => (
+    <SidebarGroup key={label}>
       <SidebarGroupLabel className="text-sidebar-foreground/50 text-[10px] uppercase tracking-widest font-semibold">
         {!collapsed && label}
       </SidebarGroupLabel>
@@ -86,19 +133,17 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="px-2 py-3">
-        {renderGroup("Principal", mainItems)}
-        {renderGroup("Gestão", managementItems)}
-        {renderGroup("Sistema", systemItems)}
+        {menuGroups.map((group) => renderGroup(group.label, group.items))}
       </SidebarContent>
 
       <SidebarFooter className="p-3 border-t border-sidebar-border">
         <div className="flex items-center gap-3 px-2">
           <div className="h-8 w-8 rounded-full bg-sidebar-primary/20 flex items-center justify-center shrink-0">
-            <span className="text-xs font-semibold text-sidebar-primary">GM</span>
+            <span className="text-xs font-semibold text-sidebar-primary">{initials}</span>
           </div>
           {!collapsed && (
             <div className="flex flex-col flex-1 min-w-0">
-              <span className="text-xs font-medium text-sidebar-foreground truncate">Gestor Master</span>
+              <span className="text-xs font-medium text-sidebar-foreground truncate">{roleLabel}</span>
               <span className="text-[10px] text-sidebar-foreground/50 truncate">{user?.email || ''}</span>
             </div>
           )}
