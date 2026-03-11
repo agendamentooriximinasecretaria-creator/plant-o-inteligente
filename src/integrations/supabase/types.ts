@@ -586,6 +586,16 @@ export type Database = {
         Returns: boolean
       }
       is_manager: { Args: { _user_id: string }; Returns: boolean }
+      list_professional_directory: {
+        Args: never
+        Returns: {
+          id: string
+          nome: string
+          profissao: Database["public"]["Enums"]["profissao_type"]
+          setor_principal_id: string
+          unidade_principal_id: string
+        }[]
+      }
     }
     Enums: {
       app_role: "gestor_master" | "coordenador" | "profissional"
