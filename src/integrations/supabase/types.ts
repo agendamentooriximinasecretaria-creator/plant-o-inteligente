@@ -229,6 +229,50 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          email: string
+          id: string
+          nome: string
+          profissional_id: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          email: string
+          id?: string
+          nome: string
+          profissional_id?: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          email?: string
+          id?: string
+          nome?: string
+          profissional_id?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_profissional_id_fkey"
+            columns: ["profissional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sectors: {
         Row: {
           created_at: string
@@ -533,6 +577,7 @@ export type Database = {
           conflicting_start: string
         }[]
       }
+      get_my_professional_id: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -540,6 +585,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_manager: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "gestor_master" | "coordenador" | "profissional"
