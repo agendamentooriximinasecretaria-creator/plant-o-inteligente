@@ -178,7 +178,7 @@ export default function EscalaPage() {
                         <AlertDialog>
                           <AlertDialogTrigger asChild><button className="p-1 rounded hover:bg-destructive/10"><Trash2 className="h-4 w-4 text-destructive" /></button></AlertDialogTrigger>
                           <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir plantão?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => deleteMutation.mutate(s.id)}>Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+                            <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => deleteMutation.mutate(s)}>Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
                         </AlertDialog>
                       </div>
                     </td>
