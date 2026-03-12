@@ -31,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clearProfileState = () => {
     setRole(null);
     setProfessionalId(null);
+    setProfileName(null);
   };
 
   const loadProfile = async (userId: string): Promise<boolean> => {
