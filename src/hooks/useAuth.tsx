@@ -131,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     isReady,
     role,
+    profileName,
     professionalId,
     signIn,
     resetPassword,
@@ -138,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isMaster: role === 'gestor_master',
     isCoordinator: role === 'coordenador',
     isProfessional: role === 'profissional',
-  }), [user, session, isReady, role, professionalId]);
+  }), [user, session, isReady, role, profileName, professionalId]);
 
   return (
     <AuthContext.Provider value={value}>
