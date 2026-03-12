@@ -143,6 +143,18 @@ serve(async (req) => {
         created_user_id: newUserId, created_email: email, role,
       });
 
+      // Dispatch welcome notification
+      await admin.from("notifications").insert({
+        professional_id: profissionalId || null,
+        user_id: newUserId,
+        tipo: "boas_vindas",
+        titulo: "👋 Bem-vindo ao GestorPlantão SMS Oriximiná",
+        mensagem: `Olá ${nome}, sua conta foi criada com o perfil ${role === "gestor_master" ? "Gestor Master" : role === "coordenador" ? "Coordenador" : "Profissional de Saúde"}. Acesse o sistema com seu e-mail ${email}.`,
+        lida: false,
+        canal: "sistema",
+        status_envio: "enviado",
+      });
+
       return json(200, { success: true, user_id: newUserId });
     }
 
