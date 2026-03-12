@@ -26,6 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
   const [role, setRole] = useState<UserRole | null>(null);
   const [professionalId, setProfessionalId] = useState<string | null>(null);
+  const [profileName, setProfileName] = useState<string | null>(null);
 
   const clearProfileState = () => {
     setRole(null);
