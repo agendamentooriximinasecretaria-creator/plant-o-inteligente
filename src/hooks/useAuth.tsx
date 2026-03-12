@@ -49,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setRole(profile.role as UserRole);
       setProfessionalId(profile.profissional_id ?? null);
+      setProfileName(profile.nome ?? null);
       return true;
     } catch {
       clearProfileState();
