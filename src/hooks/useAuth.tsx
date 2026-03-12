@@ -8,6 +8,7 @@ interface AuthContextType {
   session: Session | null;
   isReady: boolean;
   role: UserRole | null;
+  profileName: string | null;
   professionalId: string | null;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
