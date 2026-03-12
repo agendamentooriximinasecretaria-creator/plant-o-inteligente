@@ -1,9 +1,32 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Bell, Search } from "lucide-react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 export function AppLayout() {
+  const navigate = useNavigate();
+  const { user, professionalId } = useAuth();
+
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ["unread-notifications-count", user?.id],
+    enabled: !!user,
+    refetchInterval: 30_000, // poll every 30s
+    queryFn: async () => {
+      let query = supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("lida", false);
+
+      // The RLS handles filtering, just count
+      const { count, error } = await query;
+      if (error) return 0;
+      return count || 0;
+    },
+  });
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -22,9 +45,16 @@ export function AppLayout() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <button className="relative p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+              <button
+                onClick={() => navigate("/notificacoes")}
+                className="relative p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              >
                 <Bell className="h-5 w-5" />
-                <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
               </button>
             </div>
           </header>

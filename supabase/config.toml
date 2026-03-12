@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.bootstrap-master]
 verify_jwt = false
+
+[functions.enviar-notificacao]
+verify_jwt = false
+
+[functions.lembrete-plantoes]
+verify_jwt = false
