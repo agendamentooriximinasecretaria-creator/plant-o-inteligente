@@ -20,11 +20,11 @@ interface MenuItem {
 }
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
   const navigate = useNavigate();
-  const { signOut, user, isMaster, isCoordinator, isProfessional, role } = useAuth();
+  const { signOut, user, isMaster, isProfessional, role } = useAuth();
   const isActive = (path: string) => location.pathname === path || (path !== "/" && location.pathname.startsWith(path));
 
   const menuGroups = useMemo(() => {
@@ -33,7 +33,7 @@ export function AppSidebar() {
         {
           label: "Meu Painel",
           items: [
-            { title: "Dashboard", url: "/", icon: LayoutDashboard },
+            { title: "Dashboard", url: "/meu-painel", icon: LayoutDashboard },
             { title: "Minha Escala", url: "/minha-escala", icon: Calendar },
             { title: "Minhas Trocas", url: "/minhas-trocas", icon: ArrowLeftRight },
             { title: "Financeiro", url: "/meu-financeiro", icon: Wallet },
@@ -50,7 +50,7 @@ export function AppSidebar() {
     }
 
     const mainItems: MenuItem[] = [
-      { title: "Dashboard", url: "/", icon: LayoutDashboard },
+      { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
       { title: "Escala de Plantões", url: "/escala", icon: Calendar },
       { title: "Trocas de Plantão", url: "/trocas", icon: ArrowLeftRight },
       { title: "Profissionais", url: "/profissionais", icon: Users },
@@ -80,10 +80,14 @@ export function AppSidebar() {
     }
 
     return groups;
-  }, [isMaster, isCoordinator, isProfessional]);
+  }, [isMaster, isProfessional]);
 
   const roleLabel = role === "gestor_master" ? "Gestor Master" : role === "coordenador" ? "Coordenador" : "Profissional";
   const initials = roleLabel.split(" ").map(w => w[0]).join("").substring(0, 2).toUpperCase();
+
+  const handleMenuClick = () => {
+    if (isMobile) setOpenMobile(false);
+  };
 
   const renderGroup = (label: string, items: MenuItem[]) => (
     <SidebarGroup key={label}>
@@ -102,6 +106,7 @@ export function AppSidebar() {
                 <NavLink
                   to={item.url}
                   end={item.url === "/"}
+                  onClick={handleMenuClick}
                   className="flex items-center gap-3 px-3 py-2 rounded-md text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                   activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                 >
@@ -144,11 +149,11 @@ export function AppSidebar() {
           {!collapsed && (
             <div className="flex flex-col flex-1 min-w-0">
               <span className="text-xs font-medium text-sidebar-foreground truncate">{roleLabel}</span>
-              <span className="text-[10px] text-sidebar-foreground/50 truncate">{user?.email || ''}</span>
+              <span className="text-[10px] text-sidebar-foreground/50 truncate">{user?.email || ""}</span>
             </div>
           )}
           {!collapsed && (
-            <button onClick={async () => { await signOut(); navigate('/login'); }} className="text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors">
+            <button onClick={async () => { await signOut(); navigate("/login"); }} className="text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors">
               <LogOut className="h-4 w-4" />
             </button>
           )}
@@ -157,3 +162,4 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+

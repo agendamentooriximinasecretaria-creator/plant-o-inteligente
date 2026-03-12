@@ -26,27 +26,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<UserRole | null>(null);
   const [professionalId, setProfessionalId] = useState<string | null>(null);
 
+  const clearProfileState = () => {
+    setRole(null);
+    setProfessionalId(null);
+  };
+
   const loadProfile = async (userId: string): Promise<boolean> => {
     try {
-      const sb = supabase as any;
-      const { data: profile, error } = await sb
+      const { data: profile, error } = await supabase
         .from('profiles')
         .select('role, profissional_id, ativo')
         .eq('user_id', userId)
         .maybeSingle();
 
       if (error || !profile || profile.ativo === false) {
-        setRole(null);
-        setProfessionalId(null);
+        clearProfileState();
         return false;
       }
 
       setRole(profile.role as UserRole);
-      setProfessionalId((profile.profissional_id as string | null) ?? null);
+      setProfessionalId(profile.profissional_id ?? null);
       return true;
     } catch {
-      setRole(null);
-      setProfessionalId(null);
+      clearProfileState();
       return false;
     }
   };
@@ -54,43 +56,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
-      if (!mounted) return;
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
+    const applySession = async (currentSession: Session | null, finalizeReady = false) => {
+      try {
+        if (!mounted) return;
 
-      if (currentSession?.user?.id) {
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+
+        if (!currentSession?.user?.id) {
+          clearProfileState();
+          return;
+        }
+
         const hasProfile = await loadProfile(currentSession.user.id);
+        if (!mounted) return;
+
         if (!hasProfile) {
-          // User exists but has no valid profile — sign them out
           await supabase.auth.signOut();
-          setUser(null);
-          setSession(null);
-        }
-      } else {
-        setRole(null);
-        setProfessionalId(null);
-      }
+          if (!mounted) return;
 
-      setIsReady(true);
+          setSession(null);
+          setUser(null);
+          clearProfileState();
+        }
+      } finally {
+        if (finalizeReady && mounted) setIsReady(true);
+      }
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
+      if (event === 'INITIAL_SESSION') return;
+      void applySession(currentSession, true);
     });
 
-    supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
-      if (!mounted) return;
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-
-      if (currentSession?.user?.id) {
-        const hasProfile = await loadProfile(currentSession.user.id);
-        if (!hasProfile && currentSession) {
-          await supabase.auth.signOut();
-          setUser(null);
-          setSession(null);
-        }
-      }
-
-      setIsReady(true);
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session: currentSession } }) => applySession(currentSession, true))
+      .catch(() => {
+        if (!mounted) return;
+        clearProfileState();
+        setUser(null);
+        setSession(null);
+        setIsReady(true);
+      });
 
     return () => {
       mounted = false;
@@ -99,12 +106,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
     return { error: error as Error | null };
   };
 
   const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     return { error: error as Error | null };
@@ -112,8 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    setRole(null);
-    setProfessionalId(null);
+    clearProfileState();
   };
 
   const value = useMemo(() => ({
@@ -142,3 +148,4 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 }
+

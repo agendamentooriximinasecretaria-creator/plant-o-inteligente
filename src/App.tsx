@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/AppLayout";
+import { AppErrorBoundary } from "@/components/AppErrorBoundary";
 import Dashboard from "@/pages/Dashboard";
 import EscalaPage from "@/pages/EscalaPage";
 import TrocasPage from "@/pages/TrocasPage";
@@ -27,37 +28,61 @@ import MeuPerfilPage from "@/pages/MeuPerfilPage";
 
 const queryClient = new QueryClient();
 
+function AuthLoadingScreen() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+    </div>
+  );
+}
+
+const getHomePath = (isProfessional: boolean) => (isProfessional ? "/meu-painel" : "/dashboard");
+
 function ProtectedRoutes() {
   const { user, isReady } = useAuth();
-  if (!isReady) return <div className="min-h-screen flex items-center justify-center bg-background"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
+  if (!isReady) return <AuthLoadingScreen />;
   if (!user) return <Navigate to="/login" replace />;
   return <AppLayout />;
 }
 
 function ManagerOnly({ children }: { children: React.ReactNode }) {
-  const { isMaster, isCoordinator, isReady } = useAuth();
-  if (!isReady) return null;
-  if (!isMaster && !isCoordinator) return <Navigate to="/" replace />;
+  const { isMaster, isCoordinator, isProfessional, isReady } = useAuth();
+  if (!isReady) return <AuthLoadingScreen />;
+  if (!isMaster && !isCoordinator) return <Navigate to={getHomePath(isProfessional)} replace />;
   return <>{children}</>;
 }
 
 function MasterOnly({ children }: { children: React.ReactNode }) {
-  const { isMaster, isReady } = useAuth();
-  if (!isReady) return null;
-  if (!isMaster) return <Navigate to="/" replace />;
+  const { isMaster, isProfessional, isReady } = useAuth();
+  if (!isReady) return <AuthLoadingScreen />;
+  if (!isMaster) return <Navigate to={getHomePath(isProfessional)} replace />;
+  return <>{children}</>;
+}
+
+function ProfessionalOnly({ children }: { children: React.ReactNode }) {
+  const { isProfessional, isReady } = useAuth();
+  if (!isReady) return <AuthLoadingScreen />;
+  if (!isProfessional) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
 
 function LoginRoute() {
-  const { user, isReady } = useAuth();
-  if (!isReady) return null;
-  if (user) return <Navigate to="/" replace />;
+  const { user, isProfessional, isReady } = useAuth();
+  if (!isReady) return <AuthLoadingScreen />;
+  if (user) return <Navigate to={getHomePath(isProfessional)} replace />;
   return <LoginPage />;
 }
 
-function RoleBasedDashboard() {
-  const { isProfessional } = useAuth();
-  if (isProfessional) return <ProfissionalDashboardPage />;
+function HomeRedirect() {
+  const { isProfessional, isReady } = useAuth();
+  if (!isReady) return <AuthLoadingScreen />;
+  return <Navigate to={getHomePath(isProfessional)} replace />;
+}
+
+function ManagerDashboardRoute() {
+  const { isProfessional, isReady } = useAuth();
+  if (!isReady) return <AuthLoadingScreen />;
+  if (isProfessional) return <Navigate to="/meu-painel" replace />;
   return <Dashboard />;
 }
 
@@ -68,31 +93,42 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route path="/login" element={<LoginRoute />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
-            <Route element={<ProtectedRoutes />}>
-              <Route path="/" element={<RoleBasedDashboard />} />
-              {/* Professional-only routes */}
-              <Route path="/minha-escala" element={<MinhaEscalaPage />} />
-              <Route path="/minhas-trocas" element={<MinhasTrocasPage />} />
-              <Route path="/meu-financeiro" element={<MeuFinanceiroPage />} />
-              <Route path="/meu-perfil" element={<MeuPerfilPage />} />
-              {/* Manager routes */}
-              <Route path="/escala" element={<ManagerOnly><EscalaPage /></ManagerOnly>} />
-              <Route path="/trocas" element={<ManagerOnly><TrocasPage /></ManagerOnly>} />
-              <Route path="/profissionais" element={<ManagerOnly><ProfissionaisPage /></ManagerOnly>} />
-              <Route path="/setores" element={<ManagerOnly><SetoresPage /></ManagerOnly>} />
-              <Route path="/financeiro" element={<ManagerOnly><FinanceiroPage /></ManagerOnly>} />
-              <Route path="/relatorios" element={<ManagerOnly><RelatoriosPage /></ManagerOnly>} />
-              <Route path="/notificacoes" element={<NotificacoesPage />} />
-              {/* Master-only routes */}
-              <Route path="/usuarios" element={<MasterOnly><UsuariosPage /></MasterOnly>} />
-              <Route path="/configuracoes" element={<MasterOnly><ConfiguracoesPage /></MasterOnly>} />
-              <Route path="/auditoria" element={<MasterOnly><AuditoriaPage /></MasterOnly>} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <AppErrorBoundary>
+            <Routes>
+              <Route path="/login" element={<LoginRoute />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route element={<ProtectedRoutes />}>
+                <Route path="/" element={<HomeRedirect />} />
+                <Route path="/index" element={<HomeRedirect />} />
+
+                {/* Manager routes */}
+                <Route path="/dashboard" element={<ManagerDashboardRoute />} />
+                <Route path="/escala" element={<ManagerOnly><EscalaPage /></ManagerOnly>} />
+                <Route path="/trocas" element={<ManagerOnly><TrocasPage /></ManagerOnly>} />
+                <Route path="/profissionais" element={<ManagerOnly><ProfissionaisPage /></ManagerOnly>} />
+                <Route path="/medicos" element={<Navigate to="/profissionais" replace />} />
+                <Route path="/setores" element={<ManagerOnly><SetoresPage /></ManagerOnly>} />
+                <Route path="/financeiro" element={<ManagerOnly><FinanceiroPage /></ManagerOnly>} />
+                <Route path="/relatorios" element={<ManagerOnly><RelatoriosPage /></ManagerOnly>} />
+
+                {/* Professional routes */}
+                <Route path="/meu-painel" element={<ProfessionalOnly><ProfissionalDashboardPage /></ProfessionalOnly>} />
+                <Route path="/minha-escala" element={<ProfessionalOnly><MinhaEscalaPage /></ProfessionalOnly>} />
+                <Route path="/meus-plantoes" element={<ProfessionalOnly><Navigate to="/minha-escala" replace /></ProfessionalOnly>} />
+                <Route path="/minhas-trocas" element={<ProfessionalOnly><MinhasTrocasPage /></ProfessionalOnly>} />
+                <Route path="/meu-financeiro" element={<ProfessionalOnly><MeuFinanceiroPage /></ProfessionalOnly>} />
+                <Route path="/meu-perfil" element={<ProfessionalOnly><MeuPerfilPage /></ProfessionalOnly>} />
+
+                <Route path="/notificacoes" element={<NotificacoesPage />} />
+
+                {/* Master-only routes */}
+                <Route path="/usuarios" element={<MasterOnly><UsuariosPage /></MasterOnly>} />
+                <Route path="/configuracoes" element={<MasterOnly><ConfiguracoesPage /></MasterOnly>} />
+                <Route path="/auditoria" element={<MasterOnly><AuditoriaPage /></MasterOnly>} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AppErrorBoundary>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
