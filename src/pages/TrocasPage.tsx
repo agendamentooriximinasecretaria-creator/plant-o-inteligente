@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
+import { dispatchNotification } from "@/lib/notifyHelper";
 import { SWAP_STATUS_LABELS } from "@/types/hospital";
 import type { SwapStatus } from "@/types/hospital";
 import { ArrowLeftRight, Clock, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
