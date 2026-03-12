@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
+import { dispatchNotification } from "@/lib/notifyHelper";
 import { Calendar, List, Clock, Plus, ChevronLeft, ChevronRight, Trash2, Edit } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -81,6 +82,13 @@ export default function EscalaPage() {
         const { error } = await supabase.from('shifts').insert(payload);
         if (error) throw error;
         await logAudit('Plantão criado', 'escala', { profissional: prof?.nome, data: data.data });
+        // Notify the professional
+        await dispatchNotification({
+          professionalId: data.profissional_id,
+          tipo: 'plantao',
+          titulo: 'Novo plantão agendado',
+          mensagem: `Você foi escalado para plantão em ${new Date(data.data + 'T12:00:00').toLocaleDateString('pt-BR')} das ${data.hora_inicio} às ${data.hora_fim}.`,
+        });
       }
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['shifts'] }); toast.success(editingId ? 'Plantão atualizado!' : 'Plantão criado!'); closeModal(); },

@@ -24,7 +24,7 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const navigate = useNavigate();
-  const { signOut, user, isMaster, isProfessional, role } = useAuth();
+  const { signOut, user, isMaster, isProfessional, role, profileName } = useAuth();
   const isActive = (path: string) => location.pathname === path || (path !== "/" && location.pathname.startsWith(path));
 
   const menuGroups = useMemo(() => {
@@ -82,8 +82,9 @@ export function AppSidebar() {
     return groups;
   }, [isMaster, isProfessional]);
 
+  const displayName = profileName || user?.email?.split('@')[0] || 'Usuário';
   const roleLabel = role === "gestor_master" ? "Gestor Master" : role === "coordenador" ? "Coordenador" : "Profissional";
-  const initials = roleLabel.split(" ").map(w => w[0]).join("").substring(0, 2).toUpperCase();
+  const initials = displayName.split(" ").map(w => w[0]).join("").substring(0, 2).toUpperCase();
 
   const handleMenuClick = () => {
     if (isMobile) setOpenMobile(false);
@@ -148,8 +149,8 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <div className="flex flex-col flex-1 min-w-0">
-              <span className="text-xs font-medium text-sidebar-foreground truncate">{roleLabel}</span>
-              <span className="text-[10px] text-sidebar-foreground/50 truncate">{user?.email || ""}</span>
+              <span className="text-xs font-medium text-sidebar-foreground truncate">{displayName}</span>
+              <span className="text-[10px] text-sidebar-foreground/50 truncate">{roleLabel} • {user?.email || ""}</span>
             </div>
           )}
           {!collapsed && (

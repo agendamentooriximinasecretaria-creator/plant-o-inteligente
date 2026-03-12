@@ -8,6 +8,7 @@ interface AuthContextType {
   session: Session | null;
   isReady: boolean;
   role: UserRole | null;
+  profileName: string | null;
   professionalId: string | null;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
@@ -25,17 +26,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
   const [role, setRole] = useState<UserRole | null>(null);
   const [professionalId, setProfessionalId] = useState<string | null>(null);
+  const [profileName, setProfileName] = useState<string | null>(null);
 
   const clearProfileState = () => {
     setRole(null);
     setProfessionalId(null);
+    setProfileName(null);
   };
 
   const loadProfile = async (userId: string): Promise<boolean> => {
     try {
       const { data: profile, error } = await supabase
         .from('profiles')
-        .select('role, profissional_id, ativo')
+        .select('role, profissional_id, ativo, nome')
         .eq('user_id', userId)
         .maybeSingle();
 
@@ -46,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setRole(profile.role as UserRole);
       setProfessionalId(profile.profissional_id ?? null);
+      setProfileName(profile.nome ?? null);
       return true;
     } catch {
       clearProfileState();
@@ -127,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     isReady,
     role,
+    profileName,
     professionalId,
     signIn,
     resetPassword,
@@ -134,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isMaster: role === 'gestor_master',
     isCoordinator: role === 'coordenador',
     isProfessional: role === 'profissional',
-  }), [user, session, isReady, role, professionalId]);
+  }), [user, session, isReady, role, profileName, professionalId]);
 
   return (
     <AuthContext.Provider value={value}>
