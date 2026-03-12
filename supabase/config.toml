@@ -1,1 +1,7 @@
 project_id = "ucmgnwnwapchxdomupsz"
+
+[functions.user-admin]
+verify_jwt = false
+
+[functions.bootstrap-master]
+verify_jwt = false
