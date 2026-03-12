@@ -81,7 +81,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(currentSession?.user ?? null);
 
       if (currentSession?.user?.id) {
-        await loadProfile(currentSession.user.id);
+        const hasProfile = await loadProfile(currentSession.user.id);
+        if (!hasProfile && currentSession) {
+          await supabase.auth.signOut();
+          setUser(null);
+          setSession(null);
+        }
       }
 
       setIsReady(true);
