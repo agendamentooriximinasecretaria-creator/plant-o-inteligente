@@ -96,10 +96,17 @@ export default function EscalaPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('shifts').delete().eq('id', id);
+    mutationFn: async (shift: any) => {
+      const { error } = await supabase.from('shifts').delete().eq('id', shift.id);
       if (error) throw error;
-      await logAudit('Plantão excluído', 'escala', { id });
+      await logAudit('Plantão excluído', 'escala', { id: shift.id });
+      // Notify professional about cancellation
+      await dispatchNotification({
+        professionalId: shift.profissional_id,
+        tipo: 'plantao',
+        titulo: '⚠️ Plantão cancelado',
+        mensagem: `Seu plantão em ${new Date(shift.data + 'T12:00:00').toLocaleDateString('pt-BR')} das ${shift.hora_inicio} às ${shift.hora_fim} foi cancelado.`,
+      });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['shifts'] }); toast.success('Plantão excluído!'); },
     onError: (e: Error) => toast.error(e.message),
