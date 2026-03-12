@@ -143,6 +143,18 @@ serve(async (req) => {
         created_user_id: newUserId, created_email: email, role,
       });
 
+      // Dispatch welcome notification
+      await admin.from("notifications").insert({
+        professional_id: profissionalId || null,
+        user_id: newUserId,
+        tipo: "boas_vindas",
+        titulo: "👋 Bem-vindo ao GestorPlantão SMS Oriximiná",
+        mensagem: `Olá ${nome}, sua conta foi criada com o perfil ${role === "gestor_master" ? "Gestor Master" : role === "coordenador" ? "Coordenador" : "Profissional de Saúde"}. Acesse o sistema com seu e-mail ${email}.`,
+        lida: false,
+        canal: "sistema",
+        status_envio: "enviado",
+      });
+
       return json(200, { success: true, user_id: newUserId });
     }
 
@@ -157,6 +169,18 @@ serve(async (req) => {
       if (error) return json(400, { error: error.message });
 
       await writeAudit(admin, caller.id, caller.email ?? "Gestor Master", "Senha redefinida por gestor", "usuarios", { target_user_id: userId });
+
+      // Dispatch notification to target user
+      await admin.from("notifications").insert({
+        user_id: userId,
+        tipo: "senha_redefinida",
+        titulo: "🔐 Sua senha foi redefinida pelo gestor",
+        mensagem: "O gestor redefiniu sua senha de acesso ao sistema. Altere sua senha no primeiro acesso.",
+        lida: false,
+        canal: "sistema",
+        status_envio: "enviado",
+      });
+
       return json(200, { success: true });
     }
 

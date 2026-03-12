@@ -96,10 +96,17 @@ export default function EscalaPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('shifts').delete().eq('id', id);
+    mutationFn: async (shift: any) => {
+      const { error } = await supabase.from('shifts').delete().eq('id', shift.id);
       if (error) throw error;
-      await logAudit('Plantão excluído', 'escala', { id });
+      await logAudit('Plantão excluído', 'escala', { id: shift.id });
+      // Notify professional about cancellation
+      await dispatchNotification({
+        professionalId: shift.profissional_id,
+        tipo: 'plantao',
+        titulo: '⚠️ Plantão cancelado',
+        mensagem: `Seu plantão em ${new Date(shift.data + 'T12:00:00').toLocaleDateString('pt-BR')} das ${shift.hora_inicio} às ${shift.hora_fim} foi cancelado.`,
+      });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['shifts'] }); toast.success('Plantão excluído!'); },
     onError: (e: Error) => toast.error(e.message),
@@ -171,7 +178,7 @@ export default function EscalaPage() {
                         <AlertDialog>
                           <AlertDialogTrigger asChild><button className="p-1 rounded hover:bg-destructive/10"><Trash2 className="h-4 w-4 text-destructive" /></button></AlertDialogTrigger>
                           <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir plantão?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => deleteMutation.mutate(s.id)}>Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+                            <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => deleteMutation.mutate(s)}>Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
                         </AlertDialog>
                       </div>
                     </td>
