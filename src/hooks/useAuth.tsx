@@ -60,7 +60,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(currentSession?.user ?? null);
 
       if (currentSession?.user?.id) {
-        await loadProfile(currentSession.user.id);
+        const hasProfile = await loadProfile(currentSession.user.id);
+        if (!hasProfile) {
+          // User exists but has no valid profile — sign them out
+          await supabase.auth.signOut();
+          setUser(null);
+          setSession(null);
+        }
       } else {
         setRole(null);
         setProfessionalId(null);
