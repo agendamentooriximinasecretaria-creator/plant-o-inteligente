@@ -24,7 +24,7 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const navigate = useNavigate();
-  const { signOut, user, isMaster, isProfessional, role } = useAuth();
+  const { signOut, user, isMaster, isProfessional, role, profileName } = useAuth();
   const isActive = (path: string) => location.pathname === path || (path !== "/" && location.pathname.startsWith(path));
 
   const menuGroups = useMemo(() => {
