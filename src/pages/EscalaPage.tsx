@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
+import { dispatchNotification } from "@/lib/notifyHelper";
 import { Calendar, List, Clock, Plus, ChevronLeft, ChevronRight, Trash2, Edit } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
