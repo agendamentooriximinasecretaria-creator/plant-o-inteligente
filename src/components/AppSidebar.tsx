@@ -82,8 +82,9 @@ export function AppSidebar() {
     return groups;
   }, [isMaster, isProfessional]);
 
+  const displayName = profileName || user?.email?.split('@')[0] || 'Usuário';
   const roleLabel = role === "gestor_master" ? "Gestor Master" : role === "coordenador" ? "Coordenador" : "Profissional";
-  const initials = roleLabel.split(" ").map(w => w[0]).join("").substring(0, 2).toUpperCase();
+  const initials = displayName.split(" ").map(w => w[0]).join("").substring(0, 2).toUpperCase();
 
   const handleMenuClick = () => {
     if (isMobile) setOpenMobile(false);
