@@ -54,6 +54,25 @@ export default function TrocasPage() {
         user_id: user?.id,
       });
       await logAudit(`Troca ${status}`, 'trocas', { swap_id: id, novo_status: status });
+      // Notify involved professionals
+      const swap = swaps.find((s: any) => s.id === id);
+      if (swap) {
+        const statusLabel = status === 'aprovada' ? 'aprovada' : 'rejeitada';
+        await dispatchNotification({
+          professionalId: swap.solicitante_id,
+          tipo: 'troca',
+          titulo: `Troca ${statusLabel}`,
+          mensagem: `Sua solicitação de troca foi ${statusLabel} pelo gestor.`,
+        });
+        if (swap.destinatario_id) {
+          await dispatchNotification({
+            professionalId: swap.destinatario_id,
+            tipo: 'troca',
+            titulo: `Troca ${statusLabel}`,
+            mensagem: `A troca de plantão envolvendo você foi ${statusLabel}.`,
+          });
+        }
+      }
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['swaps'] }); qc.invalidateQueries({ queryKey: ['swap-histories'] }); toast.success('Troca atualizada!'); },
     onError: (e: Error) => toast.error('Erro: ' + e.message),
