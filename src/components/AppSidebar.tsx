@@ -149,8 +149,8 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <div className="flex flex-col flex-1 min-w-0">
-              <span className="text-xs font-medium text-sidebar-foreground truncate">{roleLabel}</span>
-              <span className="text-[10px] text-sidebar-foreground/50 truncate">{user?.email || ""}</span>
+              <span className="text-xs font-medium text-sidebar-foreground truncate">{displayName}</span>
+              <span className="text-[10px] text-sidebar-foreground/50 truncate">{roleLabel} • {user?.email || ""}</span>
             </div>
           )}
           {!collapsed && (
