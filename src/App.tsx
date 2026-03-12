@@ -113,11 +113,11 @@ const App = () => (
 
                 {/* Professional routes */}
                 <Route path="/meu-painel" element={<ProfessionalOnly><ProfissionalDashboardPage /></ProfessionalOnly>} />
-                <Route path="/minha-escala" element={<MinhaEscalaPage />} />
-                <Route path="/meus-plantoes" element={<Navigate to="/minha-escala" replace />} />
-                <Route path="/minhas-trocas" element={<MinhasTrocasPage />} />
-                <Route path="/meu-financeiro" element={<MeuFinanceiroPage />} />
-                <Route path="/meu-perfil" element={<MeuPerfilPage />} />
+                <Route path="/minha-escala" element={<ProfessionalOnly><MinhaEscalaPage /></ProfessionalOnly>} />
+                <Route path="/meus-plantoes" element={<ProfessionalOnly><Navigate to="/minha-escala" replace /></ProfessionalOnly>} />
+                <Route path="/minhas-trocas" element={<ProfessionalOnly><MinhasTrocasPage /></ProfessionalOnly>} />
+                <Route path="/meu-financeiro" element={<ProfessionalOnly><MeuFinanceiroPage /></ProfessionalOnly>} />
+                <Route path="/meu-perfil" element={<ProfessionalOnly><MeuPerfilPage /></ProfessionalOnly>} />
 
                 <Route path="/notificacoes" element={<NotificacoesPage />} />
 
