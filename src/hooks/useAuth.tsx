@@ -26,7 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<UserRole | null>(null);
   const [professionalId, setProfessionalId] = useState<string | null>(null);
 
-  const loadProfile = async (userId: string) => {
+  const loadProfile = async (userId: string): Promise<boolean> => {
     try {
       const sb = supabase as any;
       const { data: profile, error } = await sb
@@ -38,14 +38,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error || !profile || profile.ativo === false) {
         setRole(null);
         setProfessionalId(null);
-        return;
+        return false;
       }
 
       setRole(profile.role as UserRole);
       setProfessionalId((profile.profissional_id as string | null) ?? null);
+      return true;
     } catch {
       setRole(null);
       setProfessionalId(null);
+      return false;
     }
   };
 
