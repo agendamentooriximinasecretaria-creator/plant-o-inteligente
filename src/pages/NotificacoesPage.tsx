@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Bell, CheckCircle2, Clock, AlertTriangle, Info } from "lucide-react";
@@ -15,7 +16,7 @@ const iconMap: Record<string, { icon: typeof Info; class: string }> = {
 export default function NotificacoesPage() {
   const qc = useQueryClient();
 
-  const { data: notifications = [], isLoading } = useQuery({
+  const { data: notifications = [], isLoading, refetch } = useQuery({
     queryKey: ['notifications'],
     queryFn: async () => {
       const { data, error } = await supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(50);
@@ -24,12 +25,21 @@ export default function NotificacoesPage() {
     },
   });
 
+  // Realtime subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel('notificacoes-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => refetch())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [refetch]);
+
   const markAllRead = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from('notifications').update({ lida: true }).eq('lida', false);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['notifications'] }); toast.success('Todas marcadas como lidas'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['notifications'] }); qc.invalidateQueries({ queryKey: ['unread-notifications-count'] }); toast.success('Todas marcadas como lidas'); },
   });
 
   const markRead = useMutation({
@@ -37,7 +47,7 @@ export default function NotificacoesPage() {
       const { error } = await supabase.from('notifications').update({ lida: true }).eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['notifications'] }); qc.invalidateQueries({ queryKey: ['unread-notifications-count'] }); },
   });
 
   const unreadCount = notifications.filter((n: any) => !n.lida).length;

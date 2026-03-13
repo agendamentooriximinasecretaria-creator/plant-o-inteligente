@@ -25,7 +25,7 @@ export default function EscalaPage() {
   const [conflictWarning, setConflictWarning] = useState('');
   const qc = useQueryClient();
 
-  const { data: shifts = [], isLoading } = useQuery({
+  const { data: shifts = [], isLoading, refetch: refetchShifts } = useQuery({
     queryKey: ['shifts'],
     queryFn: async () => {
       const { data, error } = await supabase.from('shifts').select('*, professionals:profissional_id(nome, profissao), units:unidade_id(nome), sectors:setor_id(nome)').order('data', { ascending: false });
@@ -33,6 +33,15 @@ export default function EscalaPage() {
       return data;
     },
   });
+
+  // Realtime subscription for shifts
+  useEffect(() => {
+    const channel = supabase
+      .channel('shifts-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts' }, () => refetchShifts())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [refetchShifts]);
 
   const { data: professionals = [] } = useQuery({ queryKey: ['professionals'], queryFn: async () => { const { data } = await supabase.from('professionals').select('*').eq('status', 'ativo').order('nome'); return data || []; } });
   const { data: units = [] } = useQuery({ queryKey: ['units'], queryFn: async () => { const { data } = await supabase.from('units').select('*').order('nome'); return data || []; } });

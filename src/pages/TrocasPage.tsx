@@ -31,7 +31,7 @@ export default function TrocasPage() {
     profA: '', shiftA: '', profB: '', shiftB: '', motivo: '',
   });
 
-  const { data: swaps = [], isLoading } = useQuery({
+  const { data: swaps = [], isLoading, refetch: refetchSwaps } = useQuery({
     queryKey: ['swaps'],
     queryFn: async () => {
       const { data, error } = await supabase.from('shift_swaps')
@@ -41,6 +41,18 @@ export default function TrocasPage() {
       return data;
     },
   });
+
+  // Realtime subscription for shift_swaps
+  useEffect(() => {
+    const channel = supabase
+      .channel('swaps-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shift_swaps' }, () => {
+        refetchSwaps();
+        qc.invalidateQueries({ queryKey: ['swap-histories'] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [refetchSwaps, qc]);
 
   const { data: swapHistories = [] } = useQuery({
     queryKey: ['swap-histories'],

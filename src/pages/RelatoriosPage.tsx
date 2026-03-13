@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
@@ -6,24 +6,66 @@ import { exportToPDF, exportToExcel, exportToCSV } from "@/lib/exportUtils";
 import { Download, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 const PROFISSAO_LABELS: Record<string, string> = { medico: 'Médico(a)', enfermeiro: 'Enfermeiro(a)', fisioterapeuta: 'Fisioterapeuta', tecnico_enfermagem: 'Téc. Enfermagem', biomedico: 'Biomédico(a)', psicologo: 'Psicólogo(a)', terapeuta_ocupacional: 'Terapeuta Ocupacional', nutricionista: 'Nutricionista', fonoaudiologo: 'Fonoaudiólogo(a)', farmaceutico: 'Farmacêutico(a)', outro: 'Outro' };
+
+const CORES = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))', 'hsl(var(--accent))'];
 
 const reports = [
   { id: 'profissionais', nome: 'Relatório de Profissionais', descricao: 'Lista completa de profissionais cadastrados', icon: '👥' },
   { id: 'plantoes', nome: 'Relatório de Plantões', descricao: 'Todos os plantões organizados por período', icon: '📋' },
-  { id: 'financeiro', nome: 'Relatório Financeiro por Profissional', descricao: 'Detalhamento financeiro individual', icon: '💰' },
+  { id: 'financeiro', nome: 'Relatório Financeiro por Profissional', descricao: 'Detalhamento financeiro individual', icon: '💰', hasChart: true },
   { id: 'trocas', nome: 'Relatório de Trocas', descricao: 'Histórico completo de trocas de plantão', icon: '🔄' },
-  { id: 'setores', nome: 'Relatório por Setor', descricao: 'Plantões e custos agrupados por setor', icon: '🏥' },
+  { id: 'setores', nome: 'Relatório por Setor', descricao: 'Plantões e custos agrupados por setor', icon: '🏥', hasChart: true },
   { id: 'cancelados', nome: 'Relatório de Plantões Cancelados', descricao: 'Plantões que foram cancelados', icon: '❌' },
+  { id: 'escala_mensal', nome: 'Escala Mensal Consolidada', descricao: 'Grid profissional × dia do mês', icon: '📆' },
+  { id: 'analise_trocas', nome: 'Análise de Trocas', descricao: 'Estatísticas e taxa de aprovação', icon: '📊', hasChart: true },
+  { id: 'cobertura_setor', nome: 'Cobertura por Setor', descricao: 'Plantões por setor com visualização', icon: '📈', hasChart: true },
 ];
 
 export default function RelatoriosPage() {
   const [exporting, setExporting] = useState('');
+  const [chartReport, setChartReport] = useState<string | null>(null);
 
   const { data: professionals = [] } = useQuery({ queryKey: ['professionals'], queryFn: async () => { const { data } = await supabase.from('professionals').select('*').order('nome'); return data || []; } });
   const { data: shifts = [] } = useQuery({ queryKey: ['shifts-report'], queryFn: async () => { const { data } = await supabase.from('shifts').select('*, professionals:profissional_id(nome, profissao), sectors:setor_id(nome), units:unidade_id(nome)').order('data', { ascending: false }); return data || []; } });
   const { data: swaps = [] } = useQuery({ queryKey: ['swaps-report'], queryFn: async () => { const { data } = await supabase.from('shift_swaps').select('*, solicitante:solicitante_id(nome), destinatario:destinatario_id(nome)').order('created_at', { ascending: false }); return data || []; } });
+
+  // Chart data
+  const financeiroChartData = useMemo(() => {
+    const byProf: Record<string, { nome: string; total: number }> = {};
+    shifts.forEach((s: any) => {
+      const nome = (s.professionals as any)?.nome || 'Desc.';
+      if (!byProf[s.profissional_id]) byProf[s.profissional_id] = { nome, total: 0 };
+      byProf[s.profissional_id].total += Number(s.valor_total);
+    });
+    return Object.values(byProf).sort((a, b) => b.total - a.total).slice(0, 10);
+  }, [shifts]);
+
+  const setorChartData = useMemo(() => {
+    const bySetor: Record<string, { nome: string; count: number; cost: number }> = {};
+    shifts.forEach((s: any) => {
+      const nome = (s.sectors as any)?.nome || 'Desc.';
+      if (!bySetor[s.setor_id]) bySetor[s.setor_id] = { nome, count: 0, cost: 0 };
+      bySetor[s.setor_id].count++;
+      bySetor[s.setor_id].cost += Number(s.valor_total);
+    });
+    return Object.values(bySetor);
+  }, [shifts]);
+
+  const trocasChartData = useMemo(() => {
+    const total = swaps.length;
+    const aprovadas = swaps.filter((s: any) => s.status === 'aprovada' || s.status === 'concluida').length;
+    const rejeitadas = swaps.filter((s: any) => s.status === 'rejeitada' || s.status === 'recusada').length;
+    const pendentes = swaps.filter((s: any) => ['solicitada', 'aguardando_resposta', 'aguardando_aprovacao', 'aceita'].includes(s.status)).length;
+    return [
+      { name: 'Aprovadas', value: aprovadas },
+      { name: 'Rejeitadas', value: rejeitadas },
+      { name: 'Pendentes', value: pendentes },
+      { name: 'Canceladas', value: total - aprovadas - rejeitadas - pendentes },
+    ].filter(d => d.value > 0);
+  }, [swaps]);
 
   const getReportData = (id: string): { columns: string[]; rows: string[][] } => {
     switch (id) {
@@ -55,6 +97,32 @@ export default function RelatoriosPage() {
         });
         return { columns: ['Setor', 'Qtd. Plantões', 'Custo Total'], rows: Object.values(bySetor).map(s => [s.nome, String(s.count), `R$ ${s.cost.toLocaleString('pt-BR')}`]) };
       }
+      case 'escala_mensal': {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const cols = ['Profissional', ...Array.from({ length: daysInMonth }, (_, i) => String(i + 1))];
+        const profMap: Record<string, { nome: string; days: Record<number, string> }> = {};
+        shifts.forEach((s: any) => {
+          const d = new Date(s.data + 'T12:00:00');
+          if (d.getMonth() === month && d.getFullYear() === year) {
+            const nome = (s.professionals as any)?.nome || '?';
+            if (!profMap[s.profissional_id]) profMap[s.profissional_id] = { nome, days: {} };
+            profMap[s.profissional_id].days[d.getDate()] = (s.sectors as any)?.nome?.substring(0, 3) || '✓';
+          }
+        });
+        const rows = Object.values(profMap).map(p => [p.nome, ...Array.from({ length: daysInMonth }, (_, i) => p.days[i + 1] || '')]);
+        return { columns: cols, rows };
+      }
+      case 'analise_trocas': {
+        const total = swaps.length;
+        const aprovadas = swaps.filter((s: any) => ['aprovada', 'concluida'].includes(s.status)).length;
+        const taxa = total > 0 ? ((aprovadas / total) * 100).toFixed(1) : '0';
+        return { columns: ['Métrica', 'Valor'], rows: [['Total de Trocas', String(total)], ['Aprovadas/Concluídas', String(aprovadas)], ['Taxa de Aprovação', `${taxa}%`], ['Rejeitadas', String(swaps.filter((s: any) => ['rejeitada', 'recusada'].includes(s.status)).length)], ['Pendentes', String(swaps.filter((s: any) => ['solicitada', 'aguardando_resposta', 'aguardando_aprovacao'].includes(s.status)).length)]] };
+      }
+      case 'cobertura_setor':
+        return getReportData('setores');
       default: return { columns: [], rows: [] };
     }
   };
@@ -78,6 +146,58 @@ export default function RelatoriosPage() {
     }
   };
 
+  const renderChart = (reportId: string) => {
+    if (reportId === 'financeiro' && financeiroChartData.length > 0) {
+      return (
+        <div className="h-64 mt-4">
+          <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Top 10 — Custo por Profissional</p>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={financeiroChartData} layout="vertical" margin={{ left: 80 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+              <YAxis type="category" dataKey="nome" tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} width={75} />
+              <Tooltip formatter={(v: number) => `R$ ${v.toLocaleString('pt-BR')}`} contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
+              <Bar dataKey="total" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+    if ((reportId === 'setores' || reportId === 'cobertura_setor') && setorChartData.length > 0) {
+      return (
+        <div className="h-64 mt-4">
+          <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Plantões por Setor</p>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={setorChartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="nome" tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} />
+              <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+              <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
+              <Bar dataKey="count" name="Plantões" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="cost" name="Custo (R$)" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+              <Legend />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+    if (reportId === 'analise_trocas' && trocasChartData.length > 0) {
+      return (
+        <div className="h-64 mt-4 flex justify-center">
+          <ResponsiveContainer width={300} height="100%">
+            <PieChart>
+              <Pie data={trocasChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={11}>
+                {trocasChartData.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
+              </Pie>
+              <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="space-y-6">
       <div><h1 className="module-title">Relatórios</h1><p className="text-muted-foreground text-sm mt-1">Gere e exporte relatórios gerenciais com dados reais</p></div>
@@ -95,7 +215,13 @@ export default function RelatoriosPage() {
                       {exporting === `${r.id}-${f}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />} {f.toUpperCase()}
                     </button>
                   ))}
+                  {r.hasChart && (
+                    <button onClick={() => setChartReport(chartReport === r.id ? null : r.id)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${chartReport === r.id ? 'bg-primary text-primary-foreground' : 'border border-border text-foreground hover:bg-muted'}`}>
+                      📊 Gráfico
+                    </button>
+                  )}
                 </div>
+                {chartReport === r.id && renderChart(r.id)}
               </div>
             </div>
           </motion.div>
