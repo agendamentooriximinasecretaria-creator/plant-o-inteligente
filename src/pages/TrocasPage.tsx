@@ -126,16 +126,19 @@ export default function TrocasPage() {
       });
       if (conflictB && conflictB.length > 0) throw new Error(`Conflito: Prof. A já tem plantão das ${conflictB[0].conflicting_start} às ${conflictB[0].conflicting_end} nesta data.`);
 
-      // Create swap record (use shiftA as primary shift_id)
+      // Create swap record with both shift IDs
       const { data: swap, error: swapErr } = await supabase.from('shift_swaps').insert({
         shift_id: shiftA,
+        shift_id_destino: shiftB,
         solicitante_id: profA,
         destinatario_id: profB,
         motivo: `[ADMINISTRATIVA] ${motivo.trim()}`,
         tipo: 'administrativo',
         status: 'concluida' as any,
         observacao_gestor: `Troca administrativa direta. Plantões: ${shiftA} ↔ ${shiftB}`,
-      }).select('id').single();
+        motivo_administrativo: motivo.trim(),
+        bypass_aprovacao: true,
+      } as any).select('id').single();
       if (swapErr) throw swapErr;
 
       // Swap professionals on both shifts
