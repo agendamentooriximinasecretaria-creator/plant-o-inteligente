@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
@@ -31,7 +31,7 @@ export default function TrocasPage() {
     profA: '', shiftA: '', profB: '', shiftB: '', motivo: '',
   });
 
-  const { data: swaps = [], isLoading } = useQuery({
+  const { data: swaps = [], isLoading, refetch: refetchSwaps } = useQuery({
     queryKey: ['swaps'],
     queryFn: async () => {
       const { data, error } = await supabase.from('shift_swaps')
@@ -41,6 +41,18 @@ export default function TrocasPage() {
       return data;
     },
   });
+
+  // Realtime subscription for shift_swaps
+  useEffect(() => {
+    const channel = supabase
+      .channel('swaps-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shift_swaps' }, () => {
+        refetchSwaps();
+        qc.invalidateQueries({ queryKey: ['swap-histories'] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [refetchSwaps, qc]);
 
   const { data: swapHistories = [] } = useQuery({
     queryKey: ['swap-histories'],
@@ -126,16 +138,19 @@ export default function TrocasPage() {
       });
       if (conflictB && conflictB.length > 0) throw new Error(`Conflito: Prof. A já tem plantão das ${conflictB[0].conflicting_start} às ${conflictB[0].conflicting_end} nesta data.`);
 
-      // Create swap record (use shiftA as primary shift_id)
+      // Create swap record with both shift IDs
       const { data: swap, error: swapErr } = await supabase.from('shift_swaps').insert({
         shift_id: shiftA,
+        shift_id_destino: shiftB,
         solicitante_id: profA,
         destinatario_id: profB,
         motivo: `[ADMINISTRATIVA] ${motivo.trim()}`,
         tipo: 'administrativo',
         status: 'concluida' as any,
         observacao_gestor: `Troca administrativa direta. Plantões: ${shiftA} ↔ ${shiftB}`,
-      }).select('id').single();
+        motivo_administrativo: motivo.trim(),
+        bypass_aprovacao: true,
+      } as any).select('id').single();
       if (swapErr) throw swapErr;
 
       // Swap professionals on both shifts

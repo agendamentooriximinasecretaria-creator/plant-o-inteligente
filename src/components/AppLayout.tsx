@@ -2,30 +2,50 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Bell, Search } from "lucide-react";
 import { Outlet, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useEffect } from "react";
+import { toast } from "sonner";
 
 export function AppLayout() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const { user, professionalId } = useAuth();
 
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ["unread-notifications-count", user?.id],
     enabled: !!user,
-    refetchInterval: 30_000, // poll every 30s
+    refetchInterval: 30_000,
     queryFn: async () => {
       let query = supabase
         .from("notifications")
         .select("id", { count: "exact", head: true })
         .eq("lida", false);
-
-      // The RLS handles filtering, just count
       const { count, error } = await query;
       if (error) return 0;
       return count || 0;
     },
   });
+
+  // Realtime notifications
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel('notif-realtime')
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'notifications',
+      }, (payload) => {
+        const n = payload.new as any;
+        if (n.user_id === user.id || n.professional_id === professionalId) {
+          toast.info(n.titulo, { description: n.mensagem });
+        }
+        qc.invalidateQueries({ queryKey: ['unread-notifications-count'] });
+        qc.invalidateQueries({ queryKey: ['notifications'] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user, professionalId, qc]);
 
   return (
     <SidebarProvider>
