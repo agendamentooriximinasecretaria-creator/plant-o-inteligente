@@ -307,36 +307,45 @@ export type Database = {
       }
       shift_swaps: {
         Row: {
+          bypass_aprovacao: boolean | null
           created_at: string
           destinatario_id: string | null
           id: string
           motivo: string
+          motivo_administrativo: string | null
           observacao_gestor: string | null
           shift_id: string
+          shift_id_destino: string | null
           solicitante_id: string
           status: Database["public"]["Enums"]["swap_status"]
           tipo: string
           updated_at: string
         }
         Insert: {
+          bypass_aprovacao?: boolean | null
           created_at?: string
           destinatario_id?: string | null
           id?: string
           motivo: string
+          motivo_administrativo?: string | null
           observacao_gestor?: string | null
           shift_id: string
+          shift_id_destino?: string | null
           solicitante_id: string
           status?: Database["public"]["Enums"]["swap_status"]
           tipo?: string
           updated_at?: string
         }
         Update: {
+          bypass_aprovacao?: boolean | null
           created_at?: string
           destinatario_id?: string | null
           id?: string
           motivo?: string
+          motivo_administrativo?: string | null
           observacao_gestor?: string | null
           shift_id?: string
+          shift_id_destino?: string | null
           solicitante_id?: string
           status?: Database["public"]["Enums"]["swap_status"]
           tipo?: string
@@ -348,6 +357,13 @@ export type Database = {
             columns: ["destinatario_id"]
             isOneToOne: false
             referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swaps_shift_id_destino_fkey"
+            columns: ["shift_id_destino"]
+            isOneToOne: false
+            referencedRelation: "shifts"
             referencedColumns: ["id"]
           },
           {
