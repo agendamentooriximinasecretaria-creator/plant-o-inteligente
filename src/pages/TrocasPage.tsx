@@ -151,7 +151,7 @@ export default function TrocasPage() {
         solicitante_id: profA,
         destinatario_id: profB,
         motivo: `[ADMINISTRATIVA] ${motivo.trim()}`,
-        tipo: 'administrativo',
+        tipo: 'administrativa',
         status: 'concluida' as any,
         observacao_gestor: `Troca administrativa direta. Plantões: ${shiftA} ↔ ${shiftB}`,
         motivo_administrativo: motivo.trim(),
