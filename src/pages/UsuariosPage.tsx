@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logAudit } from "@/lib/auditLog";
 import { toast } from "sonner";
 import { UserPlus, KeyRound, Shield, Power } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
