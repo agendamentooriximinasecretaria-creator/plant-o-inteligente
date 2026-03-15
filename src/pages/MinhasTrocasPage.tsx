@@ -164,6 +164,14 @@ export default function MinhasTrocasPage() {
         usuario: "Profissional",
         user_id: (await supabase.auth.getUser()).data.user?.id,
       });
+
+      // Notify the requesting professional
+      await dispatchNotification({
+        professionalId: selected.solicitante_id,
+        tipo: 'troca',
+        titulo: accept ? '✅ Troca aceita' : '❌ Troca recusada',
+        mensagem: accept ? 'Sua solicitação de troca foi aceita por um colega.' : 'Sua solicitação de troca foi recusada.',
+      });
     },
     onSuccess: (_, variables) => {
       toast.success(variables.accept ? "Troca aceita." : "Troca recusada.");
