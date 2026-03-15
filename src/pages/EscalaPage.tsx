@@ -199,26 +199,48 @@ export default function EscalaPage() {
         </motion.div>
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-lg border border-border p-6 shadow-[var(--shadow-card)]">
-          <p className="text-center text-muted-foreground">Visualização de calendário com dados reais do banco.</p>
-          <div className="grid grid-cols-7 gap-1 text-center mt-4">
+          <div className="flex flex-wrap gap-3 mb-4">
+            {(() => {
+              const sectorColors: Record<string, string> = {};
+              const palette = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))', 'hsl(var(--accent))'];
+              sectors.forEach((s: any, i: number) => { sectorColors[s.id] = palette[i % palette.length]; });
+              return sectors.map((s: any) => (
+                <div key={s.id} className="flex items-center gap-1.5 text-xs">
+                  <div className="h-2.5 w-2.5 rounded-full" style={{ background: sectorColors[s.id] }} />
+                  <span className="text-muted-foreground">{s.nome}</span>
+                </div>
+              ));
+            })()}
+          </div>
+          <div className="grid grid-cols-7 gap-1 text-center">
             {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
               <div key={d} className="text-xs font-semibold text-muted-foreground py-2">{d}</div>
             ))}
-            {Array.from({ length: 35 }, (_, i) => {
-              const firstDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getDay();
-              const day = i - firstDay + 1;
-              const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-              const isValid = day >= 1 && day <= daysInMonth;
-              const isToday = isValid && day === new Date().getDate();
-              const dateStr = isValid ? `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}` : '';
-              const dayShifts = isValid ? shifts.filter((s: any) => s.data === dateStr) : [];
-              return (
-                <div key={i} className={`min-h-[70px] p-1 rounded-lg border transition-colors ${isValid ? 'border-border/50 hover:border-primary/30 cursor-pointer' : 'border-transparent'} ${isToday ? 'bg-primary/5 border-primary/30' : ''}`}>
-                  {isValid && (<><span className={`text-xs font-medium ${isToday ? 'text-primary font-bold' : 'text-foreground'}`}>{day}</span>
-                    <div className="space-y-0.5 mt-1">{dayShifts.slice(0, 2).map((s: any) => (<div key={s.id} className="text-[9px] px-1 py-0.5 rounded bg-primary/10 text-primary truncate">{(s.professionals as any)?.nome?.split(' ')[0]}</div>))}{dayShifts.length > 2 && <div className="text-[9px] text-muted-foreground">+{dayShifts.length - 2}</div>}</div></>)}
-                </div>
-              );
-            })}
+            {(() => {
+              const sectorColors: Record<string, string> = {};
+              const palette = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))', 'hsl(var(--accent))'];
+              sectors.forEach((s: any, i: number) => { sectorColors[s.id] = palette[i % palette.length]; });
+              const now = new Date();
+              const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).getDay();
+              const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+              return Array.from({ length: 35 }, (_, i) => {
+                const day = i - firstDay + 1;
+                const isValid = day >= 1 && day <= daysInMonth;
+                const isToday = isValid && day === now.getDate();
+                const dateStr = isValid ? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}` : '';
+                const dayShifts = isValid ? shifts.filter((s: any) => s.data === dateStr) : [];
+                return (
+                  <div key={i} className={`min-h-[70px] p-1 rounded-lg border transition-colors ${isValid ? 'border-border/50 hover:border-primary/30 cursor-pointer' : 'border-transparent'} ${isToday ? 'bg-primary/5 border-primary/30' : ''}`}>
+                    {isValid && (<><span className={`text-xs font-medium ${isToday ? 'text-primary font-bold' : 'text-foreground'}`}>{day}</span>
+                      <div className="space-y-0.5 mt-1">{dayShifts.slice(0, 3).map((s: any) => (
+                        <div key={s.id} className="text-[9px] px-1 py-0.5 rounded truncate text-white font-medium" style={{ background: sectorColors[s.setor_id] || 'hsl(var(--muted-foreground))' }}>
+                          {(s.professionals as any)?.nome?.split(' ')[0]}
+                        </div>
+                      ))}{dayShifts.length > 3 && <div className="text-[9px] text-muted-foreground">+{dayShifts.length - 3}</div>}</div></>)}
+                  </div>
+                );
+              });
+            })()}
           </div>
         </motion.div>
       )}
