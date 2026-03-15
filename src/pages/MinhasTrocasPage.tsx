@@ -106,6 +106,17 @@ export default function MinhasTrocasPage() {
         usuario: "Profissional",
         user_id: (await supabase.auth.getUser()).data.user?.id,
       });
+
+      // Notify destination or all active professionals
+      if (form.tipo === "direto" && form.destinatario_id) {
+        await dispatchNotification({ professionalId: form.destinatario_id, tipo: 'troca', titulo: '🔄 Nova solicitação de troca', mensagem: 'Um colega solicitou uma troca de plantão com você.' });
+      } else {
+        // Group swap - notify all active professionals
+        const { data: allProfs } = await supabase.from("professionals").select("id").eq("status", "ativo").neq("id", professionalId!);
+        for (const p of allProfs || []) {
+          await dispatchNotification({ professionalId: p.id, tipo: 'troca', titulo: '🔄 Plantão disponível para troca', mensagem: 'Um colega disponibilizou um plantão para troca. Verifique na aba Trocas Recebidas.' });
+        }
+      }
     },
     onSuccess: () => {
       toast.success("Troca solicitada com sucesso.");
