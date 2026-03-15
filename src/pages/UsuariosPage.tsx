@@ -104,6 +104,31 @@ export default function UsuariosPage() {
     onError: (error: any) => toast.error(error.message ?? "Erro ao atualizar status."),
   });
 
+  const changeRole = useMutation({
+    mutationFn: async ({ profileId, currentRole, newRole }: { profileId: string; currentRole: string; newRole: string }) => {
+      if (currentRole === 'gestor_master' && newRole !== 'gestor_master') {
+        throw new Error('Não é possível rebaixar outro Gestor Master.');
+      }
+      // Update profile role
+      const { error: profErr } = await supabase.from('profiles').update({ role: newRole as any }).eq('id', profileId);
+      if (profErr) throw profErr;
+      // Also update user_roles table
+      const user = users.find((u: any) => u.id === profileId);
+      if (user?.user_id) {
+        const { error: delErr } = await supabase.from('user_roles').delete().eq('user_id', user.user_id);
+        if (delErr) throw delErr;
+        const { error: insErr } = await supabase.from('user_roles').insert({ user_id: user.user_id, role: newRole as any });
+        if (insErr) throw insErr;
+      }
+      await logAudit('Permissão alterada', 'usuarios', { profileId, role_anterior: currentRole, role_novo: newRole });
+    },
+    onSuccess: () => {
+      toast.success("Perfil atualizado com sucesso.");
+      qc.invalidateQueries({ queryKey: ["users-admin"] });
+    },
+    onError: (error: any) => toast.error(error.message ?? "Erro ao alterar perfil."),
+  });
+
   const availableProfessionals = professionals.filter((p: any) => !p.user_id || p.id === form.professional_id);
 
   return (
