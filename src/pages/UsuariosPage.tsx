@@ -174,7 +174,16 @@ export default function UsuariosPage() {
                   <td className="p-3 font-medium text-foreground">{u.nome}</td>
                   <td className="p-3 text-muted-foreground">{u.email}</td>
                   <td className="p-3">
-                    <span className="status-badge bg-primary/10 text-primary">{roleLabels[u.role] ?? u.role}</span>
+                    <select
+                      value={u.role}
+                      onChange={(e) => changeRole.mutate({ profileId: u.id, currentRole: u.role, newRole: e.target.value })}
+                      disabled={changeRole.isPending}
+                      className="rounded-lg border border-border bg-muted px-2 py-1 text-xs font-medium outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+                    >
+                      <option value="gestor_master">Gestor Master</option>
+                      <option value="coordenador">Coordenador</option>
+                      <option value="profissional">Profissional de Saúde</option>
+                    </select>
                   </td>
                   <td className="p-3 text-muted-foreground">{u.profissional_id ? professionalMap[u.profissional_id] ?? "—" : "—"}</td>
                   <td className="p-3">
