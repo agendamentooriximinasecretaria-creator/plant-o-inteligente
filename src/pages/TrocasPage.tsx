@@ -151,7 +151,7 @@ export default function TrocasPage() {
         solicitante_id: profA,
         destinatario_id: profB,
         motivo: `[ADMINISTRATIVA] ${motivo.trim()}`,
-        tipo: 'administrativo',
+        tipo: 'administrativa',
         status: 'concluida' as any,
         observacao_gestor: `Troca administrativa direta. Plantões: ${shiftA} ↔ ${shiftB}`,
         motivo_administrativo: motivo.trim(),
@@ -229,7 +229,7 @@ export default function TrocasPage() {
       ) : (
         <div className="space-y-4">
           {swaps.map((swap: any, i: number) => {
-            const isAdmin = swap.tipo === 'administrativo';
+            const isAdmin = swap.tipo === 'administrativa';
             const style = statusStyles[swap.status as SwapStatus] || statusStyles.solicitada;
             const Icon = style.icon;
             const history = swapHistories.filter((h: any) => h.swap_id === swap.id);
