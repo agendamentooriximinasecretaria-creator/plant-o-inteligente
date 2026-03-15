@@ -91,7 +91,13 @@ export default function TrocasPage() {
 
   const updateSwap = useMutation({
     mutationFn: async ({ id, status, motivo }: { id: string; status: string; motivo?: string }) => {
-      const { error } = await supabase.from('shift_swaps').update({ status: status as any, observacao_gestor: motivo || null }).eq('id', id);
+      const updatePayload: Record<string, any> = { status: status as any, observacao_gestor: motivo || null };
+      if (status === 'aprovada') updatePayload.aprovado_em = new Date().toISOString();
+      if (status === 'rejeitada') {
+        updatePayload.rejeitado_em = new Date().toISOString();
+        updatePayload.observacao_rejeicao = motivo || null;
+      }
+      const { error } = await supabase.from('shift_swaps').update(updatePayload as any).eq('id', id);
       if (error) throw error;
       const { data: { user } } = await supabase.auth.getUser();
       await supabase.from('swap_history').insert({

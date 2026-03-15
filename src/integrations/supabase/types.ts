@@ -307,6 +307,7 @@ export type Database = {
       }
       shift_swaps: {
         Row: {
+          aprovado_em: string | null
           bypass_aprovacao: boolean | null
           created_at: string
           destinatario_id: string | null
@@ -314,6 +315,8 @@ export type Database = {
           motivo: string
           motivo_administrativo: string | null
           observacao_gestor: string | null
+          observacao_rejeicao: string | null
+          rejeitado_em: string | null
           shift_id: string
           shift_id_destino: string | null
           solicitante_id: string
@@ -322,6 +325,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          aprovado_em?: string | null
           bypass_aprovacao?: boolean | null
           created_at?: string
           destinatario_id?: string | null
@@ -329,6 +333,8 @@ export type Database = {
           motivo: string
           motivo_administrativo?: string | null
           observacao_gestor?: string | null
+          observacao_rejeicao?: string | null
+          rejeitado_em?: string | null
           shift_id: string
           shift_id_destino?: string | null
           solicitante_id: string
@@ -337,6 +343,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          aprovado_em?: string | null
           bypass_aprovacao?: boolean | null
           created_at?: string
           destinatario_id?: string | null
@@ -344,6 +351,8 @@ export type Database = {
           motivo?: string
           motivo_administrativo?: string | null
           observacao_gestor?: string | null
+          observacao_rejeicao?: string | null
+          rejeitado_em?: string | null
           shift_id?: string
           shift_id_destino?: string | null
           solicitante_id?: string
