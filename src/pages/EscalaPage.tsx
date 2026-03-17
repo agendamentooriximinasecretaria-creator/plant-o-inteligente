@@ -73,6 +73,36 @@ export default function EscalaPage() {
     }
   };
 
+  // Check workload when professional/date changes
+  const checkWorkload = async () => {
+    if (!form.profissional_id || !form.data) { setWorkloadAlerts([]); return; }
+    const alerts: string[] = [];
+    // Check last 24h shifts
+    const yesterday = new Date(form.data + 'T00:00:00');
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yStr = yesterday.toISOString().split('T')[0];
+    const { data: recent } = await supabase.from('shifts').select('carga_horaria, hora_fim').eq('profissional_id', form.profissional_id).in('data', [form.data, yStr]).neq('status', 'cancelado');
+    const recentHours = (recent || []).reduce((s: number, r: any) => s + Number(r.carga_horaria), 0);
+    if (recentHours >= 24) alerts.push('🟡 Profissional já tem 24h nas últimas 24h');
+    // Check rest period (last shift ended less than 6h ago)
+    const lastShift = (recent || []).sort((a: any, b: any) => b.hora_fim > a.hora_fim ? 1 : -1)[0];
+    if (lastShift && form.hora_inicio) {
+      const [lh, lm] = lastShift.hora_fim.split(':').map(Number);
+      const [fh, fm] = form.hora_inicio.split(':').map(Number);
+      const gap = (fh * 60 + fm) - (lh * 60 + lm);
+      if (gap >= 0 && gap < 360) alerts.push('🔴 Profissional trabalhou nas últimas 6h (descanso mínimo não respeitado)');
+    }
+    // Check weekly hours
+    const weekStart = new Date(form.data + 'T00:00:00');
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    const { data: weekShifts } = await supabase.from('shifts').select('carga_horaria').eq('profissional_id', form.profissional_id).gte('data', weekStart.toISOString().split('T')[0]).lte('data', weekEnd.toISOString().split('T')[0]).neq('status', 'cancelado');
+    const weekHours = (weekShifts || []).reduce((s: number, r: any) => s + Number(r.carga_horaria), 0);
+    if (weekHours >= 60) alerts.push('🟠 Profissional já tem 60h esta semana (limite configurado)');
+    setWorkloadAlerts(alerts);
+  };
+
   const saveMutation = useMutation({
     mutationFn: async (data: typeof form) => {
       if (conflictWarning) throw new Error('Resolva o conflito de horário antes de salvar.');
@@ -89,22 +119,49 @@ export default function EscalaPage() {
         const { error } = await supabase.from('shifts').update(payload).eq('id', editingId);
         if (error) throw error;
         await logAudit('Plantão editado', 'escala', { id: editingId });
+      } else if (recurring.enabled && !editingId) {
+        // Recurring: create multiple shifts
+        const dates = getRecurringDates(data.data, recurring.frequency, recurring.weeks);
+        // Check conflicts for ALL dates first
+        for (const d of dates) {
+          const { data: conflicts } = await supabase.rpc('check_shift_conflict', {
+            p_profissional_id: data.profissional_id, p_data: d, p_hora_inicio: data.hora_inicio, p_hora_fim: data.hora_fim,
+          });
+          if (conflicts && conflicts.length > 0) throw new Error(`Conflito na data ${new Date(d + 'T12:00:00').toLocaleDateString('pt-BR')}: plantão das ${conflicts[0].conflicting_start} às ${conflicts[0].conflicting_end}.`);
+        }
+        const payloads = dates.map(d => ({ ...payload, data: d }));
+        const { error } = await supabase.from('shifts').insert(payloads);
+        if (error) throw error;
+        await logAudit('Plantões recorrentes criados', 'escala', { profissional: prof?.nome, count: dates.length, dates });
+        await dispatchNotification({
+          professionalId: data.profissional_id, tipo: 'plantao', titulo: 'Novos plantões agendados',
+          mensagem: `Você foi escalado para ${dates.length} plantões recorrentes.`,
+        });
       } else {
         const { error } = await supabase.from('shifts').insert(payload);
         if (error) throw error;
         await logAudit('Plantão criado', 'escala', { profissional: prof?.nome, data: data.data });
-        // Notify the professional
         await dispatchNotification({
-          professionalId: data.profissional_id,
-          tipo: 'plantao',
-          titulo: 'Novo plantão agendado',
+          professionalId: data.profissional_id, tipo: 'plantao', titulo: 'Novo plantão agendado',
           mensagem: `Você foi escalado para plantão em ${new Date(data.data + 'T12:00:00').toLocaleDateString('pt-BR')} das ${data.hora_inicio} às ${data.hora_fim}.`,
         });
       }
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['shifts'] }); toast.success(editingId ? 'Plantão atualizado!' : 'Plantão criado!'); closeModal(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['shifts'] }); toast.success(editingId ? 'Plantão atualizado!' : recurring.enabled ? 'Plantões recorrentes criados!' : 'Plantão criado!'); closeModal(); },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  function getRecurringDates(startDate: string, freq: string, weeks: number): string[] {
+    const dates: string[] = [];
+    const start = new Date(startDate + 'T12:00:00');
+    const interval = freq === 'weekly' ? 7 : freq === 'biweekly' ? 14 : 30;
+    for (let i = 0; i < weeks; i++) {
+      const d = new Date(start);
+      d.setDate(d.getDate() + (i * interval));
+      dates.push(d.toISOString().split('T')[0]);
+    }
+    return dates;
+  }
 
   const deleteMutation = useMutation({
     mutationFn: async (shift: any) => {
