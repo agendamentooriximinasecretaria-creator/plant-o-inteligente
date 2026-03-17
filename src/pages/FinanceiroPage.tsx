@@ -14,9 +14,10 @@ export default function FinanceiroPage() {
   });
 
   const activeShifts = shifts.filter((s: any) => s.status !== 'cancelado');
-  const totalCost = activeShifts.reduce((a: number, s: any) => a + Number(s.valor_total), 0);
-  const completedCost = shifts.filter((s: any) => s.status === 'concluido').reduce((a: number, s: any) => a + Number(s.valor_total), 0);
-  const pendingCost = totalCost - completedCost;
+  const today = new Date().toISOString().split('T')[0];
+  const completedCost = activeShifts.filter((s: any) => s.data < today).reduce((a: number, s: any) => a + Number(s.valor_total), 0);
+  const pendingCost = activeShifts.filter((s: any) => s.data >= today).reduce((a: number, s: any) => a + Number(s.valor_total), 0);
+  const totalCost = completedCost + pendingCost;
 
   const byProfMap: Record<string, { nome: string; total: number; horas: number; valorHora: number }> = {};
   activeShifts.forEach((s: any) => {

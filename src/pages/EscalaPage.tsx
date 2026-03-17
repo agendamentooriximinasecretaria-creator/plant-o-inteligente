@@ -13,7 +13,7 @@ const STATUS_LABELS: Record<string, string> = { agendado: 'Agendado', confirmado
 const STATUS_CLASSES: Record<string, string> = { agendado: 'bg-info/10 text-info', confirmado: 'bg-success/10 text-success', pendente: 'bg-warning/10 text-warning', em_aberto: 'bg-muted text-muted-foreground', trocando: 'bg-primary/10 text-primary', concluido: 'bg-accent/10 text-accent', cancelado: 'bg-destructive/10 text-destructive' };
 const PROFISSAO_LABELS: Record<string, string> = { medico: 'Médico(a)', enfermeiro: 'Enfermeiro(a)', fisioterapeuta: 'Fisioterapeuta', tecnico_enfermagem: 'Téc. Enfermagem', biomedico: 'Biomédico(a)', psicologo: 'Psicólogo(a)', terapeuta_ocupacional: 'Terapeuta Ocupacional', nutricionista: 'Nutricionista', fonoaudiologo: 'Fonoaudiólogo(a)', farmaceutico: 'Farmacêutico(a)', outro: 'Outro' };
 
-const emptyForm = { unidade_id: '', setor_id: '', profissao: 'medico', profissional_id: '', data: '', hora_inicio: '07:00', hora_fim: '19:00', tipo_plantao: 'Diurno 12h', observacoes: '', status: 'agendado' };
+const emptyForm = { unidade_id: '', setor_id: '', profissao: 'medico', profissional_id: '', data: '', hora_inicio: '07:00', hora_fim: '19:00', tipo_plantao: 'Diurno 12h', observacoes: '', status: 'confirmado' };
 
 export default function EscalaPage() {
   const [view, setView] = useState<'lista' | 'calendario'>('lista');
@@ -23,6 +23,8 @@ export default function EscalaPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [conflictWarning, setConflictWarning] = useState('');
+  const [recurring, setRecurring] = useState({ enabled: false, frequency: 'weekly', weeks: 1 });
+  const [workloadAlerts, setWorkloadAlerts] = useState<string[]>([]);
   const qc = useQueryClient();
 
   const { data: shifts = [], isLoading, refetch: refetchShifts } = useQuery({
@@ -71,6 +73,36 @@ export default function EscalaPage() {
     }
   };
 
+  // Check workload when professional/date changes
+  const checkWorkload = async () => {
+    if (!form.profissional_id || !form.data) { setWorkloadAlerts([]); return; }
+    const alerts: string[] = [];
+    // Check last 24h shifts
+    const yesterday = new Date(form.data + 'T00:00:00');
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yStr = yesterday.toISOString().split('T')[0];
+    const { data: recent } = await supabase.from('shifts').select('carga_horaria, hora_fim').eq('profissional_id', form.profissional_id).in('data', [form.data, yStr]).neq('status', 'cancelado');
+    const recentHours = (recent || []).reduce((s: number, r: any) => s + Number(r.carga_horaria), 0);
+    if (recentHours >= 24) alerts.push('🟡 Profissional já tem 24h nas últimas 24h');
+    // Check rest period (last shift ended less than 6h ago)
+    const lastShift = (recent || []).sort((a: any, b: any) => b.hora_fim > a.hora_fim ? 1 : -1)[0];
+    if (lastShift && form.hora_inicio) {
+      const [lh, lm] = lastShift.hora_fim.split(':').map(Number);
+      const [fh, fm] = form.hora_inicio.split(':').map(Number);
+      const gap = (fh * 60 + fm) - (lh * 60 + lm);
+      if (gap >= 0 && gap < 360) alerts.push('🔴 Profissional trabalhou nas últimas 6h (descanso mínimo não respeitado)');
+    }
+    // Check weekly hours
+    const weekStart = new Date(form.data + 'T00:00:00');
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    const { data: weekShifts } = await supabase.from('shifts').select('carga_horaria').eq('profissional_id', form.profissional_id).gte('data', weekStart.toISOString().split('T')[0]).lte('data', weekEnd.toISOString().split('T')[0]).neq('status', 'cancelado');
+    const weekHours = (weekShifts || []).reduce((s: number, r: any) => s + Number(r.carga_horaria), 0);
+    if (weekHours >= 60) alerts.push('🟠 Profissional já tem 60h esta semana (limite configurado)');
+    setWorkloadAlerts(alerts);
+  };
+
   const saveMutation = useMutation({
     mutationFn: async (data: typeof form) => {
       if (conflictWarning) throw new Error('Resolva o conflito de horário antes de salvar.');
@@ -87,22 +119,49 @@ export default function EscalaPage() {
         const { error } = await supabase.from('shifts').update(payload).eq('id', editingId);
         if (error) throw error;
         await logAudit('Plantão editado', 'escala', { id: editingId });
+      } else if (recurring.enabled && !editingId) {
+        // Recurring: create multiple shifts
+        const dates = getRecurringDates(data.data, recurring.frequency, recurring.weeks);
+        // Check conflicts for ALL dates first
+        for (const d of dates) {
+          const { data: conflicts } = await supabase.rpc('check_shift_conflict', {
+            p_profissional_id: data.profissional_id, p_data: d, p_hora_inicio: data.hora_inicio, p_hora_fim: data.hora_fim,
+          });
+          if (conflicts && conflicts.length > 0) throw new Error(`Conflito na data ${new Date(d + 'T12:00:00').toLocaleDateString('pt-BR')}: plantão das ${conflicts[0].conflicting_start} às ${conflicts[0].conflicting_end}.`);
+        }
+        const payloads = dates.map(d => ({ ...payload, data: d }));
+        const { error } = await supabase.from('shifts').insert(payloads);
+        if (error) throw error;
+        await logAudit('Plantões recorrentes criados', 'escala', { profissional: prof?.nome, count: dates.length, dates });
+        await dispatchNotification({
+          professionalId: data.profissional_id, tipo: 'plantao', titulo: 'Novos plantões agendados',
+          mensagem: `Você foi escalado para ${dates.length} plantões recorrentes.`,
+        });
       } else {
         const { error } = await supabase.from('shifts').insert(payload);
         if (error) throw error;
         await logAudit('Plantão criado', 'escala', { profissional: prof?.nome, data: data.data });
-        // Notify the professional
         await dispatchNotification({
-          professionalId: data.profissional_id,
-          tipo: 'plantao',
-          titulo: 'Novo plantão agendado',
+          professionalId: data.profissional_id, tipo: 'plantao', titulo: 'Novo plantão agendado',
           mensagem: `Você foi escalado para plantão em ${new Date(data.data + 'T12:00:00').toLocaleDateString('pt-BR')} das ${data.hora_inicio} às ${data.hora_fim}.`,
         });
       }
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['shifts'] }); toast.success(editingId ? 'Plantão atualizado!' : 'Plantão criado!'); closeModal(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['shifts'] }); toast.success(editingId ? 'Plantão atualizado!' : recurring.enabled ? 'Plantões recorrentes criados!' : 'Plantão criado!'); closeModal(); },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  function getRecurringDates(startDate: string, freq: string, weeks: number): string[] {
+    const dates: string[] = [];
+    const start = new Date(startDate + 'T12:00:00');
+    const interval = freq === 'weekly' ? 7 : freq === 'biweekly' ? 14 : 30;
+    for (let i = 0; i < weeks; i++) {
+      const d = new Date(start);
+      d.setDate(d.getDate() + (i * interval));
+      dates.push(d.toISOString().split('T')[0]);
+    }
+    return dates;
+  }
 
   const deleteMutation = useMutation({
     mutationFn: async (shift: any) => {
@@ -121,7 +180,7 @@ export default function EscalaPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const closeModal = () => { setModalOpen(false); setEditingId(null); setForm(emptyForm); setConflictWarning(''); };
+  const closeModal = () => { setModalOpen(false); setEditingId(null); setForm(emptyForm); setConflictWarning(''); setWorkloadAlerts([]); setRecurring({ enabled: false, frequency: 'weekly', weeks: 1 }); };
 
   const openEdit = (s: any) => {
     setEditingId(s.id);
@@ -263,10 +322,10 @@ export default function EscalaPage() {
                   {Object.entries(PROFISSAO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select></div>
               <div><label className="text-sm font-medium text-foreground">Profissional *</label>
-                <select required value={form.profissional_id} onChange={e => { setForm(f => ({ ...f, profissional_id: e.target.value })); setTimeout(checkConflict, 100); }} className={inputClass}>
+                <select required value={form.profissional_id} onChange={e => { setForm(f => ({ ...f, profissional_id: e.target.value })); setTimeout(checkConflict, 100); setTimeout(checkWorkload, 100); }} className={inputClass}>
                   <option value="">Selecione...</option>{professionals.filter((p: any) => !form.profissao || p.profissao === form.profissao).map((p: any) => <option key={p.id} value={p.id}>{p.nome}</option>)}
                 </select></div>
-              <div><label className="text-sm font-medium text-foreground">Data *</label><input required type="date" value={form.data} onChange={e => { setForm(f => ({ ...f, data: e.target.value })); setTimeout(checkConflict, 100); }} className={inputClass} /></div>
+              <div><label className="text-sm font-medium text-foreground">Data *</label><input required type="date" value={form.data} onChange={e => { setForm(f => ({ ...f, data: e.target.value })); setTimeout(checkConflict, 100); setTimeout(checkWorkload, 100); }} className={inputClass} /></div>
               <div><label className="text-sm font-medium text-foreground">Tipo</label><input value={form.tipo_plantao} onChange={e => setForm(f => ({ ...f, tipo_plantao: e.target.value }))} className={inputClass} /></div>
               <div><label className="text-sm font-medium text-foreground">Hora início *</label><input required type="time" value={form.hora_inicio} onChange={e => { setForm(f => ({ ...f, hora_inicio: e.target.value })); setTimeout(checkConflict, 100); }} className={inputClass} /></div>
               <div><label className="text-sm font-medium text-foreground">Hora fim *</label><input required type="time" value={form.hora_fim} onChange={e => { setForm(f => ({ ...f, hora_fim: e.target.value })); setTimeout(checkConflict, 100); }} className={inputClass} /></div>
@@ -276,10 +335,59 @@ export default function EscalaPage() {
                 </select></div>
             </div>
             {conflictWarning && <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive font-medium">{conflictWarning}</div>}
+            {(() => {
+              const prof = professionals.find((p: any) => p.id === form.profissional_id);
+              if (prof && (prof.valor_hora === 0 || prof.valor_hora === null)) {
+                return <div className="p-3 bg-warning/10 border border-warning/30 rounded-lg text-sm text-warning font-medium">⚠️ Profissional sem valor/hora cadastrado. Configure em Profissionais.</div>;
+              }
+              return null;
+            })()}
+            {form.profissional_id && form.hora_inicio && form.hora_fim && (() => {
+              const prof = professionals.find((p: any) => p.id === form.profissional_id);
+              const hours = calcHours(form.hora_inicio, form.hora_fim);
+              const total = (prof?.valor_hora || 0) * hours;
+              return <div className="p-3 bg-info/10 border border-info/30 rounded-lg text-sm text-info font-medium">📊 {hours.toFixed(1)}h × R$ {prof?.valor_hora || 0}/h = <strong>R$ {total.toFixed(2)}</strong></div>;
+            })()}
+            {workloadAlerts.length > 0 && (
+              <div className="space-y-1">
+                {workloadAlerts.map((a, i) => <div key={i} className="p-2 bg-warning/10 border border-warning/30 rounded-lg text-xs text-warning font-medium">{a}</div>)}
+              </div>
+            )}
+            {!editingId && (
+              <div className="border border-border rounded-lg p-3 space-y-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-foreground cursor-pointer">
+                  <input type="checkbox" checked={recurring.enabled} onChange={e => setRecurring(r => ({ ...r, enabled: e.target.checked }))} className="rounded" />
+                  🔁 Repetir este plantão
+                </label>
+                {recurring.enabled && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-muted-foreground">Frequência</label>
+                      <select value={recurring.frequency} onChange={e => setRecurring(r => ({ ...r, frequency: e.target.value }))} className={inputClass}>
+                        <option value="weekly">Semanalmente</option>
+                        <option value="biweekly">Quinzenalmente</option>
+                        <option value="monthly">Mensalmente</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Repetições (1-12)</label>
+                      <input type="number" min={1} max={12} value={recurring.weeks} onChange={e => setRecurring(r => ({ ...r, weeks: Math.min(12, Math.max(1, Number(e.target.value))) }))} className={inputClass} />
+                    </div>
+                    {form.data && (
+                      <div className="col-span-2 text-xs text-muted-foreground">
+                        Serão criados {recurring.weeks} plantões: {getRecurringDates(form.data, recurring.frequency, recurring.weeks).map(d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR')).join(', ')}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             <div><label className="text-sm font-medium text-foreground">Observações</label><textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} rows={2} className={inputClass} /></div>
             <div className="flex justify-end gap-3">
               <button type="button" onClick={closeModal} className="px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted">Cancelar</button>
-              <button type="submit" disabled={saveMutation.isPending || !!conflictWarning} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50">{saveMutation.isPending ? 'Salvando...' : 'Salvar'}</button>
+              <button type="submit" disabled={saveMutation.isPending || !!conflictWarning} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50">
+                {saveMutation.isPending ? 'Salvando...' : recurring.enabled ? `Criar ${recurring.weeks} plantões` : 'Salvar'}
+              </button>
             </div>
           </form>
         </DialogContent>
