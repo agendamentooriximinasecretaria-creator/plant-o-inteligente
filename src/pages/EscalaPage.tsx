@@ -276,6 +276,19 @@ export default function EscalaPage() {
                 </select></div>
             </div>
             {conflictWarning && <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive font-medium">{conflictWarning}</div>}
+            {(() => {
+              const prof = professionals.find((p: any) => p.id === form.profissional_id);
+              if (prof && (prof.valor_hora === 0 || prof.valor_hora === null)) {
+                return <div className="p-3 bg-warning/10 border border-warning/30 rounded-lg text-sm text-warning font-medium">⚠️ Profissional sem valor/hora cadastrado. Configure em Profissionais.</div>;
+              }
+              return null;
+            })()}
+            {form.profissional_id && form.hora_inicio && form.hora_fim && (() => {
+              const prof = professionals.find((p: any) => p.id === form.profissional_id);
+              const hours = calcHours(form.hora_inicio, form.hora_fim);
+              const total = (prof?.valor_hora || 0) * hours;
+              return <div className="p-3 bg-info/10 border border-info/30 rounded-lg text-sm text-info font-medium">📊 {hours.toFixed(1)}h × R$ {prof?.valor_hora || 0}/h = <strong>R$ {total.toFixed(2)}</strong></div>;
+            })()}
             <div><label className="text-sm font-medium text-foreground">Observações</label><textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} rows={2} className={inputClass} /></div>
             <div className="flex justify-end gap-3">
               <button type="button" onClick={closeModal} className="px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted">Cancelar</button>

@@ -131,8 +131,8 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="font-display text-sm font-bold text-sidebar-foreground">MedShift</span>
-              <span className="text-[10px] text-sidebar-foreground/50">Gestão de Plantões</span>
+              <span className="font-display text-sm font-bold text-sidebar-foreground">GestorPlantão</span>
+              <span className="text-[10px] text-sidebar-foreground/50">SMS Oriximiná</span>
             </div>
           )}
         </div>
