@@ -348,10 +348,46 @@ export default function EscalaPage() {
               const total = (prof?.valor_hora || 0) * hours;
               return <div className="p-3 bg-info/10 border border-info/30 rounded-lg text-sm text-info font-medium">📊 {hours.toFixed(1)}h × R$ {prof?.valor_hora || 0}/h = <strong>R$ {total.toFixed(2)}</strong></div>;
             })()}
+            {workloadAlerts.length > 0 && (
+              <div className="space-y-1">
+                {workloadAlerts.map((a, i) => <div key={i} className="p-2 bg-warning/10 border border-warning/30 rounded-lg text-xs text-warning font-medium">{a}</div>)}
+              </div>
+            )}
+            {!editingId && (
+              <div className="border border-border rounded-lg p-3 space-y-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-foreground cursor-pointer">
+                  <input type="checkbox" checked={recurring.enabled} onChange={e => setRecurring(r => ({ ...r, enabled: e.target.checked }))} className="rounded" />
+                  🔁 Repetir este plantão
+                </label>
+                {recurring.enabled && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-muted-foreground">Frequência</label>
+                      <select value={recurring.frequency} onChange={e => setRecurring(r => ({ ...r, frequency: e.target.value }))} className={inputClass}>
+                        <option value="weekly">Semanalmente</option>
+                        <option value="biweekly">Quinzenalmente</option>
+                        <option value="monthly">Mensalmente</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Repetições (1-12)</label>
+                      <input type="number" min={1} max={12} value={recurring.weeks} onChange={e => setRecurring(r => ({ ...r, weeks: Math.min(12, Math.max(1, Number(e.target.value))) }))} className={inputClass} />
+                    </div>
+                    {form.data && (
+                      <div className="col-span-2 text-xs text-muted-foreground">
+                        Serão criados {recurring.weeks} plantões: {getRecurringDates(form.data, recurring.frequency, recurring.weeks).map(d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR')).join(', ')}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             <div><label className="text-sm font-medium text-foreground">Observações</label><textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} rows={2} className={inputClass} /></div>
             <div className="flex justify-end gap-3">
               <button type="button" onClick={closeModal} className="px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted">Cancelar</button>
-              <button type="submit" disabled={saveMutation.isPending || !!conflictWarning} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50">{saveMutation.isPending ? 'Salvando...' : 'Salvar'}</button>
+              <button type="submit" disabled={saveMutation.isPending || !!conflictWarning} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50">
+                {saveMutation.isPending ? 'Salvando...' : recurring.enabled ? `Criar ${recurring.weeks} plantões` : 'Salvar'}
+              </button>
             </div>
           </form>
         </DialogContent>
