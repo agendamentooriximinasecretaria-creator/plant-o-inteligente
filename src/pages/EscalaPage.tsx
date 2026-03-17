@@ -23,6 +23,8 @@ export default function EscalaPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [conflictWarning, setConflictWarning] = useState('');
+  const [recurring, setRecurring] = useState({ enabled: false, frequency: 'weekly', weeks: 1 });
+  const [workloadAlerts, setWorkloadAlerts] = useState<string[]>([]);
   const qc = useQueryClient();
 
   const { data: shifts = [], isLoading, refetch: refetchShifts } = useQuery({
