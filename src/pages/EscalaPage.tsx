@@ -13,7 +13,7 @@ const STATUS_LABELS: Record<string, string> = { agendado: 'Agendado', confirmado
 const STATUS_CLASSES: Record<string, string> = { agendado: 'bg-info/10 text-info', confirmado: 'bg-success/10 text-success', pendente: 'bg-warning/10 text-warning', em_aberto: 'bg-muted text-muted-foreground', trocando: 'bg-primary/10 text-primary', concluido: 'bg-accent/10 text-accent', cancelado: 'bg-destructive/10 text-destructive' };
 const PROFISSAO_LABELS: Record<string, string> = { medico: 'Médico(a)', enfermeiro: 'Enfermeiro(a)', fisioterapeuta: 'Fisioterapeuta', tecnico_enfermagem: 'Téc. Enfermagem', biomedico: 'Biomédico(a)', psicologo: 'Psicólogo(a)', terapeuta_ocupacional: 'Terapeuta Ocupacional', nutricionista: 'Nutricionista', fonoaudiologo: 'Fonoaudiólogo(a)', farmaceutico: 'Farmacêutico(a)', outro: 'Outro' };
 
-const emptyForm = { unidade_id: '', setor_id: '', profissao: 'medico', profissional_id: '', data: '', hora_inicio: '07:00', hora_fim: '19:00', tipo_plantao: 'Diurno 12h', observacoes: '', status: 'agendado' };
+const emptyForm = { unidade_id: '', setor_id: '', profissao: 'medico', profissional_id: '', data: '', hora_inicio: '07:00', hora_fim: '19:00', tipo_plantao: 'Diurno 12h', observacoes: '', status: 'confirmado' };
 
 export default function EscalaPage() {
   const [view, setView] = useState<'lista' | 'calendario'>('lista');
