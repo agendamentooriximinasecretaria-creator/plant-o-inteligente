@@ -322,10 +322,10 @@ export default function EscalaPage() {
                   {Object.entries(PROFISSAO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select></div>
               <div><label className="text-sm font-medium text-foreground">Profissional *</label>
-                <select required value={form.profissional_id} onChange={e => { setForm(f => ({ ...f, profissional_id: e.target.value })); setTimeout(checkConflict, 100); }} className={inputClass}>
+                <select required value={form.profissional_id} onChange={e => { setForm(f => ({ ...f, profissional_id: e.target.value })); setTimeout(checkConflict, 100); setTimeout(checkWorkload, 100); }} className={inputClass}>
                   <option value="">Selecione...</option>{professionals.filter((p: any) => !form.profissao || p.profissao === form.profissao).map((p: any) => <option key={p.id} value={p.id}>{p.nome}</option>)}
                 </select></div>
-              <div><label className="text-sm font-medium text-foreground">Data *</label><input required type="date" value={form.data} onChange={e => { setForm(f => ({ ...f, data: e.target.value })); setTimeout(checkConflict, 100); }} className={inputClass} /></div>
+              <div><label className="text-sm font-medium text-foreground">Data *</label><input required type="date" value={form.data} onChange={e => { setForm(f => ({ ...f, data: e.target.value })); setTimeout(checkConflict, 100); setTimeout(checkWorkload, 100); }} className={inputClass} /></div>
               <div><label className="text-sm font-medium text-foreground">Tipo</label><input value={form.tipo_plantao} onChange={e => setForm(f => ({ ...f, tipo_plantao: e.target.value }))} className={inputClass} /></div>
               <div><label className="text-sm font-medium text-foreground">Hora início *</label><input required type="time" value={form.hora_inicio} onChange={e => { setForm(f => ({ ...f, hora_inicio: e.target.value })); setTimeout(checkConflict, 100); }} className={inputClass} /></div>
               <div><label className="text-sm font-medium text-foreground">Hora fim *</label><input required type="time" value={form.hora_fim} onChange={e => { setForm(f => ({ ...f, hora_fim: e.target.value })); setTimeout(checkConflict, 100); }} className={inputClass} /></div>
