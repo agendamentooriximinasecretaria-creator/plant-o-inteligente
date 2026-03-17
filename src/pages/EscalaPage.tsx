@@ -180,7 +180,7 @@ export default function EscalaPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const closeModal = () => { setModalOpen(false); setEditingId(null); setForm(emptyForm); setConflictWarning(''); };
+  const closeModal = () => { setModalOpen(false); setEditingId(null); setForm(emptyForm); setConflictWarning(''); setWorkloadAlerts([]); setRecurring({ enabled: false, frequency: 'weekly', weeks: 1 }); };
 
   const openEdit = (s: any) => {
     setEditingId(s.id);
