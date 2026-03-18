@@ -28,10 +28,10 @@ export default function TrocasPage() {
   const qc = useQueryClient();
   const { isMaster } = useAuth();
   const [adminModalOpen, setAdminModalOpen] = useState(false);
+  const [comprovanteId, setComprovanteId] = useState<string | null>(null);
   const [adminForm, setAdminForm] = useState({
     profA: '', shiftA: '', profB: '', shiftB: '', motivo: '',
   });
-
   const { data: swaps = [], isLoading, refetch: refetchSwaps } = useQuery({
     queryKey: ['swaps'],
     queryFn: async () => {
