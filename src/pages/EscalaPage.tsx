@@ -379,11 +379,7 @@ export default function EscalaPage() {
             );
           })()}
         </motion.div>
-                );
-              });
-            })()}
-          </div>
-        </motion.div>
+      )}
       )}
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
