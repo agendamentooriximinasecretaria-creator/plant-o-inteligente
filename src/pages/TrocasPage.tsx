@@ -90,6 +90,47 @@ export default function TrocasPage() {
   const shiftsForA = useMemo(() => adminForm.profA ? allShifts.filter((s: any) => s.profissional_id === adminForm.profA) : [], [allShifts, adminForm.profA]);
   const shiftsForB = useMemo(() => adminForm.profB ? allShifts.filter((s: any) => s.profissional_id === adminForm.profB) : [], [allShifts, adminForm.profB]);
 
+  // Atomic swap execution — updates shifts then marks swap as concluded
+  const efetivarTroca = async (trocaId: string) => {
+    const { data: troca, error: fetchErr } = await supabase
+      .from('shift_swaps')
+      .select('*')
+      .eq('id', trocaId)
+      .single();
+    if (fetchErr || !troca) throw new Error('Troca não encontrada');
+
+    if (troca.shift_id_destino) {
+      // Bilateral swap
+      const [updateA, updateB] = await Promise.all([
+        supabase.from('shifts').update({ profissional_id: troca.destinatario_id, updated_at: new Date().toISOString() }).eq('id', troca.shift_id),
+        supabase.from('shifts').update({ profissional_id: troca.solicitante_id, updated_at: new Date().toISOString() }).eq('id', troca.shift_id_destino),
+      ]);
+      if (updateA.error) throw new Error(`Erro plantão A: ${updateA.error.message}`);
+      if (updateB.error) throw new Error(`Erro plantão B: ${updateB.error.message}`);
+    } else {
+      // Simple swap
+      const { error } = await supabase.from('shifts')
+        .update({ profissional_id: troca.destinatario_id, updated_at: new Date().toISOString() })
+        .eq('id', troca.shift_id);
+      if (error) throw new Error(`Erro ao efetivar: ${error.message}`);
+    }
+
+    await supabase.from('shift_swaps')
+      .update({ status: 'concluida' as any, aprovado_em: new Date().toISOString() })
+      .eq('id', trocaId);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from('swap_history').insert({
+      swap_id: trocaId,
+      acao: 'Troca efetivada na escala',
+      usuario: user?.email || 'Sistema',
+      user_id: user?.id,
+      detalhes: JSON.stringify({ shift_origem: troca.shift_id, shift_destino: troca.shift_id_destino, profA: troca.solicitante_id, profB: troca.destinatario_id }),
+    });
+
+    await logAudit('Troca efetivada — escala atualizada', 'trocas', { swap_id: trocaId, shift_ids: [troca.shift_id, troca.shift_id_destino] });
+  };
+
   const updateSwap = useMutation({
     mutationFn: async ({ id, status, motivo }: { id: string; status: string; motivo?: string }) => {
       const updatePayload: Record<string, any> = { status: status as any, observacao_gestor: motivo || null };
@@ -100,6 +141,12 @@ export default function TrocasPage() {
       }
       const { error } = await supabase.from('shift_swaps').update(updatePayload as any).eq('id', id);
       if (error) throw error;
+
+      // If approved, execute the swap atomically
+      if (status === 'aprovada') {
+        await efetivarTroca(id);
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       await supabase.from('swap_history').insert({
         swap_id: id,
@@ -110,14 +157,19 @@ export default function TrocasPage() {
       await logAudit(`Troca ${status}`, 'trocas', { swap_id: id, novo_status: status });
       const swap = swaps.find((s: any) => s.id === id);
       if (swap) {
-        const statusLabel = status === 'aprovada' ? 'aprovada' : 'rejeitada';
-        await dispatchNotification({ professionalId: swap.solicitante_id, tipo: 'troca', titulo: `Troca ${statusLabel}`, mensagem: `Sua solicitação de troca foi ${statusLabel} pelo gestor.` });
+        const statusLabel = status === 'aprovada' ? 'aprovada e efetivada' : 'rejeitada';
+        await dispatchNotification({ professionalId: swap.solicitante_id, tipo: 'troca', titulo: status === 'aprovada' ? '✅ Troca aprovada e efetivada' : '❌ Troca rejeitada', mensagem: `Sua solicitação de troca foi ${statusLabel} pelo gestor.` });
         if (swap.destinatario_id) {
-          await dispatchNotification({ professionalId: swap.destinatario_id, tipo: 'troca', titulo: `Troca ${statusLabel}`, mensagem: `A troca de plantão envolvendo você foi ${statusLabel}.` });
+          await dispatchNotification({ professionalId: swap.destinatario_id, tipo: 'troca', titulo: status === 'aprovada' ? '✅ Troca aprovada e efetivada' : '❌ Troca rejeitada', mensagem: `A troca de plantão envolvendo você foi ${statusLabel}.` });
         }
       }
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['swaps'] }); qc.invalidateQueries({ queryKey: ['swap-histories'] }); toast.success('Troca atualizada!'); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['swaps'] });
+      qc.invalidateQueries({ queryKey: ['swap-histories'] });
+      qc.invalidateQueries({ queryKey: ['shifts'] });
+      toast.success('Troca atualizada!');
+    },
     onError: (e: Error) => toast.error('Erro: ' + e.message),
   });
 
