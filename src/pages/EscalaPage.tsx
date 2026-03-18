@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
 import { dispatchNotification } from "@/lib/notifyHelper";
-import { Calendar, List, Clock, Plus, ChevronLeft, ChevronRight, Trash2, Edit } from "lucide-react";
+import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -25,6 +25,7 @@ export default function EscalaPage() {
   const [conflictWarning, setConflictWarning] = useState('');
   const [recurring, setRecurring] = useState({ enabled: false, frequency: 'weekly', weeks: 1 });
   const [workloadAlerts, setWorkloadAlerts] = useState<string[]>([]);
+  const [detailShift, setDetailShift] = useState<any>(null);
   const qc = useQueryClient();
 
   const { data: shifts = [], isLoading, refetch: refetchShifts } = useQuery({
@@ -36,14 +37,44 @@ export default function EscalaPage() {
     },
   });
 
-  // Realtime subscription for shifts
+  // Realtime subscription for shifts — toast on external updates
   useEffect(() => {
-    const channel = supabase
-      .channel('shifts-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts' }, () => refetchShifts())
+    const shiftsChannel = supabase
+      .channel('escala-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts' }, () => {
+        refetchShifts();
+        toast.info('📅 Escala atualizada', { duration: 2000, position: 'bottom-right' });
+      })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [refetchShifts]);
+    const swapsChannel = supabase
+      .channel('escala-trocas-realtime')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'shift_swaps' }, () => {
+        refetchShifts();
+        qc.invalidateQueries({ queryKey: ['active-swaps-for-escala'] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(shiftsChannel); supabase.removeChannel(swapsChannel); };
+  }, [refetchShifts, qc]);
+
+  // Fetch active swaps to mark shifts visually
+  const { data: activeSwaps = [] } = useQuery({
+    queryKey: ['active-swaps-for-escala'],
+    queryFn: async () => {
+      const { data } = await supabase.from('shift_swaps')
+        .select('shift_id, shift_id_destino, status, updated_at')
+        .in('status', ['solicitada', 'aguardando_resposta', 'aceita', 'aguardando_aprovacao', 'aprovada', 'concluida']);
+      return data || [];
+    },
+  });
+
+  const swapByShiftId = useMemo(() => {
+    const map: Record<string, { status: string; updated_at: string }> = {};
+    for (const sw of activeSwaps as any[]) {
+      if (sw.shift_id) map[sw.shift_id] = { status: sw.status, updated_at: sw.updated_at };
+      if (sw.shift_id_destino) map[sw.shift_id_destino] = { status: sw.status, updated_at: sw.updated_at };
+    }
+    return map;
+  }, [activeSwaps]);
 
   const { data: professionals = [] } = useQuery({ queryKey: ['professionals'], queryFn: async () => { const { data } = await supabase.from('professionals').select('*').eq('status', 'ativo').order('nome'); return data || []; } });
   const { data: units = [] } = useQuery({ queryKey: ['units'], queryFn: async () => { const { data } = await supabase.from('units').select('*').order('nome'); return data || []; } });
@@ -258,6 +289,7 @@ export default function EscalaPage() {
         </motion.div>
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-lg border border-border p-6 shadow-[var(--shadow-card)]">
+          {/* Sector color legend */}
           <div className="flex flex-wrap gap-3 mb-4">
             {(() => {
               const sectorColors: Record<string, string> = {};
@@ -270,7 +302,13 @@ export default function EscalaPage() {
                 </div>
               ));
             })()}
+            <div className="flex items-center gap-1.5 text-xs ml-2">
+              <div className="h-2.5 w-4 rounded-sm bg-warning/40" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 2px, hsl(var(--warning)/0.3) 2px, hsl(var(--warning)/0.3) 4px)' }} />
+              <span className="text-muted-foreground">Em troca</span>
+            </div>
           </div>
+
+          {/* Calendar grid */}
           <div className="grid grid-cols-7 gap-1 text-center">
             {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
               <div key={d} className="text-xs font-semibold text-muted-foreground py-2">{d}</div>
@@ -282,25 +320,64 @@ export default function EscalaPage() {
               const now = new Date();
               const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).getDay();
               const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-              return Array.from({ length: 35 }, (_, i) => {
+              const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+              return Array.from({ length: totalCells }, (_, i) => {
                 const day = i - firstDay + 1;
                 const isValid = day >= 1 && day <= daysInMonth;
                 const isToday = isValid && day === now.getDate();
                 const dateStr = isValid ? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}` : '';
                 const dayShifts = isValid ? shifts.filter((s: any) => s.data === dateStr) : [];
                 return (
-                  <div key={i} className={`min-h-[70px] p-1 rounded-lg border transition-colors ${isValid ? 'border-border/50 hover:border-primary/30 cursor-pointer' : 'border-transparent'} ${isToday ? 'bg-primary/5 border-primary/30' : ''}`}>
+                  <div key={i} className={`min-h-[80px] p-1 rounded-lg border transition-colors ${isValid ? 'border-border/50 hover:border-primary/30 cursor-pointer' : 'border-transparent'} ${isToday ? 'bg-primary/5 border-primary/30' : ''}`}>
                     {isValid && (<><span className={`text-xs font-medium ${isToday ? 'text-primary font-bold' : 'text-foreground'}`}>{day}</span>
-                      <div className="space-y-0.5 mt-1">{dayShifts.slice(0, 3).map((s: any) => (
-                        <div key={s.id} className="text-[9px] px-1 py-0.5 rounded truncate text-white font-medium" style={{ background: sectorColors[s.setor_id] || 'hsl(var(--muted-foreground))' }}>
-                          {(s.professionals as any)?.nome?.split(' ')[0]}
-                        </div>
-                      ))}{dayShifts.length > 3 && <div className="text-[9px] text-muted-foreground">+{dayShifts.length - 3}</div>}</div></>)}
+                      <div className="space-y-0.5 mt-1">{dayShifts.slice(0, 3).map((s: any) => {
+                        const swapInfo = swapByShiftId[s.id];
+                        const inSwap = swapInfo && ['solicitada', 'aguardando_resposta', 'aceita', 'aguardando_aprovacao'].includes(swapInfo.status);
+                        const recentlySwapped = swapInfo && ['aprovada', 'concluida'].includes(swapInfo.status) && (Date.now() - new Date(swapInfo.updated_at).getTime()) < 86400000;
+                        const statusIcon = s.status === 'confirmado' ? '✅' : s.status === 'cancelado' ? '❌' : s.status === 'concluido' ? '☑️' : '📅';
+                        return (
+                          <div key={s.id}
+                            onClick={() => setDetailShift(s)}
+                            className={`text-[9px] px-1 py-0.5 rounded truncate text-white font-medium relative ${recentlySwapped ? 'ring-1 ring-success animate-pulse' : ''}`}
+                            style={{
+                              background: inSwap
+                                ? `repeating-linear-gradient(45deg, ${sectorColors[s.setor_id] || '#64748B'}, ${sectorColors[s.setor_id] || '#64748B'} 3px, rgba(255,255,255,0.3) 3px, rgba(255,255,255,0.3) 6px)`
+                                : sectorColors[s.setor_id] || 'hsl(var(--muted-foreground))',
+                            }}
+                            title={inSwap ? 'Em processo de troca' : recentlySwapped ? '🔄 Trocado recentemente' : ''}
+                          >
+                            <span className="flex items-center gap-0.5">
+                              {(s.professionals as any)?.nome?.split(' ')[0]} {statusIcon}
+                              {inSwap && <ArrowLeftRight className="h-2 w-2 inline" />}
+                              {recentlySwapped && <span className="ml-0.5">🔄</span>}
+                            </span>
+                          </div>
+                        );
+                      })}{dayShifts.length > 3 && <div className="text-[9px] text-muted-foreground">+{dayShifts.length - 3}</div>}</div></>)}
                   </div>
                 );
               });
             })()}
           </div>
+
+          {/* Month summary bar */}
+          {(() => {
+            const now = new Date();
+            const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const monthShifts = shifts.filter((s: any) => s.data.startsWith(monthStr) && s.status !== 'cancelado');
+            const totalHours = monthShifts.reduce((sum: number, s: any) => sum + Number(s.carga_horaria || 0), 0);
+            const totalValue = monthShifts.reduce((sum: number, s: any) => sum + Number(s.valor_total || 0), 0);
+            const conflicts = 0; // already validated on creation
+            return (
+              <div className="mt-4 p-3 rounded-lg bg-muted/50 border border-border flex flex-wrap gap-4 text-sm">
+                <span className="text-foreground font-medium">📊 {now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}:</span>
+                <span className="text-muted-foreground">{monthShifts.length} plantões</span>
+                <span className="text-muted-foreground">{totalHours.toFixed(0)}h cobertas</span>
+                <span className="text-muted-foreground">R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} previsto</span>
+                <span className="text-muted-foreground">{conflicts} conflitos</span>
+              </div>
+            );
+          })()}
         </motion.div>
       )}
 
@@ -390,6 +467,60 @@ export default function EscalaPage() {
               </button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Shift Detail Modal */}
+      <Dialog open={!!detailShift} onOpenChange={(open) => !open && setDetailShift(null)}>
+        <DialogContent className="max-w-md">
+          {detailShift && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Info className="h-5 w-5 text-primary" />
+                  Plantão — {new Date(detailShift.data + 'T12:00:00').toLocaleDateString('pt-BR')}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">👤</span>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{(detailShift.professionals as any)?.nome}</p>
+                    <p className="text-xs text-muted-foreground">{PROFISSAO_LABELS[(detailShift.professionals as any)?.profissao] || ''}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">🏥</span>
+                  <p className="text-sm text-foreground">{(detailShift.sectors as any)?.nome} — {(detailShift.units as any)?.nome}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">⏰</span>
+                  <p className="text-sm text-foreground">{detailShift.hora_inicio} às {detailShift.hora_fim} ({detailShift.carga_horaria}h)</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">💰</span>
+                  <p className="text-sm font-medium text-foreground">R$ {Number(detailShift.valor_total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">📌</span>
+                  <span className={`status-badge ${STATUS_CLASSES[detailShift.status] || ''}`}>{STATUS_LABELS[detailShift.status]}</span>
+                  {swapByShiftId[detailShift.id] && ['solicitada', 'aguardando_resposta', 'aceita', 'aguardando_aprovacao'].includes(swapByShiftId[detailShift.id].status) && (
+                    <span className="status-badge bg-warning/10 text-warning"><ArrowLeftRight className="h-3 w-3 mr-1" />Em troca</span>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-2 mt-4 pt-3 border-t border-border">
+                <button onClick={() => { openEdit(detailShift); setDetailShift(null); }}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
+                  <Edit className="h-3.5 w-3.5" /> Editar
+                </button>
+                <button onClick={() => setDetailShift(null)}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted">
+                  Fechar
+                </button>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

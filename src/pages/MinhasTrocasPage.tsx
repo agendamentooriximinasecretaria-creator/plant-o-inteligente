@@ -5,6 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { dispatchNotification } from "@/lib/notifyHelper";
 import { toast } from "sonner";
+import { FileText } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import ComprovanteTroca from "@/components/ComprovanteTroca";
 
 const tabs = [
   { id: "solicitar", label: "Solicitar Troca" },
@@ -25,6 +28,7 @@ export default function MinhasTrocasPage() {
     destinatario_id: "",
     motivo: "",
   });
+  const [comprovanteId, setComprovanteId] = useState<string | null>(null);
 
   const { data: settings = {} } = useQuery({
     queryKey: ["professional-swap-settings"],
@@ -313,14 +317,30 @@ export default function MinhasTrocasPage() {
           ) : (
             history.map((swap: any) => (
               <div key={swap.id} className="rounded-lg border border-border bg-card p-4 shadow-[var(--shadow-card)]">
-                <p className="text-sm text-foreground font-medium">{swap.motivo}</p>
-                <p className="text-xs text-muted-foreground mt-1">Status: {swap.status}</p>
-                {swap.observacao_gestor && <p className="text-xs text-muted-foreground mt-1">Obs. gestor: {swap.observacao_gestor}</p>}
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm text-foreground font-medium">{swap.motivo}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Status: {swap.status}</p>
+                    {swap.observacao_gestor && <p className="text-xs text-muted-foreground mt-1">Obs. gestor: {swap.observacao_gestor}</p>}
+                  </div>
+                  {['aprovada', 'concluida'].includes(swap.status) && (
+                    <button onClick={() => setComprovanteId(swap.id)} className="px-2.5 py-1 rounded-lg border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors inline-flex items-center gap-1 shrink-0">
+                      <FileText className="h-3 w-3" /> Comprovante
+                    </button>
+                  )}
+                </div>
               </div>
             ))
           )}
         </div>
       )}
+
+      {/* Comprovante Modal */}
+      <Dialog open={!!comprovanteId} onOpenChange={(open) => !open && setComprovanteId(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto print:max-w-none print:shadow-none">
+          {comprovanteId && <ComprovanteTroca trocaId={comprovanteId} onClose={() => setComprovanteId(null)} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

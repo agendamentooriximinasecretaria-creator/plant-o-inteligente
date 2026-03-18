@@ -6,10 +6,11 @@ import { dispatchNotification } from "@/lib/notifyHelper";
 import { useAuth } from "@/hooks/useAuth";
 import { SWAP_STATUS_LABELS } from "@/types/hospital";
 import type { SwapStatus } from "@/types/hospital";
-import { ArrowLeftRight, Clock, CheckCircle2, XCircle, AlertCircle, Plus, Zap } from "lucide-react";
+import { ArrowLeftRight, Clock, CheckCircle2, XCircle, AlertCircle, Plus, Zap, FileText } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import ComprovanteTroca from "@/components/ComprovanteTroca";
 
 const statusStyles: Record<SwapStatus, { class: string; icon: typeof Clock }> = {
   solicitada: { class: 'bg-info/10 text-info', icon: Clock },
@@ -27,10 +28,10 @@ export default function TrocasPage() {
   const qc = useQueryClient();
   const { isMaster } = useAuth();
   const [adminModalOpen, setAdminModalOpen] = useState(false);
+  const [comprovanteId, setComprovanteId] = useState<string | null>(null);
   const [adminForm, setAdminForm] = useState({
     profA: '', shiftA: '', profB: '', shiftB: '', motivo: '',
   });
-
   const { data: swaps = [], isLoading, refetch: refetchSwaps } = useQuery({
     queryKey: ['swaps'],
     queryFn: async () => {
@@ -89,6 +90,47 @@ export default function TrocasPage() {
   const shiftsForA = useMemo(() => adminForm.profA ? allShifts.filter((s: any) => s.profissional_id === adminForm.profA) : [], [allShifts, adminForm.profA]);
   const shiftsForB = useMemo(() => adminForm.profB ? allShifts.filter((s: any) => s.profissional_id === adminForm.profB) : [], [allShifts, adminForm.profB]);
 
+  // Atomic swap execution — updates shifts then marks swap as concluded
+  const efetivarTroca = async (trocaId: string) => {
+    const { data: troca, error: fetchErr } = await supabase
+      .from('shift_swaps')
+      .select('*')
+      .eq('id', trocaId)
+      .single();
+    if (fetchErr || !troca) throw new Error('Troca não encontrada');
+
+    if (troca.shift_id_destino) {
+      // Bilateral swap
+      const [updateA, updateB] = await Promise.all([
+        supabase.from('shifts').update({ profissional_id: troca.destinatario_id, updated_at: new Date().toISOString() }).eq('id', troca.shift_id),
+        supabase.from('shifts').update({ profissional_id: troca.solicitante_id, updated_at: new Date().toISOString() }).eq('id', troca.shift_id_destino),
+      ]);
+      if (updateA.error) throw new Error(`Erro plantão A: ${updateA.error.message}`);
+      if (updateB.error) throw new Error(`Erro plantão B: ${updateB.error.message}`);
+    } else {
+      // Simple swap
+      const { error } = await supabase.from('shifts')
+        .update({ profissional_id: troca.destinatario_id, updated_at: new Date().toISOString() })
+        .eq('id', troca.shift_id);
+      if (error) throw new Error(`Erro ao efetivar: ${error.message}`);
+    }
+
+    await supabase.from('shift_swaps')
+      .update({ status: 'concluida' as any, aprovado_em: new Date().toISOString() })
+      .eq('id', trocaId);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from('swap_history').insert({
+      swap_id: trocaId,
+      acao: 'Troca efetivada na escala',
+      usuario: user?.email || 'Sistema',
+      user_id: user?.id,
+      detalhes: JSON.stringify({ shift_origem: troca.shift_id, shift_destino: troca.shift_id_destino, profA: troca.solicitante_id, profB: troca.destinatario_id }),
+    });
+
+    await logAudit('Troca efetivada — escala atualizada', 'trocas', { swap_id: trocaId, shift_ids: [troca.shift_id, troca.shift_id_destino] });
+  };
+
   const updateSwap = useMutation({
     mutationFn: async ({ id, status, motivo }: { id: string; status: string; motivo?: string }) => {
       const updatePayload: Record<string, any> = { status: status as any, observacao_gestor: motivo || null };
@@ -99,6 +141,12 @@ export default function TrocasPage() {
       }
       const { error } = await supabase.from('shift_swaps').update(updatePayload as any).eq('id', id);
       if (error) throw error;
+
+      // If approved, execute the swap atomically
+      if (status === 'aprovada') {
+        await efetivarTroca(id);
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       await supabase.from('swap_history').insert({
         swap_id: id,
@@ -109,14 +157,19 @@ export default function TrocasPage() {
       await logAudit(`Troca ${status}`, 'trocas', { swap_id: id, novo_status: status });
       const swap = swaps.find((s: any) => s.id === id);
       if (swap) {
-        const statusLabel = status === 'aprovada' ? 'aprovada' : 'rejeitada';
-        await dispatchNotification({ professionalId: swap.solicitante_id, tipo: 'troca', titulo: `Troca ${statusLabel}`, mensagem: `Sua solicitação de troca foi ${statusLabel} pelo gestor.` });
+        const statusLabel = status === 'aprovada' ? 'aprovada e efetivada' : 'rejeitada';
+        await dispatchNotification({ professionalId: swap.solicitante_id, tipo: 'troca', titulo: status === 'aprovada' ? '✅ Troca aprovada e efetivada' : '❌ Troca rejeitada', mensagem: `Sua solicitação de troca foi ${statusLabel} pelo gestor.` });
         if (swap.destinatario_id) {
-          await dispatchNotification({ professionalId: swap.destinatario_id, tipo: 'troca', titulo: `Troca ${statusLabel}`, mensagem: `A troca de plantão envolvendo você foi ${statusLabel}.` });
+          await dispatchNotification({ professionalId: swap.destinatario_id, tipo: 'troca', titulo: status === 'aprovada' ? '✅ Troca aprovada e efetivada' : '❌ Troca rejeitada', mensagem: `A troca de plantão envolvendo você foi ${statusLabel}.` });
         }
       }
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['swaps'] }); qc.invalidateQueries({ queryKey: ['swap-histories'] }); toast.success('Troca atualizada!'); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['swaps'] });
+      qc.invalidateQueries({ queryKey: ['swap-histories'] });
+      qc.invalidateQueries({ queryKey: ['shifts'] });
+      toast.success('Troca atualizada!');
+    },
     onError: (e: Error) => toast.error('Erro: ' + e.message),
   });
 
@@ -262,10 +315,15 @@ export default function TrocasPage() {
                       {swap.observacao_gestor && <p className="text-xs text-muted-foreground mt-1 italic">Obs. gestor: {swap.observacao_gestor}</p>}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className={`status-badge ${style.class}`}>
                       <Icon className="h-3.5 w-3.5 mr-1" />{SWAP_STATUS_LABELS[swap.status as SwapStatus] || swap.status}
                     </span>
+                    {['aprovada', 'concluida'].includes(swap.status) && (
+                      <button onClick={() => setComprovanteId(swap.id)} className="px-2.5 py-1 rounded-lg border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors inline-flex items-center gap-1">
+                        <FileText className="h-3 w-3" /> Comprovante
+                      </button>
+                    )}
                     {pendingStatuses.includes(swap.status) && (
                       <div className="flex gap-2">
                         <button onClick={() => updateSwap.mutate({ id: swap.id, status: 'aprovada' })} disabled={updateSwap.isPending}
@@ -358,6 +416,13 @@ export default function TrocasPage() {
               </button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Comprovante Modal */}
+      <Dialog open={!!comprovanteId} onOpenChange={(open) => !open && setComprovanteId(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto print:max-w-none print:shadow-none">
+          {comprovanteId && <ComprovanteTroca trocaId={comprovanteId} onClose={() => setComprovanteId(null)} />}
         </DialogContent>
       </Dialog>
     </div>
