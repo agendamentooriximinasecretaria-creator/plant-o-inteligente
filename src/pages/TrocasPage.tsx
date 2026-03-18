@@ -315,10 +315,15 @@ export default function TrocasPage() {
                       {swap.observacao_gestor && <p className="text-xs text-muted-foreground mt-1 italic">Obs. gestor: {swap.observacao_gestor}</p>}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className={`status-badge ${style.class}`}>
                       <Icon className="h-3.5 w-3.5 mr-1" />{SWAP_STATUS_LABELS[swap.status as SwapStatus] || swap.status}
                     </span>
+                    {['aprovada', 'concluida'].includes(swap.status) && (
+                      <button onClick={() => setComprovanteId(swap.id)} className="px-2.5 py-1 rounded-lg border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors inline-flex items-center gap-1">
+                        <FileText className="h-3 w-3" /> Comprovante
+                      </button>
+                    )}
                     {pendingStatuses.includes(swap.status) && (
                       <div className="flex gap-2">
                         <button onClick={() => updateSwap.mutate({ id: swap.id, status: 'aprovada' })} disabled={updateSwap.isPending}
