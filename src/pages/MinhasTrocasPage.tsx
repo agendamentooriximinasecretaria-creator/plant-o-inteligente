@@ -5,6 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { dispatchNotification } from "@/lib/notifyHelper";
 import { toast } from "sonner";
+import { FileText } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import ComprovanteTroca from "@/components/ComprovanteTroca";
 
 const tabs = [
   { id: "solicitar", label: "Solicitar Troca" },
