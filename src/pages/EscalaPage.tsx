@@ -469,6 +469,60 @@ export default function EscalaPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Shift Detail Modal */}
+      <Dialog open={!!detailShift} onOpenChange={(open) => !open && setDetailShift(null)}>
+        <DialogContent className="max-w-md">
+          {detailShift && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Info className="h-5 w-5 text-primary" />
+                  Plantão — {new Date(detailShift.data + 'T12:00:00').toLocaleDateString('pt-BR')}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">👤</span>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{(detailShift.professionals as any)?.nome}</p>
+                    <p className="text-xs text-muted-foreground">{PROFISSAO_LABELS[(detailShift.professionals as any)?.profissao] || ''}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">🏥</span>
+                  <p className="text-sm text-foreground">{(detailShift.sectors as any)?.nome} — {(detailShift.units as any)?.nome}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">⏰</span>
+                  <p className="text-sm text-foreground">{detailShift.hora_inicio} às {detailShift.hora_fim} ({detailShift.carga_horaria}h)</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">💰</span>
+                  <p className="text-sm font-medium text-foreground">R$ {Number(detailShift.valor_total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">📌</span>
+                  <span className={`status-badge ${STATUS_CLASSES[detailShift.status] || ''}`}>{STATUS_LABELS[detailShift.status]}</span>
+                  {swapByShiftId[detailShift.id] && ['solicitada', 'aguardando_resposta', 'aceita', 'aguardando_aprovacao'].includes(swapByShiftId[detailShift.id].status) && (
+                    <span className="status-badge bg-warning/10 text-warning"><ArrowLeftRight className="h-3 w-3 mr-1" />Em troca</span>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-2 mt-4 pt-3 border-t border-border">
+                <button onClick={() => { openEdit(detailShift); setDetailShift(null); }}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
+                  <Edit className="h-3.5 w-3.5" /> Editar
+                </button>
+                <button onClick={() => setDetailShift(null)}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted">
+                  Fechar
+                </button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
