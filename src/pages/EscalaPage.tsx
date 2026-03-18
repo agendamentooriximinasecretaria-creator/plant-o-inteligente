@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
 import { dispatchNotification } from "@/lib/notifyHelper";
-import { Calendar, List, Clock, Plus, ChevronLeft, ChevronRight, Trash2, Edit } from "lucide-react";
+import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
