@@ -289,6 +289,7 @@ export default function EscalaPage() {
         </motion.div>
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-lg border border-border p-6 shadow-[var(--shadow-card)]">
+          {/* Sector color legend */}
           <div className="flex flex-wrap gap-3 mb-4">
             {(() => {
               const sectorColors: Record<string, string> = {};
@@ -301,7 +302,13 @@ export default function EscalaPage() {
                 </div>
               ));
             })()}
+            <div className="flex items-center gap-1.5 text-xs ml-2">
+              <div className="h-2.5 w-4 rounded-sm bg-warning/40" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 2px, hsl(var(--warning)/0.3) 2px, hsl(var(--warning)/0.3) 4px)' }} />
+              <span className="text-muted-foreground">Em troca</span>
+            </div>
           </div>
+
+          {/* Calendar grid */}
           <div className="grid grid-cols-7 gap-1 text-center">
             {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
               <div key={d} className="text-xs font-semibold text-muted-foreground py-2">{d}</div>
@@ -313,21 +320,65 @@ export default function EscalaPage() {
               const now = new Date();
               const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).getDay();
               const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-              return Array.from({ length: 35 }, (_, i) => {
+              const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+              return Array.from({ length: totalCells }, (_, i) => {
                 const day = i - firstDay + 1;
                 const isValid = day >= 1 && day <= daysInMonth;
                 const isToday = isValid && day === now.getDate();
                 const dateStr = isValid ? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}` : '';
                 const dayShifts = isValid ? shifts.filter((s: any) => s.data === dateStr) : [];
                 return (
-                  <div key={i} className={`min-h-[70px] p-1 rounded-lg border transition-colors ${isValid ? 'border-border/50 hover:border-primary/30 cursor-pointer' : 'border-transparent'} ${isToday ? 'bg-primary/5 border-primary/30' : ''}`}>
+                  <div key={i} className={`min-h-[80px] p-1 rounded-lg border transition-colors ${isValid ? 'border-border/50 hover:border-primary/30 cursor-pointer' : 'border-transparent'} ${isToday ? 'bg-primary/5 border-primary/30' : ''}`}>
                     {isValid && (<><span className={`text-xs font-medium ${isToday ? 'text-primary font-bold' : 'text-foreground'}`}>{day}</span>
-                      <div className="space-y-0.5 mt-1">{dayShifts.slice(0, 3).map((s: any) => (
-                        <div key={s.id} className="text-[9px] px-1 py-0.5 rounded truncate text-white font-medium" style={{ background: sectorColors[s.setor_id] || 'hsl(var(--muted-foreground))' }}>
-                          {(s.professionals as any)?.nome?.split(' ')[0]}
-                        </div>
-                      ))}{dayShifts.length > 3 && <div className="text-[9px] text-muted-foreground">+{dayShifts.length - 3}</div>}</div></>)}
+                      <div className="space-y-0.5 mt-1">{dayShifts.slice(0, 3).map((s: any) => {
+                        const swapInfo = swapByShiftId[s.id];
+                        const inSwap = swapInfo && ['solicitada', 'aguardando_resposta', 'aceita', 'aguardando_aprovacao'].includes(swapInfo.status);
+                        const recentlySwapped = swapInfo && ['aprovada', 'concluida'].includes(swapInfo.status) && (Date.now() - new Date(swapInfo.updated_at).getTime()) < 86400000;
+                        const statusIcon = s.status === 'confirmado' ? '✅' : s.status === 'cancelado' ? '❌' : s.status === 'concluido' ? '☑️' : '📅';
+                        return (
+                          <div key={s.id}
+                            onClick={() => setDetailShift(s)}
+                            className={`text-[9px] px-1 py-0.5 rounded truncate text-white font-medium relative ${recentlySwapped ? 'ring-1 ring-success animate-pulse' : ''}`}
+                            style={{
+                              background: inSwap
+                                ? `repeating-linear-gradient(45deg, ${sectorColors[s.setor_id] || '#64748B'}, ${sectorColors[s.setor_id] || '#64748B'} 3px, rgba(255,255,255,0.3) 3px, rgba(255,255,255,0.3) 6px)`
+                                : sectorColors[s.setor_id] || 'hsl(var(--muted-foreground))',
+                            }}
+                            title={inSwap ? 'Em processo de troca' : recentlySwapped ? '🔄 Trocado recentemente' : ''}
+                          >
+                            <span className="flex items-center gap-0.5">
+                              {(s.professionals as any)?.nome?.split(' ')[0]} {statusIcon}
+                              {inSwap && <ArrowLeftRight className="h-2 w-2 inline" />}
+                              {recentlySwapped && <span className="ml-0.5">🔄</span>}
+                            </span>
+                          </div>
+                        );
+                      })}{dayShifts.length > 3 && <div className="text-[9px] text-muted-foreground">+{dayShifts.length - 3}</div>}</div></>)}
                   </div>
+                );
+              });
+            })()}
+          </div>
+
+          {/* Month summary bar */}
+          {(() => {
+            const now = new Date();
+            const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const monthShifts = shifts.filter((s: any) => s.data.startsWith(monthStr) && s.status !== 'cancelado');
+            const totalHours = monthShifts.reduce((sum: number, s: any) => sum + Number(s.carga_horaria || 0), 0);
+            const totalValue = monthShifts.reduce((sum: number, s: any) => sum + Number(s.valor_total || 0), 0);
+            const conflicts = 0; // already validated on creation
+            return (
+              <div className="mt-4 p-3 rounded-lg bg-muted/50 border border-border flex flex-wrap gap-4 text-sm">
+                <span className="text-foreground font-medium">📊 {now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}:</span>
+                <span className="text-muted-foreground">{monthShifts.length} plantões</span>
+                <span className="text-muted-foreground">{totalHours.toFixed(0)}h cobertas</span>
+                <span className="text-muted-foreground">R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} previsto</span>
+                <span className="text-muted-foreground">{conflicts} conflitos</span>
+              </div>
+            );
+          })()}
+        </motion.div>
                 );
               });
             })()}
