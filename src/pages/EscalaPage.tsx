@@ -380,7 +380,6 @@ export default function EscalaPage() {
           })()}
         </motion.div>
       )}
-      )}
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
