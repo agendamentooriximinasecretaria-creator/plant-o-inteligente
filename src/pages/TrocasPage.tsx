@@ -418,6 +418,13 @@ export default function TrocasPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Comprovante Modal */}
+      <Dialog open={!!comprovanteId} onOpenChange={(open) => !open && setComprovanteId(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto print:max-w-none print:shadow-none">
+          {comprovanteId && <ComprovanteTroca trocaId={comprovanteId} onClose={() => setComprovanteId(null)} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
