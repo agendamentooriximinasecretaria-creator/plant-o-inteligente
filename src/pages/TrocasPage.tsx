@@ -6,10 +6,11 @@ import { dispatchNotification } from "@/lib/notifyHelper";
 import { useAuth } from "@/hooks/useAuth";
 import { SWAP_STATUS_LABELS } from "@/types/hospital";
 import type { SwapStatus } from "@/types/hospital";
-import { ArrowLeftRight, Clock, CheckCircle2, XCircle, AlertCircle, Plus, Zap } from "lucide-react";
+import { ArrowLeftRight, Clock, CheckCircle2, XCircle, AlertCircle, Plus, Zap, FileText } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import ComprovanteTroca from "@/components/ComprovanteTroca";
 
 const statusStyles: Record<SwapStatus, { class: string; icon: typeof Clock }> = {
   solicitada: { class: 'bg-info/10 text-info', icon: Clock },
