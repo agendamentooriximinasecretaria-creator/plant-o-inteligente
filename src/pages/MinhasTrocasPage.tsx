@@ -28,6 +28,7 @@ export default function MinhasTrocasPage() {
     destinatario_id: "",
     motivo: "",
   });
+  const [comprovanteId, setComprovanteId] = useState<string | null>(null);
 
   const { data: settings = {} } = useQuery({
     queryKey: ["professional-swap-settings"],
