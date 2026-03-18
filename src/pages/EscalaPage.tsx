@@ -37,14 +37,44 @@ export default function EscalaPage() {
     },
   });
 
-  // Realtime subscription for shifts
+  // Realtime subscription for shifts — toast on external updates
   useEffect(() => {
-    const channel = supabase
-      .channel('shifts-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts' }, () => refetchShifts())
+    const shiftsChannel = supabase
+      .channel('escala-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts' }, () => {
+        refetchShifts();
+        toast.info('📅 Escala atualizada', { duration: 2000, position: 'bottom-right' });
+      })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [refetchShifts]);
+    const swapsChannel = supabase
+      .channel('escala-trocas-realtime')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'shift_swaps' }, () => {
+        refetchShifts();
+        qc.invalidateQueries({ queryKey: ['active-swaps-for-escala'] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(shiftsChannel); supabase.removeChannel(swapsChannel); };
+  }, [refetchShifts, qc]);
+
+  // Fetch active swaps to mark shifts visually
+  const { data: activeSwaps = [] } = useQuery({
+    queryKey: ['active-swaps-for-escala'],
+    queryFn: async () => {
+      const { data } = await supabase.from('shift_swaps')
+        .select('shift_id, shift_id_destino, status, updated_at')
+        .in('status', ['solicitada', 'aguardando_resposta', 'aceita', 'aguardando_aprovacao', 'aprovada', 'concluida']);
+      return data || [];
+    },
+  });
+
+  const swapByShiftId = useMemo(() => {
+    const map: Record<string, { status: string; updated_at: string }> = {};
+    for (const sw of activeSwaps as any[]) {
+      if (sw.shift_id) map[sw.shift_id] = { status: sw.status, updated_at: sw.updated_at };
+      if (sw.shift_id_destino) map[sw.shift_id_destino] = { status: sw.status, updated_at: sw.updated_at };
+    }
+    return map;
+  }, [activeSwaps]);
 
   const { data: professionals = [] } = useQuery({ queryKey: ['professionals'], queryFn: async () => { const { data } = await supabase.from('professionals').select('*').eq('status', 'ativo').order('nome'); return data || []; } });
   const { data: units = [] } = useQuery({ queryKey: ['units'], queryFn: async () => { const { data } = await supabase.from('units').select('*').order('nome'); return data || []; } });
