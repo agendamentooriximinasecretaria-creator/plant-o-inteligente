@@ -25,6 +25,7 @@ export default function EscalaPage() {
   const [conflictWarning, setConflictWarning] = useState('');
   const [recurring, setRecurring] = useState({ enabled: false, frequency: 'weekly', weeks: 1 });
   const [workloadAlerts, setWorkloadAlerts] = useState<string[]>([]);
+  const [detailShift, setDetailShift] = useState<any>(null);
   const qc = useQueryClient();
 
   const { data: shifts = [], isLoading, refetch: refetchShifts } = useQuery({
