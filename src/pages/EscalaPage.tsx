@@ -319,11 +319,26 @@ export default function EscalaPage() {
                     <td className="p-3"><span className={`status-badge ${STATUS_CLASSES[s.status] || ''}`}>{STATUS_LABELS[s.status]}</span></td>
                     <td className="p-3">
                       <div className="flex items-center gap-1">
+                        <ContactActionButton
+                          profissional={{ nome: (s.professionals as any)?.nome || '', telefone: professionals.find((p: any) => p.id === s.profissional_id)?.telefone }}
+                          contexto={{ tipo: 'plantao', data: new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR'), horario: `${s.hora_inicio} às ${s.hora_fim}`, setor: (s.sectors as any)?.nome, unidade: (s.units as any)?.nome }}
+                        />
                         <button onClick={() => openEdit(s)} className="p-1 rounded hover:bg-muted"><Edit className="h-4 w-4 text-muted-foreground" /></button>
                         <AlertDialog>
-                          <AlertDialogTrigger asChild><button className="p-1 rounded hover:bg-destructive/10"><Trash2 className="h-4 w-4 text-destructive" /></button></AlertDialogTrigger>
-                          <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir plantão?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => deleteMutation.mutate(s)}>Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+                          <AlertDialogTrigger asChild><button className="p-1 rounded hover:bg-destructive/10" disabled={deleteMutation.isPending}><Trash2 className="h-4 w-4 text-destructive" /></button></AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir plantão?</AlertDialogTitle>
+                              <AlertDialogDescription className="space-y-1">
+                                <span className="block">👤 {(s.professionals as any)?.nome}</span>
+                                <span className="block">📅 {new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR')} — {s.hora_inicio} às {s.hora_fim}</span>
+                                <span className="block">🏥 {(s.sectors as any)?.nome}</span>
+                                {s.status === 'trocando' && <span className="block text-warning font-medium mt-2">⚠️ Este plantão possui trocas pendentes que serão canceladas automaticamente.</span>}
+                                <span className="block mt-2">Esta ação não pode ser desfeita.</span>
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => deleteMutation.mutate(s)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction></AlertDialogFooter>
+                          </AlertDialogContent>
                         </AlertDialog>
                       </div>
                     </td>
