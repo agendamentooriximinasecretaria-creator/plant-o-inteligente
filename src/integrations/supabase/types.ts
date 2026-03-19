@@ -317,7 +317,7 @@ export type Database = {
           observacao_gestor: string | null
           observacao_rejeicao: string | null
           rejeitado_em: string | null
-          shift_id: string
+          shift_id: string | null
           shift_id_destino: string | null
           solicitante_id: string
           status: Database["public"]["Enums"]["swap_status"]
@@ -335,7 +335,7 @@ export type Database = {
           observacao_gestor?: string | null
           observacao_rejeicao?: string | null
           rejeitado_em?: string | null
-          shift_id: string
+          shift_id?: string | null
           shift_id_destino?: string | null
           solicitante_id: string
           status?: Database["public"]["Enums"]["swap_status"]
@@ -353,7 +353,7 @@ export type Database = {
           observacao_gestor?: string | null
           observacao_rejeicao?: string | null
           rejeitado_em?: string | null
-          shift_id?: string
+          shift_id?: string | null
           shift_id_destino?: string | null
           solicitante_id?: string
           status?: Database["public"]["Enums"]["swap_status"]

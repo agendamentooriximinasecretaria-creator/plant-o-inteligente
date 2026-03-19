@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
 import { dispatchNotification } from "@/lib/notifyHelper";
-import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info } from "lucide-react";
+import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info, RefreshCw } from "lucide-react";
+import { ContactActionButton } from "@/components/ContactActionButton";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -196,10 +197,39 @@ export default function EscalaPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (shift: any) => {
+      // If shift is in swap, cancel linked pending swaps first
+      if (shift.status === 'trocando') {
+        const { data: trocasAtivas } = await supabase
+          .from('shift_swaps')
+          .select('id, status')
+          .eq('shift_id', shift.id)
+          .in('status', ['solicitada', 'aguardando_resposta', 'aceita', 'aguardando_aprovacao']);
+        if (trocasAtivas && trocasAtivas.length > 0) {
+          await supabase
+            .from('shift_swaps')
+            .update({ status: 'cancelada' as any, observacao_gestor: 'Troca cancelada automaticamente — plantão excluído pelo gestor' })
+            .eq('shift_id', shift.id)
+            .in('status', ['solicitada', 'aguardando_resposta', 'aceita', 'aguardando_aprovacao']);
+        }
+      }
+      // Also cancel swaps referencing this shift as destination
+      await supabase
+        .from('shift_swaps')
+        .update({ status: 'cancelada' as any, observacao_gestor: 'Troca cancelada automaticamente — plantão excluído' })
+        .eq('shift_id_destino', shift.id)
+        .in('status', ['solicitada', 'aguardando_resposta', 'aceita', 'aguardando_aprovacao']);
+
+      // Try hard delete
       const { error } = await supabase.from('shifts').delete().eq('id', shift.id);
-      if (error) throw error;
-      await logAudit('Plantão excluído', 'escala', { id: shift.id });
-      // Notify professional about cancellation
+      if (error) {
+        // Fallback: soft delete (cancel)
+        await supabase.from('shifts').update({ status: 'cancelado' as any }).eq('id', shift.id);
+        toast.success('Plantão cancelado com sucesso');
+      } else {
+        toast.success('Plantão excluído com sucesso');
+      }
+
+      await logAudit('Plantão excluído', 'escala', { id: shift.id, status_anterior: shift.status });
       await dispatchNotification({
         professionalId: shift.profissional_id,
         tipo: 'plantao',
@@ -207,8 +237,8 @@ export default function EscalaPage() {
         mensagem: `Seu plantão em ${new Date(shift.data + 'T12:00:00').toLocaleDateString('pt-BR')} das ${shift.hora_inicio} às ${shift.hora_fim} foi cancelado.`,
       });
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['shifts'] }); toast.success('Plantão excluído!'); },
-    onError: (e: Error) => toast.error(e.message),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['shifts'] }); },
+    onError: (e: Error) => toast.error(`Não foi possível excluir: ${e.message}`),
   });
 
   const closeModal = () => { setModalOpen(false); setEditingId(null); setForm(emptyForm); setConflictWarning(''); setWorkloadAlerts([]); setRecurring({ enabled: false, frequency: 'weekly', weeks: 1 }); };
@@ -237,6 +267,22 @@ export default function EscalaPage() {
         <div className="flex items-center gap-2">
           <button onClick={() => setView('lista')} className={`p-2 rounded-lg transition-colors ${view === 'lista' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}><List className="h-4 w-4" /></button>
           <button onClick={() => setView('calendario')} className={`p-2 rounded-lg transition-colors ${view === 'calendario' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}><Calendar className="h-4 w-4" /></button>
+          <button onClick={async () => {
+            const { data: zeroShifts } = await supabase.from('shifts').select('id, hora_inicio, hora_fim, professionals:profissional_id(valor_hora)').eq('valor_total', 0).neq('status', 'cancelado');
+            let count = 0;
+            for (const p of zeroShifts || []) {
+              const vh = (p.professionals as any)?.valor_hora;
+              if (vh > 0) {
+                const h = calcHours(p.hora_inicio, p.hora_fim);
+                await supabase.from('shifts').update({ valor_total: h * vh, valor_hora: vh }).eq('id', p.id);
+                count++;
+              }
+            }
+            toast.success(`✅ ${count} plantões recalculados`);
+            refetchShifts();
+          }} className="flex items-center gap-2 border border-border text-foreground px-3 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors">
+            <RefreshCw className="h-4 w-4" /> Recalcular Valores
+          </button>
           <button onClick={() => { setForm(emptyForm); setEditingId(null); setModalOpen(true); }} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"><Plus className="h-4 w-4" /> Novo Plantão</button>
         </div>
       </div>
@@ -273,11 +319,26 @@ export default function EscalaPage() {
                     <td className="p-3"><span className={`status-badge ${STATUS_CLASSES[s.status] || ''}`}>{STATUS_LABELS[s.status]}</span></td>
                     <td className="p-3">
                       <div className="flex items-center gap-1">
+                        <ContactActionButton
+                          profissional={{ nome: (s.professionals as any)?.nome || '', telefone: professionals.find((p: any) => p.id === s.profissional_id)?.telefone }}
+                          contexto={{ tipo: 'plantao', data: new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR'), horario: `${s.hora_inicio} às ${s.hora_fim}`, setor: (s.sectors as any)?.nome, unidade: (s.units as any)?.nome }}
+                        />
                         <button onClick={() => openEdit(s)} className="p-1 rounded hover:bg-muted"><Edit className="h-4 w-4 text-muted-foreground" /></button>
                         <AlertDialog>
-                          <AlertDialogTrigger asChild><button className="p-1 rounded hover:bg-destructive/10"><Trash2 className="h-4 w-4 text-destructive" /></button></AlertDialogTrigger>
-                          <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir plantão?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => deleteMutation.mutate(s)}>Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+                          <AlertDialogTrigger asChild><button className="p-1 rounded hover:bg-destructive/10" disabled={deleteMutation.isPending}><Trash2 className="h-4 w-4 text-destructive" /></button></AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir plantão?</AlertDialogTitle>
+                              <AlertDialogDescription className="space-y-1">
+                                <span className="block">👤 {(s.professionals as any)?.nome}</span>
+                                <span className="block">📅 {new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR')} — {s.hora_inicio} às {s.hora_fim}</span>
+                                <span className="block">🏥 {(s.sectors as any)?.nome}</span>
+                                {s.status === 'trocando' && <span className="block text-warning font-medium mt-2">⚠️ Este plantão possui trocas pendentes que serão canceladas automaticamente.</span>}
+                                <span className="block mt-2">Esta ação não pode ser desfeita.</span>
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => deleteMutation.mutate(s)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction></AlertDialogFooter>
+                          </AlertDialogContent>
                         </AlertDialog>
                       </div>
                     </td>

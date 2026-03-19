@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
 import { Search, Plus, User2, Edit, X } from "lucide-react";
+import { ContactActionButton } from "@/components/ContactActionButton";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -169,6 +170,7 @@ export default function ProfissionaisPage() {
                   <p className="text-xs text-muted-foreground">{p.especialidade} • {p.registro}</p>
                   <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
                     <span>{p.email}</span>
+                    <ContactActionButton profissional={{ nome: p.nome, telefone: p.telefone }} contexto={{ tipo: 'geral' }} />
                   </div>
                   <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
                     <span className="text-xs text-muted-foreground">{(p.units as any)?.nome || '—'}</span>

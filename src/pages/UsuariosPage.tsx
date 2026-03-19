@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
 import { toast } from "sonner";
 import { UserPlus, KeyRound, Shield, Power } from "lucide-react";
+import { ContactActionButton } from "@/components/ContactActionButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const roleLabels: Record<string, string> = {
@@ -38,7 +39,7 @@ export default function UsuariosPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("professionals")
-        .select("id, nome, user_id")
+        .select("id, nome, user_id, telefone")
         .order("nome", { ascending: true });
       if (error) throw error;
       return data || [];
@@ -205,6 +206,12 @@ export default function UsuariosPage() {
                       >
                         <Power className="h-3.5 w-3.5" /> {u.ativo ? "Inativar" : "Ativar"}
                       </button>
+                      {u.role === 'profissional' && u.profissional_id && (
+                        <ContactActionButton
+                          profissional={{ nome: u.nome, telefone: professionals.find((p: any) => p.id === u.profissional_id)?.telefone }}
+                          contexto={{ tipo: 'geral' }}
+                        />
+                      )}
                     </div>
                   </td>
                 </tr>

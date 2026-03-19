@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { SWAP_STATUS_LABELS } from "@/types/hospital";
 import type { SwapStatus } from "@/types/hospital";
 import { ArrowLeftRight, Clock, CheckCircle2, XCircle, AlertCircle, Plus, Zap, FileText } from "lucide-react";
+import { ContactActionButton } from "@/components/ContactActionButton";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -68,7 +69,7 @@ export default function TrocasPage() {
     queryKey: ['swap-professionals'],
     enabled: isMaster,
     queryFn: async () => {
-      const { data } = await supabase.from('professionals').select('id, nome').eq('status', 'ativo').order('nome');
+      const { data } = await supabase.from('professionals').select('id, nome, telefone').eq('status', 'ativo').order('nome');
       return data || [];
     },
   });
@@ -302,8 +303,14 @@ export default function TrocasPage() {
                           </span>
                         )}
                         <span className="font-medium text-foreground">{isAdmin ? 'Gestor Master' : (swap.solicitante as any)?.nome || '—'}</span>
+                        {!isAdmin && (swap.solicitante as any)?.nome && (
+                          <ContactActionButton profissional={{ nome: (swap.solicitante as any)?.nome, telefone: professionals.find((p: any) => p.id === swap.solicitante_id)?.telefone }} contexto={{ tipo: 'troca' }} />
+                        )}
                         <span className="text-muted-foreground">→</span>
                         <span className="font-medium text-foreground">{(swap.destinatario as any)?.nome || 'Grupo'}</span>
+                        {(swap.destinatario as any)?.nome && (
+                          <ContactActionButton profissional={{ nome: (swap.destinatario as any)?.nome, telefone: professionals.find((p: any) => p.id === swap.destinatario_id)?.telefone }} contexto={{ tipo: 'troca' }} />
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">{swap.motivo}</p>
                       {swap.shifts && (
