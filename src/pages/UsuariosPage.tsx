@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
 import { toast } from "sonner";
 import { UserPlus, KeyRound, Shield, Power } from "lucide-react";
+import { ContactActionButton } from "@/components/ContactActionButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const roleLabels: Record<string, string> = {
