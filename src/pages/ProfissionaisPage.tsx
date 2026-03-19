@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
 import { Search, Plus, User2, Edit, X } from "lucide-react";
+import { ContactActionButton } from "@/components/ContactActionButton";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
