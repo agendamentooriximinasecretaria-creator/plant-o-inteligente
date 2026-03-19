@@ -69,7 +69,7 @@ export default function TrocasPage() {
     queryKey: ['swap-professionals'],
     enabled: isMaster,
     queryFn: async () => {
-      const { data } = await supabase.from('professionals').select('id, nome').eq('status', 'ativo').order('nome');
+      const { data } = await supabase.from('professionals').select('id, nome, telefone').eq('status', 'ativo').order('nome');
       return data || [];
     },
   });

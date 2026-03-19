@@ -39,7 +39,7 @@ export default function UsuariosPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("professionals")
-        .select("id, nome, user_id")
+        .select("id, nome, user_id, telefone")
         .order("nome", { ascending: true });
       if (error) throw error;
       return data || [];
