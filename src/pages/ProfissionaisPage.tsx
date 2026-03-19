@@ -170,6 +170,7 @@ export default function ProfissionaisPage() {
                   <p className="text-xs text-muted-foreground">{p.especialidade} • {p.registro}</p>
                   <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
                     <span>{p.email}</span>
+                    <ContactActionButton profissional={{ nome: p.nome, telefone: p.telefone }} contexto={{ tipo: 'geral' }} />
                   </div>
                   <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
                     <span className="text-xs text-muted-foreground">{(p.units as any)?.nome || '—'}</span>

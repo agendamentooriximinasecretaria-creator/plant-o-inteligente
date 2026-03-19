@@ -206,6 +206,12 @@ export default function UsuariosPage() {
                       >
                         <Power className="h-3.5 w-3.5" /> {u.ativo ? "Inativar" : "Ativar"}
                       </button>
+                      {u.role === 'profissional' && u.profissional_id && (
+                        <ContactActionButton
+                          profissional={{ nome: u.nome, telefone: professionals.find((p: any) => p.id === u.profissional_id)?.telefone }}
+                          contexto={{ tipo: 'geral' }}
+                        />
+                      )}
                     </div>
                   </td>
                 </tr>
