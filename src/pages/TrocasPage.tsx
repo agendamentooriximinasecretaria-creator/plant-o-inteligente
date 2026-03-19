@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { SWAP_STATUS_LABELS } from "@/types/hospital";
 import type { SwapStatus } from "@/types/hospital";
 import { ArrowLeftRight, Clock, CheckCircle2, XCircle, AlertCircle, Plus, Zap, FileText } from "lucide-react";
+import { ContactActionButton } from "@/components/ContactActionButton";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
