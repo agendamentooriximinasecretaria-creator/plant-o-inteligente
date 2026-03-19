@@ -267,6 +267,22 @@ export default function EscalaPage() {
         <div className="flex items-center gap-2">
           <button onClick={() => setView('lista')} className={`p-2 rounded-lg transition-colors ${view === 'lista' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}><List className="h-4 w-4" /></button>
           <button onClick={() => setView('calendario')} className={`p-2 rounded-lg transition-colors ${view === 'calendario' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}><Calendar className="h-4 w-4" /></button>
+          <button onClick={async () => {
+            const { data: zeroShifts } = await supabase.from('shifts').select('id, hora_inicio, hora_fim, professionals:profissional_id(valor_hora)').eq('valor_total', 0).neq('status', 'cancelado');
+            let count = 0;
+            for (const p of zeroShifts || []) {
+              const vh = (p.professionals as any)?.valor_hora;
+              if (vh > 0) {
+                const h = calcHours(p.hora_inicio, p.hora_fim);
+                await supabase.from('shifts').update({ valor_total: h * vh, valor_hora: vh }).eq('id', p.id);
+                count++;
+              }
+            }
+            toast.success(`✅ ${count} plantões recalculados`);
+            refetchShifts();
+          }} className="flex items-center gap-2 border border-border text-foreground px-3 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors">
+            <RefreshCw className="h-4 w-4" /> Recalcular Valores
+          </button>
           <button onClick={() => { setForm(emptyForm); setEditingId(null); setModalOpen(true); }} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"><Plus className="h-4 w-4" /> Novo Plantão</button>
         </div>
       </div>
