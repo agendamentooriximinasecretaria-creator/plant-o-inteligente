@@ -196,10 +196,39 @@ export default function EscalaPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (shift: any) => {
+      // If shift is in swap, cancel linked pending swaps first
+      if (shift.status === 'trocando') {
+        const { data: trocasAtivas } = await supabase
+          .from('shift_swaps')
+          .select('id, status')
+          .eq('shift_id', shift.id)
+          .in('status', ['solicitada', 'aguardando_resposta', 'aceita', 'aguardando_aprovacao']);
+        if (trocasAtivas && trocasAtivas.length > 0) {
+          await supabase
+            .from('shift_swaps')
+            .update({ status: 'cancelada' as any, observacao_gestor: 'Troca cancelada automaticamente — plantão excluído pelo gestor' })
+            .eq('shift_id', shift.id)
+            .in('status', ['solicitada', 'aguardando_resposta', 'aceita', 'aguardando_aprovacao']);
+        }
+      }
+      // Also cancel swaps referencing this shift as destination
+      await supabase
+        .from('shift_swaps')
+        .update({ status: 'cancelada' as any, observacao_gestor: 'Troca cancelada automaticamente — plantão excluído' })
+        .eq('shift_id_destino', shift.id)
+        .in('status', ['solicitada', 'aguardando_resposta', 'aceita', 'aguardando_aprovacao']);
+
+      // Try hard delete
       const { error } = await supabase.from('shifts').delete().eq('id', shift.id);
-      if (error) throw error;
-      await logAudit('Plantão excluído', 'escala', { id: shift.id });
-      // Notify professional about cancellation
+      if (error) {
+        // Fallback: soft delete (cancel)
+        await supabase.from('shifts').update({ status: 'cancelado' as any }).eq('id', shift.id);
+        toast.success('Plantão cancelado com sucesso');
+      } else {
+        toast.success('Plantão excluído com sucesso');
+      }
+
+      await logAudit('Plantão excluído', 'escala', { id: shift.id, status_anterior: shift.status });
       await dispatchNotification({
         professionalId: shift.profissional_id,
         tipo: 'plantao',
@@ -207,8 +236,8 @@ export default function EscalaPage() {
         mensagem: `Seu plantão em ${new Date(shift.data + 'T12:00:00').toLocaleDateString('pt-BR')} das ${shift.hora_inicio} às ${shift.hora_fim} foi cancelado.`,
       });
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['shifts'] }); toast.success('Plantão excluído!'); },
-    onError: (e: Error) => toast.error(e.message),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['shifts'] }); },
+    onError: (e: Error) => toast.error(`Não foi possível excluir: ${e.message}`),
   });
 
   const closeModal = () => { setModalOpen(false); setEditingId(null); setForm(emptyForm); setConflictWarning(''); setWorkloadAlerts([]); setRecurring({ enabled: false, frequency: 'weekly', weeks: 1 }); };
