@@ -230,6 +230,9 @@ export default function ProfissionaisPage() {
                 </select>
               </div>
               <div><label className="text-sm font-medium text-foreground">Vínculo</label><input value={form.vinculo} onChange={e => setForm(f => ({ ...f, vinculo: e.target.value }))} className={inputClass} /></div>
+              <div><label className="text-sm font-medium text-foreground">Conselho (CRM/COREN)</label><input placeholder="Ex: CRM" value={form.documento_conselho} onChange={e => setForm(f => ({ ...f, documento_conselho: e.target.value }))} className={inputClass} /></div>
+              <div><label className="text-sm font-medium text-foreground">Nº Documento</label><input value={form.documento_numero} onChange={e => setForm(f => ({ ...f, documento_numero: e.target.value }))} className={inputClass} /></div>
+              <div><label className="text-sm font-medium text-foreground">Validade do Documento</label><input type="date" value={form.documento_validade} onChange={e => setForm(f => ({ ...f, documento_validade: e.target.value }))} className={inputClass} /></div>
               <div><label className="text-sm font-medium text-foreground">Status</label>
                 <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={inputClass}>
                   <option value="ativo">Ativo</option><option value="inativo">Inativo</option>
