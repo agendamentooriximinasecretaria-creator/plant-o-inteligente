@@ -52,7 +52,7 @@ export default function SetoresPage() {
 
   const saveSector = useMutation({
     mutationFn: async (form: typeof sectorForm) => {
-      const payload = { nome: form.nome, unidade_id: form.unidade_id };
+      const payload = { nome: form.nome, unidade_id: form.unidade_id, min_profissionais_diurno: form.min_profissionais_diurno, min_profissionais_noturno: form.min_profissionais_noturno, min_profissionais_fds: form.min_profissionais_fds };
       if (editingSectorId) {
         const { error } = await supabase.from('sectors').update(payload).eq('id', editingSectorId);
         if (error) throw error;
