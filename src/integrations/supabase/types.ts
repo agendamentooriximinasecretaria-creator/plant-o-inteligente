@@ -138,6 +138,9 @@ export type Database = {
           cpf: string | null
           created_at: string
           data_nascimento: string | null
+          documento_conselho: string | null
+          documento_numero: string | null
+          documento_validade: string | null
           email: string
           endereco: string | null
           especialidade: string | null
@@ -166,6 +169,9 @@ export type Database = {
           cpf?: string | null
           created_at?: string
           data_nascimento?: string | null
+          documento_conselho?: string | null
+          documento_numero?: string | null
+          documento_validade?: string | null
           email: string
           endereco?: string | null
           especialidade?: string | null
@@ -194,6 +200,9 @@ export type Database = {
           cpf?: string | null
           created_at?: string
           data_nascimento?: string | null
+          documento_conselho?: string | null
+          documento_numero?: string | null
+          documento_validade?: string | null
           email?: string
           endereco?: string | null
           especialidade?: string | null
@@ -277,6 +286,9 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          min_profissionais_diurno: number | null
+          min_profissionais_fds: number | null
+          min_profissionais_noturno: number | null
           nome: string
           unidade_id: string
           updated_at: string
@@ -284,6 +296,9 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          min_profissionais_diurno?: number | null
+          min_profissionais_fds?: number | null
+          min_profissionais_noturno?: number | null
           nome: string
           unidade_id: string
           updated_at?: string
@@ -291,6 +306,9 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          min_profissionais_diurno?: number | null
+          min_profissionais_fds?: number | null
+          min_profissionais_noturno?: number | null
           nome?: string
           unidade_id?: string
           updated_at?: string
