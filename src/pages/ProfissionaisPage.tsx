@@ -112,6 +112,7 @@ export default function ProfissionaisPage() {
       unidade_principal_id: p.unidade_principal_id || '', setor_principal_id: p.setor_principal_id || '',
       status: p.status, banco: p.banco || '', agencia: p.agencia || '', conta: p.conta || '',
       chave_pix: p.chave_pix || '', observacoes: p.observacoes || '', vinculo: p.vinculo || '',
+      documento_conselho: p.documento_conselho || '', documento_numero: p.documento_numero || '', documento_validade: p.documento_validade || '',
     });
     setModalOpen(true);
   };
