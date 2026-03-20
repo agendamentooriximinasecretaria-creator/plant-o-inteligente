@@ -70,6 +70,8 @@ export default function ProfissionaisPage() {
         unidade_principal_id: data.unidade_principal_id || null, setor_principal_id: data.setor_principal_id || null,
         status: data.status, banco: data.banco || null, agencia: data.agencia || null, conta: data.conta || null,
         chave_pix: data.chave_pix || null, observacoes: data.observacoes || null, vinculo: data.vinculo || null,
+        documento_conselho: data.documento_conselho || null, documento_numero: data.documento_numero || null,
+        documento_validade: data.documento_validade || null,
       };
       if (editingId) {
         const { error } = await supabase.from('professionals').update(payload).eq('id', editingId);
