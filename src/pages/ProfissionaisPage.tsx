@@ -172,6 +172,15 @@ export default function ProfissionaisPage() {
                   </div>
                   <p className="text-sm text-primary font-medium">{PROFISSAO_LABELS[p.profissao] || p.profissao}</p>
                   <p className="text-xs text-muted-foreground">{p.especialidade} • {p.registro}</p>
+                  {p.documento_validade && (() => {
+                    const v = new Date(p.documento_validade);
+                    const hoje = new Date();
+                    const dias = Math.ceil((v.getTime() - hoje.getTime()) / 86400000);
+                    const vencido = v < hoje;
+                    return <p className={`text-xs mt-0.5 ${vencido ? 'text-destructive font-medium' : dias <= 30 ? 'text-warning' : 'text-success'}`}>
+                      {vencido ? '🔴' : dias <= 30 ? '🟡' : '✅'} {p.documento_conselho || 'Registro'} {vencido ? `VENCIDO` : dias <= 30 ? `vence em ${dias}d` : `válido até ${v.toLocaleDateString('pt-BR')}`}
+                    </p>;
+                  })()}
                   <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
                     <span>{p.email}</span>
                     <ContactActionButton profissional={{ nome: p.nome, telefone: p.telefone }} contexto={{ tipo: 'geral' }} />
