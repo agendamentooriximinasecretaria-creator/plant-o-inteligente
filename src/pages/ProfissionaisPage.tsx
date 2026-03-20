@@ -31,6 +31,7 @@ const emptyForm = {
   cpf: '', telefone: '', email: '', valor_hora: 0, valor_plantao: 0,
   unidade_principal_id: '', setor_principal_id: '', status: 'ativo',
   banco: '', agencia: '', conta: '', chave_pix: '', observacoes: '', vinculo: '',
+  documento_conselho: '', documento_numero: '', documento_validade: '',
 };
 
 export default function ProfissionaisPage() {
