@@ -1,0 +1,17 @@
+{
+  "name": "GestorPlantão SMS Oriximiná",
+  "short_name": "GestorPlantão",
+  "description": "Sistema de gestão de plantões hospitalares",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0F4C81",
+  "theme_color": "#0F4C81",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "categories": ["medical", "productivity"],
+  "lang": "pt-BR"
+}
