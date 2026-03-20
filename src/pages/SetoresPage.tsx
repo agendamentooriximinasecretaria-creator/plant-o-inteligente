@@ -120,7 +120,7 @@ export default function SetoresPage() {
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-display font-semibold text-foreground text-lg flex items-center gap-2"><Layers className="h-5 w-5 text-accent" /> Setores</h2>
-          <button onClick={() => { setSectorForm({ nome: '', unidade_id: units[0]?.id || '' }); setEditingSectorId(null); setSectorModal(true); }} disabled={units.length === 0} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"><Plus className="h-4 w-4" /> Novo Setor</button>
+          <button onClick={() => { setSectorForm({ nome: '', unidade_id: units[0]?.id || '', min_profissionais_diurno: 1, min_profissionais_noturno: 1, min_profissionais_fds: 1 }); setEditingSectorId(null); setSectorModal(true); }} disabled={units.length === 0} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"><Plus className="h-4 w-4" /> Novo Setor</button>
         </div>
         {loadingSectors ? <div className="flex justify-center py-8"><div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full" /></div> : (
           <div className="bg-card rounded-lg border border-border overflow-hidden shadow-[var(--shadow-card)]">
