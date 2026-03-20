@@ -125,7 +125,7 @@ export default function SetoresPage() {
         {loadingSectors ? <div className="flex justify-center py-8"><div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full" /></div> : (
           <div className="bg-card rounded-lg border border-border overflow-hidden shadow-[var(--shadow-card)]">
             <table className="w-full text-sm">
-              <thead><tr className="table-header"><th className="text-left p-3">Setor</th><th className="text-left p-3">Unidade</th><th className="text-left p-3">Ações</th></tr></thead>
+              <thead><tr className="table-header"><th className="text-left p-3">Setor</th><th className="text-left p-3">Unidade</th><th className="text-left p-3">Cobertura Mín.</th><th className="text-left p-3">Ações</th></tr></thead>
               <tbody>
                 {sectors.map((s: any) => (
                   <tr key={s.id} className="border-t border-border hover:bg-muted/30 transition-colors">
