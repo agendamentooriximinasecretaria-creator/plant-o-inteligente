@@ -63,7 +63,7 @@ export default function SetoresPage() {
         await logAudit('Setor criado', 'setores', { nome: form.nome });
       }
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sectors'] }); toast.success(editingSectorId ? 'Setor atualizado!' : 'Setor criado!'); setSectorModal(false); setEditingSectorId(null); setSectorForm({ nome: '', unidade_id: '' }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sectors'] }); toast.success(editingSectorId ? 'Setor atualizado!' : 'Setor criado!'); setSectorModal(false); setEditingSectorId(null); setSectorForm({ nome: '', unidade_id: '', min_profissionais_diurno: 1, min_profissionais_noturno: 1, min_profissionais_fds: 1 }); },
     onError: (e: Error) => toast.error('Erro: ' + e.message),
   });
 
