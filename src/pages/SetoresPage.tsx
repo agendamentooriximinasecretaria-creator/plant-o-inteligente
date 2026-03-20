@@ -15,7 +15,7 @@ export default function SetoresPage() {
   const [editingUnitId, setEditingUnitId] = useState<string | null>(null);
   const [editingSectorId, setEditingSectorId] = useState<string | null>(null);
   const [unitForm, setUnitForm] = useState({ nome: '', tipo: 'hospital', endereco: '', telefone: '' });
-  const [sectorForm, setSectorForm] = useState({ nome: '', unidade_id: '' });
+  const [sectorForm, setSectorForm] = useState({ nome: '', unidade_id: '', min_profissionais_diurno: 1, min_profissionais_noturno: 1, min_profissionais_fds: 1 });
 
   const { data: units = [], isLoading: loadingUnits } = useQuery({
     queryKey: ['units'],
