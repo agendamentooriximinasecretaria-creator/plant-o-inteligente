@@ -131,9 +131,10 @@ export default function SetoresPage() {
                   <tr key={s.id} className="border-t border-border hover:bg-muted/30 transition-colors">
                     <td className="p-3 font-medium text-foreground">{s.nome}</td>
                     <td className="p-3 text-muted-foreground">{(s.units as any)?.nome || '—'}</td>
+                    <td className="p-3 text-xs text-muted-foreground">D:{s.min_profissionais_diurno || 1} N:{s.min_profissionais_noturno || 1} FDS:{s.min_profissionais_fds || 1}</td>
                     <td className="p-3">
                       <div className="flex items-center gap-1">
-                        <button onClick={() => { setEditingSectorId(s.id); setSectorForm({ nome: s.nome, unidade_id: s.unidade_id }); setSectorModal(true); }} className="p-1 rounded hover:bg-muted"><Edit className="h-3.5 w-3.5 text-muted-foreground" /></button>
+                        <button onClick={() => { setEditingSectorId(s.id); setSectorForm({ nome: s.nome, unidade_id: s.unidade_id, min_profissionais_diurno: s.min_profissionais_diurno || 1, min_profissionais_noturno: s.min_profissionais_noturno || 1, min_profissionais_fds: s.min_profissionais_fds || 1 }); setSectorModal(true); }} className="p-1 rounded hover:bg-muted"><Edit className="h-3.5 w-3.5 text-muted-foreground" /></button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild><button className="p-1 rounded hover:bg-destructive/10"><Trash2 className="h-3.5 w-3.5 text-destructive" /></button></AlertDialogTrigger>
                           <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir setor?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
