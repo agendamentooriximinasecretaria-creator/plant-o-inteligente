@@ -15,7 +15,7 @@ export default function SetoresPage() {
   const [editingUnitId, setEditingUnitId] = useState<string | null>(null);
   const [editingSectorId, setEditingSectorId] = useState<string | null>(null);
   const [unitForm, setUnitForm] = useState({ nome: '', tipo: 'hospital', endereco: '', telefone: '' });
-  const [sectorForm, setSectorForm] = useState({ nome: '', unidade_id: '' });
+  const [sectorForm, setSectorForm] = useState({ nome: '', unidade_id: '', min_profissionais_diurno: 1, min_profissionais_noturno: 1, min_profissionais_fds: 1 });
 
   const { data: units = [], isLoading: loadingUnits } = useQuery({
     queryKey: ['units'],
@@ -52,7 +52,7 @@ export default function SetoresPage() {
 
   const saveSector = useMutation({
     mutationFn: async (form: typeof sectorForm) => {
-      const payload = { nome: form.nome, unidade_id: form.unidade_id };
+      const payload = { nome: form.nome, unidade_id: form.unidade_id, min_profissionais_diurno: form.min_profissionais_diurno, min_profissionais_noturno: form.min_profissionais_noturno, min_profissionais_fds: form.min_profissionais_fds };
       if (editingSectorId) {
         const { error } = await supabase.from('sectors').update(payload).eq('id', editingSectorId);
         if (error) throw error;
@@ -63,7 +63,7 @@ export default function SetoresPage() {
         await logAudit('Setor criado', 'setores', { nome: form.nome });
       }
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sectors'] }); toast.success(editingSectorId ? 'Setor atualizado!' : 'Setor criado!'); setSectorModal(false); setEditingSectorId(null); setSectorForm({ nome: '', unidade_id: '' }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sectors'] }); toast.success(editingSectorId ? 'Setor atualizado!' : 'Setor criado!'); setSectorModal(false); setEditingSectorId(null); setSectorForm({ nome: '', unidade_id: '', min_profissionais_diurno: 1, min_profissionais_noturno: 1, min_profissionais_fds: 1 }); },
     onError: (e: Error) => toast.error('Erro: ' + e.message),
   });
 
@@ -120,20 +120,21 @@ export default function SetoresPage() {
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-display font-semibold text-foreground text-lg flex items-center gap-2"><Layers className="h-5 w-5 text-accent" /> Setores</h2>
-          <button onClick={() => { setSectorForm({ nome: '', unidade_id: units[0]?.id || '' }); setEditingSectorId(null); setSectorModal(true); }} disabled={units.length === 0} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"><Plus className="h-4 w-4" /> Novo Setor</button>
+          <button onClick={() => { setSectorForm({ nome: '', unidade_id: units[0]?.id || '', min_profissionais_diurno: 1, min_profissionais_noturno: 1, min_profissionais_fds: 1 }); setEditingSectorId(null); setSectorModal(true); }} disabled={units.length === 0} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"><Plus className="h-4 w-4" /> Novo Setor</button>
         </div>
         {loadingSectors ? <div className="flex justify-center py-8"><div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full" /></div> : (
           <div className="bg-card rounded-lg border border-border overflow-hidden shadow-[var(--shadow-card)]">
             <table className="w-full text-sm">
-              <thead><tr className="table-header"><th className="text-left p-3">Setor</th><th className="text-left p-3">Unidade</th><th className="text-left p-3">Ações</th></tr></thead>
+              <thead><tr className="table-header"><th className="text-left p-3">Setor</th><th className="text-left p-3">Unidade</th><th className="text-left p-3">Cobertura Mín.</th><th className="text-left p-3">Ações</th></tr></thead>
               <tbody>
                 {sectors.map((s: any) => (
                   <tr key={s.id} className="border-t border-border hover:bg-muted/30 transition-colors">
                     <td className="p-3 font-medium text-foreground">{s.nome}</td>
                     <td className="p-3 text-muted-foreground">{(s.units as any)?.nome || '—'}</td>
+                    <td className="p-3 text-xs text-muted-foreground">D:{s.min_profissionais_diurno || 1} N:{s.min_profissionais_noturno || 1} FDS:{s.min_profissionais_fds || 1}</td>
                     <td className="p-3">
                       <div className="flex items-center gap-1">
-                        <button onClick={() => { setEditingSectorId(s.id); setSectorForm({ nome: s.nome, unidade_id: s.unidade_id }); setSectorModal(true); }} className="p-1 rounded hover:bg-muted"><Edit className="h-3.5 w-3.5 text-muted-foreground" /></button>
+                        <button onClick={() => { setEditingSectorId(s.id); setSectorForm({ nome: s.nome, unidade_id: s.unidade_id, min_profissionais_diurno: s.min_profissionais_diurno || 1, min_profissionais_noturno: s.min_profissionais_noturno || 1, min_profissionais_fds: s.min_profissionais_fds || 1 }); setSectorModal(true); }} className="p-1 rounded hover:bg-muted"><Edit className="h-3.5 w-3.5 text-muted-foreground" /></button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild><button className="p-1 rounded hover:bg-destructive/10"><Trash2 className="h-3.5 w-3.5 text-destructive" /></button></AlertDialogTrigger>
                           <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir setor?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
@@ -143,7 +144,7 @@ export default function SetoresPage() {
                     </td>
                   </tr>
                 ))}
-                {sectors.length === 0 && <tr><td colSpan={3} className="p-6 text-center text-muted-foreground">Nenhum setor cadastrado.</td></tr>}
+                {sectors.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">Nenhum setor cadastrado.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -180,6 +181,14 @@ export default function SetoresPage() {
               <select required value={sectorForm.unidade_id} onChange={e => setSectorForm(f => ({ ...f, unidade_id: e.target.value }))} className={inputClass}>
                 <option value="">Selecione...</option>{units.map((u: any) => <option key={u.id} value={u.id}>{u.nome}</option>)}
               </select></div>
+            <div className="border-t border-border pt-3">
+              <p className="text-sm font-semibold text-foreground mb-2">Cobertura Mínima</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div><label className="text-xs text-muted-foreground">Diurno</label><input type="number" min={0} value={sectorForm.min_profissionais_diurno} onChange={e => setSectorForm(f => ({ ...f, min_profissionais_diurno: parseInt(e.target.value) || 0 }))} className={inputClass} /></div>
+                <div><label className="text-xs text-muted-foreground">Noturno</label><input type="number" min={0} value={sectorForm.min_profissionais_noturno} onChange={e => setSectorForm(f => ({ ...f, min_profissionais_noturno: parseInt(e.target.value) || 0 }))} className={inputClass} /></div>
+                <div><label className="text-xs text-muted-foreground">Fim de semana</label><input type="number" min={0} value={sectorForm.min_profissionais_fds} onChange={e => setSectorForm(f => ({ ...f, min_profissionais_fds: parseInt(e.target.value) || 0 }))} className={inputClass} /></div>
+              </div>
+            </div>
             <div className="flex justify-end gap-3">
               <button type="button" onClick={() => setSectorModal(false)} className="px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted">Cancelar</button>
               <button type="submit" disabled={saveSector.isPending} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50">{saveSector.isPending ? 'Salvando...' : 'Salvar'}</button>

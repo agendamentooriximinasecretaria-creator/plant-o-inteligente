@@ -31,6 +31,7 @@ const emptyForm = {
   cpf: '', telefone: '', email: '', valor_hora: 0, valor_plantao: 0,
   unidade_principal_id: '', setor_principal_id: '', status: 'ativo',
   banco: '', agencia: '', conta: '', chave_pix: '', observacoes: '', vinculo: '',
+  documento_conselho: '', documento_numero: '', documento_validade: '',
 };
 
 export default function ProfissionaisPage() {
@@ -69,6 +70,8 @@ export default function ProfissionaisPage() {
         unidade_principal_id: data.unidade_principal_id || null, setor_principal_id: data.setor_principal_id || null,
         status: data.status, banco: data.banco || null, agencia: data.agencia || null, conta: data.conta || null,
         chave_pix: data.chave_pix || null, observacoes: data.observacoes || null, vinculo: data.vinculo || null,
+        documento_conselho: data.documento_conselho || null, documento_numero: data.documento_numero || null,
+        documento_validade: data.documento_validade || null,
       };
       if (editingId) {
         const { error } = await supabase.from('professionals').update(payload).eq('id', editingId);
@@ -109,6 +112,7 @@ export default function ProfissionaisPage() {
       unidade_principal_id: p.unidade_principal_id || '', setor_principal_id: p.setor_principal_id || '',
       status: p.status, banco: p.banco || '', agencia: p.agencia || '', conta: p.conta || '',
       chave_pix: p.chave_pix || '', observacoes: p.observacoes || '', vinculo: p.vinculo || '',
+      documento_conselho: p.documento_conselho || '', documento_numero: p.documento_numero || '', documento_validade: p.documento_validade || '',
     });
     setModalOpen(true);
   };
@@ -168,6 +172,15 @@ export default function ProfissionaisPage() {
                   </div>
                   <p className="text-sm text-primary font-medium">{PROFISSAO_LABELS[p.profissao] || p.profissao}</p>
                   <p className="text-xs text-muted-foreground">{p.especialidade} • {p.registro}</p>
+                  {p.documento_validade && (() => {
+                    const v = new Date(p.documento_validade);
+                    const hoje = new Date();
+                    const dias = Math.ceil((v.getTime() - hoje.getTime()) / 86400000);
+                    const vencido = v < hoje;
+                    return <p className={`text-xs mt-0.5 ${vencido ? 'text-destructive font-medium' : dias <= 30 ? 'text-warning' : 'text-success'}`}>
+                      {vencido ? '🔴' : dias <= 30 ? '🟡' : '✅'} {p.documento_conselho || 'Registro'} {vencido ? `VENCIDO` : dias <= 30 ? `vence em ${dias}d` : `válido até ${v.toLocaleDateString('pt-BR')}`}
+                    </p>;
+                  })()}
                   <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
                     <span>{p.email}</span>
                     <ContactActionButton profissional={{ nome: p.nome, telefone: p.telefone }} contexto={{ tipo: 'geral' }} />
@@ -217,6 +230,9 @@ export default function ProfissionaisPage() {
                 </select>
               </div>
               <div><label className="text-sm font-medium text-foreground">Vínculo</label><input value={form.vinculo} onChange={e => setForm(f => ({ ...f, vinculo: e.target.value }))} className={inputClass} /></div>
+              <div><label className="text-sm font-medium text-foreground">Conselho (CRM/COREN)</label><input placeholder="Ex: CRM" value={form.documento_conselho} onChange={e => setForm(f => ({ ...f, documento_conselho: e.target.value }))} className={inputClass} /></div>
+              <div><label className="text-sm font-medium text-foreground">Nº Documento</label><input value={form.documento_numero} onChange={e => setForm(f => ({ ...f, documento_numero: e.target.value }))} className={inputClass} /></div>
+              <div><label className="text-sm font-medium text-foreground">Validade do Documento</label><input type="date" value={form.documento_validade} onChange={e => setForm(f => ({ ...f, documento_validade: e.target.value }))} className={inputClass} /></div>
               <div><label className="text-sm font-medium text-foreground">Status</label>
                 <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={inputClass}>
                   <option value="ativo">Ativo</option><option value="inativo">Inativo</option>
