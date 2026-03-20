@@ -144,7 +144,7 @@ export default function SetoresPage() {
                     </td>
                   </tr>
                 ))}
-                {sectors.length === 0 && <tr><td colSpan={3} className="p-6 text-center text-muted-foreground">Nenhum setor cadastrado.</td></tr>}
+                {sectors.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">Nenhum setor cadastrado.</td></tr>}
               </tbody>
             </table>
           </div>
