@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
 import { Search, Plus, User2, Edit, X } from "lucide-react";
 import { ContactActionButton } from "@/components/ContactActionButton";
+import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -26,12 +27,24 @@ type ProfissaoValue = typeof PROFISSAO_OPTIONS[number]['value'];
 
 const PROFISSAO_LABELS: Record<string, string> = Object.fromEntries(PROFISSAO_OPTIONS.map(p => [p.value, p.label]));
 
+const COMPETENCIAS_POR_PROFISSAO: Record<string, string[]> = {
+  medico: ['Clínica Geral', 'Emergência', 'UTI', 'Pediatria', 'Cirurgia', 'Obstetrícia', 'Cardiologia'],
+  enfermeiro: ['UTI Neonatal', 'Triagem', 'Emergência', 'Curativos', 'Centro Cirúrgico', 'Ventilação Mecânica', 'Hemodiálise'],
+  fisioterapeuta: ['Respiratória', 'Motora', 'Neurológica', 'Pediátrica', 'Aquática', 'Cardiovascular'],
+  tecnico_enfermagem: ['UTI', 'Emergência', 'Centro Cirúrgico', 'Hemodiálise', 'Enfermaria', 'Triagem'],
+  biomedico: ['Análises Clínicas', 'Hemoterapia', 'Imunologia', 'Microbiologia'],
+  farmaceutico: ['Hospitalar', 'Clínica', 'Manipulação', 'Oncologia'],
+};
+
+const LIMITE_HORAS_MENSAL = 220; // hours cap for progress bar
+
 const emptyForm = {
   nome: '', profissao: 'medico' as ProfissaoValue, especialidade: '', conselho: '', registro: '',
   cpf: '', telefone: '', email: '', valor_hora: 0, valor_plantao: 0,
   unidade_principal_id: '', setor_principal_id: '', status: 'ativo',
   banco: '', agencia: '', conta: '', chave_pix: '', observacoes: '', vinculo: '',
   documento_conselho: '', documento_numero: '', documento_validade: '',
+  competencias: [] as string[],
 };
 
 export default function ProfissionaisPage() {
@@ -51,6 +64,27 @@ export default function ProfissionaisPage() {
     },
   });
 
+  // Fetch month shifts for hours bar
+  const { data: monthShifts = [] } = useQuery({
+    queryKey: ['professionals-month-shifts'],
+    queryFn: async () => {
+      const now = new Date();
+      const firstDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const lastStr = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
+      const { data } = await supabase.from('shifts').select('profissional_id, carga_horaria').gte('data', firstDay).lte('data', lastStr).neq('status', 'cancelado');
+      return data || [];
+    },
+  });
+
+  const horasPorProfissional = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const s of monthShifts as any[]) {
+      map[s.profissional_id] = (map[s.profissional_id] || 0) + Number(s.carga_horaria);
+    }
+    return map;
+  }, [monthShifts]);
+
   const { data: units = [] } = useQuery({
     queryKey: ['units'],
     queryFn: async () => { const { data } = await supabase.from('units').select('*').order('nome'); return data || []; },
@@ -63,7 +97,7 @@ export default function ProfissionaisPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (data: typeof form) => {
-      const payload = {
+      const payload: any = {
         nome: data.nome, profissao: data.profissao as ProfissaoValue, especialidade: data.especialidade || null,
         conselho: data.conselho || null, registro: data.registro || null, cpf: data.cpf || null,
         telefone: data.telefone || null, email: data.email, valor_hora: data.valor_hora, valor_plantao: data.valor_plantao || null,
@@ -72,6 +106,7 @@ export default function ProfissionaisPage() {
         chave_pix: data.chave_pix || null, observacoes: data.observacoes || null, vinculo: data.vinculo || null,
         documento_conselho: data.documento_conselho || null, documento_numero: data.documento_numero || null,
         documento_validade: data.documento_validade || null,
+        competencias: data.competencias.length > 0 ? data.competencias : null,
       };
       if (editingId) {
         const { error } = await supabase.from('professionals').update(payload).eq('id', editingId);
@@ -113,6 +148,7 @@ export default function ProfissionaisPage() {
       status: p.status, banco: p.banco || '', agencia: p.agencia || '', conta: p.conta || '',
       chave_pix: p.chave_pix || '', observacoes: p.observacoes || '', vinculo: p.vinculo || '',
       documento_conselho: p.documento_conselho || '', documento_numero: p.documento_numero || '', documento_validade: p.documento_validade || '',
+      competencias: Array.isArray(p.competencias) ? p.competencias : [],
     });
     setModalOpen(true);
   };
@@ -122,6 +158,15 @@ export default function ProfissionaisPage() {
     if (filterProfissao && p.profissao !== filterProfissao) return false;
     return true;
   });
+
+  const toggleCompetencia = (comp: string) => {
+    setForm(f => ({
+      ...f,
+      competencias: f.competencias.includes(comp)
+        ? f.competencias.filter(c => c !== comp)
+        : [...f.competencias, comp],
+    }));
+  };
 
   const inputClass = "w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
 
@@ -152,47 +197,72 @@ export default function ProfissionaisPage() {
         <div className="flex justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((p: any, i: number) => (
-            <motion.div key={p.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
-              className="bg-card rounded-lg border border-border p-5 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elevated)] transition-all">
-              <div className="flex items-start gap-4">
-                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <User2 className="h-6 w-6 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-display font-semibold text-foreground truncate">{p.nome}</h3>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => openEdit(p)} className="p-1 rounded hover:bg-muted"><Edit className="h-3.5 w-3.5 text-muted-foreground" /></button>
-                      <span className={`status-badge text-[10px] cursor-pointer ${p.status === 'ativo' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}
-                        onClick={() => toggleStatusMutation.mutate({ id: p.id, newStatus: p.status === 'ativo' ? 'inativo' : 'ativo' })}>
-                        {p.status === 'ativo' ? 'Ativo' : 'Inativo'}
-                      </span>
+          {filtered.map((p: any, i: number) => {
+            const horasMes = horasPorProfissional[p.id] || 0;
+            const percentHoras = Math.min(100, (horasMes / LIMITE_HORAS_MENSAL) * 100);
+            const horasColor = percentHoras >= 90 ? 'text-destructive' : percentHoras >= 70 ? 'text-warning' : 'text-success';
+            return (
+              <motion.div key={p.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
+                className="bg-card rounded-lg border border-border p-5 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elevated)] transition-all">
+                <div className="flex items-start gap-4">
+                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <User2 className="h-6 w-6 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-display font-semibold text-foreground truncate">{p.nome}</h3>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => openEdit(p)} className="p-1 rounded hover:bg-muted"><Edit className="h-3.5 w-3.5 text-muted-foreground" /></button>
+                        <span className={`status-badge text-[10px] cursor-pointer ${p.status === 'ativo' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}
+                          onClick={() => toggleStatusMutation.mutate({ id: p.id, newStatus: p.status === 'ativo' ? 'inativo' : 'ativo' })}>
+                          {p.status === 'ativo' ? 'Ativo' : 'Inativo'}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-sm text-primary font-medium">{PROFISSAO_LABELS[p.profissao] || p.profissao}</p>
+                    <p className="text-xs text-muted-foreground">{p.especialidade} • {p.registro}</p>
+                    {Array.isArray(p.competencias) && p.competencias.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {p.competencias.slice(0, 3).map((c: string) => (
+                          <span key={c} className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent/10 text-accent font-medium">{c}</span>
+                        ))}
+                        {p.competencias.length > 3 && <span className="text-[10px] text-muted-foreground">+{p.competencias.length - 3}</span>}
+                      </div>
+                    )}
+                    {p.documento_validade && (() => {
+                      const v = new Date(p.documento_validade);
+                      const hoje = new Date();
+                      const dias = Math.ceil((v.getTime() - hoje.getTime()) / 86400000);
+                      const vencido = v < hoje;
+                      return <p className={`text-xs mt-0.5 ${vencido ? 'text-destructive font-medium' : dias <= 30 ? 'text-warning' : 'text-success'}`}>
+                        {vencido ? '🔴' : dias <= 30 ? '🟡' : '✅'} {p.documento_conselho || 'Registro'} {vencido ? `VENCIDO` : dias <= 30 ? `vence em ${dias}d` : `válido até ${v.toLocaleDateString('pt-BR')}`}
+                      </p>;
+                    })()}
+
+                    {/* Hours worked this month */}
+                    {p.status === 'ativo' && (
+                      <div className="mt-2">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-[10px] text-muted-foreground">Horas no mês</span>
+                          <span className={`text-[10px] font-semibold ${horasColor}`}>{horasMes.toFixed(0)}h / {LIMITE_HORAS_MENSAL}h</span>
+                        </div>
+                        <Progress value={percentHoras} className="h-1.5" />
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                      <span>{p.email}</span>
+                      <ContactActionButton profissional={{ nome: p.nome, telefone: p.telefone }} contexto={{ tipo: 'geral' }} />
+                    </div>
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+                      <span className="text-xs text-muted-foreground">{(p.units as any)?.nome || '—'}</span>
+                      <span className="text-sm font-semibold text-foreground">R$ {p.valor_hora}/h</span>
                     </div>
                   </div>
-                  <p className="text-sm text-primary font-medium">{PROFISSAO_LABELS[p.profissao] || p.profissao}</p>
-                  <p className="text-xs text-muted-foreground">{p.especialidade} • {p.registro}</p>
-                  {p.documento_validade && (() => {
-                    const v = new Date(p.documento_validade);
-                    const hoje = new Date();
-                    const dias = Math.ceil((v.getTime() - hoje.getTime()) / 86400000);
-                    const vencido = v < hoje;
-                    return <p className={`text-xs mt-0.5 ${vencido ? 'text-destructive font-medium' : dias <= 30 ? 'text-warning' : 'text-success'}`}>
-                      {vencido ? '🔴' : dias <= 30 ? '🟡' : '✅'} {p.documento_conselho || 'Registro'} {vencido ? `VENCIDO` : dias <= 30 ? `vence em ${dias}d` : `válido até ${v.toLocaleDateString('pt-BR')}`}
-                    </p>;
-                  })()}
-                  <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-                    <span>{p.email}</span>
-                    <ContactActionButton profissional={{ nome: p.nome, telefone: p.telefone }} contexto={{ tipo: 'geral' }} />
-                  </div>
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-                    <span className="text-xs text-muted-foreground">{(p.units as any)?.nome || '—'}</span>
-                    <span className="text-sm font-semibold text-foreground">R$ {p.valor_hora}/h</span>
-                  </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </div>
       )}
 
@@ -205,7 +275,7 @@ export default function ProfissionaisPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div><label className="text-sm font-medium text-foreground">Nome completo *</label><input required value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} className={inputClass} /></div>
               <div><label className="text-sm font-medium text-foreground">Profissão *</label>
-                <select required value={form.profissao} onChange={e => setForm(f => ({ ...f, profissao: e.target.value as ProfissaoValue }))} className={inputClass}>
+                <select required value={form.profissao} onChange={e => setForm(f => ({ ...f, profissao: e.target.value as ProfissaoValue, competencias: [] }))} className={inputClass}>
                   {PROFISSAO_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                 </select>
               </div>
@@ -215,8 +285,13 @@ export default function ProfissionaisPage() {
               <div><label className="text-sm font-medium text-foreground">CPF</label><input value={form.cpf} onChange={e => setForm(f => ({ ...f, cpf: e.target.value }))} className={inputClass} /></div>
               <div><label className="text-sm font-medium text-foreground">Telefone</label><input value={form.telefone} onChange={e => setForm(f => ({ ...f, telefone: e.target.value }))} className={inputClass} /></div>
               <div><label className="text-sm font-medium text-foreground">E-mail *</label><input required type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className={inputClass} /></div>
-              <div><label className="text-sm font-medium text-foreground">Valor/hora (R$) *</label><input required type="number" step="0.01" value={form.valor_hora} onChange={e => setForm(f => ({ ...f, valor_hora: parseFloat(e.target.value) || 0 }))} className={inputClass} /></div>
-              <div><label className="text-sm font-medium text-foreground">Valor/plantão (R$)</label><input type="number" step="0.01" value={form.valor_plantao} onChange={e => setForm(f => ({ ...f, valor_plantao: parseFloat(e.target.value) || 0 }))} className={inputClass} /></div>
+              <div><label className="text-sm font-medium text-foreground">Valor/hora (R$) *</label><input required type="number" step="0.01" value={form.valor_hora} onChange={e => {
+                const vh = parseFloat(e.target.value) || 0;
+                setForm(f => ({ ...f, valor_hora: vh, valor_plantao: vh * 12 }));
+              }} className={inputClass} /></div>
+              <div><label className="text-sm font-medium text-foreground">Valor/plantão 12h (R$)</label><input type="number" step="0.01" value={form.valor_plantao} onChange={e => setForm(f => ({ ...f, valor_plantao: parseFloat(e.target.value) || 0 }))} className={inputClass} />
+                <p className="text-[10px] text-muted-foreground mt-0.5">Auto: valor/hora × 12h</p>
+              </div>
               <div><label className="text-sm font-medium text-foreground">Unidade principal</label>
                 <select value={form.unidade_principal_id} onChange={e => setForm(f => ({ ...f, unidade_principal_id: e.target.value }))} className={inputClass}>
                   <option value="">Selecione...</option>
@@ -239,6 +314,32 @@ export default function ProfissionaisPage() {
                 </select>
               </div>
             </div>
+
+            {/* Competências condicionais */}
+            {COMPETENCIAS_POR_PROFISSAO[form.profissao] && (
+              <div className="border border-border rounded-lg p-3">
+                <label className="text-sm font-semibold text-foreground mb-2 block">
+                  Competências / Certificações ({PROFISSAO_LABELS[form.profissao]})
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {COMPETENCIAS_POR_PROFISSAO[form.profissao].map(comp => (
+                    <button
+                      key={comp}
+                      type="button"
+                      onClick={() => toggleCompetencia(comp)}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                        form.competencias.includes(comp)
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-muted text-muted-foreground border-border hover:border-primary/50'
+                      }`}
+                    >
+                      {form.competencias.includes(comp) ? '✓ ' : ''}{comp}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="border-t border-border pt-4">
               <h4 className="text-sm font-semibold text-foreground mb-3">Dados Bancários</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
