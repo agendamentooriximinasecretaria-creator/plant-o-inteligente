@@ -47,6 +47,44 @@ export type Database = {
         }
         Relationships: []
       }
+      censo_pacientes: {
+        Row: {
+          created_at: string | null
+          data: string
+          id: string
+          leitos_ocupados: number
+          proporcao_minima: number | null
+          registrado_por: string | null
+          setor_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          data?: string
+          id?: string
+          leitos_ocupados?: number
+          proporcao_minima?: number | null
+          registrado_por?: string | null
+          setor_id: string
+        }
+        Update: {
+          created_at?: string | null
+          data?: string
+          id?: string
+          leitos_ocupados?: number
+          proporcao_minima?: number | null
+          registrado_por?: string | null
+          setor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "censo_pacientes_setor_id_fkey"
+            columns: ["setor_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       message_templates: {
         Row: {
           assunto: string
@@ -133,6 +171,7 @@ export type Database = {
           avatar_url: string | null
           banco: string | null
           chave_pix: string | null
+          competencias: string[] | null
           conselho: string | null
           conta: string | null
           cpf: string | null
@@ -164,6 +203,7 @@ export type Database = {
           avatar_url?: string | null
           banco?: string | null
           chave_pix?: string | null
+          competencias?: string[] | null
           conselho?: string | null
           conta?: string | null
           cpf?: string | null
@@ -195,6 +235,7 @@ export type Database = {
           avatar_url?: string | null
           banco?: string | null
           chave_pix?: string | null
+          competencias?: string[] | null
           conselho?: string | null
           conta?: string | null
           cpf?: string | null
