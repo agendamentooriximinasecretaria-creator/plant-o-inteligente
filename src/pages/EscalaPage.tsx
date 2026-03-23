@@ -349,7 +349,26 @@ export default function EscalaPage() {
                 {filtered.map((s: any) => (
                   <tr key={s.id} className="border-t border-border hover:bg-muted/30 transition-colors">
                     <td className="p-3"><p className="font-medium text-foreground">{(s.professionals as any)?.nome}</p><p className="text-xs text-muted-foreground">{PROFISSAO_LABELS[(s.professionals as any)?.profissao] || ''}</p></td>
-                    <td className="p-3"><p className="text-foreground">{(s.sectors as any)?.nome}</p><p className="text-xs text-muted-foreground">{(s.units as any)?.nome}</p></td>
+                    <td className="p-3">
+                      <div className="flex items-center gap-1.5">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-help">
+                                {sectorCapacity[s.setor_id]?.status === 'critico' ? '🔴' : sectorCapacity[s.setor_id]?.status === 'atencao' ? '🟡' : '🟢'}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              <p className="text-xs">{sectorCapacity[s.setor_id]?.reason || 'Sem dados de ocupação'}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        <div>
+                          <p className="text-foreground">{(s.sectors as any)?.nome}</p>
+                          <p className="text-xs text-muted-foreground">{(s.units as any)?.nome}</p>
+                        </div>
+                      </div>
+                    </td>
                     <td className="p-3 text-foreground">{new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
                     <td className="p-3"><div className="flex items-center gap-1 text-foreground"><Clock className="h-3.5 w-3.5 text-muted-foreground" />{s.hora_inicio} - {s.hora_fim}</div><p className="text-xs text-muted-foreground">{s.carga_horaria}h</p></td>
                     <td className="p-3 text-foreground">{s.tipo_plantao}</td>
