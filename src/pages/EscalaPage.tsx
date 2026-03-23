@@ -82,6 +82,43 @@ export default function EscalaPage() {
   const { data: units = [] } = useQuery({ queryKey: ['units'], queryFn: async () => { const { data } = await supabase.from('units').select('*').order('nome'); return data || []; } });
   const { data: sectors = [] } = useQuery({ queryKey: ['sectors'], queryFn: async () => { const { data } = await supabase.from('sectors').select('*').order('nome'); return data || []; } });
 
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const { data: censoHoje = [] } = useQuery({
+    queryKey: ['escala-censo-hoje', todayStr],
+    queryFn: async () => { const { data } = await supabase.from('censo_pacientes').select('setor_id, leitos_ocupados, proporcao_minima').eq('data', todayStr); return data || []; },
+  });
+
+  const { data: todayAllShifts = [] } = useQuery({
+    queryKey: ['escala-today-shifts', todayStr],
+    queryFn: async () => { const { data } = await supabase.from('shifts').select('setor_id, profissional_id').eq('data', todayStr).neq('status', 'cancelado'); return data || []; },
+  });
+
+  const sectorCapacity = useMemo(() => {
+    const map: Record<string, { status: 'ok' | 'atencao' | 'critico'; reason: string }> = {};
+    for (const s of sectors as any[]) {
+      const censo = (censoHoje as any[]).find(c => c.setor_id === s.id);
+      const pacientes = censo?.leitos_ocupados || 0;
+      const escalados = todayAllShifts.filter((sh: any) => sh.setor_id === s.id).length;
+      const minD = s.min_profissionais_diurno || 1;
+
+      if (pacientes > 0 && escalados > 0) {
+        const ratio = pacientes / escalados;
+        if (ratio > 10) {
+          map[s.id] = { status: 'critico', reason: `${escalados} prof. para ${pacientes} pac. (${ratio.toFixed(0)}:1)` };
+        } else if (ratio > 6) {
+          map[s.id] = { status: 'atencao', reason: `${escalados} prof. para ${pacientes} pac. (${ratio.toFixed(0)}:1)` };
+        } else {
+          map[s.id] = { status: 'ok', reason: `Equipe adequada (${ratio.toFixed(0)}:1)` };
+        }
+      } else if (escalados < minD) {
+        map[s.id] = { status: 'atencao', reason: `${escalados}/${minD} profissionais (mínimo)` };
+      } else {
+        map[s.id] = { status: 'ok', reason: 'Equipe adequada' };
+      }
+    }
+    return map;
+  }, [sectors, censoHoje, todayAllShifts]);
   const calcHours = (start: string, end: string) => {
     const [sh, sm] = start.split(':').map(Number);
     const [eh, em] = end.split(':').map(Number);
