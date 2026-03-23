@@ -1,15 +1,24 @@
 import { motion } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { TrendingUp, TrendingDown, Calendar, CheckCircle2, Clock, ArrowLeftRight, AlertTriangle, DollarSign, Users, Activity, ShieldAlert, BedDouble } from "lucide-react";
+import { TrendingUp, TrendingDown, Calendar, CheckCircle2, Clock, ArrowLeftRight, AlertTriangle, DollarSign, Users, Activity, ShieldAlert, BedDouble, Lightbulb, History } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
 const item = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } };
+
+// Ratios by profession type
+const RATIO_LIMITS: Record<string, number> = {
+  enfermeiro: 8,
+  tecnico_enfermagem: 10,
+  fisioterapeuta: 10,
+  medico: 12,
+};
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -51,7 +60,13 @@ export default function Dashboard() {
 
   const { data: todayShifts = [] } = useQuery({
     queryKey: ['dashboard-today-shifts', todayStr],
-    queryFn: async () => { const { data } = await supabase.from('shifts').select('setor_id, hora_inicio, profissional_id').eq('data', todayStr).neq('status', 'cancelado'); return data || []; },
+    queryFn: async () => { const { data } = await supabase.from('shifts').select('setor_id, hora_inicio, profissional_id, professionals:profissional_id(id, nome, profissao, valor_hora, setor_principal_id)').eq('data', todayStr).neq('status', 'cancelado'); return data || []; },
+  });
+
+  // All active professionals for "Sugerir Cobertura"
+  const { data: allProfessionals = [] } = useQuery({
+    queryKey: ['dashboard-all-professionals'],
+    queryFn: async () => { const { data } = await supabase.from('professionals').select('id, nome, profissao, valor_hora, setor_principal_id, telefone').eq('status', 'ativo').order('valor_hora', { ascending: true }); return data || []; },
   });
 
   // Document alerts
@@ -72,9 +87,32 @@ export default function Dashboard() {
     },
   });
 
+  // Historical swap/cancel data for prediction
+  const { data: historicalShifts = [] } = useQuery({
+    queryKey: ['dashboard-historical-shifts'],
+    queryFn: async () => {
+      const threeMonthsAgo = new Date();
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+      const { data } = await supabase.from('shifts').select('data, status').gte('data', threeMonthsAgo.toISOString().split('T')[0]).in('status', ['cancelado']);
+      return data || [];
+    },
+  });
+
+  const { data: historicalSwaps = [] } = useQuery({
+    queryKey: ['dashboard-historical-swaps'],
+    queryFn: async () => {
+      const threeMonthsAgo = new Date();
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+      const { data } = await supabase.from('shift_swaps').select('created_at').gte('created_at', threeMonthsAgo.toISOString());
+      return data || [];
+    },
+  });
+
   // Censo input state
   const [censoModalOpen, setCensoModalOpen] = useState(false);
   const [censoInputs, setCensoInputs] = useState<Record<string, number>>({});
+  const [suggestModalOpen, setSuggestModalOpen] = useState(false);
+  const [suggestSectorId, setSuggestSectorId] = useState<string | null>(null);
 
   const salvarCensoMutation = useMutation({
     mutationFn: async () => {
@@ -109,22 +147,117 @@ export default function Dashboard() {
     return alerts;
   }, [sectors, todayShifts]);
 
-  // Subdimensionamento alerts
-  const subdimensionamentoAlerts = useMemo(() => {
-    const alerts: { setor: string; profissionais: number; pacientes: number; proporcao: number; minima: number }[] = [];
-    for (const censo of censoHoje as any[]) {
-      if (censo.leitos_ocupados <= 0) continue;
-      const setor = (sectors as any[]).find(s => s.id === censo.setor_id);
-      if (!setor) continue;
-      const profsNoSetor = todayShifts.filter((p: any) => p.setor_id === censo.setor_id).length;
-      const proporcao = profsNoSetor / censo.leitos_ocupados;
-      const minima = Number(censo.proporcao_minima) || 0.5;
-      if (proporcao < minima) {
-        alerts.push({ setor: setor.nome, profissionais: profsNoSetor, pacientes: censo.leitos_ocupados, proporcao, minima });
+  // Enhanced capacity analysis per sector
+  const capacityAnalysis = useMemo(() => {
+    return (sectors as any[]).map(setor => {
+      const censo = (censoHoje as any[]).find(c => c.setor_id === setor.id);
+      const pacientes = censo?.leitos_ocupados || 0;
+      const sectorShifts = todayShifts.filter((p: any) => p.setor_id === setor.id);
+      const total = sectorShifts.length;
+      const minRequired = (setor.min_profissionais_diurno || 1) + (setor.min_profissionais_noturno || 1);
+
+      // Per-profession breakdown
+      const profByType: Record<string, number> = {};
+      sectorShifts.forEach((s: any) => {
+        const prof = s.professionals as any;
+        if (prof?.profissao) {
+          profByType[prof.profissao] = (profByType[prof.profissao] || 0) + 1;
+        }
+      });
+
+      // Determine critical status based on profession-specific ratios
+      let status: 'ok' | 'atencao' | 'critico' = 'ok';
+      let criticalReason = '';
+
+      if (pacientes > 0) {
+        for (const [profissao, count] of Object.entries(profByType)) {
+          const maxRatio = RATIO_LIMITS[profissao] || 12;
+          const currentRatio = pacientes / count;
+          if (currentRatio > maxRatio) {
+            status = 'critico';
+            const profLabel = profissao === 'enfermeiro' ? 'Enfermeiro' : profissao === 'fisioterapeuta' ? 'Fisioterapeuta' : profissao;
+            criticalReason = `${currentRatio.toFixed(0)} pac/${profLabel} (máx: ${maxRatio})`;
+            break;
+          } else if (currentRatio > maxRatio * 0.75) {
+            status = 'atencao';
+            criticalReason = `Proporção próxima do limite`;
+          }
+        }
+        // If no professionals at all and there are patients
+        if (total === 0 && pacientes > 0) {
+          status = 'critico';
+          criticalReason = 'Sem profissionais escalados';
+        }
       }
+
+      if (total < (setor.min_profissionais_diurno || 1) && status === 'ok') {
+        status = 'atencao';
+        criticalReason = 'Abaixo do mínimo configurado';
+      }
+
+      return {
+        id: setor.id,
+        nome: setor.nome,
+        escalados: total,
+        minimo: minRequired,
+        pacientes,
+        status,
+        criticalReason,
+        profByType,
+        coberto: total >= (setor.min_profissionais_diurno || 1),
+      };
+    });
+  }, [sectors, todayShifts, censoHoje]);
+
+  // "Sugerir Cobertura" logic
+  const coverageSuggestions = useMemo(() => {
+    if (!suggestSectorId) return [];
+    const escaladosHoje = new Set(todayShifts.map((s: any) => s.profissional_id));
+    // Find professionals NOT working today, ordered by lowest cost
+    const available = (allProfessionals as any[])
+      .filter(p => !escaladosHoje.has(p.id))
+      .map(p => ({
+        ...p,
+        isFromCalmSector: false,
+      }));
+
+    // Also find professionals in "calm" sectors (low patient load)
+    const calmSectors = capacityAnalysis.filter(s => s.status === 'ok' && s.escalados > 1 && s.id !== suggestSectorId);
+    const remanejamento: any[] = [];
+    for (const calm of calmSectors) {
+      const profsInCalm = todayShifts
+        .filter((s: any) => s.setor_id === calm.id)
+        .map((s: any) => ({ ...(s.professionals as any), isFromCalmSector: true, sectorOrigem: calm.nome }));
+      remanejamento.push(...profsInCalm);
     }
-    return alerts;
-  }, [censoHoje, sectors, todayShifts]);
+
+    return { available: available.slice(0, 5), remanejamento: remanejamento.slice(0, 5) };
+  }, [suggestSectorId, todayShifts, allProfessionals, capacityAnalysis]);
+
+  // Historical prediction: days with most cancellations/swaps
+  const historicalPrediction = useMemo(() => {
+    const dayCount: Record<number, { swaps: number; cancels: number }> = {};
+    for (let i = 0; i < 7; i++) dayCount[i] = { swaps: 0, cancels: 0 };
+
+    (historicalShifts as any[]).forEach(s => {
+      const day = new Date(s.data + 'T12:00:00').getDay();
+      dayCount[day].cancels++;
+    });
+
+    (historicalSwaps as any[]).forEach(s => {
+      const day = new Date(s.created_at).getDay();
+      dayCount[day].swaps++;
+    });
+
+    const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const sorted = Object.entries(dayCount)
+      .map(([day, counts]) => ({ day: Number(day), name: dayNames[Number(day)], total: counts.swaps + counts.cancels, ...counts }))
+      .sort((a, b) => b.total - a.total);
+
+    // Only show if there's meaningful data
+    const topDays = sorted.filter(d => d.total >= 2).slice(0, 3);
+    return topDays;
+  }, [historicalShifts, historicalSwaps]);
 
   const docWarnings = useMemo(() => {
     const hoje = new Date();
@@ -174,19 +307,13 @@ export default function Dashboard() {
   ];
 
   const feedIconMap: Record<string, string> = { escala: '📋', trocas: '🔄', profissionais: '👥', configuracoes: '⚙️', relatorios: '📊', sistema: '🔐' };
-
-  // Coverage table for today
-  const coverageTable = useMemo(() => {
-    return (sectors as any[]).map(setor => {
-      const sectorShifts = todayShifts.filter((p: any) => p.setor_id === setor.id);
-      const total = sectorShifts.length;
-      const minRequired = (setor.min_profissionais_diurno || 1) + (setor.min_profissionais_noturno || 1);
-      const censo = (censoHoje as any[]).find(c => c.setor_id === setor.id);
-      return { nome: setor.nome, escalados: total, minimo: minRequired, coberto: total >= (setor.min_profissionais_diurno || 1), pacientes: censo?.leitos_ocupados || 0 };
-    });
-  }, [sectors, todayShifts, censoHoje]);
+  const PROFISSAO_LABELS: Record<string, string> = { medico: 'Médico(a)', enfermeiro: 'Enfermeiro(a)', fisioterapeuta: 'Fisioterapeuta', tecnico_enfermagem: 'Téc. Enfermagem', biomedico: 'Biomédico(a)', psicologo: 'Psicólogo(a)', terapeuta_ocupacional: 'Terapeuta Ocupacional', nutricionista: 'Nutricionista', fonoaudiologo: 'Fonoaudiólogo(a)', farmaceutico: 'Farmacêutico(a)', outro: 'Outro' };
 
   const inputClass = "w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
+
+  const statusColor = (s: string) => s === 'critico' ? 'text-destructive' : s === 'atencao' ? 'text-warning' : 'text-success';
+  const statusBg = (s: string) => s === 'critico' ? 'bg-destructive/10' : s === 'atencao' ? 'bg-warning/10' : 'bg-success/10';
+  const statusIcon = (s: string) => s === 'critico' ? '🔴' : s === 'atencao' ? '🟡' : '🟢';
 
   return (
     <div className="space-y-6">
@@ -208,21 +335,47 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {/* Subdimensionamento alerts */}
-      {subdimensionamentoAlerts.length > 0 && (
+      {/* Critical capacity alerts with "Achar Solução" */}
+      {capacityAnalysis.filter(s => s.status === 'critico').length > 0 && (
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="kpi-card border-l-4 border-l-destructive">
           <h3 className="font-display font-semibold text-destructive mb-3 flex items-center gap-2">
             <AlertTriangle className="h-4 w-4" /> 🚨 Risco de Sobrecarga Detectado
           </h3>
-          <div className="space-y-2">
-            {subdimensionamentoAlerts.map((a, i) => (
-              <div key={i} className="p-2 bg-destructive/5 rounded-lg">
-                <p className="text-sm text-foreground font-medium">{a.setor}: {a.profissionais} profissional(is) para {a.pacientes} paciente(s)</p>
-                <p className="text-xs text-muted-foreground">Proporção: {a.proporcao.toFixed(2)} (mínima: {a.minima})</p>
+          <div className="space-y-3">
+            {capacityAnalysis.filter(s => s.status === 'critico').map((a) => (
+              <div key={a.id} className="p-3 bg-destructive/5 rounded-lg flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm text-foreground font-medium">{a.nome}: {a.escalados} profissional(is) para {a.pacientes} paciente(s)</p>
+                  <p className="text-xs text-muted-foreground">{a.criticalReason}</p>
+                </div>
+                <button
+                  onClick={() => { setSuggestSectorId(a.id); setSuggestModalOpen(true); }}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90"
+                >
+                  <Lightbulb className="h-3.5 w-3.5" /> Achar Solução
+                </button>
               </div>
             ))}
           </div>
-          <button onClick={() => navigate('/escala')} className="mt-3 text-xs text-primary font-medium hover:underline">Sugerir cobertura →</button>
+        </motion.div>
+      )}
+
+      {/* Historical prediction alert */}
+      {historicalPrediction.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="kpi-card border-l-4 border-l-info">
+          <h3 className="font-display font-semibold text-foreground mb-2 flex items-center gap-2">
+            <History className="h-4 w-4 text-info" /> 📊 Previsão Histórica — Dias de Alta Demanda
+          </h3>
+          <p className="text-xs text-muted-foreground mb-3">Baseado em trocas e cancelamentos dos últimos 3 meses:</p>
+          <div className="flex flex-wrap gap-3">
+            {historicalPrediction.map(d => (
+              <div key={d.day} className="px-3 py-2 rounded-lg bg-info/10 border border-info/20">
+                <p className="text-sm font-semibold text-info">{d.name}</p>
+                <p className="text-xs text-muted-foreground">{d.cancels} cancelamento(s), {d.swaps} troca(s)</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-warning font-medium mt-3">⚡ Recomendação: Escale +1 profissional de reserva nestes dias ou bloqueie folgas.</p>
         </motion.div>
       )}
 
@@ -276,28 +429,43 @@ export default function Dashboard() {
         ))}
       </motion.div>
 
-      {/* Coverage table */}
-      {coverageTable.length > 0 && (
+      {/* Enhanced Coverage table with thermometer */}
+      {capacityAnalysis.length > 0 && (
         <motion.div variants={item} initial="hidden" animate="show" className="kpi-card">
           <h3 className="font-display font-semibold text-foreground mb-4 flex items-center gap-2">
-            <ShieldAlert className="h-4 w-4 text-primary" /> Cobertura por Setor — Hoje
+            <ShieldAlert className="h-4 w-4 text-primary" /> Gestão de Capacidade por Setor — Hoje
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="table-header">
                 <th className="text-left p-2">Setor</th>
+                <th className="text-center p-2">Status</th>
                 <th className="text-center p-2">Escalados</th>
                 <th className="text-center p-2">Pacientes</th>
                 <th className="text-center p-2">Cobertura</th>
+                <th className="text-center p-2">Ação</th>
               </tr></thead>
               <tbody>
-                {coverageTable.map((row) => (
-                  <tr key={row.nome} className={`border-t border-border ${!row.coberto ? 'bg-destructive/5' : ''}`}>
-                    <td className="p-2 font-medium text-foreground">{!row.coberto && '⚠️ '}{row.nome}</td>
+                {capacityAnalysis.map((row) => (
+                  <tr key={row.nome} className={`border-t border-border ${statusBg(row.status)}`}>
+                    <td className="p-2 font-medium text-foreground">{row.nome}</td>
+                    <td className="p-2 text-center" title={row.criticalReason || 'Equipe suficiente'}>
+                      <span className={`text-lg cursor-help`}>{statusIcon(row.status)}</span>
+                    </td>
                     <td className="p-2 text-center text-foreground">{row.escalados}</td>
                     <td className="p-2 text-center text-foreground">{row.pacientes || '—'}</td>
                     <td className="p-2 text-center">
                       <Progress value={Math.min(100, (row.escalados / Math.max(1, row.minimo)) * 100)} className="h-2 w-20 mx-auto" />
+                    </td>
+                    <td className="p-2 text-center">
+                      {row.status === 'critico' && (
+                        <button
+                          onClick={() => { setSuggestSectorId(row.id); setSuggestModalOpen(true); }}
+                          className="text-xs text-primary font-medium hover:underline"
+                        >
+                          Sugerir →
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -416,6 +584,78 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* Suggest Coverage Modal */}
+      <Dialog open={suggestModalOpen} onOpenChange={setSuggestModalOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lightbulb className="h-5 w-5 text-primary" /> Sugestão de Cobertura
+            </DialogTitle>
+          </DialogHeader>
+          {suggestSectorId && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Setor: <strong className="text-foreground">{capacityAnalysis.find(s => s.id === suggestSectorId)?.nome}</strong>
+              </p>
+
+              {/* Remanejamento suggestions */}
+              {(coverageSuggestions as any)?.remanejamento?.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
+                    🔄 Remanejamento de setores com carga baixa
+                  </h4>
+                  <div className="space-y-2">
+                    {(coverageSuggestions as any).remanejamento.map((p: any) => (
+                      <div key={p.id} className="flex items-center justify-between p-2 rounded-lg border border-border bg-muted/30">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{p.nome}</p>
+                          <p className="text-xs text-muted-foreground">{PROFISSAO_LABELS[p.profissao] || p.profissao} • Vindo de: {p.sectorOrigem}</p>
+                        </div>
+                        <button
+                          onClick={() => { navigate('/escala'); setSuggestModalOpen(false); }}
+                          className="text-xs text-primary font-medium hover:underline"
+                        >
+                          Escalar →
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Available (not working today) */}
+              {(coverageSuggestions as any)?.available?.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
+                    ✅ Profissionais de folga hoje (menor custo primeiro)
+                  </h4>
+                  <div className="space-y-2">
+                    {(coverageSuggestions as any).available.map((p: any) => (
+                      <div key={p.id} className="flex items-center justify-between p-2 rounded-lg border border-border bg-muted/30">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{p.nome}</p>
+                          <p className="text-xs text-muted-foreground">{PROFISSAO_LABELS[p.profissao] || p.profissao} • R$ {Number(p.valor_hora).toLocaleString('pt-BR')}/h</p>
+                        </div>
+                        <button
+                          onClick={() => { navigate('/escala'); setSuggestModalOpen(false); }}
+                          className="text-xs text-primary font-medium hover:underline"
+                        >
+                          Escalar →
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {(coverageSuggestions as any)?.available?.length === 0 && (coverageSuggestions as any)?.remanejamento?.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">Nenhuma sugestão disponível no momento.</p>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
