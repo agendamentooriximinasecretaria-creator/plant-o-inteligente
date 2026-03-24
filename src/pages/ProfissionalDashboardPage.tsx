@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { CalendarDays, ArrowLeftRight, Clock3, Wallet, Bell, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
+import { AlertaReforco } from "@/components/AlertaReforco";
 
 export default function ProfissionalDashboardPage() {
   const navigate = useNavigate();
@@ -72,6 +73,9 @@ export default function ProfissionalDashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Reinforcement alerts */}
+      <AlertaReforco />
+
       <div>
         <h1 className="module-title">Meu Painel</h1>
         <p className="text-sm text-muted-foreground mt-1">Resumo da sua operação individual.</p>
