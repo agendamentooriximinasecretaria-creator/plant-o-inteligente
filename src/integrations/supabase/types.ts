@@ -14,6 +14,73 @@ export type Database = {
   }
   public: {
     Tables: {
+      acionamentos_reforco: {
+        Row: {
+          acionado_por: string | null
+          created_at: string | null
+          id: string
+          justificativa_recusa: string | null
+          motivo: string
+          prioridade: string
+          profissional_id: string
+          resposta_em: string | null
+          setor_destino_id: string | null
+          setor_origem_id: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          acionado_por?: string | null
+          created_at?: string | null
+          id?: string
+          justificativa_recusa?: string | null
+          motivo: string
+          prioridade?: string
+          profissional_id: string
+          resposta_em?: string | null
+          setor_destino_id?: string | null
+          setor_origem_id: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          acionado_por?: string | null
+          created_at?: string | null
+          id?: string
+          justificativa_recusa?: string | null
+          motivo?: string
+          prioridade?: string
+          profissional_id?: string
+          resposta_em?: string | null
+          setor_destino_id?: string | null
+          setor_origem_id?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acionamentos_reforco_profissional_id_fkey"
+            columns: ["profissional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acionamentos_reforco_setor_destino_id_fkey"
+            columns: ["setor_destino_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acionamentos_reforco_setor_origem_id_fkey"
+            columns: ["setor_origem_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           acao: string
@@ -78,6 +145,38 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "censo_pacientes_setor_id_fkey"
+            columns: ["setor_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      historico_ocupacao: {
+        Row: {
+          id: string
+          nivel: string
+          pacientes: number
+          registrado_em: string | null
+          setor_id: string
+        }
+        Insert: {
+          id?: string
+          nivel: string
+          pacientes?: number
+          registrado_em?: string | null
+          setor_id: string
+        }
+        Update: {
+          id?: string
+          nivel?: string
+          pacientes?: number
+          registrado_em?: string | null
+          setor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historico_ocupacao_setor_id_fkey"
             columns: ["setor_id"]
             isOneToOne: false
             referencedRelation: "sectors"
@@ -360,6 +459,44 @@ export type Database = {
             columns: ["unidade_id"]
             isOneToOne: false
             referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      setor_ocupacao: {
+        Row: {
+          atualizado_por: string | null
+          capacidade_maxima: number
+          id: string
+          nivel: string
+          pacientes_atual: number
+          setor_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          atualizado_por?: string | null
+          capacidade_maxima?: number
+          id?: string
+          nivel?: string
+          pacientes_atual?: number
+          setor_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          atualizado_por?: string | null
+          capacidade_maxima?: number
+          id?: string
+          nivel?: string
+          pacientes_atual?: number
+          setor_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "setor_ocupacao_setor_id_fkey"
+            columns: ["setor_id"]
+            isOneToOne: true
+            referencedRelation: "sectors"
             referencedColumns: ["id"]
           },
         ]
