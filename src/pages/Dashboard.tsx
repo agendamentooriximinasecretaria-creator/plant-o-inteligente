@@ -337,6 +337,12 @@ export default function Dashboard() {
         </button>
       </div>
 
+      {/* Occupancy Panel */}
+      <PainelOcupacao />
+
+      {/* Acionamentos Tracker */}
+      <AcionamentosTracker />
+
       {/* Critical capacity alerts with "Achar Solução" */}
       {capacityAnalysis.filter(s => s.status === 'critico').length > 0 && (
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="kpi-card border-l-4 border-l-destructive">

@@ -73,6 +73,9 @@ export default function ProfissionalDashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Reinforcement alerts */}
+      <AlertaReforco />
+
       <div>
         <h1 className="module-title">Meu Painel</h1>
         <p className="text-sm text-muted-foreground mt-1">Resumo da sua operação individual.</p>
