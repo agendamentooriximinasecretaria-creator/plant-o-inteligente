@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { CalendarDays, ArrowLeftRight, Clock3, Wallet, Bell, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
+import { AlertaReforco } from "@/components/AlertaReforco";
 
 export default function ProfissionalDashboardPage() {
   const navigate = useNavigate();
