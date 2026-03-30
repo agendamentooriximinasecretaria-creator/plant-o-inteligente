@@ -66,6 +66,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "acionamentos_reforco_profissional_id_fkey"
+            columns: ["profissional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals_safe"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "acionamentos_reforco_setor_destino_id_fkey"
             columns: ["setor_destino_id"]
             isOneToOne: false
@@ -262,6 +269,13 @@ export type Database = {
             referencedRelation: "professionals"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "notifications_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       professionals: {
@@ -420,6 +434,13 @@ export type Database = {
             referencedRelation: "professionals"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "profiles_profissional_id_fkey"
+            columns: ["profissional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       sectors: {
@@ -565,6 +586,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "shift_swaps_destinatario_id_fkey"
+            columns: ["destinatario_id"]
+            isOneToOne: false
+            referencedRelation: "professionals_safe"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "shift_swaps_shift_id_destino_fkey"
             columns: ["shift_id_destino"]
             isOneToOne: false
@@ -583,6 +611,13 @@ export type Database = {
             columns: ["solicitante_id"]
             isOneToOne: false
             referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swaps_solicitante_id_fkey"
+            columns: ["solicitante_id"]
+            isOneToOne: false
+            referencedRelation: "professionals_safe"
             referencedColumns: ["id"]
           },
         ]
@@ -651,6 +686,13 @@ export type Database = {
             columns: ["profissional_id"]
             isOneToOne: false
             referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shifts_profissional_id_fkey"
+            columns: ["profissional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals_safe"
             referencedColumns: ["id"]
           },
           {
@@ -781,7 +823,120 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      professionals_safe: {
+        Row: {
+          agencia: string | null
+          avatar_url: string | null
+          banco: string | null
+          chave_pix: string | null
+          competencias: string[] | null
+          conselho: string | null
+          conta: string | null
+          cpf: string | null
+          created_at: string | null
+          data_nascimento: string | null
+          documento_conselho: string | null
+          documento_numero: string | null
+          documento_validade: string | null
+          email: string | null
+          endereco: string | null
+          especialidade: string | null
+          id: string | null
+          nome: string | null
+          observacoes: string | null
+          profissao: Database["public"]["Enums"]["profissao_type"] | null
+          registro: string | null
+          setor_principal_id: string | null
+          status: string | null
+          telefone: string | null
+          unidade_principal_id: string | null
+          updated_at: string | null
+          user_id: string | null
+          valor_hora: number | null
+          valor_plantao: number | null
+          vinculo: string | null
+        }
+        Insert: {
+          agencia?: never
+          avatar_url?: string | null
+          banco?: never
+          chave_pix?: never
+          competencias?: string[] | null
+          conselho?: string | null
+          conta?: never
+          cpf?: never
+          created_at?: string | null
+          data_nascimento?: string | null
+          documento_conselho?: string | null
+          documento_numero?: string | null
+          documento_validade?: string | null
+          email?: string | null
+          endereco?: string | null
+          especialidade?: string | null
+          id?: string | null
+          nome?: string | null
+          observacoes?: string | null
+          profissao?: Database["public"]["Enums"]["profissao_type"] | null
+          registro?: string | null
+          setor_principal_id?: string | null
+          status?: string | null
+          telefone?: string | null
+          unidade_principal_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          valor_hora?: number | null
+          valor_plantao?: number | null
+          vinculo?: string | null
+        }
+        Update: {
+          agencia?: never
+          avatar_url?: string | null
+          banco?: never
+          chave_pix?: never
+          competencias?: string[] | null
+          conselho?: string | null
+          conta?: never
+          cpf?: never
+          created_at?: string | null
+          data_nascimento?: string | null
+          documento_conselho?: string | null
+          documento_numero?: string | null
+          documento_validade?: string | null
+          email?: string | null
+          endereco?: string | null
+          especialidade?: string | null
+          id?: string | null
+          nome?: string | null
+          observacoes?: string | null
+          profissao?: Database["public"]["Enums"]["profissao_type"] | null
+          registro?: string | null
+          setor_principal_id?: string | null
+          status?: string | null
+          telefone?: string | null
+          unidade_principal_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          valor_hora?: number | null
+          valor_plantao?: number | null
+          vinculo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "professionals_setor_principal_id_fkey"
+            columns: ["setor_principal_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "professionals_unidade_principal_id_fkey"
+            columns: ["unidade_principal_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       check_shift_conflict: {
