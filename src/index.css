@@ -106,6 +106,14 @@
   }
 }
 
+@keyframes pulse-shadow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.3); }
+  50% { box-shadow: 0 0 0 8px rgba(124, 58, 237, 0); }
+}
+.animate-pulse-shadow {
+  animation: pulse-shadow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
 @layer components {
   .kpi-card {
     @apply bg-card rounded-lg p-5 shadow-[var(--shadow-card)] border border-border/50 transition-all duration-200;
