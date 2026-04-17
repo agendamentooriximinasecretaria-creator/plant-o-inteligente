@@ -90,7 +90,6 @@ export default function MeuPerfilPage() {
               <div><label className="text-sm font-medium text-foreground">Profissão</label><input value={professional.profissao} readOnly className={inputReadonly} /></div>
               <div><label className="text-sm font-medium text-foreground">Registro</label><input value={professional.registro || ""} readOnly className={inputReadonly} /></div>
               <div><label className="text-sm font-medium text-foreground">Especialidade</label><input value={professional.especialidade || ""} readOnly className={inputReadonly} /></div>
-              <div><label className="text-sm font-medium text-foreground">Valor/hora</label><input value={`R$ ${professional.valor_hora}`} readOnly className={inputReadonly} /></div>
               <div>
                 <label className="text-sm font-medium text-foreground">Telefone</label>
                 <input value={telefone} onChange={(e) => setTelefone(e.target.value)} className={inputEditable} />

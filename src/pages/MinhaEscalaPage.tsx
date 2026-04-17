@@ -19,7 +19,7 @@ export default function MinhaEscalaPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("shifts")
-        .select("id, data, hora_inicio, hora_fim, tipo_plantao, carga_horaria, valor_total, status, sectors:setor_id(nome), units:unidade_id(nome)")
+        .select("id, data, hora_inicio, hora_fim, tipo_plantao, carga_horaria, status, sectors:setor_id(nome), units:unidade_id(nome)")
         .order("data", { ascending: true });
       if (error) throw error;
       return data || [];
@@ -35,10 +35,10 @@ export default function MinhaEscalaPage() {
     enabled: !!professionalId,
   });
 
-  const monthTotal = useMemo(() => {
+  const monthHours = useMemo(() => {
     const month = today.substring(0, 7);
     return shifts.filter((s: any) => s.data.startsWith(month) && s.status !== 'cancelado')
-      .reduce((sum: number, s: any) => sum + Number(s.valor_total || 0), 0);
+      .reduce((sum: number, s: any) => sum + Number(s.carga_horaria || 0), 0);
   }, [shifts, today]);
 
   // Calendar data
@@ -102,7 +102,7 @@ export default function MinhaEscalaPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="module-title">Minha Escala</h1>
-          <p className="text-sm text-muted-foreground mt-1">Total do mês: <strong className="text-foreground">R$ {monthTotal.toLocaleString('pt-BR')}</strong></p>
+          <p className="text-sm text-muted-foreground mt-1">Horas no mês: <strong className="text-foreground">{monthHours.toFixed(1)}h</strong></p>
         </div>
       </div>
 
@@ -158,7 +158,7 @@ export default function MinhaEscalaPage() {
               <th className="p-3 text-left">Unidade/Setor</th>
               <th className="p-3 text-left">Horário</th>
               <th className="p-3 text-left">Tipo</th>
-              <th className="p-3 text-left">Valor</th>
+              <th className="p-3 text-left">Carga</th>
               <th className="p-3 text-left">Status</th>
               <th className="p-3 text-left">Ações</th>
             </tr>
@@ -175,7 +175,7 @@ export default function MinhaEscalaPage() {
                   <td className="p-3 text-muted-foreground">{(s.units as any)?.nome || "—"} • {(s.sectors as any)?.nome || "—"}</td>
                   <td className="p-3 text-foreground">{s.hora_inicio} - {s.hora_fim}</td>
                   <td className="p-3 text-muted-foreground">{s.tipo_plantao}</td>
-                  <td className="p-3 text-foreground font-medium">R$ {Number(s.valor_total).toLocaleString("pt-BR")}</td>
+                  <td className="p-3 text-foreground font-medium">{Number(s.carga_horaria).toFixed(1)}h</td>
                   <td className="p-3"><span className="status-badge bg-primary/10 text-primary">{s.status}</span></td>
                   <td className="p-3">
                     {s.data > today && s.status !== 'cancelado' && (
