@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   TrendingUp, TrendingDown, Calendar, CheckCircle2, Clock,
-  ArrowLeftRight, AlertTriangle, DollarSign, Users, Activity,
+  ArrowLeftRight, AlertTriangle, Users, Activity,
   ShieldAlert, BedDouble, Lightbulb, History, Bell, Zap,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
@@ -140,12 +140,12 @@ export default function Dashboard() {
 
   const { data: todayShifts = [] } = useQuery({
     queryKey: ["dashboard-today-shifts", todayStr],
-    queryFn: async () => { const { data } = await supabase.from("shifts").select("*, professionals:profissional_id(id, nome, profissao, valor_hora, setor_principal_id), sectors:setor_id(nome)").eq("data", todayStr).neq("status", "cancelado"); return data || []; },
+    queryFn: async () => { const { data } = await supabase.from("shifts").select("*, professionals:profissional_id(id, nome, profissao, setor_principal_id), sectors:setor_id(nome)").eq("data", todayStr).neq("status", "cancelado"); return data || []; },
   });
 
   const { data: allProfessionals = [] } = useQuery({
     queryKey: ["dashboard-all-professionals"],
-    queryFn: async () => { const { data } = await supabase.from("professionals").select("id, nome, profissao, valor_hora, setor_principal_id, telefone").eq("status", "ativo").order("valor_hora", { ascending: true }); return data || []; },
+    queryFn: async () => { const { data } = await supabase.from("professionals").select("id, nome, profissao, setor_principal_id, telefone").eq("status", "ativo").order("nome"); return data || []; },
   });
 
   const { data: docAlerts = [] } = useQuery({
@@ -277,22 +277,19 @@ export default function Dashboard() {
   const alertCount = coverageAlerts.length + docWarnings.length;
   const swapsRequested = swaps.length;
   const swapsApproved = swaps.filter((s: any) => s.status === "aprovada" || s.status === "concluida").length;
-  const totalCost = shifts.filter((s: any) => s.status !== "cancelado").reduce((acc: number, s: any) => acc + Number(s.valor_total), 0);
 
   // Profession distribution for bar chart
   const professionData = useMemo(() => {
-    const map: Record<string, { count: number; cost: number }> = {};
+    const map: Record<string, { count: number }> = {};
     shifts.forEach((s: any) => {
       const prof = (s.professionals as any)?.profissao || "outro";
-      if (!map[prof]) map[prof] = { count: 0, cost: 0 };
+      if (!map[prof]) map[prof] = { count: 0 };
       map[prof].count++;
-      if (s.status !== "cancelado") map[prof].cost += Number(s.valor_total);
     });
     const colors: Record<string, string> = { medico: "#1A56DB", enfermeiro: "#059669", fisioterapeuta: "#0D9E8A", tecnico_enfermagem: "#D97706", outro: "#7C3AED" };
     return Object.entries(map).map(([k, v]) => ({ name: PROFISSAO_LABELS[k as keyof typeof PROFISSAO_LABELS] || k, ...v, fill: colors[k] || "#6B7280" }));
   }, [shifts]);
 
-  const avgCostPerShift = totalShifts > 0 ? totalCost / shifts.filter((s: any) => s.status !== "cancelado").length : 0;
   const coveragePct = capacityAnalysis.length > 0 ? Math.round((capacityAnalysis.filter(s => s.coberto).length / capacityAnalysis.length) * 100) : 100;
 
   const activeToday = todayShifts.filter((s: any) => {
@@ -300,14 +297,13 @@ export default function Dashboard() {
     return s.hora_inicio <= now && s.hora_fim >= now;
   });
 
-  const sectorMap: Record<string, { name: string; plantoes: number; custo: number }> = {};
+  const sectorMap: Record<string, { name: string; plantoes: number }> = {};
   shifts.forEach((s: any) => {
     const nome = (s.sectors as any)?.nome || "Sem setor";
-    if (!sectorMap[s.setor_id]) sectorMap[s.setor_id] = { name: nome, plantoes: 0, custo: 0 };
+    if (!sectorMap[s.setor_id]) sectorMap[s.setor_id] = { name: nome, plantoes: 0 };
     sectorMap[s.setor_id].plantoes++;
-    if (s.status !== "cancelado") sectorMap[s.setor_id].custo += Number(s.valor_total);
   });
-  const sectorData = Object.values(sectorMap).sort((a, b) => b.custo - a.custo);
+  const sectorData = Object.values(sectorMap).sort((a, b) => b.plantoes - a.plantoes);
 
   const statusColor = (s: string) => s === "critico" ? "text-destructive" : s === "atencao" ? "text-warning" : "text-success";
   const statusIcon = (s: string) => s === "critico" ? "🔴" : s === "atencao" ? "🟡" : "🟢";
@@ -381,7 +377,6 @@ export default function Dashboard() {
         <KpiCard label="Trocas Solicitadas" value={swapsRequested} icon={ArrowLeftRight} barColor="#7C3AED" iconBg="rgba(124,58,237,0.1)" iconColor="#7C3AED" />
         <KpiCard label="Trocas Aprovadas" value={swapsApproved} icon={TrendingUp} barColor="#059669" iconBg="rgba(5,150,105,0.1)" iconColor="#059669" />
         <KpiCard label="Profissionais Ativos" value={profCount} icon={Users} barColor="#0D9E8A" iconBg="rgba(13,158,138,0.1)" iconColor="#0D9E8A" />
-        <KpiCard label="Custo Total" value={`R$ ${totalCost.toLocaleString("pt-BR")}`} icon={DollarSign} barColor="#1A56DB" iconBg="rgba(26,86,219,0.1)" iconColor="#1A56DB" />
       </motion.div>
 
       {/* ── OCCUPANCY PANEL ── */}
@@ -773,7 +768,7 @@ export default function Dashboard() {
                       <div key={p.id} className="flex items-center justify-between p-2 rounded-lg border border-border bg-muted/30">
                         <div>
                           <p className="text-sm font-medium text-foreground">{p.nome}</p>
-                          <p className="text-xs text-muted-foreground">{PROFISSAO_LABELS[p.profissao as keyof typeof PROFISSAO_LABELS] || p.profissao} · R$ {Number(p.valor_hora).toLocaleString("pt-BR")}/h</p>
+                          <p className="text-xs text-muted-foreground">{PROFISSAO_LABELS[p.profissao as keyof typeof PROFISSAO_LABELS] || p.profissao}</p>
                         </div>
                         <button onClick={() => { navigate("/escala"); setSuggestModalOpen(false); }} className="text-xs text-primary font-semibold hover:underline">Escalar →</button>
                       </div>

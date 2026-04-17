@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { CalendarDays, ArrowLeftRight, Clock3, Wallet, Bell, ChevronRight } from "lucide-react";
+import { CalendarDays, ArrowLeftRight, Clock3, Bell, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { AlertaReforco } from "@/components/AlertaReforco";
 
@@ -15,7 +15,7 @@ export default function ProfissionalDashboardPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("shifts")
-        .select("id, data, hora_inicio, hora_fim, carga_horaria, valor_total, status, sectors:setor_id(nome)")
+        .select("id, data, hora_inicio, hora_fim, carga_horaria, status, sectors:setor_id(nome)")
         .order("data", { ascending: true });
       if (error) throw error;
       return data || [];
@@ -47,8 +47,7 @@ export default function ProfissionalDashboardPage() {
     const pendingSwaps = swaps.filter((s: any) => ["solicitada", "aguardando_resposta"].includes(s.status));
     const monthShifts = shifts.filter((s: any) => s.data.startsWith(today.substring(0, 7)) && s.status !== "cancelado");
     const monthHours = monthShifts.reduce((sum: number, s: any) => sum + Number(s.carga_horaria || 0), 0);
-    const monthValue = monthShifts.reduce((sum: number, s: any) => sum + Number(s.valor_total || 0), 0);
-    return { upcoming, pendingSwaps, monthHours, monthValue };
+    return { upcoming, pendingSwaps, monthHours, monthShifts: monthShifts.length };
   }, [shifts, swaps, today]);
 
   // Weekly calendar (next 7 days)
@@ -68,7 +67,7 @@ export default function ProfissionalDashboardPage() {
     { label: "Próximos Plantões", value: metrics.upcoming.length, icon: CalendarDays, className: "bg-primary/10 text-primary" },
     { label: "Trocas Pendentes", value: metrics.pendingSwaps.length, icon: ArrowLeftRight, className: "bg-destructive/10 text-destructive", action: () => navigate("/minhas-trocas?tab=recebidas") },
     { label: "Horas no Mês", value: `${metrics.monthHours.toFixed(1)}h`, icon: Clock3, className: "bg-info/10 text-info" },
-    { label: "A Receber (Mês)", value: `R$ ${metrics.monthValue.toLocaleString("pt-BR")}`, icon: Wallet, className: "bg-success/10 text-success" },
+    { label: "Plantões no Mês", value: metrics.monthShifts, icon: CalendarDays, className: "bg-success/10 text-success" },
   ];
 
   return (
@@ -139,7 +138,7 @@ export default function ProfissionalDashboardPage() {
                   <span className="text-muted-foreground ml-2">{s.hora_inicio} - {s.hora_fim}</span>
                   {(s.sectors as any)?.nome && <span className="text-muted-foreground ml-2">• {(s.sectors as any).nome}</span>}
                 </div>
-                <span className="text-foreground font-medium">R$ {Number(s.valor_total).toLocaleString('pt-BR')}</span>
+                <span className="text-foreground font-medium">{Number(s.carga_horaria).toFixed(1)}h</span>
               </div>
             ))}
             {metrics.upcoming.length === 0 && <p className="text-sm text-muted-foreground">Sem plantões futuros.</p>}
