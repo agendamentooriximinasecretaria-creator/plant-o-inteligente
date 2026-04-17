@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { dispatchNotification } from "@/lib/notifyHelper";
 import { toast } from "sonner";
-import { FileText } from "lucide-react";
+import { FileText, AlertCircle } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import ComprovanteTroca from "@/components/ComprovanteTroca";
 
@@ -39,6 +39,31 @@ export default function MinhasTrocasPage() {
   });
 
   const needsManagerApproval = (settings as any)?.aprovacao_gestor_trocas ?? true;
+
+  // Fetch own profile to know the personal limits
+  const { data: myProfile } = useQuery({
+    queryKey: ["my-professional-limits", professionalId],
+    enabled: !!professionalId,
+    queryFn: async () => {
+      const { data } = await supabase.from("professionals")
+        .select("limite_trocas_plantao_mes, limite_trocas_paciente_mes")
+        .eq("id", professionalId!)
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  // Counter (used in current month)
+  const { data: trocasStatus, refetch: refetchStatus } = useQuery({
+    queryKey: ["my-trocas-status", professionalId],
+    enabled: !!professionalId,
+    queryFn: async () => {
+      const { data } = await sb.rpc("get_trocas_status_mes", { _profissional_id: professionalId });
+      return data as { used: number; limit: number; remaining: number } | null;
+    },
+  });
+
+  const limiteAtingido = !!trocasStatus && trocasStatus.remaining <= 0;
 
   const { data: myShifts = [] } = useQuery({
     queryKey: ["professional-my-shifts-for-swaps"],
@@ -86,6 +111,7 @@ export default function MinhasTrocasPage() {
   const createSwap = useMutation({
     mutationFn: async () => {
       if (!professionalId) throw new Error("Seu usuário ainda não está vinculado a um profissional.");
+      if (limiteAtingido) throw new Error("Limite mensal de trocas atingido conforme configuração do sistema.");
       if (!form.shift_id || !form.motivo) throw new Error("Selecione um plantão e informe o motivo.");
       if (form.tipo === "direto" && !form.destinatario_id) throw new Error("Selecione o destinatário da troca direta.");
 
@@ -111,14 +137,12 @@ export default function MinhasTrocasPage() {
         user_id: (await supabase.auth.getUser()).data.user?.id,
       });
 
-      // Notify destination or all active professionals
       if (form.tipo === "direto" && form.destinatario_id) {
         await dispatchNotification({ professionalId: form.destinatario_id, tipo: 'troca', titulo: '🔄 Nova solicitação de troca', mensagem: 'Um colega solicitou uma troca de plantão com você.' });
       } else {
-        // Group swap - notify all active professionals
         const { data: allProfs } = await supabase.from("professionals").select("id").eq("status", "ativo").neq("id", professionalId!);
         for (const p of allProfs || []) {
-          await dispatchNotification({ professionalId: p.id, tipo: 'troca', titulo: '🔄 Plantão disponível para troca', mensagem: 'Um colega disponibilizou um plantão para troca. Verifique na aba Trocas Recebidas.' });
+          await dispatchNotification({ professionalId: p.id, tipo: 'troca', titulo: '🔄 Plantão disponível para troca', mensagem: 'Um colega disponibilizou um plantão para troca.' });
         }
       }
     },
@@ -126,6 +150,7 @@ export default function MinhasTrocasPage() {
       toast.success("Troca solicitada com sucesso.");
       setForm({ shift_id: "", tipo: "grupo", destinatario_id: "", motivo: "" });
       qc.invalidateQueries({ queryKey: ["professional-swaps"] });
+      refetchStatus();
     },
     onError: (error: any) => toast.error(error.message ?? "Erro ao solicitar troca."),
   });
@@ -169,7 +194,6 @@ export default function MinhasTrocasPage() {
         user_id: (await supabase.auth.getUser()).data.user?.id,
       });
 
-      // Notify the requesting professional
       await dispatchNotification({
         professionalId: selected.solicitante_id,
         tipo: 'troca',
@@ -187,22 +211,31 @@ export default function MinhasTrocasPage() {
 
   const setTab = (tab: (typeof tabs)[number]["id"]) => setParams({ tab });
 
+  const counterColor = limiteAtingido ? 'bg-destructive/10 text-destructive border-destructive/30'
+    : (trocasStatus && trocasStatus.remaining === 1) ? 'bg-warning/10 text-warning border-warning/30'
+    : 'bg-success/10 text-success border-success/30';
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="module-title">Trocas de Plantão</h1>
-        <p className="text-sm text-muted-foreground mt-1">Solicite, receba e acompanhe trocas em tempo real.</p>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div>
+          <h1 className="module-title">Trocas de Plantão</h1>
+          <p className="text-sm text-muted-foreground mt-1">Solicite, receba e acompanhe trocas em tempo real.</p>
+        </div>
+        {trocasStatus && (
+          <div className={`rounded-lg border px-3 py-2 text-sm font-medium ${counterColor}`}>
+            Trocas realizadas: <strong>{trocasStatus.used}/{trocasStatus.limit}</strong>
+            <span className="block text-[11px] opacity-80">{trocasStatus.remaining} restante(s) este mês</span>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-2">
         {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setTab(tab.id)}
+          <button key={tab.id} onClick={() => setTab(tab.id)}
             className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
               currentTab === tab.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"
-            }`}
-          >
+            }`}>
             {tab.label}
           </button>
         ))}
@@ -210,13 +243,20 @@ export default function MinhasTrocasPage() {
 
       {currentTab === "solicitar" && (
         <div className="rounded-lg border border-border bg-card p-5 shadow-[var(--shadow-card)] space-y-4">
+          {limiteAtingido && (
+            <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium">Limite mensal de trocas atingido</p>
+                <p className="text-xs opacity-90">Conforme configuração do sistema, você já solicitou {trocasStatus?.used} de {trocasStatus?.limit} trocas permitidas neste mês. Aguarde o próximo ciclo ou converse com seu gestor.</p>
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="text-sm font-medium text-foreground">Plantão a trocar *</label>
-            <select
-              value={form.shift_id}
-              onChange={(e) => setForm((f) => ({ ...f, shift_id: e.target.value }))}
-              className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-            >
+            <select value={form.shift_id} onChange={(e) => setForm((f) => ({ ...f, shift_id: e.target.value }))}
+              className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" disabled={limiteAtingido}>
               <option value="">Selecione...</option>
               {myShifts.map((s: any) => (
                 <option key={s.id} value={s.id}>
@@ -228,11 +268,8 @@ export default function MinhasTrocasPage() {
 
           <div>
             <label className="text-sm font-medium text-foreground">Tipo de troca *</label>
-            <select
-              value={form.tipo}
-              onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value, destinatario_id: "" }))}
-              className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-            >
+            <select value={form.tipo} onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value, destinatario_id: "" }))}
+              className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" disabled={limiteAtingido}>
               <option value="grupo">Solicitar para grupo</option>
               <option value="direto">Solicitar para colega específico</option>
             </select>
@@ -241,35 +278,23 @@ export default function MinhasTrocasPage() {
           {form.tipo === "direto" && (
             <div>
               <label className="text-sm font-medium text-foreground">Destinatário *</label>
-              <select
-                value={form.destinatario_id}
-                onChange={(e) => setForm((f) => ({ ...f, destinatario_id: e.target.value }))}
-                className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-              >
+              <select value={form.destinatario_id} onChange={(e) => setForm((f) => ({ ...f, destinatario_id: e.target.value }))}
+                className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" disabled={limiteAtingido}>
                 <option value="">Selecione...</option>
-                {directory.map((p: any) => (
-                  <option key={p.id} value={p.id}>{p.nome}</option>
-                ))}
+                {directory.map((p: any) => <option key={p.id} value={p.id}>{p.nome}</option>)}
               </select>
             </div>
           )}
 
           <div>
             <label className="text-sm font-medium text-foreground">Motivo *</label>
-            <textarea
-              value={form.motivo}
-              onChange={(e) => setForm((f) => ({ ...f, motivo: e.target.value }))}
-              rows={3}
-              className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-            />
+            <textarea value={form.motivo} onChange={(e) => setForm((f) => ({ ...f, motivo: e.target.value }))} rows={3}
+              className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" disabled={limiteAtingido} />
           </div>
 
-          <button
-            onClick={() => createSwap.mutate()}
-            disabled={createSwap.isPending}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-          >
-            {createSwap.isPending ? "Enviando..." : "Solicitar troca"}
+          <button onClick={() => createSwap.mutate()} disabled={createSwap.isPending || limiteAtingido}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">
+            {createSwap.isPending ? "Enviando..." : limiteAtingido ? "Limite atingido" : "Solicitar troca"}
           </button>
         </div>
       )}
@@ -282,28 +307,18 @@ export default function MinhasTrocasPage() {
             incoming.map((swap: any) => (
               <div key={swap.id} className="rounded-lg border border-border bg-card p-4 shadow-[var(--shadow-card)]">
                 <p className="text-sm text-foreground font-medium">{swap.motivo}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {new Date(swap.created_at).toLocaleString("pt-BR")} • {swap.status}
-                </p>
+                <p className="text-xs text-muted-foreground mt-1">{new Date(swap.created_at).toLocaleString("pt-BR")} • {swap.status}</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Plantão: {new Date(`${(swap.shifts as any)?.data}T12:00:00`).toLocaleDateString("pt-BR")} • {(swap.shifts as any)?.hora_inicio} - {(swap.shifts as any)?.hora_fim}
                 </p>
-                {swap.status === "solicitada" || swap.status === "aguardando_resposta" ? (
+                {(swap.status === "solicitada" || swap.status === "aguardando_resposta") && (
                   <div className="mt-3 flex gap-2">
-                    <button
-                      onClick={() => respondSwap.mutate({ swapId: swap.id, accept: true })}
-                      className="rounded-lg bg-success px-3 py-1.5 text-xs font-medium text-success-foreground hover:opacity-90"
-                    >
-                      Aceitar
-                    </button>
-                    <button
-                      onClick={() => respondSwap.mutate({ swapId: swap.id, accept: false })}
-                      className="rounded-lg bg-destructive px-3 py-1.5 text-xs font-medium text-destructive-foreground hover:opacity-90"
-                    >
-                      Recusar
-                    </button>
+                    <button onClick={() => respondSwap.mutate({ swapId: swap.id, accept: true })}
+                      className="rounded-lg bg-success px-3 py-1.5 text-xs font-medium text-success-foreground hover:opacity-90">Aceitar</button>
+                    <button onClick={() => respondSwap.mutate({ swapId: swap.id, accept: false })}
+                      className="rounded-lg bg-destructive px-3 py-1.5 text-xs font-medium text-destructive-foreground hover:opacity-90">Recusar</button>
                   </div>
-                ) : null}
+                )}
               </div>
             ))
           )}
@@ -335,7 +350,6 @@ export default function MinhasTrocasPage() {
         </div>
       )}
 
-      {/* Comprovante Modal */}
       <Dialog open={!!comprovanteId} onOpenChange={(open) => !open && setComprovanteId(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto print:max-w-none print:shadow-none">
           {comprovanteId && <ComprovanteTroca trocaId={comprovanteId} onClose={() => setComprovanteId(null)} />}
