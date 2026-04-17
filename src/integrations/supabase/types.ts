@@ -903,6 +903,22 @@ export type Database = {
       }
     }
     Functions: {
+      check_descanso_minimo: {
+        Args: {
+          p_data: string
+          p_descanso_horas: number
+          p_exclude_id?: string
+          p_hora_fim: string
+          p_hora_inicio: string
+          p_profissional_id: string
+        }
+        Returns: {
+          gap_horas: number
+          violando_shift_id: string
+          vizinho_fim: string
+          vizinho_inicio: string
+        }[]
+      }
       check_shift_conflict: {
         Args: {
           p_data: string
