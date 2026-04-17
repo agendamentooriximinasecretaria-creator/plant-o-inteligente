@@ -610,6 +610,48 @@ export type Database = {
           },
         ]
       }
+      shift_types: {
+        Row: {
+          ativo: boolean
+          carga_horaria: number
+          cor: string | null
+          created_at: string
+          hora_fim: string
+          hora_inicio: string
+          id: string
+          nome: string
+          ordem: number
+          sigla: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          carga_horaria?: number
+          cor?: string | null
+          created_at?: string
+          hora_fim: string
+          hora_inicio: string
+          id?: string
+          nome: string
+          ordem?: number
+          sigla: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          carga_horaria?: number
+          cor?: string | null
+          created_at?: string
+          hora_fim?: string
+          hora_inicio?: string
+          id?: string
+          nome?: string
+          ordem?: number
+          sigla?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       shifts: {
         Row: {
           carga_horaria: number
