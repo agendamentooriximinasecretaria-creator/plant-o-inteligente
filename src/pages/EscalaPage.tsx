@@ -88,6 +88,29 @@ export default function EscalaPage() {
     },
   });
 
+  // Tipos de plantão configuráveis (gerenciados em /configuracoes)
+  const { data: tiposDB = [] } = useQuery({
+    queryKey: ['shift_types'],
+    queryFn: async () => {
+      const { data, error } = await sb.from('shift_types').select('*').eq('ativo', true).order('ordem', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const TIPOS_PLANTAO = useMemo(() => {
+    if (tiposDB.length === 0) return TIPOS_PLANTAO_FALLBACK;
+    return tiposDB.map((t: any) => ({
+      value: t.nome,
+      sigla: t.sigla,
+      start: (t.hora_inicio || '').slice(0, 5),
+      end: (t.hora_fim || '').slice(0, 5),
+      carga: Number(t.carga_horaria) || 12,
+    }));
+  }, [tiposDB]);
+
+  const tipoToSigla = (tipo?: string) => TIPOS_PLANTAO.find(t => t.value === tipo)?.sigla ?? (tipo?.[0]?.toUpperCase() ?? '?');
+
   useEffect(() => {
     const shiftsChannel = supabase
       .channel('escala-realtime')
