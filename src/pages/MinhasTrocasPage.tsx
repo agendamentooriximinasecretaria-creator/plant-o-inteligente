@@ -270,9 +270,14 @@ export default function MinhasTrocasPage() {
             <label className="text-sm font-medium text-foreground">Tipo de troca *</label>
             <select value={form.tipo} onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value, destinatario_id: "" }))}
               className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" disabled={limiteAtingido}>
-              <option value="grupo">Solicitar para grupo</option>
-              <option value="direto">Solicitar para colega específico</option>
+              <option value="grupo">🌐 Cobertura aberta — qualquer colega qualificado pode aceitar</option>
+              <option value="direto">👤 Troca direta — escolher um colega específico</option>
             </select>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              {form.tipo === 'grupo'
+                ? 'O plantão será publicado para todos os profissionais elegíveis. O primeiro a aceitar fica com a vaga.'
+                : 'Você escolhe diretamente com quem deseja trocar. Apenas o destinatário será notificado.'}
+            </p>
           </div>
 
           {form.tipo === "direto" && (
