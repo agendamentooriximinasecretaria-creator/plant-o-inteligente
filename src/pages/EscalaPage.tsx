@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
 import { dispatchNotification } from "@/lib/notifyHelper";
-import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info, Users as UsersIcon } from "lucide-react";
+import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info, Users as UsersIcon, Palmtree, AlertTriangle } from "lucide-react";
 import { ContactActionButton } from "@/components/ContactActionButton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { motion } from "framer-motion";
@@ -11,21 +11,73 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
-const STATUS_LABELS: Record<string, string> = { agendado: 'Agendado', confirmado: 'Confirmado', pendente: 'Pendente', em_aberto: 'Em Aberto', trocando: 'Em Troca', concluido: 'Concluído', cancelado: 'Cancelado' };
-const STATUS_CLASSES: Record<string, string> = { agendado: 'bg-info/10 text-info', confirmado: 'bg-success/10 text-success', pendente: 'bg-warning/10 text-warning', em_aberto: 'bg-muted text-muted-foreground', trocando: 'bg-primary/10 text-primary', concluido: 'bg-accent/10 text-accent', cancelado: 'bg-destructive/10 text-destructive' };
-const PROFISSAO_LABELS: Record<string, string> = { medico: 'Médico(a)', enfermeiro: 'Enfermeiro(a)', fisioterapeuta: 'Fisioterapeuta', tecnico_enfermagem: 'Téc. Enfermagem', biomedico: 'Biomédico(a)', psicologo: 'Psicólogo(a)', terapeuta_ocupacional: 'Terapeuta Ocupacional', nutricionista: 'Nutricionista', fonoaudiologo: 'Fonoaudiólogo(a)', farmaceutico: 'Farmacêutico(a)', outro: 'Outro' };
+const STATUS_LABELS: Record<string, string> = {
+  agendado: 'Agendado', confirmado: 'Confirmado', pendente: 'Pendente',
+  em_aberto: 'Em Aberto', trocando: 'Em Troca', interrompido: 'Interrompido',
+  concluido: 'Concluído', cancelado: 'Cancelado',
+};
+const STATUS_CLASSES: Record<string, string> = {
+  agendado: 'bg-info/10 text-info', confirmado: 'bg-success/10 text-success',
+  pendente: 'bg-warning/10 text-warning', em_aberto: 'bg-muted text-muted-foreground',
+  trocando: 'bg-primary/10 text-primary', interrompido: 'bg-orange-500/10 text-orange-600 dark:text-orange-400',
+  concluido: 'bg-accent/10 text-accent', cancelado: 'bg-destructive/10 text-destructive',
+};
+// Cor de fundo da célula no calendário por status
+const STATUS_CELL_BG: Record<string, string> = {
+  agendado: 'bg-info/15 border-info/40 text-info hover:bg-info/25',
+  confirmado: 'bg-success/15 border-success/40 text-success hover:bg-success/25',
+  pendente: 'bg-warning/15 border-warning/40 text-warning hover:bg-warning/25',
+  em_aberto: 'bg-muted border-border text-muted-foreground hover:bg-muted/80',
+  trocando: 'bg-primary/15 border-primary/40 text-primary hover:bg-primary/25',
+  interrompido: 'bg-orange-500/15 border-orange-500/40 text-orange-700 dark:text-orange-300 hover:bg-orange-500/25',
+  concluido: 'bg-accent/15 border-accent/40 text-accent hover:bg-accent/25',
+  cancelado: 'bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20 line-through',
+};
+const PROFISSAO_LABELS: Record<string, string> = {
+  medico: 'Médico(a)', enfermeiro: 'Enfermeiro(a)', fisioterapeuta: 'Fisioterapeuta',
+  tecnico_enfermagem: 'Téc. Enfermagem', biomedico: 'Biomédico(a)', psicologo: 'Psicólogo(a)',
+  terapeuta_ocupacional: 'Terapeuta Ocupacional', nutricionista: 'Nutricionista',
+  fonoaudiologo: 'Fonoaudiólogo(a)', farmaceutico: 'Farmacêutico(a)', outro: 'Outro',
+};
 
-const emptyForm = { unidade_id: '', setor_id: '', profissao: 'medico', profissional_ids: [] as string[], data: '', hora_inicio: '07:00', hora_fim: '19:00', tipo_plantao: 'Diurno 12h', observacoes: '', status: 'confirmado' };
+// Tipos de plantão padronizados (label, hora_inicio, hora_fim, sigla curta para o calendário)
+const TIPOS_PLANTAO = [
+  { value: 'Diurno 12h', sigla: 'D', start: '07:00', end: '19:00' },
+  { value: 'Noturno 12h', sigla: 'N', start: '19:00', end: '07:00' },
+  { value: 'Manhã', sigla: 'M', start: '07:00', end: '13:00' },
+  { value: 'Tarde', sigla: 'T', start: '13:00', end: '19:00' },
+  { value: 'Noite', sigla: 'No', start: '19:00', end: '01:00' },
+  { value: 'Plantão 24h', sigla: '24', start: '07:00', end: '07:00' },
+  { value: 'Sobreaviso', sigla: 'SA', start: '00:00', end: '23:59' },
+] as const;
+
+const tipoToSigla = (tipo?: string) => TIPOS_PLANTAO.find(t => t.value === tipo)?.sigla ?? '?';
+
+const LIMITE_HORAS_MENSAL = 220;
+
+const emptyForm = {
+  unidade_id: '', setor_id: '', profissao: 'medico',
+  profissional_ids: [] as string[],
+  data: '', hora_inicio: '07:00', hora_fim: '19:00',
+  tipo_plantao: 'Diurno 12h', observacoes: '', status: 'confirmado',
+};
+
+const emptyFolga = { profissional_id: '', data_inicio: '', data_fim: '', motivo: 'folga', observacoes: '' };
 
 export default function EscalaPage() {
+  const sb = supabase as any;
   const [view, setView] = useState<'lista' | 'calendario'>('lista');
   const [filterSetor, setFilterSetor] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [folgaModalOpen, setFolgaModalOpen] = useState(false);
+  const [folgaForm, setFolgaForm] = useState(emptyFolga);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [conflictWarnings, setConflictWarnings] = useState<string[]>([]);
+  const [restWarnings, setRestWarnings] = useState<string[]>([]);
   const [workloadAlerts, setWorkloadAlerts] = useState<string[]>([]);
+  const [horasPorProfissional, setHorasPorProfissional] = useState<Record<string, number>>({});
   const [detailShift, setDetailShift] = useState<any>(null);
   const qc = useQueryClient();
 
@@ -80,6 +132,16 @@ export default function EscalaPage() {
   const { data: units = [] } = useQuery({ queryKey: ['units'], queryFn: async () => { const { data } = await supabase.from('units').select('*').order('nome'); return data || []; } });
   const { data: sectors = [] } = useQuery({ queryKey: ['sectors'], queryFn: async () => { const { data } = await supabase.from('sectors').select('*').order('nome'); return data || []; } });
 
+  // Regras globais de descanso/limites
+  const { data: conflictRules } = useQuery({
+    queryKey: ['conflict-rules-escala'],
+    queryFn: async () => {
+      const { data } = await sb.from('system_settings').select('value').eq('key', 'conflict_rules').maybeSingle();
+      return (data?.value as any) || { descanso_minimo: 6, limite_horas_dia: 24, limite_horas_semana: 60 };
+    },
+  });
+  const descansoMinimo = Number(conflictRules?.descanso_minimo ?? 6);
+
   const todayStr = new Date().toISOString().split('T')[0];
 
   const { data: censoHoje = [] } = useQuery({
@@ -114,16 +176,6 @@ export default function EscalaPage() {
     return map;
   }, [sectors, censoHoje, todayAllShifts]);
 
-  // Group shifts by date+sector+horario for "multiple professionals per turn" UI
-  const groupedShifts = useMemo(() => {
-    const map: Record<string, any[]> = {};
-    for (const s of shifts as any[]) {
-      const key = `${s.data}|${s.setor_id}|${s.hora_inicio}|${s.hora_fim}`;
-      (map[key] ||= []).push(s);
-    }
-    return map;
-  }, [shifts]);
-
   const calcHours = (start: string, end: string) => {
     const [sh, sm] = start.split(':').map(Number);
     const [eh, em] = end.split(':').map(Number);
@@ -132,26 +184,65 @@ export default function EscalaPage() {
     return diff / 60;
   };
 
+  // Carrega horas do mês para profissionais filtrados (para mostrar 24h/220h ao lado do nome)
+  const profissionaisFiltrados = useMemo(
+    () => (professionals as any[]).filter((p: any) => !form.profissao || p.profissao === form.profissao),
+    [professionals, form.profissao],
+  );
+
+  useEffect(() => {
+    if (!modalOpen || profissionaisFiltrados.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const updates: Record<string, number> = {};
+      await Promise.all(profissionaisFiltrados.map(async (p: any) => {
+        if (horasPorProfissional[p.id] !== undefined) return;
+        const { data } = await sb.rpc('sum_horas_mes_profissional', { _profissional_id: p.id });
+        updates[p.id] = Number(data ?? 0);
+      }));
+      if (!cancelled && Object.keys(updates).length) {
+        setHorasPorProfissional(prev => ({ ...prev, ...updates }));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [modalOpen, profissionaisFiltrados, sb, horasPorProfissional]);
+
   const checkConflicts = async () => {
     if (!form.profissional_ids.length || !form.data || !form.hora_inicio || !form.hora_fim) {
       setConflictWarnings([]);
+      setRestWarnings([]);
       return;
     }
     const warnings: string[] = [];
+    const restWarn: string[] = [];
     for (const pid of form.profissional_ids) {
-      const { data } = await supabase.rpc('check_shift_conflict', {
+      const { data: conflicts } = await supabase.rpc('check_shift_conflict', {
         p_profissional_id: pid,
         p_data: form.data,
         p_hora_inicio: form.hora_inicio,
         p_hora_fim: form.hora_fim,
         p_exclude_id: editingId,
       });
-      if (data && data.length > 0) {
-        const prof = (professionals as any[]).find(p => p.id === pid);
-        warnings.push(`⚠️ ${prof?.nome}: já tem plantão ${data[0].conflicting_start}-${data[0].conflicting_end}`);
+      const prof = (professionals as any[]).find(p => p.id === pid);
+      if (conflicts && conflicts.length > 0) {
+        warnings.push(`⚠️ ${prof?.nome}: já tem plantão ${conflicts[0].conflicting_start}-${conflicts[0].conflicting_end} ou folga neste dia.`);
+      }
+      // Verifica descanso mínimo
+      const { data: restData } = await sb.rpc('check_descanso_minimo', {
+        p_profissional_id: pid,
+        p_data: form.data,
+        p_hora_inicio: form.hora_inicio,
+        p_hora_fim: form.hora_fim,
+        p_descanso_horas: descansoMinimo,
+        p_exclude_id: editingId,
+      });
+      if (restData && restData.length > 0) {
+        const gap = Number(restData[0].gap_horas).toFixed(1);
+        restWarn.push(`🛌 ${prof?.nome}: descanso de ${gap}h entre plantões (mínimo configurado: ${descansoMinimo}h).`);
       }
     }
     setConflictWarnings(warnings);
+    setRestWarnings(restWarn);
   };
 
   const checkWorkload = async () => {
@@ -171,6 +262,7 @@ export default function EscalaPage() {
     mutationFn: async (data: typeof form) => {
       if (!data.profissional_ids.length) throw new Error('Selecione ao menos um profissional.');
       if (conflictWarnings.length) throw new Error('Resolva os conflitos antes de salvar.');
+      if (restWarnings.length) throw new Error('Resolva o conflito de descanso mínimo antes de salvar.');
       const hours = calcHours(data.hora_inicio, data.hora_fim);
       const basePayload = {
         unidade_id: data.unidade_id, setor_id: data.setor_id, profissao: data.profissao as any,
@@ -205,6 +297,49 @@ export default function EscalaPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Mutation para registrar folga/indisponibilidade (usa shifts com tipo_plantao='folga')
+  const folgaMutation = useMutation({
+    mutationFn: async (f: typeof folgaForm) => {
+      if (!f.profissional_id || !f.data_inicio || !f.data_fim) {
+        throw new Error('Preencha profissional e datas.');
+      }
+      const inicio = new Date(f.data_inicio + 'T00:00:00');
+      const fim = new Date(f.data_fim + 'T00:00:00');
+      if (fim < inicio) throw new Error('Data fim anterior ao início.');
+
+      const prof = (professionals as any[]).find(p => p.id === f.profissional_id);
+      if (!prof) throw new Error('Profissional não encontrado.');
+
+      const dias: string[] = [];
+      const cursor = new Date(inicio);
+      while (cursor <= fim) {
+        dias.push(cursor.toISOString().split('T')[0]);
+        cursor.setDate(cursor.getDate() + 1);
+      }
+
+      const setorId = prof.setor_principal_id ?? (sectors as any[])[0]?.id;
+      const unidadeId = prof.unidade_principal_id ?? (units as any[])[0]?.id;
+      if (!setorId || !unidadeId) throw new Error('Profissional sem setor/unidade principal definido.');
+
+      const payloads = dias.map(d => ({
+        unidade_id: unidadeId, setor_id: setorId, profissao: prof.profissao,
+        profissional_id: f.profissional_id, data: d, hora_inicio: '00:00', hora_fim: '23:59',
+        carga_horaria: 0, tipo_plantao: f.motivo, status: 'confirmado' as any,
+        observacoes: f.observacoes || `Indisponibilidade: ${f.motivo}`,
+      }));
+      const { error } = await supabase.from('shifts').insert(payloads);
+      if (error) throw error;
+      await logAudit('Folga/indisponibilidade registrada', 'escala', { profissional: prof.nome, dias: dias.length, motivo: f.motivo });
+    },
+    onSuccess: () => {
+      toast.success('Folga registrada com sucesso.');
+      qc.invalidateQueries({ queryKey: ['shifts'] });
+      setFolgaModalOpen(false);
+      setFolgaForm(emptyFolga);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (shift: any) => {
       if (shift.status === 'trocando') {
@@ -231,7 +366,11 @@ export default function EscalaPage() {
     onError: (e: Error) => toast.error(`Não foi possível excluir: ${e.message}`),
   });
 
-  const closeModal = () => { setModalOpen(false); setEditingId(null); setForm(emptyForm); setConflictWarnings([]); setWorkloadAlerts([]); };
+  const closeModal = () => {
+    setModalOpen(false); setEditingId(null); setForm(emptyForm);
+    setConflictWarnings([]); setRestWarnings([]); setWorkloadAlerts([]);
+    setHorasPorProfissional({});
+  };
 
   const openEdit = (s: any) => {
     setEditingId(s.id);
@@ -253,6 +392,18 @@ export default function EscalaPage() {
     setModalOpen(true);
   };
 
+  // Aplica preset de tipo de plantão (preenche horários automaticamente)
+  const applyTipoPreset = (tipo: string) => {
+    const preset = TIPOS_PLANTAO.find(t => t.value === tipo);
+    setForm(f => ({
+      ...f,
+      tipo_plantao: tipo,
+      hora_inicio: preset?.start ?? f.hora_inicio,
+      hora_fim: preset?.end ?? f.hora_fim,
+    }));
+    setTimeout(() => { checkConflicts(); checkWorkload(); }, 100);
+  };
+
   const filtered = (shifts as any[]).filter((s: any) => {
     if (filterSetor && s.setor_id !== filterSetor) return false;
     if (filterStatus && s.status !== filterStatus) return false;
@@ -271,6 +422,8 @@ export default function EscalaPage() {
 
   const initials = (nome?: string) => (nome || '').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
+  const isFolga = (s: any) => s?.tipo_plantao === 'folga' || s?.tipo_plantao === 'indisponibilidade';
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -281,6 +434,7 @@ export default function EscalaPage() {
         <div className="flex items-center gap-2">
           <button onClick={() => setView('lista')} className={`p-2 rounded-lg transition-colors ${view === 'lista' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}><List className="h-4 w-4" /></button>
           <button onClick={() => setView('calendario')} className={`p-2 rounded-lg transition-colors ${view === 'calendario' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}><Calendar className="h-4 w-4" /></button>
+          <button onClick={() => { setFolgaForm(emptyFolga); setFolgaModalOpen(true); }} className="flex items-center gap-2 border border-border bg-card px-3 py-2 rounded-lg text-sm font-medium hover:bg-muted text-foreground"><Palmtree className="h-4 w-4 text-amber-600" /> Marcar folga</button>
           <button onClick={() => { setForm(emptyForm); setEditingId(null); setModalOpen(true); }} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"><Plus className="h-4 w-4" /> Novo Plantão</button>
         </div>
       </div>
@@ -307,8 +461,16 @@ export default function EscalaPage() {
               </tr></thead>
               <tbody>
                 {filtered.map((s: any) => (
-                  <tr key={s.id} className="border-t border-border hover:bg-muted/30 transition-colors">
-                    <td className="p-3"><p className="font-medium text-foreground">{(s.professionals as any)?.nome}</p><p className="text-xs text-muted-foreground">{PROFISSAO_LABELS[(s.professionals as any)?.profissao] || ''}</p></td>
+                  <tr key={s.id} className={`border-t border-border hover:bg-muted/30 transition-colors ${isFolga(s) ? 'bg-amber-50/40 dark:bg-amber-950/10' : ''}`}>
+                    <td className="p-3">
+                      <div className="flex items-center gap-2">
+                        {isFolga(s) && <Palmtree className="h-3.5 w-3.5 text-amber-600 shrink-0" />}
+                        <div>
+                          <p className="font-medium text-foreground">{(s.professionals as any)?.nome}</p>
+                          <p className="text-xs text-muted-foreground">{PROFISSAO_LABELS[(s.professionals as any)?.profissao] || ''}</p>
+                        </div>
+                      </div>
+                    </td>
                     <td className="p-3">
                       <div className="flex items-center gap-1.5">
                         <TooltipProvider>
@@ -331,7 +493,9 @@ export default function EscalaPage() {
                     </td>
                     <td className="p-3 text-foreground">{new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
                     <td className="p-3"><div className="flex items-center gap-1 text-foreground"><Clock className="h-3.5 w-3.5 text-muted-foreground" />{s.hora_inicio} - {s.hora_fim}</div><p className="text-xs text-muted-foreground">{s.carga_horaria}h</p></td>
-                    <td className="p-3 text-foreground">{s.tipo_plantao}</td>
+                    <td className="p-3 text-foreground">
+                      {isFolga(s) ? <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400 text-xs font-medium"><Palmtree className="h-3 w-3" /> {s.tipo_plantao === 'folga' ? 'Folga' : 'Indisponível'}</span> : s.tipo_plantao}
+                    </td>
                     <td className="p-3"><span className={`status-badge ${STATUS_CLASSES[s.status] || ''}`}>{STATUS_LABELS[s.status]}</span></td>
                     <td className="p-3">
                       <div className="flex items-center gap-1">
@@ -362,6 +526,17 @@ export default function EscalaPage() {
         </motion.div>
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-lg border border-border p-6 shadow-[var(--shadow-card)]">
+          {/* Legenda */}
+          <div className="flex flex-wrap items-center gap-3 mb-4 text-[11px] text-muted-foreground">
+            <span className="font-medium text-foreground mr-1">Legenda:</span>
+            <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-success/40 border border-success/60" /> Confirmado</span>
+            <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-info/40 border border-info/60" /> Agendado</span>
+            <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-warning/40 border border-warning/60" /> Pendente</span>
+            <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-primary/40 border border-primary/60" /> Em troca</span>
+            <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-orange-500/40 border border-orange-500/60" /> Interrompido</span>
+            <span className="inline-flex items-center gap-1"><Palmtree className="h-3 w-3 text-amber-600" /> Folga</span>
+          </div>
+
           <div className="grid grid-cols-7 gap-1 text-center">
             {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
               <div key={d} className="text-xs font-semibold text-muted-foreground py-2">{d}</div>
@@ -377,24 +552,38 @@ export default function EscalaPage() {
                 const isToday = isValid && day === now.getDate();
                 const dateStr = isValid ? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}` : '';
                 const dayShifts = isValid ? (shifts as any[]).filter((s: any) => s.data === dateStr) : [];
+                const onlyFolgas = dayShifts.length > 0 && dayShifts.every(isFolga);
                 return (
                   <div key={i}
                     onClick={() => isValid && dayShifts.length === 0 && openCreateForCell(dateStr)}
-                    className={`min-h-[88px] p-1 rounded-lg border transition-colors ${isValid ? 'border-border/50 hover:border-primary/30 cursor-pointer' : 'border-transparent'} ${isToday ? 'bg-primary/5 border-primary/30' : ''}`}>
+                    className={`min-h-[110px] p-1.5 rounded-lg border transition-colors text-left ${
+                      isValid ? 'border-border/50 hover:border-primary/40 cursor-pointer' : 'border-transparent'
+                    } ${isToday ? 'ring-2 ring-primary/40' : ''} ${onlyFolgas ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800' : ''}`}>
                     {isValid && (<>
-                      <span className={`text-xs font-medium ${isToday ? 'text-primary font-bold' : 'text-foreground'}`}>{day}</span>
-                      <div className="flex flex-wrap gap-0.5 mt-1">
-                        {dayShifts.slice(0, 5).map((s: any) => (
-                          <button
-                            key={s.id}
-                            onClick={(e) => { e.stopPropagation(); setDetailShift(s); }}
-                            className="h-5 w-5 rounded-full bg-primary/15 text-primary text-[9px] font-bold flex items-center justify-center hover:bg-primary/30"
-                            title={(s.professionals as any)?.nome}
-                          >
-                            {initials((s.professionals as any)?.nome)}
-                          </button>
-                        ))}
-                        {dayShifts.length > 5 && <span className="text-[9px] text-muted-foreground self-center">+{dayShifts.length - 5}</span>}
+                      <div className="flex items-center justify-between">
+                        <span className={`text-xs font-bold ${isToday ? 'text-primary' : 'text-foreground'}`}>{day}</span>
+                        {onlyFolgas && <Palmtree className="h-3 w-3 text-amber-600" />}
+                      </div>
+                      <div className="flex flex-col gap-0.5 mt-1">
+                        {dayShifts.slice(0, 4).map((s: any) => {
+                          const folga = isFolga(s);
+                          const cellClass = folga
+                            ? 'bg-amber-200/60 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border-amber-400/40'
+                            : (STATUS_CELL_BG[s.status] || 'bg-muted border-border text-foreground');
+                          return (
+                            <button
+                              key={s.id}
+                              onClick={(e) => { e.stopPropagation(); setDetailShift(s); }}
+                              title={`${(s.professionals as any)?.nome} • ${s.tipo_plantao}`}
+                              className={`flex items-center gap-1 rounded-md border px-1 py-0.5 text-[10px] font-semibold leading-tight truncate ${cellClass}`}
+                            >
+                              <span className="font-bold">{initials((s.professionals as any)?.nome)}</span>
+                              <span className="opacity-80">·</span>
+                              <span className="font-mono">{folga ? 'F' : tipoToSigla(s.tipo_plantao)}</span>
+                            </button>
+                          );
+                        })}
+                        {dayShifts.length > 4 && <span className="text-[9px] text-muted-foreground">+{dayShifts.length - 4} mais</span>}
                       </div>
                     </>)}
                   </div>
@@ -405,6 +594,7 @@ export default function EscalaPage() {
         </motion.div>
       )}
 
+      {/* MODAL: Novo / Editar plantão */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editingId ? 'Editar Plantão' : 'Novo Plantão'}</DialogTitle></DialogHeader>
@@ -423,16 +613,21 @@ export default function EscalaPage() {
                   {Object.entries(PROFISSAO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select></div>
               <div><label className="text-sm font-medium text-foreground">Data *</label><input required type="date" value={form.data} onChange={e => { setForm(f => ({ ...f, data: e.target.value })); setTimeout(() => { checkConflicts(); checkWorkload(); }, 100); }} className={inputClass} /></div>
+              <div className="col-span-2"><label className="text-sm font-medium text-foreground">Tipo de plantão *</label>
+                <select value={form.tipo_plantao} onChange={e => applyTipoPreset(e.target.value)} className={inputClass}>
+                  {TIPOS_PLANTAO.map(t => <option key={t.value} value={t.value}>{t.value} ({t.start}–{t.end})</option>)}
+                </select>
+                <p className="text-[11px] text-muted-foreground mt-1">Selecionar o tipo preenche os horários automaticamente. Você pode ajustar abaixo.</p>
+              </div>
               <div><label className="text-sm font-medium text-foreground">Hora início *</label><input required type="time" value={form.hora_inicio} onChange={e => { setForm(f => ({ ...f, hora_inicio: e.target.value })); setTimeout(checkConflicts, 100); }} className={inputClass} /></div>
               <div><label className="text-sm font-medium text-foreground">Hora fim *</label><input required type="time" value={form.hora_fim} onChange={e => { setForm(f => ({ ...f, hora_fim: e.target.value })); setTimeout(checkConflicts, 100); }} className={inputClass} /></div>
-              <div><label className="text-sm font-medium text-foreground">Tipo</label><input value={form.tipo_plantao} onChange={e => setForm(f => ({ ...f, tipo_plantao: e.target.value }))} className={inputClass} /></div>
-              <div><label className="text-sm font-medium text-foreground">Status</label>
+              <div className="col-span-2"><label className="text-sm font-medium text-foreground">Status</label>
                 <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={inputClass}>
-                  {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  {Object.entries(STATUS_LABELS).filter(([k]) => k !== 'trocando').map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select></div>
             </div>
 
-            {/* Multi-select de profissionais */}
+            {/* Multi-select de profissionais com horas no mês */}
             <div>
               <label className="text-sm font-medium text-foreground flex items-center gap-2">
                 <UsersIcon className="h-4 w-4" /> Profissionais escalados *
@@ -440,10 +635,12 @@ export default function EscalaPage() {
                   <span className="text-xs text-muted-foreground">({form.profissional_ids.length} selecionado{form.profissional_ids.length > 1 ? 's' : ''})</span>
                 )}
               </label>
-              <p className="text-xs text-muted-foreground mb-2">Selecione um ou mais profissionais para este turno.</p>
-              <div className="border border-border rounded-lg p-2 max-h-48 overflow-y-auto space-y-1">
-                {(professionals as any[]).filter((p: any) => !form.profissao || p.profissao === form.profissao).map((p: any) => {
+              <p className="text-xs text-muted-foreground mb-2">Filtrado por <strong>{PROFISSAO_LABELS[form.profissao]}</strong>. Horas exibidas: trabalhadas no mês / limite CLT (220h).</p>
+              <div className="border border-border rounded-lg p-2 max-h-56 overflow-y-auto space-y-1">
+                {profissionaisFiltrados.map((p: any) => {
                   const checked = form.profissional_ids.includes(p.id);
+                  const horas = horasPorProfissional[p.id] ?? 0;
+                  const overLimit = horas >= LIMITE_HORAS_MENSAL;
                   return (
                     <label key={p.id} className={`flex items-center gap-2 p-2 rounded cursor-pointer text-sm ${checked ? 'bg-primary/10' : 'hover:bg-muted'}`}>
                       <input
@@ -454,12 +651,14 @@ export default function EscalaPage() {
                         className="rounded"
                       />
                       <span className="h-6 w-6 rounded-full bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center">{initials(p.nome)}</span>
-                      <span className="text-foreground flex-1">{p.nome}</span>
-                      <span className="text-xs text-muted-foreground">{PROFISSAO_LABELS[p.profissao]}</span>
+                      <span className="text-foreground flex-1 truncate">{p.nome}</span>
+                      <span className={`text-[11px] font-mono px-1.5 py-0.5 rounded ${overLimit ? 'bg-destructive/15 text-destructive' : horas > 180 ? 'bg-warning/15 text-warning' : 'bg-muted text-muted-foreground'}`}>
+                        {horas}h/{LIMITE_HORAS_MENSAL}h
+                      </span>
                     </label>
                   );
                 })}
-                {(professionals as any[]).filter((p: any) => !form.profissao || p.profissao === form.profissao).length === 0 && (
+                {profissionaisFiltrados.length === 0 && (
                   <p className="text-xs text-muted-foreground p-2">Nenhum profissional ativo desta categoria.</p>
                 )}
               </div>
@@ -468,7 +667,20 @@ export default function EscalaPage() {
 
             {conflictWarnings.length > 0 && (
               <div className="space-y-1">
-                {conflictWarnings.map((w, i) => <div key={i} className="p-2 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive font-medium">{w}</div>)}
+                {conflictWarnings.map((w, i) => (
+                  <div key={i} className="flex items-start gap-2 p-2 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive font-medium">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" /> <span>{w}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {restWarnings.length > 0 && (
+              <div className="space-y-1">
+                {restWarnings.map((w, i) => (
+                  <div key={i} className="flex items-start gap-2 p-2 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive font-medium">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" /> <span>{w}</span>
+                  </div>
+                ))}
               </div>
             )}
             {workloadAlerts.length > 0 && (
@@ -479,8 +691,60 @@ export default function EscalaPage() {
             <div><label className="text-sm font-medium text-foreground">Observações</label><textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} rows={2} className={inputClass} /></div>
             <div className="flex justify-end gap-3">
               <button type="button" onClick={closeModal} className="px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted">Cancelar</button>
-              <button type="submit" disabled={saveMutation.isPending || conflictWarnings.length > 0 || form.profissional_ids.length === 0} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50">
+              <button type="submit" disabled={saveMutation.isPending || conflictWarnings.length > 0 || restWarnings.length > 0 || form.profissional_ids.length === 0} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50">
                 {saveMutation.isPending ? 'Salvando...' : editingId ? 'Salvar' : `Escalar ${form.profissional_ids.length || ''}`}
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: Marcar folga / indisponibilidade */}
+      <Dialog open={folgaModalOpen} onOpenChange={setFolgaModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Palmtree className="h-5 w-5 text-amber-600" /> Marcar folga / indisponibilidade
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={e => { e.preventDefault(); folgaMutation.mutate(folgaForm); }} className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-foreground">Profissional *</label>
+              <select required value={folgaForm.profissional_id} onChange={e => setFolgaForm(f => ({ ...f, profissional_id: e.target.value }))} className={inputClass}>
+                <option value="">Selecione...</option>
+                {(professionals as any[]).map((p: any) => (
+                  <option key={p.id} value={p.id}>{p.nome} — {PROFISSAO_LABELS[p.profissao]}</option>
+                ))}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium text-foreground">Data início *</label>
+                <input required type="date" value={folgaForm.data_inicio} onChange={e => setFolgaForm(f => ({ ...f, data_inicio: e.target.value }))} className={inputClass} />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground">Data fim *</label>
+                <input required type="date" value={folgaForm.data_fim} onChange={e => setFolgaForm(f => ({ ...f, data_fim: e.target.value }))} className={inputClass} />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground">Motivo *</label>
+              <select value={folgaForm.motivo} onChange={e => setFolgaForm(f => ({ ...f, motivo: e.target.value }))} className={inputClass}>
+                <option value="folga">Folga</option>
+                <option value="indisponibilidade">Indisponibilidade (férias / licença / atestado)</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground">Observações</label>
+              <textarea value={folgaForm.observacoes} onChange={e => setFolgaForm(f => ({ ...f, observacoes: e.target.value }))} rows={2} className={inputClass} />
+            </div>
+            <div className="rounded-lg border border-amber-300/40 bg-amber-50 dark:bg-amber-950/20 p-3 text-xs text-amber-800 dark:text-amber-300">
+              ℹ️ Os dias selecionados ficarão bloqueados para escalação automática. Conflitos serão sinalizados na criação de novos plantões.
+            </div>
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setFolgaModalOpen(false)} className="px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted">Cancelar</button>
+              <button type="submit" disabled={folgaMutation.isPending} className="px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-medium hover:bg-amber-700 disabled:opacity-50">
+                {folgaMutation.isPending ? 'Registrando...' : 'Registrar folga'}
               </button>
             </div>
           </form>
@@ -493,15 +757,17 @@ export default function EscalaPage() {
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <Info className="h-5 w-5 text-primary" />
-                  Plantão — {new Date(detailShift.data + 'T12:00:00').toLocaleDateString('pt-BR')}
+                  {isFolga(detailShift) ? <Palmtree className="h-5 w-5 text-amber-600" /> : <Info className="h-5 w-5 text-primary" />}
+                  {isFolga(detailShift) ? 'Folga' : 'Plantão'} — {new Date(detailShift.data + 'T12:00:00').toLocaleDateString('pt-BR')}
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-3">
                 <p className="text-sm font-semibold text-foreground">{(detailShift.professionals as any)?.nome}</p>
                 <p className="text-sm text-muted-foreground">{PROFISSAO_LABELS[(detailShift.professionals as any)?.profissao] || ''}</p>
                 <p className="text-sm text-foreground">🏥 {(detailShift.sectors as any)?.nome} — {(detailShift.units as any)?.nome}</p>
-                <p className="text-sm text-foreground">⏰ {detailShift.hora_inicio} às {detailShift.hora_fim} ({detailShift.carga_horaria}h)</p>
+                {!isFolga(detailShift) && (
+                  <p className="text-sm text-foreground">⏰ {detailShift.hora_inicio} às {detailShift.hora_fim} ({detailShift.carga_horaria}h) — <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-muted">{detailShift.tipo_plantao}</span></p>
+                )}
                 <span className={`status-badge ${STATUS_CLASSES[detailShift.status] || ''}`}>{STATUS_LABELS[detailShift.status]}</span>
                 {swapByShiftId[detailShift.id] && ['solicitada', 'aguardando_resposta', 'aceita', 'aguardando_aprovacao'].includes(swapByShiftId[detailShift.id].status) && (
                   <span className="status-badge bg-warning/10 text-warning ml-2"><ArrowLeftRight className="h-3 w-3 mr-1 inline" />Em troca</span>
