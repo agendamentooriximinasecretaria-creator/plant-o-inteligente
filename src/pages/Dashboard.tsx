@@ -617,8 +617,8 @@ export default function Dashboard() {
                 </BarChart>
               </ResponsiveContainer>
               <div className="flex items-center justify-between mt-3 pt-3 border-t border-border text-[10px] text-muted-foreground">
-                <span>Custo Mês: <strong className="text-foreground">R$ {totalCost.toLocaleString("pt-BR")}</strong></span>
-                <span>Custo/Plantão: <strong className="text-foreground">R$ {avgCostPerShift.toFixed(0)}</strong></span>
+                <span>Total Plantões: <strong className="text-foreground">{totalShifts}</strong></span>
+                <span>Confirmados: <strong className="text-foreground">{confirmed}</strong></span>
                 <span>Cobertura: <strong className="text-foreground">{coveragePct}%</strong></span>
               </div>
             </>
