@@ -40,18 +40,16 @@ const PROFISSAO_LABELS: Record<string, string> = {
   fonoaudiologo: 'Fonoaudiólogo(a)', farmaceutico: 'Farmacêutico(a)', outro: 'Outro',
 };
 
-// Tipos de plantão padronizados (label, hora_inicio, hora_fim, sigla curta para o calendário)
-const TIPOS_PLANTAO = [
-  { value: 'Diurno 12h', sigla: 'D', start: '07:00', end: '19:00' },
-  { value: 'Noturno 12h', sigla: 'N', start: '19:00', end: '07:00' },
-  { value: 'Manhã', sigla: 'M', start: '07:00', end: '13:00' },
-  { value: 'Tarde', sigla: 'T', start: '13:00', end: '19:00' },
-  { value: 'Noite', sigla: 'No', start: '19:00', end: '01:00' },
-  { value: 'Plantão 24h', sigla: '24', start: '07:00', end: '07:00' },
-  { value: 'Sobreaviso', sigla: 'SA', start: '00:00', end: '23:59' },
-] as const;
-
-const tipoToSigla = (tipo?: string) => TIPOS_PLANTAO.find(t => t.value === tipo)?.sigla ?? '?';
+// Tipos de plantão padrão (fallback se o banco estiver vazio durante o carregamento)
+const TIPOS_PLANTAO_FALLBACK = [
+  { value: 'Diurno 12h', sigla: 'D', start: '07:00', end: '19:00', carga: 12 },
+  { value: 'Noturno 12h', sigla: 'N', start: '19:00', end: '07:00', carga: 12 },
+  { value: 'Manhã', sigla: 'M', start: '07:00', end: '13:00', carga: 6 },
+  { value: 'Tarde', sigla: 'T', start: '13:00', end: '19:00', carga: 6 },
+  { value: 'Noite', sigla: 'No', start: '19:00', end: '01:00', carga: 6 },
+  { value: 'Plantão 24h', sigla: '24', start: '07:00', end: '07:00', carga: 24 },
+  { value: 'Sobreaviso', sigla: 'SA', start: '00:00', end: '23:59', carga: 24 },
+];
 
 const LIMITE_HORAS_MENSAL = 220;
 
@@ -89,6 +87,29 @@ export default function EscalaPage() {
       return data;
     },
   });
+
+  // Tipos de plantão configuráveis (gerenciados em /configuracoes)
+  const { data: tiposDB = [] } = useQuery({
+    queryKey: ['shift_types'],
+    queryFn: async () => {
+      const { data, error } = await sb.from('shift_types').select('*').eq('ativo', true).order('ordem', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const TIPOS_PLANTAO = useMemo(() => {
+    if (tiposDB.length === 0) return TIPOS_PLANTAO_FALLBACK;
+    return tiposDB.map((t: any) => ({
+      value: t.nome,
+      sigla: t.sigla,
+      start: (t.hora_inicio || '').slice(0, 5),
+      end: (t.hora_fim || '').slice(0, 5),
+      carga: Number(t.carga_horaria) || 12,
+    }));
+  }, [tiposDB]);
+
+  const tipoToSigla = (tipo?: string) => TIPOS_PLANTAO.find(t => t.value === tipo)?.sigla ?? (tipo?.[0]?.toUpperCase() ?? '?');
 
   useEffect(() => {
     const shiftsChannel = supabase
