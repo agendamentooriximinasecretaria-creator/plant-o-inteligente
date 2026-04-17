@@ -21,17 +21,17 @@ export default function MeuPerfilPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("professionals")
-        .select("nome, email, telefone, endereco, profissao, especialidade, registro, valor_hora")
+        .select("nome, email, telefone, endereco, profissao, especialidade, registro")
         .maybeSingle();
       if (error) throw error;
-      return data;
+      return data as any;
     },
   });
 
   useEffect(() => {
     if (!professional) return;
     setTelefone(professional.telefone || "");
-    setEndereco((professional as any).endereco || "");
+    setEndereco(professional.endereco || "");
   }, [professional]);
 
   const updateProfile = useMutation({

@@ -280,13 +280,9 @@ export type Database = {
       }
       professionals: {
         Row: {
-          agencia: string | null
           avatar_url: string | null
-          banco: string | null
-          chave_pix: string | null
           competencias: string[] | null
           conselho: string | null
-          conta: string | null
           cpf: string | null
           created_at: string
           data_nascimento: string | null
@@ -297,6 +293,8 @@ export type Database = {
           endereco: string | null
           especialidade: string | null
           id: string
+          limite_trocas_paciente_mes: number
+          limite_trocas_plantao_mes: number
           nome: string
           observacoes: string | null
           profissao: Database["public"]["Enums"]["profissao_type"]
@@ -307,18 +305,12 @@ export type Database = {
           unidade_principal_id: string | null
           updated_at: string
           user_id: string | null
-          valor_hora: number
-          valor_plantao: number | null
           vinculo: string | null
         }
         Insert: {
-          agencia?: string | null
           avatar_url?: string | null
-          banco?: string | null
-          chave_pix?: string | null
           competencias?: string[] | null
           conselho?: string | null
-          conta?: string | null
           cpf?: string | null
           created_at?: string
           data_nascimento?: string | null
@@ -329,6 +321,8 @@ export type Database = {
           endereco?: string | null
           especialidade?: string | null
           id?: string
+          limite_trocas_paciente_mes?: number
+          limite_trocas_plantao_mes?: number
           nome: string
           observacoes?: string | null
           profissao: Database["public"]["Enums"]["profissao_type"]
@@ -339,18 +333,12 @@ export type Database = {
           unidade_principal_id?: string | null
           updated_at?: string
           user_id?: string | null
-          valor_hora?: number
-          valor_plantao?: number | null
           vinculo?: string | null
         }
         Update: {
-          agencia?: string | null
           avatar_url?: string | null
-          banco?: string | null
-          chave_pix?: string | null
           competencias?: string[] | null
           conselho?: string | null
-          conta?: string | null
           cpf?: string | null
           created_at?: string
           data_nascimento?: string | null
@@ -361,6 +349,8 @@ export type Database = {
           endereco?: string | null
           especialidade?: string | null
           id?: string
+          limite_trocas_paciente_mes?: number
+          limite_trocas_plantao_mes?: number
           nome?: string
           observacoes?: string | null
           profissao?: Database["public"]["Enums"]["profissao_type"]
@@ -371,8 +361,6 @@ export type Database = {
           unidade_principal_id?: string | null
           updated_at?: string
           user_id?: string | null
-          valor_hora?: number
-          valor_plantao?: number | null
           vinculo?: string | null
         }
         Relationships: [
@@ -639,8 +627,6 @@ export type Database = {
           tipo_plantao: string
           unidade_id: string
           updated_at: string
-          valor_hora: number
-          valor_total: number
         }
         Insert: {
           carga_horaria: number
@@ -658,8 +644,6 @@ export type Database = {
           tipo_plantao?: string
           unidade_id: string
           updated_at?: string
-          valor_hora?: number
-          valor_total?: number
         }
         Update: {
           carga_horaria?: number
@@ -677,8 +661,6 @@ export type Database = {
           tipo_plantao?: string
           unidade_id?: string
           updated_at?: string
-          valor_hora?: number
-          valor_total?: number
         }
         Relationships: [
           {
@@ -825,13 +807,9 @@ export type Database = {
     Views: {
       professionals_safe: {
         Row: {
-          agencia: string | null
           avatar_url: string | null
-          banco: string | null
-          chave_pix: string | null
           competencias: string[] | null
           conselho: string | null
-          conta: string | null
           cpf: string | null
           created_at: string | null
           data_nascimento: string | null
@@ -852,18 +830,12 @@ export type Database = {
           unidade_principal_id: string | null
           updated_at: string | null
           user_id: string | null
-          valor_hora: number | null
-          valor_plantao: number | null
           vinculo: string | null
         }
         Insert: {
-          agencia?: never
           avatar_url?: string | null
-          banco?: never
-          chave_pix?: never
           competencias?: string[] | null
           conselho?: string | null
-          conta?: never
           cpf?: never
           created_at?: string | null
           data_nascimento?: string | null
@@ -884,18 +856,12 @@ export type Database = {
           unidade_principal_id?: string | null
           updated_at?: string | null
           user_id?: string | null
-          valor_hora?: number | null
-          valor_plantao?: number | null
           vinculo?: string | null
         }
         Update: {
-          agencia?: never
           avatar_url?: string | null
-          banco?: never
-          chave_pix?: never
           competencias?: string[] | null
           conselho?: string | null
-          conta?: never
           cpf?: never
           created_at?: string | null
           data_nascimento?: string | null
@@ -916,8 +882,6 @@ export type Database = {
           unidade_principal_id?: string | null
           updated_at?: string | null
           user_id?: string | null
-          valor_hora?: number | null
-          valor_plantao?: number | null
           vinculo?: string | null
         }
         Relationships: [
@@ -953,7 +917,15 @@ export type Database = {
           conflicting_start: string
         }[]
       }
+      count_trocas_plantao_mes: {
+        Args: { _profissional_id: string }
+        Returns: number
+      }
       get_my_professional_id: { Args: never; Returns: string }
+      get_trocas_status_mes: {
+        Args: { _profissional_id: string }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

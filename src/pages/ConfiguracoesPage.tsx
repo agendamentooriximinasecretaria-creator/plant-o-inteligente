@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
-import { Settings, Building2, Shield, Bell, Mail, Webhook, Users, Save, TestTube, Power, Loader2, Eye, EyeOff } from "lucide-react";
+import { Building2, Shield, Bell, Mail, Webhook, ArrowLeftRight, Save, TestTube, Power, Loader2, Eye, EyeOff } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
@@ -18,6 +18,7 @@ export default function ConfiguracoesPage() {
 
   const [hospital, setHospital] = useState({ nome: '', cnpj: '', endereco: '' });
   const [conflictRules, setConflictRules] = useState({ limite_horas_dia: 24, limite_horas_semana: 60, descanso_minimo: 6, aprovacao_gestor_trocas: true });
+  const [usageRules, setUsageRules] = useState({ limite_trocas_plantao_default: 3, limite_trocas_paciente_default: 5 });
   const [webhookUrl, setWebhookUrl] = useState('');
   const [webhookAtivo, setWebhookAtivo] = useState(false);
   const [gmailEmail, setGmailEmail] = useState('');
@@ -26,15 +27,15 @@ export default function ConfiguracoesPage() {
   const [gmailPorta, setGmailPorta] = useState(587);
   const [gmailStatus, setGmailStatus] = useState('pendente');
   const [showPassword, setShowPassword] = useState(false);
-  const [canalPaciente, setCanalPaciente] = useState('ambos');
+  const [applyToAll, setApplyToAll] = useState(false);
   const [testing, setTesting] = useState('');
 
   useEffect(() => {
     if (settings.hospital) { const h = settings.hospital as any; setHospital({ nome: h.nome || '', cnpj: h.cnpj || '', endereco: h.endereco || '' }); }
     if (settings.conflict_rules) { const c = settings.conflict_rules as any; setConflictRules({ limite_horas_dia: c.limite_horas_dia || 24, limite_horas_semana: c.limite_horas_semana || 60, descanso_minimo: c.descanso_minimo || 6, aprovacao_gestor_trocas: c.aprovacao_gestor_trocas ?? true }); }
+    if (settings.usage_rules) { const u = settings.usage_rules as any; setUsageRules({ limite_trocas_plantao_default: u.limite_trocas_plantao_default ?? 3, limite_trocas_paciente_default: u.limite_trocas_paciente_default ?? 5 }); }
     if (settings.webhook) { const w = settings.webhook as any; setWebhookUrl(w.url || ''); setWebhookAtivo(w.ativo || false); }
     if (settings.gmail_smtp) { const g = settings.gmail_smtp as any; setGmailEmail(g.email_remetente || ''); setGmailServidor(g.servidor || 'smtp.gmail.com'); setGmailPorta(g.porta || 587); setGmailStatus(g.status || 'pendente'); }
-    if (settings.notification_channel) { const n = settings.notification_channel as any; setCanalPaciente(n.canal_paciente || 'ambos'); }
   }, [settings]);
 
   const saveSetting = useMutation({
@@ -53,27 +54,37 @@ export default function ConfiguracoesPage() {
     onError: (e: Error) => toast.error('Erro: ' + e.message),
   });
 
+  const saveUsageRules = useMutation({
+    mutationFn: async () => {
+      // Save default
+      await saveSetting.mutateAsync({ key: 'usage_rules', value: usageRules });
+      // Optionally apply to all professionals
+      if (applyToAll) {
+        const { error } = await supabase.from('professionals').update({
+          limite_trocas_plantao_mes: usageRules.limite_trocas_plantao_default,
+          limite_trocas_paciente_mes: usageRules.limite_trocas_paciente_default,
+        }).neq('id', '00000000-0000-0000-0000-000000000000');
+        if (error) throw error;
+        await logAudit('Limites aplicados a todos profissionais', 'configuracoes', usageRules);
+      }
+    },
+    onSuccess: () => { toast.success(applyToAll ? 'Regras salvas e aplicadas a todos os profissionais!' : 'Regras salvas como padrão!'); },
+    onError: (e: Error) => toast.error('Erro: ' + e.message),
+  });
+
   const testWebhook = async () => {
     setTesting('webhook');
     try {
-      const payload = {
-        evento: 'teste', status: 'teste', timestamp: new Date().toISOString(),
-        paciente: { nome: 'Teste', email: 'teste@email.com', telefone: '00000000000' },
-        profissional: { nome: 'Dr. Teste', profissao: 'Médico', setor: 'UTI' },
-        unidade: { nome: 'Hospital Teste', setor: 'UTI' },
-        agendamento: { data: new Date().toISOString().slice(0, 10), hora: '14:00', status: 'teste' },
-      };
+      const payload = { evento: 'teste', timestamp: new Date().toISOString() };
       const resp = await fetch(webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (resp.ok) {
         toast.success('Webhook testado com sucesso!');
         await logAudit('Teste de webhook realizado', 'configuracoes', { url: webhookUrl, status: 'sucesso' });
       } else {
         toast.error(`Webhook retornou status ${resp.status}`);
-        await logAudit('Teste de webhook falhou', 'configuracoes', { url: webhookUrl, status: 'erro', httpStatus: resp.status }, 'erro');
       }
     } catch (e: any) {
       toast.error('Erro ao testar webhook: ' + e.message);
-      await logAudit('Teste de webhook falhou', 'configuracoes', { url: webhookUrl, erro: e.message }, 'erro');
     } finally { setTesting(''); }
   };
 
@@ -96,6 +107,38 @@ export default function ConfiguracoesPage() {
           <button onClick={() => saveSetting.mutate({ key: 'hospital', value: hospital })} className="mt-4 flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90"><Save className="h-4 w-4" /> Salvar</button>
         </motion.div>
 
+        {/* Regras de Utilização (Limites de Trocas) */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 }} className={sectionClass}>
+          <div className="flex items-start gap-3 mb-4">
+            <div className="p-2 rounded-lg bg-primary/10"><ArrowLeftRight className="h-5 w-5 text-primary" /></div>
+            <div>
+              <h3 className="font-display font-semibold text-foreground">Regras de Utilização</h3>
+              <p className="text-sm text-muted-foreground">Limites mensais padrão para novos profissionais</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium text-foreground">Limite Padrão — Trocas de Plantão / mês</label>
+              <input type="number" min={0} max={50} value={usageRules.limite_trocas_plantao_default}
+                onChange={e => setUsageRules(u => ({ ...u, limite_trocas_plantao_default: Math.max(0, parseInt(e.target.value) || 0) }))} className={inputClass} />
+              <p className="text-[11px] text-muted-foreground mt-1">Bloqueia novas solicitações ao atingir o limite (validado no banco).</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground">Limite Padrão — Trocas de Paciente / mês</label>
+              <input type="number" min={0} max={50} value={usageRules.limite_trocas_paciente_default}
+                onChange={e => setUsageRules(u => ({ ...u, limite_trocas_paciente_default: Math.max(0, parseInt(e.target.value) || 0) }))} className={inputClass} />
+              <p className="text-[11px] text-muted-foreground mt-1">Limite mensal de transferências de pacientes.</p>
+            </div>
+          </div>
+          <label className="flex items-center gap-2 mt-4 text-sm text-foreground cursor-pointer">
+            <input type="checkbox" checked={applyToAll} onChange={e => setApplyToAll(e.target.checked)} className="rounded" />
+            Aplicar estes limites a <strong>todos</strong> os profissionais existentes (sobrescreve valores individuais)
+          </label>
+          <button onClick={() => saveUsageRules.mutate()} disabled={saveUsageRules.isPending} className="mt-4 flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
+            <Save className="h-4 w-4" /> {saveUsageRules.isPending ? 'Salvando...' : 'Salvar Regras'}
+          </button>
+        </motion.div>
+
         {/* Conflict Rules */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className={sectionClass}>
           <div className="flex items-start gap-3 mb-4"><div className="p-2 rounded-lg bg-primary/10"><Shield className="h-5 w-5 text-primary" /></div><div><h3 className="font-display font-semibold text-foreground">Regras de Conflito</h3><p className="text-sm text-muted-foreground">Limites e validações automáticas</p></div></div>
@@ -108,16 +151,16 @@ export default function ConfiguracoesPage() {
           <button onClick={() => saveSetting.mutate({ key: 'conflict_rules', value: conflictRules })} className="mt-4 flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90"><Save className="h-4 w-4" /> Salvar</button>
         </motion.div>
 
-        {/* Webhook Make.com */}
+        {/* Webhook */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className={sectionClass}>
           <div className="flex items-start gap-3 mb-4"><div className="p-2 rounded-lg bg-primary/10"><Webhook className="h-5 w-5 text-primary" /></div><div className="flex-1">
-            <div className="flex items-center gap-3"><h3 className="font-display font-semibold text-foreground">Webhook Make.com</h3><span className={`status-badge text-[10px] ${webhookAtivo ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}>{webhookAtivo ? 'Ativo' : 'Inativo'}</span></div>
+            <div className="flex items-center gap-3"><h3 className="font-display font-semibold text-foreground">Webhook</h3><span className={`status-badge text-[10px] ${webhookAtivo ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}>{webhookAtivo ? 'Ativo' : 'Inativo'}</span></div>
             <p className="text-sm text-muted-foreground">Integração via webhook para automações</p>
           </div></div>
           <div className="space-y-3">
             <div><label className="text-sm font-medium text-foreground">URL do Webhook</label><input value={webhookUrl} onChange={e => setWebhookUrl(e.target.value)} placeholder="https://hook.us2.make.com/..." className={inputClass} /></div>
             <div className="flex flex-wrap gap-2">
-              <button onClick={() => { saveSetting.mutate({ key: 'webhook', value: { url: webhookUrl, ativo: true, status: 'ativo' } }); setWebhookAtivo(true); }} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90"><Save className="h-4 w-4" /> Salvar Webhook</button>
+              <button onClick={() => { saveSetting.mutate({ key: 'webhook', value: { url: webhookUrl, ativo: true, status: 'ativo' } }); setWebhookAtivo(true); }} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90"><Save className="h-4 w-4" /> Salvar</button>
               <button onClick={testWebhook} disabled={!webhookUrl || testing === 'webhook'} className="flex items-center gap-2 border border-border px-4 py-2 rounded-lg text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50">
                 {testing === 'webhook' ? <Loader2 className="h-4 w-4 animate-spin" /> : <TestTube className="h-4 w-4" />} Testar
               </button>
@@ -129,7 +172,7 @@ export default function ConfiguracoesPage() {
         {/* Gmail SMTP */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className={sectionClass}>
           <div className="flex items-start gap-3 mb-4"><div className="p-2 rounded-lg bg-primary/10"><Mail className="h-5 w-5 text-primary" /></div><div className="flex-1">
-            <div className="flex items-center gap-3"><h3 className="font-display font-semibold text-foreground">Gmail SMTP</h3><span className={`status-badge text-[10px] ${gmailStatus === 'ativo' ? 'bg-success/10 text-success' : gmailStatus === 'erro' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning'}`}>{gmailStatus === 'ativo' ? 'Ativo' : gmailStatus === 'erro' ? 'Erro' : 'Pendente'}</span></div>
+            <div className="flex items-center gap-3"><h3 className="font-display font-semibold text-foreground">Gmail SMTP</h3><span className={`status-badge text-[10px] ${gmailStatus === 'ativo' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>{gmailStatus === 'ativo' ? 'Ativo' : 'Pendente'}</span></div>
             <p className="text-sm text-muted-foreground">Envio de e-mails via Gmail</p>
           </div></div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -141,29 +184,14 @@ export default function ConfiguracoesPage() {
             <div><label className="text-sm font-medium text-foreground">Servidor SMTP</label><input value={gmailServidor} onChange={e => setGmailServidor(e.target.value)} className={inputClass} /></div>
             <div><label className="text-sm font-medium text-foreground">Porta</label><input type="number" value={gmailPorta} onChange={e => setGmailPorta(Number(e.target.value))} className={inputClass} /></div>
           </div>
-          <p className="text-xs text-muted-foreground mt-3">ℹ️ Gere uma senha de aplicativo em <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="text-primary underline">myaccount.google.com → Segurança → Senhas de app</a></p>
           <div className="flex gap-2 mt-4">
             <button onClick={() => { const newStatus = gmailSenha ? 'ativo' : 'pendente'; setGmailStatus(newStatus); saveSetting.mutate({ key: 'gmail_smtp', value: { email_remetente: gmailEmail, servidor: gmailServidor, porta: gmailPorta, senha_configurada: !!gmailSenha, status: newStatus } }); }} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90"><Save className="h-4 w-4" /> Salvar</button>
-            <button onClick={() => toast.info('Para testar o envio real de e-mail, uma Edge Function SMTP precisa ser configurada no backend.')} className="flex items-center gap-2 border border-border px-4 py-2 rounded-lg text-sm font-medium text-foreground hover:bg-muted"><TestTube className="h-4 w-4" /> Testar Envio</button>
           </div>
         </motion.div>
 
-        {/* Canal de Notificação ao Paciente */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className={sectionClass}>
-          <div className="flex items-start gap-3 mb-4"><div className="p-2 rounded-lg bg-primary/10"><Users className="h-5 w-5 text-primary" /></div><div><h3 className="font-display font-semibold text-foreground">Canal de Notificação ao Paciente</h3><p className="text-sm text-muted-foreground">Define como o paciente recebe e-mails e notificações</p></div></div>
-          <div>
-            <label className="text-sm font-medium text-foreground">Canal ativo para envio</label>
-            <select value={canalPaciente} onChange={e => setCanalPaciente(e.target.value)} className={inputClass}>
-              <option value="webhook">Webhook</option><option value="gmail">Gmail</option><option value="ambos">Ambos (Webhook + Gmail)</option>
-            </select>
-            <p className="text-xs text-muted-foreground mt-2">Se o canal for "Ambos" e o webhook falhar, o Gmail será usado automaticamente como fallback.</p>
-          </div>
-          <button onClick={() => saveSetting.mutate({ key: 'notification_channel', value: { canal_paciente: canalPaciente } })} className="mt-4 flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90"><Save className="h-4 w-4" /> Salvar</button>
-        </motion.div>
-
-        {/* Notifications Config */}
+        {/* Notifications */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className={sectionClass}>
-          <div className="flex items-start gap-3 mb-4"><div className="p-2 rounded-lg bg-primary/10"><Bell className="h-5 w-5 text-primary" /></div><div><h3 className="font-display font-semibold text-foreground">Eventos de Notificação</h3><p className="text-sm text-muted-foreground">Configure quais eventos geram notificações</p></div></div>
+          <div className="flex items-start gap-3 mb-4"><div className="p-2 rounded-lg bg-primary/10"><Bell className="h-5 w-5 text-primary" /></div><div><h3 className="font-display font-semibold text-foreground">Eventos de Notificação</h3><p className="text-sm text-muted-foreground">Eventos do sistema que geram notificações</p></div></div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {[
               ['plantao_criado', 'Plantão criado'], ['plantao_alterado', 'Plantão alterado'], ['plantao_cancelado', 'Plantão cancelado'],

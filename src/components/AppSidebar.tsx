@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Calendar, ArrowLeftRight, Users, Building2,
-  DollarSign, FileText, Bell, Settings, Shield, LogOut, Activity,
-  UserCog, Wallet, UserCircle,
+  FileText, Bell, Settings, Shield, LogOut, Activity,
+  UserCog, UserCircle,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -36,7 +36,6 @@ export function AppSidebar() {
             { title: "Dashboard", url: "/meu-painel", icon: LayoutDashboard },
             { title: "Minha Escala", url: "/minha-escala", icon: Calendar },
             { title: "Minhas Trocas", url: "/minhas-trocas", icon: ArrowLeftRight },
-            { title: "Financeiro", url: "/meu-financeiro", icon: Wallet },
             { title: "Meu Perfil", url: "/meu-perfil", icon: UserCircle },
           ] as MenuItem[],
         },
@@ -58,7 +57,6 @@ export function AppSidebar() {
     ];
 
     const managementItems: MenuItem[] = [
-      { title: "Financeiro", url: "/financeiro", icon: DollarSign },
       { title: "Relatórios", url: "/relatorios", icon: FileText },
       { title: "Notificações", url: "/notificacoes", icon: Bell },
     ];

@@ -55,10 +55,11 @@ export interface Professional {
   cpf: string;
   telefone: string;
   email: string;
-  valorHora: number;
   unidadePrincipal: string;
   setorPrincipal: string;
   status: 'ativo' | 'inativo';
+  limiteTrocasPlantaoMes?: number;
+  limiteTrocasPacienteMes?: number;
   avatar?: string;
 }
 
@@ -74,8 +75,6 @@ export interface Shift {
   horaFim: string;
   cargaHoraria: number;
   tipoPlantao: string;
-  valorHora: number;
-  valorTotal: number;
   status: ShiftStatus;
   observacoes?: string;
 }

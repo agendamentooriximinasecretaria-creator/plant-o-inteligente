@@ -11,7 +11,6 @@ import EscalaPage from "@/pages/EscalaPage";
 import TrocasPage from "@/pages/TrocasPage";
 import ProfissionaisPage from "@/pages/ProfissionaisPage";
 import SetoresPage from "@/pages/SetoresPage";
-import FinanceiroPage from "@/pages/FinanceiroPage";
 import RelatoriosPage from "@/pages/RelatoriosPage";
 import NotificacoesPage from "@/pages/NotificacoesPage";
 import ConfiguracoesPage from "@/pages/ConfiguracoesPage";
@@ -23,7 +22,6 @@ import NotFound from "@/pages/NotFound";
 import ProfissionalDashboardPage from "@/pages/ProfissionalDashboardPage";
 import MinhaEscalaPage from "@/pages/MinhaEscalaPage";
 import MinhasTrocasPage from "@/pages/MinhasTrocasPage";
-import MeuFinanceiroPage from "@/pages/MeuFinanceiroPage";
 import MeuPerfilPage from "@/pages/MeuPerfilPage";
 
 const queryClient = new QueryClient();
@@ -108,15 +106,16 @@ const App = () => (
                 <Route path="/profissionais" element={<ManagerOnly><ProfissionaisPage /></ManagerOnly>} />
                 <Route path="/medicos" element={<Navigate to="/profissionais" replace />} />
                 <Route path="/setores" element={<ManagerOnly><SetoresPage /></ManagerOnly>} />
-                <Route path="/financeiro" element={<ManagerOnly><FinanceiroPage /></ManagerOnly>} />
                 <Route path="/relatorios" element={<ManagerOnly><RelatoriosPage /></ManagerOnly>} />
+                {/* Legacy financial routes redirect */}
+                <Route path="/financeiro" element={<Navigate to="/dashboard" replace />} />
 
                 {/* Professional routes */}
                 <Route path="/meu-painel" element={<ProfessionalOnly><ProfissionalDashboardPage /></ProfessionalOnly>} />
                 <Route path="/minha-escala" element={<ProfessionalOnly><MinhaEscalaPage /></ProfessionalOnly>} />
                 <Route path="/meus-plantoes" element={<ProfessionalOnly><Navigate to="/minha-escala" replace /></ProfessionalOnly>} />
                 <Route path="/minhas-trocas" element={<ProfessionalOnly><MinhasTrocasPage /></ProfessionalOnly>} />
-                <Route path="/meu-financeiro" element={<ProfessionalOnly><MeuFinanceiroPage /></ProfessionalOnly>} />
+                <Route path="/meu-financeiro" element={<ProfessionalOnly><Navigate to="/meu-painel" replace /></ProfessionalOnly>} />
                 <Route path="/meu-perfil" element={<ProfessionalOnly><MeuPerfilPage /></ProfessionalOnly>} />
 
                 <Route path="/notificacoes" element={<NotificacoesPage />} />
