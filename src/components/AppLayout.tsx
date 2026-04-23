@@ -15,6 +15,24 @@ export function AppLayout() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { user, professionalId } = useAuth();
+  const { setTheme, resolvedTheme } = useTheme();
+
+  // Atalho global ⇧⌘T para alternar tema
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.shiftKey && (e.metaKey || e.ctrlKey) && (e.key === "t" || e.key === "T")) {
+        e.preventDefault();
+        setTheme(resolvedTheme === "dark" ? "light" : "dark");
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [setTheme, resolvedTheme]);
+
+export function AppLayout() {
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const { user, professionalId } = useAuth();
 
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ["unread-notifications-count", user?.id],
