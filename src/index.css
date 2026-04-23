@@ -129,12 +129,12 @@
   .status-badge {
     @apply inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold tracking-wide;
   }
-  .status-agendado { @apply bg-info/8 text-info; }
-  .status-confirmado { @apply bg-success/8 text-success; }
-  .status-pendente { @apply bg-warning/8 text-warning; }
-  .status-cancelado { @apply bg-destructive/8 text-destructive; }
-  .status-concluido { @apply bg-accent/8 text-accent; }
-  .status-trocando { @apply bg-primary/8 text-primary; }
+  .status-agendado { @apply bg-info/10 text-info dark:bg-info/15; }
+  .status-confirmado { @apply bg-success/10 text-success dark:bg-success/15; }
+  .status-pendente { @apply bg-warning/10 text-warning dark:bg-warning/15; }
+  .status-cancelado { @apply bg-destructive/10 text-destructive dark:bg-destructive/15; }
+  .status-concluido { @apply bg-accent/10 text-accent dark:bg-accent/15; }
+  .status-trocando { @apply bg-primary/10 text-primary dark:bg-primary/15; }
   .module-title {
     @apply text-xl font-semibold text-foreground;
     font-family: var(--font-display);
