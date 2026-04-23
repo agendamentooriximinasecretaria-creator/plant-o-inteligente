@@ -278,6 +278,120 @@ export type Database = {
           },
         ]
       }
+      professional_documents: {
+        Row: {
+          arquivo_path: string | null
+          created_at: string
+          data_emissao: string | null
+          id: string
+          nome: string
+          numero: string | null
+          observacoes: string | null
+          profissional_id: string
+          status: string
+          tipo: string
+          updated_at: string
+          validade: string | null
+        }
+        Insert: {
+          arquivo_path?: string | null
+          created_at?: string
+          data_emissao?: string | null
+          id?: string
+          nome: string
+          numero?: string | null
+          observacoes?: string | null
+          profissional_id: string
+          status?: string
+          tipo: string
+          updated_at?: string
+          validade?: string | null
+        }
+        Update: {
+          arquivo_path?: string | null
+          created_at?: string
+          data_emissao?: string | null
+          id?: string
+          nome?: string
+          numero?: string | null
+          observacoes?: string | null
+          profissional_id?: string
+          status?: string
+          tipo?: string
+          updated_at?: string
+          validade?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "professional_documents_profissional_id_fkey"
+            columns: ["profissional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "professional_documents_profissional_id_fkey"
+            columns: ["profissional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals_safe"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      professional_unavailability: {
+        Row: {
+          created_at: string
+          data_fim: string
+          data_inicio: string
+          id: string
+          motivo: string
+          observacao_gestor: string | null
+          profissional_id: string
+          status: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data_fim: string
+          data_inicio: string
+          id?: string
+          motivo: string
+          observacao_gestor?: string | null
+          profissional_id: string
+          status?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data_fim?: string
+          data_inicio?: string
+          id?: string
+          motivo?: string
+          observacao_gestor?: string | null
+          profissional_id?: string
+          status?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "professional_unavailability_profissional_id_fkey"
+            columns: ["profissional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "professional_unavailability_profissional_id_fkey"
+            columns: ["profissional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals_safe"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       professionals: {
         Row: {
           avatar_url: string | null
@@ -654,10 +768,19 @@ export type Database = {
       }
       shifts: {
         Row: {
+          atraso_minutos: number | null
           carga_horaria: number
+          checkin_em: string | null
+          checkin_lat: number | null
+          checkin_lng: number | null
+          checkin_metodo: string | null
+          checkout_em: string | null
+          confirmado_em: string | null
+          confirmado_pelo_profissional: boolean
           created_at: string
           created_by: string | null
           data: string
+          faltou: boolean
           hora_fim: string
           hora_inicio: string
           id: string
@@ -671,10 +794,19 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          atraso_minutos?: number | null
           carga_horaria: number
+          checkin_em?: string | null
+          checkin_lat?: number | null
+          checkin_lng?: number | null
+          checkin_metodo?: string | null
+          checkout_em?: string | null
+          confirmado_em?: string | null
+          confirmado_pelo_profissional?: boolean
           created_at?: string
           created_by?: string | null
           data: string
+          faltou?: boolean
           hora_fim: string
           hora_inicio: string
           id?: string
@@ -688,10 +820,19 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          atraso_minutos?: number | null
           carga_horaria?: number
+          checkin_em?: string | null
+          checkin_lat?: number | null
+          checkin_lng?: number | null
+          checkin_metodo?: string | null
+          checkout_em?: string | null
+          confirmado_em?: string | null
+          confirmado_pelo_profissional?: boolean
           created_at?: string
           created_by?: string | null
           data?: string
+          faltou?: boolean
           hora_fim?: string
           hora_inicio?: string
           id?: string

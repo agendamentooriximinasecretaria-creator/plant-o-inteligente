@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Calendar, ArrowLeftRight, Users, Building2,
   FileText, Bell, Settings, Shield, LogOut, Activity,
-  UserCog, UserCircle,
+  UserCog, UserCircle, Ban, FolderLock,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -36,6 +36,8 @@ export function AppSidebar() {
             { title: "Dashboard", url: "/meu-painel", icon: LayoutDashboard },
             { title: "Minha Escala", url: "/minha-escala", icon: Calendar },
             { title: "Minhas Trocas", url: "/minhas-trocas", icon: ArrowLeftRight },
+            { title: "Indisponibilidade", url: "/minha-indisponibilidade", icon: Ban },
+            { title: "Meus Documentos", url: "/meus-documentos", icon: FolderLock },
             { title: "Meu Perfil", url: "/meu-perfil", icon: UserCircle },
           ] as MenuItem[],
         },

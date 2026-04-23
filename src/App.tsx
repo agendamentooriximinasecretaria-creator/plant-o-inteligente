@@ -23,6 +23,8 @@ import ProfissionalDashboardPage from "@/pages/ProfissionalDashboardPage";
 import MinhaEscalaPage from "@/pages/MinhaEscalaPage";
 import MinhasTrocasPage from "@/pages/MinhasTrocasPage";
 import MeuPerfilPage from "@/pages/MeuPerfilPage";
+import MinhaIndisponibilidadePage from "@/pages/MinhaIndisponibilidadePage";
+import MeusDocumentosPage from "@/pages/MeusDocumentosPage";
 
 const queryClient = new QueryClient();
 
@@ -117,6 +119,8 @@ const App = () => (
                 <Route path="/minhas-trocas" element={<ProfessionalOnly><MinhasTrocasPage /></ProfessionalOnly>} />
                 <Route path="/meu-financeiro" element={<ProfessionalOnly><Navigate to="/meu-painel" replace /></ProfessionalOnly>} />
                 <Route path="/meu-perfil" element={<ProfessionalOnly><MeuPerfilPage /></ProfessionalOnly>} />
+                <Route path="/minha-indisponibilidade" element={<ProfessionalOnly><MinhaIndisponibilidadePage /></ProfessionalOnly>} />
+                <Route path="/meus-documentos" element={<ProfessionalOnly><MeusDocumentosPage /></ProfessionalOnly>} />
 
                 <Route path="/notificacoes" element={<NotificacoesPage />} />
 
