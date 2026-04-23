@@ -65,7 +65,7 @@ const emptyFolga = { profissional_id: '', data_inicio: '', data_fim: '', motivo:
 
 export default function EscalaPage() {
   const sb = supabase as any;
-  const [view, setView] = useState<'lista' | 'calendario'>('lista');
+  const [view, setView] = useState<'lista' | 'calendario' | 'grade'>('lista');
   const [filterSetor, setFilterSetor] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
