@@ -432,7 +432,7 @@ export default function EscalaPage() {
     return true;
   });
 
-  const inputClass = "w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
+  const inputClass = "w-full bg-background border border-input rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50 transition-colors";
 
   const toggleProfissional = (pid: string) => {
     setForm(f => {
@@ -472,27 +472,29 @@ export default function EscalaPage() {
   }, [shifts, TIPOS_PLANTAO]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 max-w-[1400px]">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="module-title">Escala de Plantões</h1>
-          <p className="text-muted-foreground text-sm mt-1">{filtered.length} plantões encontrados</p>
+          <h1 className="text-xl font-semibold text-foreground tracking-tight font-display">Escala de Plantões</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{filtered.length} plantões encontrados</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setView('lista')} className={`p-2 rounded-lg transition-colors ${view === 'lista' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}><List className="h-4 w-4" /></button>
-          <button onClick={() => setView('calendario')} className={`p-2 rounded-lg transition-colors ${view === 'calendario' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}><Calendar className="h-4 w-4" /></button>
-          <button onClick={() => setView('grade')} className={`p-2 rounded-lg transition-colors ${view === 'grade' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`} title="Grade semanal"><LayoutGrid className="h-4 w-4" /></button>
-          <button onClick={() => { setFolgaForm(emptyFolga); setFolgaModalOpen(true); }} className="flex items-center gap-2 border border-border bg-card px-3 py-2 rounded-lg text-sm font-medium hover:bg-muted text-foreground"><Palmtree className="h-4 w-4 text-amber-600" /> Marcar folga</button>
-          <button onClick={() => { setForm(emptyForm); setEditingId(null); setModalOpen(true); }} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"><Plus className="h-4 w-4" /> Novo Plantão</button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center bg-muted rounded-lg p-0.5">
+            <button onClick={() => setView('lista')} className={`p-1.5 rounded-md transition-all ${view === 'lista' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}><List className="h-4 w-4" /></button>
+            <button onClick={() => setView('calendario')} className={`p-1.5 rounded-md transition-all ${view === 'calendario' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}><Calendar className="h-4 w-4" /></button>
+            <button onClick={() => setView('grade')} className={`p-1.5 rounded-md transition-all ${view === 'grade' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`} title="Grade semanal"><LayoutGrid className="h-4 w-4" /></button>
+          </div>
+          <button onClick={() => { setFolgaForm(emptyFolga); setFolgaModalOpen(true); }} className="flex items-center gap-1.5 border border-input bg-card px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-muted text-foreground transition-colors"><Palmtree className="h-3.5 w-3.5 text-amber-600" /> Folga</button>
+          <button onClick={() => { setForm(emptyForm); setEditingId(null); setModalOpen(true); }} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"><Plus className="h-3.5 w-3.5" /> Novo Plantão</button>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <select value={filterSetor} onChange={e => setFilterSetor(e.target.value)} className="bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
+      <div className="flex flex-wrap gap-2">
+        <select value={filterSetor} onChange={e => setFilterSetor(e.target.value)} className="bg-card border border-input rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50 transition-colors">
           <option value="">Todos os setores</option>
           {sectors.map((s: any) => <option key={s.id} value={s.id}>{s.nome}</option>)}
         </select>
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="bg-card border border-input rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50 transition-colors">
           <option value="">Todos os status</option>
           {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
@@ -501,7 +503,7 @@ export default function EscalaPage() {
       {isLoading ? (
         <div className="flex justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>
       ) : view === 'lista' ? (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-lg border border-border overflow-hidden shadow-[var(--shadow-card)]">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-xl border border-border/60 overflow-hidden shadow-[var(--shadow-card)]">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="table-header">
