@@ -1,21 +1,29 @@
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { CalendarDays, ArrowLeftRight, Clock3, Bell, ChevronRight } from "lucide-react";
+import { CalendarDays, ArrowLeftRight, Clock3, Bell, ChevronRight, CheckCircle2, AlertTriangle, FileText, Ban, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
 import { AlertaReforco } from "@/components/AlertaReforco";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
+
+const CLT_LIMIT = 220; // horas/mês
 
 export default function ProfissionalDashboardPage() {
   const navigate = useNavigate();
-  const today = new Date().toISOString().split('T')[0];
+  const qc = useQueryClient();
+  const { professionalId } = useAuth();
+  const today = new Date().toISOString().split("T")[0];
+  const monthPrefix = today.substring(0, 7);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   const { data: shifts = [] } = useQuery({
-    queryKey: ["professional-dashboard-shifts"],
+    queryKey: ["professional-dashboard-shifts", professionalId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("shifts")
-        .select("id, data, hora_inicio, hora_fim, carga_horaria, status, sectors:setor_id(nome)")
+        .select("id, data, hora_inicio, hora_fim, carga_horaria, status, tipo_plantao, confirmado_pelo_profissional, confirmado_em, checkin_em, checkout_em, sectors:setor_id(nome), units:unidade_id(nome)")
         .order("data", { ascending: true });
       if (error) throw error;
       return data || [];
@@ -25,11 +33,10 @@ export default function ProfissionalDashboardPage() {
   const { data: swaps = [] } = useQuery({
     queryKey: ["professional-dashboard-swaps"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("shift_swaps")
-        .select("id, status, created_at, solicitante:solicitante_id(nome)")
+        .select("id, status, created_at")
         .order("created_at", { ascending: false });
-      if (error) throw error;
       return data || [];
     },
   });
@@ -42,22 +49,69 @@ export default function ProfissionalDashboardPage() {
     },
   });
 
-  const metrics = useMemo(() => {
-    const upcoming = shifts.filter((s: any) => s.data >= today && s.status !== "cancelado");
-    const pendingSwaps = swaps.filter((s: any) => ["solicitada", "aguardando_resposta"].includes(s.status));
-    const monthShifts = shifts.filter((s: any) => s.data.startsWith(today.substring(0, 7)) && s.status !== "cancelado");
-    const monthHours = monthShifts.reduce((sum: number, s: any) => sum + Number(s.carga_horaria || 0), 0);
-    return { upcoming, pendingSwaps, monthHours, monthShifts: monthShifts.length };
-  }, [shifts, swaps, today]);
+  const { data: documentos = [] } = useQuery({
+    queryKey: ["professional-documents-summary", professionalId],
+    enabled: !!professionalId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("professional_documents")
+        .select("id, tipo, nome, validade, status")
+        .eq("profissional_id", professionalId!);
+      return data || [];
+    },
+  });
 
-  // Weekly calendar (next 7 days)
+  const confirmShift = useMutation({
+    mutationFn: async (shiftId: string) => {
+      setConfirmingId(shiftId);
+      const { error } = await supabase
+        .from("shifts")
+        .update({ confirmado_pelo_profissional: true, confirmado_em: new Date().toISOString(), status: "confirmado" })
+        .eq("id", shiftId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Presença confirmada!");
+      qc.invalidateQueries({ queryKey: ["professional-dashboard-shifts"] });
+    },
+    onError: (e: any) => toast.error(e.message || "Erro ao confirmar"),
+    onSettled: () => setConfirmingId(null),
+  });
+
+  const metrics = useMemo(() => {
+    const upcoming = shifts.filter((s: any) => s.data >= today && s.status !== "cancelado" && !["folga", "indisponibilidade"].includes(s.tipo_plantao));
+    const pendingSwaps = swaps.filter((s: any) => ["solicitada", "aguardando_resposta", "aguardando_aprovacao"].includes(s.status));
+    const monthShifts = shifts.filter((s: any) => s.data.startsWith(monthPrefix) && s.status !== "cancelado" && !["folga", "indisponibilidade"].includes(s.tipo_plantao));
+
+    // Realizado (passado/hoje) vs Previsto (agendado)
+    const realizado = monthShifts.filter((s: any) => s.data <= today).reduce((sum: number, s: any) => sum + Number(s.carga_horaria || 0), 0);
+    const previsto = monthShifts.reduce((sum: number, s: any) => sum + Number(s.carga_horaria || 0), 0);
+    const saldoBanco = realizado - CLT_LIMIT; // CLT 220h: positivo = horas extras; negativo = a cumprir
+    const pctCLT = Math.min(100, (previsto / CLT_LIMIT) * 100);
+
+    const naoConfirmados = upcoming.filter((s: any) => !s.confirmado_pelo_profissional).length;
+
+    return { upcoming, pendingSwaps, realizado, previsto, saldoBanco, pctCLT, monthShifts: monthShifts.length, naoConfirmados };
+  }, [shifts, swaps, today, monthPrefix]);
+
+  const docsPendentes = useMemo(() => {
+    const hoje = new Date();
+    const em30d = new Date();
+    em30d.setDate(em30d.getDate() + 30);
+    return documentos.filter((d: any) => {
+      if (!d.validade) return false;
+      const v = new Date(d.validade);
+      return v <= em30d;
+    });
+  }, [documentos]);
+
   const weekDays = useMemo(() => {
     const days = [];
     for (let i = 0; i < 7; i++) {
       const d = new Date();
       d.setDate(d.getDate() + i);
-      const dateStr = d.toISOString().split('T')[0];
-      const dayShifts = shifts.filter((s: any) => s.data === dateStr && s.status !== 'cancelado');
+      const dateStr = d.toISOString().split("T")[0];
+      const dayShifts = shifts.filter((s: any) => s.data === dateStr && s.status !== "cancelado");
       days.push({ date: d, dateStr, shifts: dayShifts });
     }
     return days;
@@ -65,25 +119,35 @@ export default function ProfissionalDashboardPage() {
 
   const cards = [
     { label: "Próximos Plantões", value: metrics.upcoming.length, icon: CalendarDays, className: "bg-primary/10 text-primary" },
+    { label: "A Confirmar", value: metrics.naoConfirmados, icon: CheckCircle2, className: "bg-warning/10 text-warning", action: metrics.naoConfirmados > 0 ? () => document.getElementById("confirmar-section")?.scrollIntoView({ behavior: "smooth" }) : undefined },
     { label: "Trocas Pendentes", value: metrics.pendingSwaps.length, icon: ArrowLeftRight, className: "bg-destructive/10 text-destructive", action: () => navigate("/minhas-trocas?tab=recebidas") },
-    { label: "Horas no Mês", value: `${metrics.monthHours.toFixed(1)}h`, icon: Clock3, className: "bg-info/10 text-info" },
-    { label: "Plantões no Mês", value: metrics.monthShifts, icon: CalendarDays, className: "bg-success/10 text-success" },
+    { label: "Horas Realizadas", value: `${metrics.realizado.toFixed(1)}h`, icon: Clock3, className: "bg-info/10 text-info" },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Reinforcement alerts */}
       <AlertaReforco />
 
       <div>
         <h1 className="module-title">Meu Painel</h1>
-        <p className="text-sm text-muted-foreground mt-1">Resumo da sua operação individual.</p>
+        <p className="text-sm text-muted-foreground mt-1">Acompanhe seus plantões, presença e banco de horas.</p>
       </div>
+
+      {docsPendentes.length > 0 && (
+        <div className="rounded-xl border border-warning/40 bg-warning/5 p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-foreground">Documento(s) próximos do vencimento</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{docsPendentes.length} documento(s) vencem em até 30 dias.</p>
+          </div>
+          <button onClick={() => navigate("/meus-documentos")} className="text-xs font-medium text-warning hover:underline">Revisar</button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
           <motion.div key={card.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-            className={`kpi-card ${card.action ? 'cursor-pointer' : ''}`} onClick={card.action}>
+            className={`kpi-card ${card.action ? "cursor-pointer" : ""}`} onClick={card.action}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="kpi-label">{card.label}</p>
@@ -94,27 +158,56 @@ export default function ProfissionalDashboardPage() {
               </div>
             </div>
             {card.action && Number(card.value) > 0 && (
-              <p className="text-xs text-destructive mt-2 font-medium flex items-center gap-1">Ver agora <ChevronRight className="h-3 w-3" /></p>
+              <p className="text-xs text-primary mt-2 font-medium flex items-center gap-1">Ver agora <ChevronRight className="h-3 w-3" /></p>
             )}
           </motion.div>
         ))}
       </div>
 
-      {/* Weekly Calendar */}
+      {/* Banco de horas CLT 220h */}
+      <div className="kpi-card">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="text-base font-semibold text-foreground flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" /> Banco de Horas — CLT 220h/mês</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Realizado − 220h de referência mensal</p>
+          </div>
+          <div className="text-right">
+            <p className={`text-2xl font-bold font-mono ${metrics.saldoBanco >= 0 ? "text-success" : "text-warning"}`}>
+              {metrics.saldoBanco >= 0 ? "+" : ""}{metrics.saldoBanco.toFixed(1)}h
+            </p>
+            <p className="text-[11px] text-muted-foreground">{metrics.saldoBanco >= 0 ? "saldo positivo" : "horas a cumprir"}</p>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Previsto: <span className="font-mono font-medium text-foreground">{metrics.previsto.toFixed(1)}h</span></span>
+            <span>Realizado: <span className="font-mono font-medium text-foreground">{metrics.realizado.toFixed(1)}h</span></span>
+            <span>Limite CLT: <span className="font-mono font-medium text-foreground">{CLT_LIMIT}h</span></span>
+          </div>
+          <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+            <div
+              className={`h-full transition-all ${metrics.pctCLT >= 100 ? "bg-destructive" : metrics.pctCLT >= 85 ? "bg-warning" : "bg-primary"}`}
+              style={{ width: `${metrics.pctCLT}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Weekly calendar */}
       <div className="kpi-card">
         <h2 className="text-base font-semibold text-foreground mb-3">Próximos 7 dias</h2>
         <div className="grid grid-cols-7 gap-1">
           {weekDays.map((day) => {
             const isToday = day.dateStr === today;
             return (
-              <div key={day.dateStr} className={`rounded-lg border p-2 min-h-[80px] ${isToday ? 'border-primary/50 bg-primary/5' : 'border-border/50'}`}>
-                <p className={`text-xs font-medium ${isToday ? 'text-primary' : 'text-muted-foreground'}`}>
-                  {day.date.toLocaleDateString('pt-BR', { weekday: 'short' })}
+              <div key={day.dateStr} className={`rounded-lg border p-2 min-h-[80px] ${isToday ? "border-primary/50 bg-primary/5" : "border-border/50"}`}>
+                <p className={`text-xs font-medium ${isToday ? "text-primary" : "text-muted-foreground"}`}>
+                  {day.date.toLocaleDateString("pt-BR", { weekday: "short" })}
                 </p>
-                <p className={`text-sm font-bold ${isToday ? 'text-primary' : 'text-foreground'}`}>{day.date.getDate()}</p>
+                <p className={`text-sm font-bold ${isToday ? "text-primary" : "text-foreground"}`}>{day.date.getDate()}</p>
                 {day.shifts.map((s: any) => (
-                  <div key={s.id} className="mt-1 text-[10px] bg-primary/10 text-primary rounded px-1 py-0.5 truncate">
-                    {s.hora_inicio}-{s.hora_fim}
+                  <div key={s.id} className={`mt-1 text-[10px] rounded px-1 py-0.5 truncate ${s.tipo_plantao === "folga" ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"}`}>
+                    {s.tipo_plantao === "folga" ? "Folga" : `${s.hora_inicio?.slice(0, 5)}`}
                   </div>
                 ))}
               </div>
@@ -123,46 +216,91 @@ export default function ProfissionalDashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Upcoming shifts */}
-        <div className="kpi-card">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-semibold text-foreground">Próximos Plantões</h2>
-            <button onClick={() => navigate('/minha-escala')} className="text-xs text-primary hover:underline">Ver todos</button>
-          </div>
-          <div className="space-y-2">
-            {metrics.upcoming.slice(0, 3).map((s: any) => (
-              <div key={s.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
-                <div>
-                  <span className="text-foreground font-medium">{new Date(`${s.data}T12:00:00`).toLocaleDateString("pt-BR")}</span>
-                  <span className="text-muted-foreground ml-2">{s.hora_inicio} - {s.hora_fim}</span>
-                  {(s.sectors as any)?.nome && <span className="text-muted-foreground ml-2">• {(s.sectors as any).nome}</span>}
-                </div>
-                <span className="text-foreground font-medium">{Number(s.carga_horaria).toFixed(1)}h</span>
-              </div>
-            ))}
-            {metrics.upcoming.length === 0 && <p className="text-sm text-muted-foreground">Sem plantões futuros.</p>}
-          </div>
+      {/* Confirmar presença */}
+      <div id="confirmar-section" className="kpi-card">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-semibold text-foreground flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> Próximos Plantões — Confirmar Presença</h2>
+          <button onClick={() => navigate("/minha-escala")} className="text-xs text-primary hover:underline">Ver escala completa</button>
         </div>
-
-        {/* Notifications */}
-        <div className="kpi-card">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-semibold text-foreground flex items-center gap-2"><Bell className="h-4 w-4 text-primary" /> Notificações</h2>
-            <button onClick={() => navigate('/notificacoes')} className="text-xs text-primary hover:underline">Ver todas</button>
-          </div>
-          <div className="space-y-2">
-            {notifications.map((n: any) => (
-              <div key={n.id} className="flex items-start gap-2 text-sm p-2 rounded-lg hover:bg-muted/50">
-                <div className="h-2 w-2 rounded-full bg-primary mt-1.5 shrink-0" />
-                <div>
-                  <p className="text-foreground">{n.titulo}</p>
-                  <p className="text-xs text-muted-foreground">{new Date(n.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
-                </div>
+        <div className="space-y-2">
+          {metrics.upcoming.slice(0, 5).map((s: any) => (
+            <div key={s.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5 text-sm">
+              <div className="flex-1 min-w-[200px]">
+                <p className="text-foreground font-medium">
+                  {new Date(`${s.data}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })}
+                  <span className="text-muted-foreground ml-2 font-normal">{s.hora_inicio?.slice(0, 5)} – {s.hora_fim?.slice(0, 5)}</span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {(s.units as any)?.nome} • {(s.sectors as any)?.nome} • {Number(s.carga_horaria).toFixed(1)}h
+                </p>
               </div>
-            ))}
-            {notifications.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma notificação pendente.</p>}
+              {s.confirmado_pelo_profissional ? (
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-success bg-success/10 px-2.5 py-1 rounded-md">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Confirmado
+                </span>
+              ) : (
+                <button
+                  disabled={confirmingId === s.id}
+                  onClick={() => confirmShift.mutate(s.id)}
+                  className="text-xs font-medium px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
+                >
+                  {confirmingId === s.id ? "Confirmando..." : "Confirmar Presença"}
+                </button>
+              )}
+            </div>
+          ))}
+          {metrics.upcoming.length === 0 && <p className="text-sm text-muted-foreground">Sem plantões futuros.</p>}
+        </div>
+      </div>
+
+      {/* Quick actions */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <button onClick={() => navigate("/minha-indisponibilidade")} className="kpi-card text-left hover:border-primary/50 transition-colors">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg p-2 bg-warning/10 text-warning"><Ban className="h-5 w-5" /></div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">Indisponibilidade</p>
+              <p className="text-xs text-muted-foreground">Avise sobre dias indisponíveis</p>
+            </div>
           </div>
+        </button>
+        <button onClick={() => navigate("/meus-documentos")} className="kpi-card text-left hover:border-primary/50 transition-colors">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg p-2 bg-info/10 text-info"><FileText className="h-5 w-5" /></div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">Meus Documentos</p>
+              <p className="text-xs text-muted-foreground">{documentos.length} cadastrado(s)</p>
+            </div>
+          </div>
+        </button>
+        <button onClick={() => navigate("/minhas-trocas")} className="kpi-card text-left hover:border-primary/50 transition-colors">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg p-2 bg-primary/10 text-primary"><ArrowLeftRight className="h-5 w-5" /></div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">Solicitar Troca</p>
+              <p className="text-xs text-muted-foreground">{metrics.pendingSwaps.length} pendente(s)</p>
+            </div>
+          </div>
+        </button>
+      </div>
+
+      {/* Notifications */}
+      <div className="kpi-card">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-semibold text-foreground flex items-center gap-2"><Bell className="h-4 w-4 text-primary" /> Notificações</h2>
+          <button onClick={() => navigate("/notificacoes")} className="text-xs text-primary hover:underline">Ver todas</button>
+        </div>
+        <div className="space-y-2">
+          {notifications.map((n: any) => (
+            <div key={n.id} className="flex items-start gap-2 text-sm p-2 rounded-lg hover:bg-muted/50">
+              <div className="h-2 w-2 rounded-full bg-primary mt-1.5 shrink-0" />
+              <div>
+                <p className="text-foreground">{n.titulo}</p>
+                <p className="text-xs text-muted-foreground">{new Date(n.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</p>
+              </div>
+            </div>
+          ))}
+          {notifications.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma notificação pendente.</p>}
         </div>
       </div>
     </div>
