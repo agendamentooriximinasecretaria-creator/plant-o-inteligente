@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/AppLayout";
 import { AppErrorBoundary } from "@/components/AppErrorBoundary";
+import { ThemeProvider } from "@/hooks/useTheme";
+import { ConfirmProvider } from "@/hooks/useConfirm";
 import Dashboard from "@/pages/Dashboard";
 import EscalaPage from "@/pages/EscalaPage";
 import TrocasPage from "@/pages/TrocasPage";
@@ -88,12 +90,14 @@ function ManagerDashboardRoute() {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <AppErrorBoundary>
+    <ThemeProvider>
+      <TooltipProvider>
+        <ConfirmProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AuthProvider>
+              <AppErrorBoundary>
             <Routes>
               <Route path="/login" element={<LoginRoute />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
