@@ -7,6 +7,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 import { toast } from "sonner";
+import { CommandPalette } from "@/components/CommandPalette";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { useTheme } from "@/hooks/useTheme";
 
 export function AppLayout() {
   const navigate = useNavigate();
@@ -53,11 +56,14 @@ export function AppLayout() {
           <header className="h-14 flex items-center justify-between border-b border-border/60 bg-card/80 backdrop-blur-sm px-4 md:px-6 shrink-0 sticky top-0 z-30">
             <div className="flex items-center gap-3">
               <SidebarTrigger className="text-muted-foreground hover:text-foreground transition-colors" />
+              <CommandPalette />
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <ThemeToggle />
               <button
                 onClick={() => navigate("/notificacoes")}
                 className="relative p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Notificações"
               >
                 <Bell className="h-[18px] w-[18px]" strokeWidth={1.8} />
                 {unreadCount > 0 && (

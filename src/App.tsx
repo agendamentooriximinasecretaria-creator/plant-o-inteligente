@@ -135,10 +135,12 @@ const App = () => (
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </AppErrorBoundary>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
+              </AppErrorBoundary>
+            </AuthProvider>
+          </BrowserRouter>
+        </ConfirmProvider>
+      </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 
