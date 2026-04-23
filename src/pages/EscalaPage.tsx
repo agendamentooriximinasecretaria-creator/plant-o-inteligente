@@ -432,7 +432,7 @@ export default function EscalaPage() {
     return true;
   });
 
-  const inputClass = "w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
+  const inputClass = "w-full bg-background border border-input rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50 transition-colors";
 
   const toggleProfissional = (pid: string) => {
     setForm(f => {
