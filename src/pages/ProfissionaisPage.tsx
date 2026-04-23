@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
-import { Search, Plus, User2, Edit } from "lucide-react";
+import { Search, Plus, User2, Edit, Calendar as CalIcon, X } from "lucide-react";
 import { ContactActionButton } from "@/components/ContactActionButton";
 import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
@@ -52,6 +52,9 @@ const emptyForm = {
 export default function ProfissionaisPage() {
   const [search, setSearch] = useState('');
   const [filterProfissao, setFilterProfissao] = useState('');
+  const [filterUnidade, setFilterUnidade] = useState('');
+  const [filterSetor, setFilterSetor] = useState('');
+  const [filterDisponivel, setFilterDisponivel] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -73,7 +76,7 @@ export default function ProfissionaisPage() {
       const firstDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
       const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
       const lastStr = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
-      const { data } = await supabase.from('shifts').select('profissional_id, carga_horaria').gte('data', firstDay).lte('data', lastStr).neq('status', 'cancelado');
+      const { data } = await supabase.from('shifts').select('profissional_id, carga_horaria, data, hora_inicio, hora_fim, sectors:setor_id(nome)').gte('data', firstDay).lte('data', lastStr).neq('status', 'cancelado').order('data', { ascending: false });
       return data || [];
     },
   });
@@ -85,6 +88,25 @@ export default function ProfissionaisPage() {
     }
     return map;
   }, [monthShifts]);
+
+  // Últimos 3 plantões e disponibilidade hoje
+  const ultimosPorProf = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    for (const s of monthShifts as any[]) {
+      if (!map[s.profissional_id]) map[s.profissional_id] = [];
+      if (map[s.profissional_id].length < 3) map[s.profissional_id].push(s);
+    }
+    return map;
+  }, [monthShifts]);
+
+  const hojeStr = new Date().toISOString().split('T')[0];
+  const ocupadosHoje = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of monthShifts as any[]) {
+      if (s.data === hojeStr) set.add(s.profissional_id);
+    }
+    return set;
+  }, [monthShifts, hojeStr]);
 
   const { data: units = [] } = useQuery({ queryKey: ['units'], queryFn: async () => { const { data } = await supabase.from('units').select('*').order('nome'); return data || []; } });
   const { data: sectors = [] } = useQuery({ queryKey: ['sectors'], queryFn: async () => { const { data } = await supabase.from('sectors').select('*').order('nome'); return data || []; } });
@@ -151,6 +173,9 @@ export default function ProfissionaisPage() {
   const filtered = (professionals as any[]).filter((p: any) => {
     if (search && !p.nome.toLowerCase().includes(search.toLowerCase())) return false;
     if (filterProfissao && p.profissao !== filterProfissao) return false;
+    if (filterUnidade && p.unidade_principal_id !== filterUnidade) return false;
+    if (filterSetor && p.setor_principal_id !== filterSetor) return false;
+    if (filterDisponivel && (ocupadosHoje.has(p.id) || p.status !== 'ativo')) return false;
     return true;
   });
 
@@ -164,28 +189,47 @@ export default function ProfissionaisPage() {
   };
 
   const inputClass = "w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
+  const hasFilters = filterProfissao || filterUnidade || filterSetor || filterDisponivel || search;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="module-title">Profissionais</h1>
-          <p className="text-muted-foreground text-sm mt-1">{filtered.length} profissionais cadastrados</p>
+          <p className="text-muted-foreground text-sm mt-1">{filtered.length} de {professionals.length} profissionais</p>
         </div>
         <button onClick={() => { setForm(emptyForm); setEditingId(null); setModalOpen(true); }} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity self-start">
           <Plus className="h-4 w-4" /> Novo Profissional
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-2 items-center">
         <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-3 py-2">
           <Search className="h-4 w-4 text-muted-foreground" />
-          <input type="text" placeholder="Buscar por nome..." value={search} onChange={e => setSearch(e.target.value)} className="bg-transparent text-sm outline-none w-48 placeholder:text-muted-foreground" />
+          <input type="text" placeholder="Buscar por nome..." value={search} onChange={e => setSearch(e.target.value)} className="bg-transparent text-sm outline-none w-44 placeholder:text-muted-foreground" />
         </div>
         <select value={filterProfissao} onChange={e => setFilterProfissao(e.target.value)} className="bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
-          <option value="">Todas as profissões</option>
+          <option value="">Todas profissões</option>
           {PROFISSAO_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
         </select>
+        <select value={filterUnidade} onChange={e => { setFilterUnidade(e.target.value); setFilterSetor(''); }} className="bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
+          <option value="">Todas unidades</option>
+          {(units as any[]).map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+        </select>
+        <select value={filterSetor} onChange={e => setFilterSetor(e.target.value)} className="bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
+          <option value="">Todos setores</option>
+          {(sectors as any[]).filter((s: any) => !filterUnidade || s.unidade_id === filterUnidade).map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+        </select>
+        <button onClick={() => setFilterDisponivel(!filterDisponivel)}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium border transition-all ${filterDisponivel ? 'bg-success text-success-foreground border-success' : 'bg-card text-muted-foreground border-border hover:border-success/50'}`}>
+          <CalIcon className="h-4 w-4" /> Disponível hoje
+        </button>
+        {hasFilters && (
+          <button onClick={() => { setSearch(''); setFilterProfissao(''); setFilterUnidade(''); setFilterSetor(''); setFilterDisponivel(false); }}
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors px-2 py-1">
+            <X className="h-3 w-3" /> Limpar
+          </button>
+        )}
       </div>
 
       {isLoading ? (
@@ -196,12 +240,24 @@ export default function ProfissionaisPage() {
             const horasMes = horasPorProfissional[p.id] || 0;
             const percentHoras = Math.min(100, (horasMes / LIMITE_HORAS_MENSAL) * 100);
             const horasColor = percentHoras >= 90 ? 'text-destructive' : percentHoras >= 70 ? 'text-warning' : 'text-success';
+            const ultimos = ultimosPorProf[p.id] || [];
+            const ocupadoHoje = ocupadosHoje.has(p.id);
+            const disponivel = p.status === 'ativo' && !ocupadoHoje;
             return (
-              <motion.div key={p.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
-                className="bg-card rounded-lg border border-border p-5 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elevated)] transition-all">
+              <motion.div key={p.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 12) * 0.03 }}
+                className="bg-card rounded-xl border border-border p-5 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elevated)] transition-all">
                 <div className="flex items-start gap-4">
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <User2 className="h-6 w-6 text-primary" />
+                  <div className="relative shrink-0">
+                    {p.avatar_url ? (
+                      <img src={p.avatar_url} alt={p.nome} className="h-12 w-12 rounded-full object-cover border-2 border-border" />
+                    ) : (
+                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center font-display font-semibold text-primary">
+                        {p.nome.split(' ').map((n: string) => n[0]).slice(0,2).join('')}
+                      </div>
+                    )}
+                    {p.status === 'ativo' && (
+                      <span className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-card ${disponivel ? 'bg-success' : 'bg-warning'}`} title={disponivel ? 'Disponível hoje' : 'Em plantão hoje'} />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
@@ -215,7 +271,7 @@ export default function ProfissionaisPage() {
                       </div>
                     </div>
                     <p className="text-sm text-primary font-medium">{PROFISSAO_LABELS[p.profissao] || p.profissao}</p>
-                    <p className="text-xs text-muted-foreground">{p.especialidade} • {p.registro}</p>
+                    <p className="text-xs text-muted-foreground">{p.especialidade || '—'}{p.registro ? ` · ${p.registro}` : ''}</p>
 
                     {p.status === 'ativo' && (
                       <div className="mt-2">
@@ -227,21 +283,36 @@ export default function ProfissionaisPage() {
                       </div>
                     )}
 
-                    <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-                      <span className="truncate">{p.email}</span>
-                      <ContactActionButton profissional={{ nome: p.nome, telefone: p.telefone }} contexto={{ tipo: 'geral' }} />
-                    </div>
-                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+                    {ultimos.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-border">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Últimos plantões</p>
+                        <div className="space-y-1">
+                          {ultimos.map((s: any, idx: number) => (
+                            <div key={idx} className="flex items-center justify-between text-[11px]">
+                              <span className="text-foreground">{new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                              <span className="text-muted-foreground font-mono">{s.hora_inicio?.slice(0,5)}–{s.hora_fim?.slice(0,5)}</span>
+                              <span className="text-muted-foreground truncate max-w-[80px]">{(s.sectors as any)?.nome || '—'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-border gap-2">
                       <span className="text-xs text-muted-foreground truncate">{(p.units as any)?.nome || '—'}</span>
-                      <span className="text-[10px] text-muted-foreground">
-                        Trocas: <strong className="text-foreground">{p.limite_trocas_plantao_mes ?? 3}/mês</strong>
-                      </span>
+                      <ContactActionButton profissional={{ nome: p.nome, telefone: p.telefone }} contexto={{ tipo: 'geral' }} />
                     </div>
                   </div>
                 </div>
               </motion.div>
             );
           })}
+          {filtered.length === 0 && (
+            <div className="col-span-full text-center py-12 bg-card border border-border rounded-xl">
+              <User2 className="h-10 w-10 text-muted-foreground mx-auto mb-2 opacity-50" />
+              <p className="text-muted-foreground text-sm">Nenhum profissional encontrado.</p>
+            </div>
+          )}
         </div>
       )}
 
