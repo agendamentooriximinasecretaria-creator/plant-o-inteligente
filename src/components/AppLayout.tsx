@@ -29,10 +29,7 @@ export function AppLayout() {
     return () => window.removeEventListener("keydown", onKey);
   }, [setTheme, resolvedTheme]);
 
-export function AppLayout() {
-  const navigate = useNavigate();
-  const qc = useQueryClient();
-  const { user, professionalId } = useAuth();
+
 
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ["unread-notifications-count", user?.id],
