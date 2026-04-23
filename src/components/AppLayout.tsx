@@ -1,6 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { Bell, Search } from "lucide-react";
+import { Bell } from "lucide-react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,17 +18,15 @@ export function AppLayout() {
     enabled: !!user,
     refetchInterval: 30_000,
     queryFn: async () => {
-      let query = supabase
+      const { count, error } = await supabase
         .from("notifications")
         .select("id", { count: "exact", head: true })
         .eq("lida", false);
-      const { count, error } = await query;
       if (error) return 0;
       return count || 0;
     },
   });
 
-  // Realtime notifications
   useEffect(() => {
     if (!user) return;
     const channel = supabase
@@ -49,36 +47,28 @@ export function AppLayout() {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
+      <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-14 flex items-center justify-between border-b border-border bg-card px-4 shrink-0">
+          <header className="h-14 flex items-center justify-between border-b border-border/60 bg-card/80 backdrop-blur-sm px-4 md:px-6 shrink-0 sticky top-0 z-30">
             <div className="flex items-center gap-3">
-              <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
-              <div className="hidden md:flex items-center gap-2 bg-muted rounded-lg px-3 py-1.5">
-                <Search className="h-4 w-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Buscar..."
-                  className="bg-transparent text-sm outline-none w-48 placeholder:text-muted-foreground"
-                />
-              </div>
+              <SidebarTrigger className="text-muted-foreground hover:text-foreground transition-colors" />
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => navigate("/notificacoes")}
                 className="relative p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               >
-                <Bell className="h-5 w-5" />
+                <Bell className="h-[18px] w-[18px]" strokeWidth={1.8} />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                  <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground ring-2 ring-card">
                     {unreadCount > 99 ? "99+" : unreadCount}
                   </span>
                 )}
               </button>
             </div>
           </header>
-          <main className="flex-1 overflow-auto p-4 md:p-6">
+          <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
             <Outlet />
           </main>
         </div>
