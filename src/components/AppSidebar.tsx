@@ -90,31 +90,34 @@ export function AppSidebar() {
 
   const renderGroup = (label: string, items: MenuItem[]) => (
     <SidebarGroup key={label}>
-      <SidebarGroupLabel className="text-sidebar-foreground/50 text-[10px] uppercase tracking-widest font-semibold">
+      <SidebarGroupLabel className="text-sidebar-foreground/40 text-[10px] uppercase tracking-[0.1em] font-medium mb-1">
         {!collapsed && label}
       </SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu>
-          {items.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton
-                asChild
-                isActive={isActive(item.url)}
-                className="transition-colors duration-150"
-              >
-                <NavLink
-                  to={item.url}
-                  end={item.url === "/"}
-                  onClick={handleMenuClick}
-                  className="flex items-center gap-3 px-3 py-2 rounded-md text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                  activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+          {items.map((item) => {
+            const active = isActive(item.url);
+            return (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={active}
+                  className="transition-all duration-150"
                 >
-                  <item.icon className="h-[18px] w-[18px] shrink-0" />
-                  {!collapsed && <span className="text-sm">{item.title}</span>}
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
+                  <NavLink
+                    to={item.url}
+                    end={item.url === "/"}
+                    onClick={handleMenuClick}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground text-[13px]"
+                    activeClassName="bg-sidebar-primary/12 text-sidebar-primary font-medium border-l-2 border-sidebar-primary"
+                  >
+                    <item.icon className="h-4 w-4 shrink-0" strokeWidth={active ? 2.2 : 1.8} />
+                    {!collapsed && <span>{item.title}</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
@@ -122,38 +125,41 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
-      <SidebarHeader className="p-4 border-b border-sidebar-border">
+      <SidebarHeader className="p-4 pb-6">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg bg-sidebar-primary flex items-center justify-center shrink-0">
-            <Activity className="h-5 w-5 text-sidebar-primary-foreground" />
+          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-sidebar-primary to-sidebar-primary/70 flex items-center justify-center shrink-0 shadow-sm">
+            <Activity className="h-4 w-4 text-sidebar-primary-foreground" strokeWidth={2.5} />
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="font-display text-sm font-bold text-sidebar-foreground">GestorPlantão</span>
-              <span className="text-[10px] text-sidebar-foreground/50">SMS Oriximiná</span>
+              <span className="font-display text-[13px] font-bold text-sidebar-foreground tracking-tight">GestorPlantão</span>
+              <span className="text-[10px] text-sidebar-foreground/40 font-medium">SMS Oriximiná</span>
             </div>
           )}
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-2 py-3">
+      <SidebarContent className="px-2">
         {menuGroups.map((group) => renderGroup(group.label, group.items))}
       </SidebarContent>
 
-      <SidebarFooter className="p-3 border-t border-sidebar-border">
+      <SidebarFooter className="p-3 border-t border-sidebar-border/50">
         <div className="flex items-center gap-3 px-2">
-          <div className="h-8 w-8 rounded-full bg-sidebar-primary/20 flex items-center justify-center shrink-0">
-            <span className="text-xs font-semibold text-sidebar-primary">{initials}</span>
+          <div className="h-8 w-8 rounded-full bg-sidebar-primary/15 flex items-center justify-center shrink-0 ring-1 ring-sidebar-primary/20">
+            <span className="text-[10px] font-semibold text-sidebar-primary">{initials}</span>
           </div>
           {!collapsed && (
             <div className="flex flex-col flex-1 min-w-0">
               <span className="text-xs font-medium text-sidebar-foreground truncate">{displayName}</span>
-              <span className="text-[10px] text-sidebar-foreground/50 truncate">{roleLabel} • {user?.email || ""}</span>
+              <span className="text-[10px] text-sidebar-foreground/40 truncate">{roleLabel}</span>
             </div>
           )}
           {!collapsed && (
-            <button onClick={async () => { await signOut(); navigate("/login"); }} className="text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors">
-              <LogOut className="h-4 w-4" />
+            <button
+              onClick={async () => { await signOut(); navigate("/login"); }}
+              className="p-1.5 rounded-md text-sidebar-foreground/30 hover:text-sidebar-foreground hover:bg-sidebar-accent/60 transition-colors"
+            >
+              <LogOut className="h-3.5 w-3.5" />
             </button>
           )}
         </div>
@@ -161,4 +167,3 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
-
