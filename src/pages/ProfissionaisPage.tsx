@@ -52,6 +52,9 @@ const emptyForm = {
 export default function ProfissionaisPage() {
   const [search, setSearch] = useState('');
   const [filterProfissao, setFilterProfissao] = useState('');
+  const [filterUnidade, setFilterUnidade] = useState('');
+  const [filterSetor, setFilterSetor] = useState('');
+  const [filterDisponivel, setFilterDisponivel] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -73,7 +76,7 @@ export default function ProfissionaisPage() {
       const firstDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
       const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
       const lastStr = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
-      const { data } = await supabase.from('shifts').select('profissional_id, carga_horaria').gte('data', firstDay).lte('data', lastStr).neq('status', 'cancelado');
+      const { data } = await supabase.from('shifts').select('profissional_id, carga_horaria, data, hora_inicio, hora_fim, sectors:setor_id(nome)').gte('data', firstDay).lte('data', lastStr).neq('status', 'cancelado').order('data', { ascending: false });
       return data || [];
     },
   });
@@ -85,6 +88,25 @@ export default function ProfissionaisPage() {
     }
     return map;
   }, [monthShifts]);
+
+  // Últimos 3 plantões e disponibilidade hoje
+  const ultimosPorProf = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    for (const s of monthShifts as any[]) {
+      if (!map[s.profissional_id]) map[s.profissional_id] = [];
+      if (map[s.profissional_id].length < 3) map[s.profissional_id].push(s);
+    }
+    return map;
+  }, [monthShifts]);
+
+  const hojeStr = new Date().toISOString().split('T')[0];
+  const ocupadosHoje = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of monthShifts as any[]) {
+      if (s.data === hojeStr) set.add(s.profissional_id);
+    }
+    return set;
+  }, [monthShifts, hojeStr]);
 
   const { data: units = [] } = useQuery({ queryKey: ['units'], queryFn: async () => { const { data } = await supabase.from('units').select('*').order('nome'); return data || []; } });
   const { data: sectors = [] } = useQuery({ queryKey: ['sectors'], queryFn: async () => { const { data } = await supabase.from('sectors').select('*').order('nome'); return data || []; } });
