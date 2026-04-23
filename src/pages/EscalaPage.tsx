@@ -446,6 +446,31 @@ export default function EscalaPage() {
 
   const isFolga = (s: any) => s?.tipo_plantao === 'folga' || s?.tipo_plantao === 'indisponibilidade';
 
+  // Data for WeeklyGrid
+  const gridProfissionais: ProfRow[] = useMemo(() => {
+    const profMap: Record<string, ProfRow> = {};
+    for (const s of (shifts as any[])) {
+      const profId = s.profissional_id;
+      const profName = (s.professionals as any)?.nome || 'Sem nome';
+      const profissao = PROFISSAO_LABELS[(s.professionals as any)?.profissao] || '';
+      if (!profMap[profId]) {
+        profMap[profId] = { id: profId, nome: profName, profissao, escala: {} };
+      }
+      const dateKey = s.data;
+      if (!profMap[profId].escala[dateKey]) profMap[profId].escala[dateKey] = [];
+      const folga = isFolga(s);
+      profMap[profId].escala[dateKey].push({
+        id: s.id,
+        sigla: folga ? 'F' : tipoToSigla(s.tipo_plantao),
+        tipo: s.tipo_plantao || '',
+        horario: `${(s.hora_inicio || '').slice(0, 5)}-${(s.hora_fim || '').slice(0, 5)}`,
+        setor: (s.sectors as any)?.nome || '',
+        status: s.status,
+      });
+    }
+    return Object.values(profMap).sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [shifts, TIPOS_PLANTAO]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
