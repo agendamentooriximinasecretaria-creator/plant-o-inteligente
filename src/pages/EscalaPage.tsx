@@ -572,6 +572,22 @@ export default function EscalaPage() {
             </table>
           </div>
         </motion.div>
+      ) : view === 'grade' ? (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <WeeklyGrid
+            profissionais={gridProfissionais}
+            coberturaMinima={2}
+            onCellClick={(_profId, dateStr, shift) => {
+              if (shift) {
+                const found = (shifts as any[]).find((s: any) => s.id === shift.id);
+                if (found) setDetailShift(found);
+              } else {
+                openCreateForCell(dateStr);
+              }
+            }}
+            onCreateClick={(dateStr) => openCreateForCell(dateStr)}
+          />
+        </motion.div>
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-lg border border-border p-6 shadow-[var(--shadow-card)]">
           {/* Legenda */}
