@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
 import { dispatchNotification } from "@/lib/notifyHelper";
-import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info, Users as UsersIcon, Palmtree, AlertTriangle } from "lucide-react";
+import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info, Users as UsersIcon, Palmtree, AlertTriangle, LayoutGrid } from "lucide-react";
+import { WeeklyGrid, type ProfRow, type GridShift } from "@/components/schedule/WeeklyGrid";
 import { ContactActionButton } from "@/components/ContactActionButton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { motion } from "framer-motion";
@@ -64,7 +65,7 @@ const emptyFolga = { profissional_id: '', data_inicio: '', data_fim: '', motivo:
 
 export default function EscalaPage() {
   const sb = supabase as any;
-  const [view, setView] = useState<'lista' | 'calendario'>('lista');
+  const [view, setView] = useState<'lista' | 'calendario' | 'grade'>('lista');
   const [filterSetor, setFilterSetor] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -445,6 +446,31 @@ export default function EscalaPage() {
 
   const isFolga = (s: any) => s?.tipo_plantao === 'folga' || s?.tipo_plantao === 'indisponibilidade';
 
+  // Data for WeeklyGrid
+  const gridProfissionais: ProfRow[] = useMemo(() => {
+    const profMap: Record<string, ProfRow> = {};
+    for (const s of (shifts as any[])) {
+      const profId = s.profissional_id;
+      const profName = (s.professionals as any)?.nome || 'Sem nome';
+      const profissao = PROFISSAO_LABELS[(s.professionals as any)?.profissao] || '';
+      if (!profMap[profId]) {
+        profMap[profId] = { id: profId, nome: profName, profissao, escala: {} };
+      }
+      const dateKey = s.data;
+      if (!profMap[profId].escala[dateKey]) profMap[profId].escala[dateKey] = [];
+      const folga = isFolga(s);
+      profMap[profId].escala[dateKey].push({
+        id: s.id,
+        sigla: folga ? 'F' : tipoToSigla(s.tipo_plantao),
+        tipo: s.tipo_plantao || '',
+        horario: `${(s.hora_inicio || '').slice(0, 5)}-${(s.hora_fim || '').slice(0, 5)}`,
+        setor: (s.sectors as any)?.nome || '',
+        status: s.status,
+      });
+    }
+    return Object.values(profMap).sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [shifts, TIPOS_PLANTAO]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -455,6 +481,7 @@ export default function EscalaPage() {
         <div className="flex items-center gap-2">
           <button onClick={() => setView('lista')} className={`p-2 rounded-lg transition-colors ${view === 'lista' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}><List className="h-4 w-4" /></button>
           <button onClick={() => setView('calendario')} className={`p-2 rounded-lg transition-colors ${view === 'calendario' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}><Calendar className="h-4 w-4" /></button>
+          <button onClick={() => setView('grade')} className={`p-2 rounded-lg transition-colors ${view === 'grade' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`} title="Grade semanal"><LayoutGrid className="h-4 w-4" /></button>
           <button onClick={() => { setFolgaForm(emptyFolga); setFolgaModalOpen(true); }} className="flex items-center gap-2 border border-border bg-card px-3 py-2 rounded-lg text-sm font-medium hover:bg-muted text-foreground"><Palmtree className="h-4 w-4 text-amber-600" /> Marcar folga</button>
           <button onClick={() => { setForm(emptyForm); setEditingId(null); setModalOpen(true); }} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"><Plus className="h-4 w-4" /> Novo Plantão</button>
         </div>
@@ -544,6 +571,22 @@ export default function EscalaPage() {
               </tbody>
             </table>
           </div>
+        </motion.div>
+      ) : view === 'grade' ? (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <WeeklyGrid
+            profissionais={gridProfissionais}
+            coberturaMinima={2}
+            onCellClick={(_profId, dateStr, shift) => {
+              if (shift) {
+                const found = (shifts as any[]).find((s: any) => s.id === shift.id);
+                if (found) setDetailShift(found);
+              } else {
+                openCreateForCell(dateStr);
+              }
+            }}
+            onCreateClick={(dateStr) => openCreateForCell(dateStr)}
+          />
         </motion.div>
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-lg border border-border p-6 shadow-[var(--shadow-card)]">
