@@ -620,16 +620,22 @@ export default function TrocasPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>
+        <CardListSkeleton count={5} />
+      ) : isError ? (
+        <ErrorState
+          title="Não foi possível carregar as trocas"
+          description="Erro ao consultar as solicitações de troca. Tente novamente."
+          onRetry={() => refetchSwaps()}
+          retryLoading={isRefetching}
+        />
       ) : filteredSwaps.length === 0 ? (
-        <div className="text-center py-16 bg-card border border-border rounded-xl">
-          <ArrowLeftRight className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-50" />
-          <p className="text-muted-foreground">
-            {hasAdvancedFilters
-              ? 'Nenhum resultado encontrado para sua busca.'
-              : `Nenhuma troca ${filterStatus !== 'todas' ? filterStatus : ''} encontrada.`}
-          </p>
-        </div>
+        <EmptyState
+          icon={ArrowLeftRight}
+          title="Nenhuma troca de plantão encontrada"
+          description={hasAdvancedFilters
+            ? 'Nenhum resultado para os filtros aplicados. Ajuste os filtros e tente novamente.'
+            : `Não há trocas ${filterStatus !== 'todas' ? `com status "${filterStatus}"` : 'registradas'} no momento.`}
+        />
       ) : (
         <div className="space-y-3">
           {filteredSwaps.map((swap: any, i: number) => {
