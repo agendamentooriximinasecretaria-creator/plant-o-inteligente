@@ -37,7 +37,7 @@ const COMPETENCIAS_POR_PROFISSAO: Record<string, string[]> = {
   farmaceutico: ['Hospitalar', 'Clínica', 'Manipulação', 'Oncologia'],
 };
 
-const LIMITE_HORAS_MENSAL = 220;
+const LIMITE_HORAS_MENSAL = CLT_LIMITE_MENSAL;
 
 const emptyForm = {
   nome: '', profissao: 'medico' as ProfissaoValue, especialidade: '', conselho: '', registro: '',
