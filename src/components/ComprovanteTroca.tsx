@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Printer, Download } from "lucide-react";
 import jsPDF from "jspdf";
+import { LOGO_SMS_PATH, getLogoSmsDataUrl } from "@/lib/logoSMS";
 
 interface Props {
   trocaId: string;
@@ -68,12 +69,28 @@ export default function ComprovanteTroca({ trocaId, onClose }: Props) {
 
   const handlePrint = () => window.print();
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (!data) return;
     const { troca, shiftOrigem, shiftDestino, historico } = data;
     const doc = new jsPDF("p", "mm", "a4");
     const w = doc.internal.pageSize.getWidth();
     let y = 15;
+
+    // Logo redonda centralizada
+    const logo = await getLogoSmsDataUrl();
+    if (logo) {
+      const size = 18;
+      const cx = w / 2;
+      try {
+        doc.setFillColor(255, 255, 255);
+        doc.circle(cx, y + size / 2, size / 2 + 0.4, "F");
+        doc.addImage(logo, "JPEG", cx - size / 2, y, size, size);
+        doc.setDrawColor(14, 116, 144);
+        doc.setLineWidth(0.4);
+        doc.circle(cx, y + size / 2, size / 2, "S");
+      } catch { /* noop */ }
+      y += size + 4;
+    }
 
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
