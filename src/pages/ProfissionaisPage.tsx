@@ -1,15 +1,31 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
-import { Search, Plus, User2, Edit, Calendar as CalIcon, X } from "lucide-react";
+import {
+  Search, Plus, User2, Edit, Calendar as CalIcon, X, MoreHorizontal,
+  Printer, MessageSquare, FileCheck2, History, AlertTriangle, Filter,
+} from "lucide-react";
 import { ContactActionButton } from "@/components/ContactActionButton";
 import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { calcularHorasPorProfissional, calcularCargaPercentual, CLT_LIMITE_MENSAL } from "@/lib/horas";
 import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
+import { printFichaProfissional } from "@/lib/printFichaProfissional";
+
+function useDebounced<T>(value: T, delay = 300): T {
+  const [v, setV] = useState(value);
+  useEffect(() => { const t = setTimeout(() => setV(value), delay); return () => clearTimeout(t); }, [value, delay]);
+  return v;
+}
+
+const norm = (s: any) => (s ?? '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
 const PROFISSAO_OPTIONS = [
   { value: 'medico', label: 'Médico(a)' },
