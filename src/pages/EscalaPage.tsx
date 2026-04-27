@@ -107,6 +107,16 @@ export default function EscalaPage() {
   const [workloadAlerts, setWorkloadAlerts] = useState<string[]>([]);
   const [horasPorProfissional, setHorasPorProfissional] = useState<Record<string, number>>({});
   const [detailShift, setDetailShift] = useState<any>(null);
+  // Menu de ações na célula vazia (data + setor opcional)
+  const [emptyCell, setEmptyCell] = useState<{ data: string; setorId?: string; unidadeId?: string } | null>(null);
+  // Sub-modais a partir do menu de célula
+  const [availableProsCell, setAvailableProsCell] = useState<{ data: string; setorId?: string; unidadeId?: string } | null>(null);
+  const [coverageCell, setCoverageCell] = useState<{ data: string; setorId?: string } | null>(null);
+  const [conflictsDay, setConflictsDay] = useState<string | null>(null);
+  // Modais de ações sobre o plantão (a partir do detalhe)
+  const [notifyTarget, setNotifyTarget] = useState<any>(null);
+  const [notifyMsg, setNotifyMsg] = useState("");
+  const [historyTarget, setHistoryTarget] = useState<any>(null);
   const qc = useQueryClient();
 
   const { data: shifts = [], isLoading, refetch: refetchShifts } = useQuery({
