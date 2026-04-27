@@ -4,6 +4,7 @@
 
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { getLogoSmsDataUrl, logoSmsImgHtml } from "./logoSMS";
 
 export interface PrintInstituicao {
   nome?: string;
@@ -109,7 +110,8 @@ function buildHtml(
 <style>
   * { box-sizing: border-box; }
   body { font-family: Arial, Helvetica, sans-serif; color: #111; margin: 24px; }
-  .header { border-bottom: 2px solid #0e7490; padding-bottom: 10px; margin-bottom: 12px; }
+  .header { border-bottom: 2px solid #0e7490; padding-bottom: 10px; margin-bottom: 12px; display:flex; align-items:center; gap:14px; }
+  .header .brand { flex: 1; }
   .header h1 { font-size: 16px; margin: 0; color: #0e7490; }
   .header h2 { font-size: 13px; margin: 2px 0 0; color: #111; font-weight: 600; }
   .meta { font-size: 11px; color: #444; margin-top: 6px; }
@@ -142,6 +144,8 @@ function buildHtml(
   </div>
 
   <div class="header">
+    ${logoSmsImgHtml(64)}
+    <div class="brand">
     <h1>${escapeHtml(cab.instituicao.nome || "Instituição")}</h1>
     ${cab.instituicao.cnpj ? `<div class="meta"><span>CNPJ: ${escapeHtml(cab.instituicao.cnpj)}</span>${cab.instituicao.endereco ? `<span>${escapeHtml(cab.instituicao.endereco)}</span>` : ""}</div>` : ""}
     <h2>Escala de Plantões</h2>
@@ -152,6 +156,7 @@ function buildHtml(
       <div><b>Emissão:</b> ${escapeHtml(emissao)}</div>
       ${cab.emitidoPor ? `<div><b>Emitido por:</b> ${escapeHtml(cab.emitidoPor)}</div>` : ""}
       <div><b>Sistema:</b> ${escapeHtml(sistema)}</div>
+    </div>
     </div>
   </div>
 
@@ -201,7 +206,7 @@ export function abrirVisualizacaoImpressao(
   return true;
 }
 
-export function gerarPdfEscala(
+export async function gerarPdfEscala(
   cab: PrintCabecalho,
   linhas: PrintLinha[],
   opts: PrintOptions,
@@ -211,11 +216,27 @@ export function gerarPdfEscala(
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
 
+  // Logo redonda no canto superior esquerdo
+  const logo = await getLogoSmsDataUrl();
+  const logoSize = 18; // mm
+  const headerLeft = logo ? 14 + logoSize + 4 : 14;
+  if (logo) {
+    try {
+      // Desenha círculo branco de fundo + clip visual via borda
+      doc.setFillColor(255, 255, 255);
+      doc.circle(14 + logoSize / 2, 14 + logoSize / 2 - 4, logoSize / 2 + 0.5, "F");
+      doc.addImage(logo, "JPEG", 14, 14 - 4, logoSize, logoSize);
+      doc.setDrawColor(14, 116, 144);
+      doc.setLineWidth(0.4);
+      doc.circle(14 + logoSize / 2, 14 + logoSize / 2 - 4, logoSize / 2, "S");
+    } catch { /* ignora se a imagem falhar */ }
+  }
+
   // Cabeçalho
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
   doc.setTextColor(14, 116, 144);
-  doc.text(cab.instituicao.nome || "Instituição", 14, 14);
+  doc.text(cab.instituicao.nome || "Instituição", headerLeft, 14);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
@@ -225,14 +246,14 @@ export function gerarPdfEscala(
   if (cab.instituicao.cnpj) metaParts.push(`CNPJ: ${cab.instituicao.cnpj}`);
   if (cab.instituicao.endereco) metaParts.push(cab.instituicao.endereco);
   if (metaParts.length) {
-    doc.text(metaParts.join("  •  "), 14, metaY);
+    doc.text(metaParts.join("  •  "), headerLeft, metaY);
     metaY += 5;
   }
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(17, 24, 39);
-  doc.text("Escala de Plantões", 14, metaY + 2);
+  doc.text("Escala de Plantões", headerLeft, metaY + 2);
 
   const infoParts: string[] = [];
   if (cab.unidade) infoParts.push(`Unidade: ${cab.unidade}`);
