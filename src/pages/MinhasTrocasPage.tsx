@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { dispatchNotification } from "@/lib/notifyHelper";
+import { logAudit } from "@/lib/auditLog";
 import { toast } from "sonner";
 import { FileText, AlertCircle } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
