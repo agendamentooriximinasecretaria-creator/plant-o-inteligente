@@ -19,6 +19,9 @@ import ComprovanteTroca from "@/components/ComprovanteTroca";
 import { printSolicitacaoTroca } from "@/lib/printSolicitacaoTroca";
 import { calcularHorasMes } from "@/lib/horas";
 import { MoreActionsMenu } from "@/components/MoreActionsMenu";
+import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
+import { CardListSkeleton } from "@/components/PageSkeleton";
 
 const statusStyles: Record<SwapStatus, { class: string; icon: typeof Clock; ring: string }> = {
   solicitada: { class: 'bg-info/10 text-info border-info/20', icon: Clock, ring: 'ring-info/30' },
@@ -69,7 +72,7 @@ export default function TrocasPage() {
 
   const [adminForm, setAdminForm] = useState({ profA: '', shiftA: '', profB: '', shiftB: '', motivo: '' });
 
-  const { data: swaps = [], isLoading, refetch: refetchSwaps } = useQuery({
+  const { data: swaps = [], isLoading, isError, refetch: refetchSwaps, isRefetching } = useQuery({
     queryKey: ['swaps'],
     queryFn: async () => {
       const { data, error } = await supabase.from('shift_swaps')
