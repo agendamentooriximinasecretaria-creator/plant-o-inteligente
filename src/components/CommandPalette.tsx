@@ -206,10 +206,119 @@ export function CommandPalette() {
         <Search className="h-[18px] w-[18px]" strokeWidth={1.8} />
       </button>
 
-      <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput placeholder="Buscar páginas, ações ou atalhos..." />
+      <CommandDialog open={open} onOpenChange={setOpen} shouldFilter={false}>
+        <CommandInput
+          placeholder="Buscar páginas, profissionais, plantões, trocas, setores..."
+          value={query}
+          onValueChange={setQuery}
+        />
         <CommandList>
-          <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
+          <CommandEmpty>
+            {loadingSearch ? (
+              <span className="inline-flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Buscando...
+              </span>
+            ) : (
+              "Nenhum resultado encontrado."
+            )}
+          </CommandEmpty>
+
+          {/* Resultados dinâmicos da busca global (RLS aplica permissões) */}
+          {debouncedQuery.trim().length >= 2 && !isProfessional && (
+            <>
+              {results.profissionais.length > 0 && (
+                <CommandGroup heading="Profissionais">
+                  {results.profissionais.map((p) => (
+                    <CommandItem
+                      key={`pro-${p.id}`}
+                      value={`pro-${p.id}-${p.nome}`}
+                      onSelect={() => run(() => navigate(`/profissionais?focus=${p.id}`))}
+                    >
+                      <Stethoscope className="h-4 w-4 mr-2 text-primary" />
+                      <span className="flex-1">{p.nome}</span>
+                      <span className="text-[10px] text-muted-foreground capitalize">{p.profissao?.replace(/_/g, " ")}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+              {results.plantoes.length > 0 && (
+                <CommandGroup heading="Plantões">
+                  {results.plantoes.map((s) => (
+                    <CommandItem
+                      key={`shift-${s.id}`}
+                      value={`shift-${s.id}`}
+                      onSelect={() => run(() => navigate(`/escala?focusShift=${s.id}`))}
+                    >
+                      <Calendar className="h-4 w-4 mr-2 text-accent" />
+                      <span className="flex-1">{new Date(s.data + "T12:00:00").toLocaleDateString("pt-BR")} · {s.profissional}</span>
+                      <span className="text-[10px] text-muted-foreground">{s.setor}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+              {results.trocas.length > 0 && (
+                <CommandGroup heading="Trocas">
+                  {results.trocas.map((t) => (
+                    <CommandItem
+                      key={`swap-${t.id}`}
+                      value={`swap-${t.id}`}
+                      onSelect={() => run(() => navigate(`/trocas?focus=${t.id}`))}
+                    >
+                      <ArrowLeftRight className="h-4 w-4 mr-2 text-warning" />
+                      <span className="flex-1 truncate">{t.solicitante} — {t.motivo || "(sem motivo)"}</span>
+                      <span className="text-[10px] text-muted-foreground capitalize">{t.status?.replace(/_/g, " ")}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+              {results.setores.length > 0 && (
+                <CommandGroup heading="Setores">
+                  {results.setores.map((s) => (
+                    <CommandItem
+                      key={`sec-${s.id}`}
+                      value={`sec-${s.id}`}
+                      onSelect={() => run(() => navigate(`/setores?focus=${s.id}`))}
+                    >
+                      <MapPin className="h-4 w-4 mr-2 text-primary" />
+                      <span className="flex-1">{s.nome}</span>
+                      <span className="text-[10px] text-muted-foreground">{s.unidade}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+              {results.unidades.length > 0 && (
+                <CommandGroup heading="Unidades">
+                  {results.unidades.map((u) => (
+                    <CommandItem
+                      key={`uni-${u.id}`}
+                      value={`uni-${u.id}`}
+                      onSelect={() => run(() => navigate(`/setores?unidade=${u.id}`))}
+                    >
+                      <Building2 className="h-4 w-4 mr-2 text-primary" />
+                      <span className="flex-1">{u.nome}</span>
+                      <span className="text-[10px] text-muted-foreground">{u.tipo}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+              {results.notificacoes.length > 0 && (
+                <CommandGroup heading="Notificações">
+                  {results.notificacoes.map((n) => (
+                    <CommandItem
+                      key={`not-${n.id}`}
+                      value={`not-${n.id}`}
+                      onSelect={() => run(() => navigate(`/notificacoes?focus=${n.id}`))}
+                    >
+                      <Bell className="h-4 w-4 mr-2 text-accent" />
+                      <span className="flex-1 truncate">{n.titulo}</span>
+                      <span className="text-[10px] text-muted-foreground capitalize">{n.tipo}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+              <CommandSeparator />
+            </>
+          )}
 
           {favoriteCommands.length > 0 && (
             <>
