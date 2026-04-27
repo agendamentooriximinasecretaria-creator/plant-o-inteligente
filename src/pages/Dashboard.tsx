@@ -99,7 +99,7 @@ export default function Dashboard() {
 
   const { data: profCount = 0 } = useQuery({
     queryKey: ["dashboard-prof-count"],
-    queryFn: async () => { const { count } = await supabase.from("professionals").select("*", { count: "exact", head: true }).eq("status", "ativo"); return count || 0; },
+    queryFn: async () => { const { count } = await supabase.from("professionals_safe").select("id", { count: "exact", head: true }).eq("status", "ativo"); return count || 0; },
   });
 
   const { data: recentLogs = [] } = useQuery({
@@ -119,12 +119,12 @@ export default function Dashboard() {
 
   const { data: allProfessionals = [] } = useQuery({
     queryKey: ["dashboard-all-professionals"],
-    queryFn: async () => { const { data } = await supabase.from("professionals").select("id, nome, profissao, setor_principal_id, telefone").eq("status", "ativo").order("nome"); return data || []; },
+    queryFn: async () => { const { data } = await supabase.from("professionals_safe").select("id, nome, profissao, setor_principal_id, telefone").eq("status", "ativo").order("nome"); return data || []; },
   });
 
   const { data: docAlerts = [] } = useQuery({
     queryKey: ["dashboard-doc-alerts"],
-    queryFn: async () => { const { data } = await supabase.from("professionals").select("id, nome, documento_conselho, documento_numero, documento_validade").not("documento_validade", "is", null).eq("status", "ativo"); return data || []; },
+    queryFn: async () => { const { data } = await supabase.from("professionals_safe").select("id, nome, documento_conselho, documento_numero, documento_validade").not("documento_validade", "is", null).eq("status", "ativo"); return data || []; },
   });
 
   const { data: censoHoje = [] } = useQuery({

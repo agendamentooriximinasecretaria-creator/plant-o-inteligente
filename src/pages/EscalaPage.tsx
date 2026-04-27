@@ -145,7 +145,7 @@ export default function EscalaPage() {
   const { data: professionals = [] } = useQuery({
     queryKey: ['professionals'],
     queryFn: async () => {
-      const { data } = await supabase.from('professionals')
+      const { data } = await supabase.from('professionals_safe')
         .select('id, nome, profissao, especialidade, telefone, email, status, setor_principal_id, unidade_principal_id, user_id, competencias, registro, conselho, documento_validade, vinculo')
         .eq('status', 'ativo').order('nome');
       return data || [];
