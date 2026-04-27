@@ -280,11 +280,110 @@ export default function EscalaPage() {
     setWorkloadAlerts(alerts);
   };
 
+  // Revalidação server-side imediatamente antes do mutate (evita race entre abas / estado local desatualizado)
+  const revalidateServerSide = async (data: typeof form): Promise<void> => {
+    const limiteDia = Number(conflictRules?.limite_horas_dia ?? 24);
+    const limiteSemana = Number(conflictRules?.limite_horas_semana ?? 60);
+    const novaCarga = calcHours(data.hora_inicio, data.hora_fim);
+
+    // 1. Tipo de plantão ativo
+    if (data.tipo_plantao && data.tipo_plantao !== 'regular') {
+      const tipoOk = (shiftTypes as any[]).some((t: any) => (t.sigla === data.tipo_plantao || t.nome === data.tipo_plantao) && t.ativo);
+      // se não consta na lista (pode ser texto livre), apenas seguimos; se consta inativo bloqueia
+      const tipoExisteInativo = (shiftTypes as any[]).some((t: any) => (t.sigla === data.tipo_plantao || t.nome === data.tipo_plantao) && !t.ativo);
+      if (tipoExisteInativo && !tipoOk) {
+        throw new Error(`Tipo de plantão "${data.tipo_plantao}" está inativo.`);
+      }
+    }
+
+    // 2. Setor/Unidade válidos
+    const setor = (sectors as any[]).find((s: any) => s.id === data.setor_id);
+    if (!setor) throw new Error('Setor selecionado é inválido.');
+    if (setor.unidade_id && setor.unidade_id !== data.unidade_id) {
+      throw new Error('Setor não pertence à unidade selecionada.');
+    }
+
+    // Janela de semana (segunda a domingo) para limite semanal
+    const ref = new Date(data.data + 'T00:00:00');
+    const dow = ref.getDay(); // 0=dom
+    const diffToMon = (dow + 6) % 7;
+    const semanaIni = new Date(ref); semanaIni.setDate(ref.getDate() - diffToMon);
+    const semanaFim = new Date(semanaIni); semanaFim.setDate(semanaIni.getDate() + 6);
+    const semanaIniStr = semanaIni.toISOString().split('T')[0];
+    const semanaFimStr = semanaFim.toISOString().split('T')[0];
+
+    for (const pid of data.profissional_ids) {
+      const prof = (professionals as any[]).find((p: any) => p.id === pid);
+      const nome = prof?.nome || 'Profissional';
+
+      // 3. Profissional ativo
+      if (!prof || prof.status !== 'ativo') {
+        throw new Error(`${nome}: profissional inativo.`);
+      }
+
+      // 4. Conflito de horário (RPC)
+      const { data: conflicts, error: cErr } = await supabase.rpc('check_shift_conflict', {
+        p_profissional_id: pid,
+        p_data: data.data,
+        p_hora_inicio: data.hora_inicio,
+        p_hora_fim: data.hora_fim,
+        p_exclude_id: editingId,
+      });
+      if (cErr) throw new Error(`Falha ao revalidar conflito de ${nome}: ${cErr.message}`);
+      if (conflicts && conflicts.length > 0) {
+        const c: any = conflicts[0];
+        throw new Error(`${nome}: já possui plantão ${c.conflicting_start}–${c.conflicting_end} neste dia.`);
+      }
+
+      // 5. Descanso mínimo (RPC)
+      const { data: restData, error: rErr } = await supabase.rpc('check_descanso_minimo', {
+        p_profissional_id: pid,
+        p_data: data.data,
+        p_hora_inicio: data.hora_inicio,
+        p_hora_fim: data.hora_fim,
+        p_descanso_horas: descansoMinimo,
+        p_exclude_id: editingId,
+      });
+      if (rErr) throw new Error(`Falha ao revalidar descanso de ${nome}: ${rErr.message}`);
+      if (restData && restData.length > 0) {
+        const gap = Number((restData[0] as any).gap_horas).toFixed(1);
+        throw new Error(`${nome}: descanso de ${gap}h entre plantões (mínimo: ${descansoMinimo}h).`);
+      }
+
+      // 6. Limite de horas/dia
+      let q = supabase.from('shifts')
+        .select('carga_horaria')
+        .eq('profissional_id', pid)
+        .eq('data', data.data)
+        .neq('status', 'cancelado');
+      if (editingId) q = q.neq('id', editingId);
+      const { data: doDia } = await q;
+      const horasDia = (doDia || []).reduce((s: number, r: any) => s + Number(r.carga_horaria || 0), 0) + novaCarga;
+      if (horasDia > limiteDia) {
+        throw new Error(`${nome}: excede limite diário (${horasDia.toFixed(1)}h > ${limiteDia}h).`);
+      }
+
+      // 7. Limite de horas/semana
+      let qw = supabase.from('shifts')
+        .select('carga_horaria')
+        .eq('profissional_id', pid)
+        .gte('data', semanaIniStr)
+        .lte('data', semanaFimStr)
+        .neq('status', 'cancelado');
+      if (editingId) qw = qw.neq('id', editingId);
+      const { data: doSem } = await qw;
+      const horasSem = (doSem || []).reduce((s: number, r: any) => s + Number(r.carga_horaria || 0), 0) + novaCarga;
+      if (horasSem > limiteSemana) {
+        throw new Error(`${nome}: excede limite semanal (${horasSem.toFixed(1)}h > ${limiteSemana}h).`);
+      }
+    }
+  };
+
   const saveMutation = useMutation({
     mutationFn: async (data: typeof form) => {
       if (!data.profissional_ids.length) throw new Error('Selecione ao menos um profissional.');
-      if (conflictWarnings.length) throw new Error('Resolva os conflitos antes de salvar.');
-      if (restWarnings.length) throw new Error('Resolva o conflito de descanso mínimo antes de salvar.');
+      // Revalidação server-side final (não confia em conflictWarnings/restWarnings locais)
+      await revalidateServerSide(data);
       const hours = calcHours(data.hora_inicio, data.hora_fim);
       const basePayload = {
         unidade_id: data.unidade_id, setor_id: data.setor_id, profissao: data.profissao as any,
