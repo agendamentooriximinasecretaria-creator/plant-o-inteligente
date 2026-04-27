@@ -96,7 +96,7 @@ function ShiftHistoryView({ shiftId }: { shiftId: string }) {
       {isLoading ? (
         <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
       ) : logs.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-6 text-center">Nenhum evento registrado.</p>
+        <p className="text-sm text-muted-foreground py-6 text-center">Nenhum evento registrado para este plantão.</p>
       ) : (
         <ul className="divide-y divide-border max-h-[55vh] overflow-y-auto">
           {logs.map((l: any) => (

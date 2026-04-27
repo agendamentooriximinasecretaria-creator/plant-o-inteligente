@@ -5,6 +5,9 @@ import { logAudit } from "@/lib/auditLog";
 import { Bell, CheckCircle2, Clock, AlertTriangle, Info, Calendar as CalIcon, ArrowLeftRight, Activity } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
+import { CardListSkeleton } from "@/components/PageSkeleton";
 
 const iconMap: Record<string, { icon: typeof Info; class: string; label: string }> = {
   plantao:    { icon: CalIcon, class: 'bg-info/10 text-info', label: 'Plantão' },
@@ -22,7 +25,7 @@ export default function NotificacoesPage() {
   const qc = useQueryClient();
   const [filter, setFilter] = useState<FilterTipo>('todas');
 
-  const { data: notifications = [], isLoading, refetch } = useQuery({
+  const { data: notifications = [], isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['notifications'],
     queryFn: async () => {
       const { data, error } = await supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(100);
@@ -116,12 +119,20 @@ export default function NotificacoesPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>
+        <CardListSkeleton count={5} />
+      ) : isError ? (
+        <ErrorState
+          title="Não foi possível carregar as notificações"
+          description="Verifique sua conexão e tente novamente."
+          onRetry={() => refetch()}
+          retryLoading={isRefetching}
+        />
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 bg-card border border-border rounded-xl">
-          <Bell className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-50" />
-          <p className="text-muted-foreground">Nenhuma notificação {filter !== 'todas' ? 'neste filtro' : ''}.</p>
-        </div>
+        <EmptyState
+          icon={Bell}
+          title="Nenhuma notificação encontrada"
+          description={filter !== 'todas' ? 'Não há notificações para este filtro.' : 'Você está em dia com todas as notificações.'}
+        />
       ) : (
         <div className="space-y-2">
           {(filtered as any[]).map((n: any, i: number) => {

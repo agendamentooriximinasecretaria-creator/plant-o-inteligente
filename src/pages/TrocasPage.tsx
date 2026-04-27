@@ -19,6 +19,9 @@ import ComprovanteTroca from "@/components/ComprovanteTroca";
 import { printSolicitacaoTroca } from "@/lib/printSolicitacaoTroca";
 import { calcularHorasMes } from "@/lib/horas";
 import { MoreActionsMenu } from "@/components/MoreActionsMenu";
+import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
+import { CardListSkeleton } from "@/components/PageSkeleton";
 
 const statusStyles: Record<SwapStatus, { class: string; icon: typeof Clock; ring: string }> = {
   solicitada: { class: 'bg-info/10 text-info border-info/20', icon: Clock, ring: 'ring-info/30' },
@@ -69,7 +72,7 @@ export default function TrocasPage() {
 
   const [adminForm, setAdminForm] = useState({ profA: '', shiftA: '', profB: '', shiftB: '', motivo: '' });
 
-  const { data: swaps = [], isLoading, refetch: refetchSwaps } = useQuery({
+  const { data: swaps = [], isLoading, isError, refetch: refetchSwaps, isRefetching } = useQuery({
     queryKey: ['swaps'],
     queryFn: async () => {
       const { data, error } = await supabase.from('shift_swaps')
@@ -617,16 +620,22 @@ export default function TrocasPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>
+        <CardListSkeleton count={5} />
+      ) : isError ? (
+        <ErrorState
+          title="Não foi possível carregar as trocas"
+          description="Erro ao consultar as solicitações de troca. Tente novamente."
+          onRetry={() => refetchSwaps()}
+          retryLoading={isRefetching}
+        />
       ) : filteredSwaps.length === 0 ? (
-        <div className="text-center py-16 bg-card border border-border rounded-xl">
-          <ArrowLeftRight className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-50" />
-          <p className="text-muted-foreground">
-            {hasAdvancedFilters
-              ? 'Nenhum resultado encontrado para sua busca.'
-              : `Nenhuma troca ${filterStatus !== 'todas' ? filterStatus : ''} encontrada.`}
-          </p>
-        </div>
+        <EmptyState
+          icon={ArrowLeftRight}
+          title="Nenhuma troca de plantão encontrada"
+          description={hasAdvancedFilters
+            ? 'Nenhum resultado para os filtros aplicados. Ajuste os filtros e tente novamente.'
+            : `Não há trocas ${filterStatus !== 'todas' ? `com status "${filterStatus}"` : 'registradas'} no momento.`}
+        />
       ) : (
         <div className="space-y-3">
           {filteredSwaps.map((swap: any, i: number) => {

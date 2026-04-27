@@ -18,6 +18,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { abrirVisualizacaoImpressao, diaSemanaPt, type PrintLinha, type PrintCabecalho, type PrintOptions } from "@/lib/printEscala";
 import { MoreActionsMenu } from "@/components/MoreActionsMenu";
+import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
+import { CardListSkeleton } from "@/components/PageSkeleton";
 
 type SectorRow = { id: string; nome: string; unidade_id: string; min_profissionais_diurno: number | null; min_profissionais_noturno: number | null; min_profissionais_fds: number | null; units?: { nome?: string } };
 type ShiftToday = { setor_id: string; status: string; tipo_plantao: string };
@@ -50,12 +53,12 @@ export default function SetoresPage() {
   // Modal: profissionais vinculados ao setor
   const [profsModal, setProfsModal] = useState<{ open: boolean; sector?: SectorRow }>({ open: false });
 
-  const { data: units = [], isLoading: loadingUnits } = useQuery({
+  const { data: units = [], isLoading: loadingUnits, isError: errUnits, refetch: refetchUnits, isRefetching: refUnits } = useQuery({
     queryKey: ['units'],
     queryFn: async () => { const { data, error } = await supabase.from('units').select('*').order('nome'); if (error) throw error; return data; },
   });
 
-  const { data: sectors = [], isLoading: loadingSectors } = useQuery({
+  const { data: sectors = [], isLoading: loadingSectors, isError: errSectors, refetch: refetchSectors, isRefetching: refSectors } = useQuery({
     queryKey: ['sectors'],
     queryFn: async () => { const { data, error } = await supabase.from('sectors').select('*, units:unidade_id(nome)').order('nome'); if (error) throw error; return data as SectorRow[]; },
   });
@@ -412,7 +415,21 @@ export default function SetoresPage() {
             />
           </div>
         </div>
-        {loadingUnits || loadingSectors ? <div className="flex justify-center py-8"><div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full" /></div> : (
+        {(errUnits || errSectors) ? (
+          <ErrorState
+            title="Não foi possível carregar unidades e setores"
+            description="Erro ao consultar a estrutura hospitalar. Tente novamente."
+            onRetry={() => { if (errUnits) refetchUnits(); if (errSectors) refetchSectors(); }}
+            retryLoading={refUnits || refSectors}
+          />
+        ) : loadingUnits || loadingSectors ? <CardListSkeleton count={4} /> : unitsFiltered.length === 0 ? (
+          <EmptyState
+            icon={Building2}
+            title={hasFilters ? 'Nenhuma unidade encontrada' : 'Nenhuma unidade cadastrada'}
+            description={hasFilters ? 'Ajuste a busca ou os filtros para localizar unidades.' : 'Comece cadastrando a primeira unidade de saúde.'}
+            action={hasFilters ? { label: 'Limpar filtros', onClick: limparFiltros } : undefined}
+          />
+        ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {unitsFiltered.map((u: any, i: number) => {
               const allUnitSectors = (sectors as SectorRow[]).filter(s => s.unidade_id === u.id);

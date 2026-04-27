@@ -3,10 +3,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
 import { toast } from "sonner";
-import { UserPlus, KeyRound, Shield, Power, Download, Printer } from "lucide-react";
+import { UserPlus, KeyRound, Shield, Power, Download, Printer, Users } from "lucide-react";
 import { ContactActionButton } from "@/components/ContactActionButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MoreActionsMenu } from "@/components/MoreActionsMenu";
+import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
+import { TableRowSkeleton } from "@/components/PageSkeleton";
 
 const roleLabels: Record<string, string> = {
   gestor_master: "Gestor Master",
@@ -26,7 +29,7 @@ export default function UsuariosPage() {
     professional_id: "",
   });
 
-  const { data: users = [], isLoading } = useQuery({
+  const { data: users = [], isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ["users-admin"],
     queryFn: async () => {
       const { data, error } = await sb.from("profiles").select("*").order("created_at", { ascending: false });
@@ -213,6 +216,14 @@ export default function UsuariosPage() {
         </div>
       </div>
 
+      {isError ? (
+        <ErrorState
+          title="Não foi possível carregar os usuários"
+          description="Erro ao consultar a lista de usuários. Tente novamente."
+          onRetry={() => refetch()}
+          retryLoading={isRefetching}
+        />
+      ) : (
       <div className="overflow-hidden rounded-lg border border-border bg-card shadow-[var(--shadow-card)]">
         <table className="w-full text-sm">
           <thead>
@@ -227,12 +238,22 @@ export default function UsuariosPage() {
           </thead>
           <tbody>
             {isLoading ? (
-              <tr>
-                <td colSpan={6} className="p-6 text-center text-muted-foreground">Carregando usuários...</td>
-              </tr>
+              <>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i}><td colSpan={6} className="p-0"><TableRowSkeleton cols={6} /></td></tr>
+                ))}
+              </>
             ) : users.length === 0 ? (
               <tr>
-                <td colSpan={6} className="p-6 text-center text-muted-foreground">Nenhum usuário cadastrado.</td>
+                <td colSpan={6} className="p-0">
+                  <EmptyState
+                    icon={Users}
+                    title="Nenhum usuário cadastrado"
+                    description="Cadastre o primeiro usuário de acesso ao sistema."
+                    action={{ label: "Novo usuário", onClick: () => setOpen(true) }}
+                    className="border-0 rounded-none"
+                  />
+                </td>
               </tr>
             ) : (
               users.map((u: any) => (
@@ -295,6 +316,7 @@ export default function UsuariosPage() {
           </tbody>
         </table>
       </div>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
