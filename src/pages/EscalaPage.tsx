@@ -1177,6 +1177,36 @@ export default function EscalaPage() {
     setModalOpen(true);
   };
 
+  // Filtro inicial vindo de outras telas (ex.: SetoresPage → "Ver escala do setor/unidade")
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('escala:filtroInicial');
+      if (!raw) return;
+      sessionStorage.removeItem('escala:filtroInicial');
+      const f = JSON.parse(raw) as { unidadeId?: string; setorId?: string };
+      if (f && (f.unidadeId || f.setorId)) {
+        setFiltros(prev => ({ ...prev, unidadeId: f.unidadeId || '', setorId: f.setorId || '' }));
+      }
+    } catch { /* noop */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Recebe instruções vindas de outras telas (ex.: SetoresPage → "Criar plantão para setor")
+  // Estrutura no sessionStorage: { unidadeId, setorId, data?, tipo? }
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('escala:prefillNovoPlantao');
+      if (!raw) return;
+      sessionStorage.removeItem('escala:prefillNovoPlantao');
+      const p = JSON.parse(raw) as { unidadeId?: string; setorId?: string; data?: string; tipo?: string };
+      if (p?.unidadeId) setFiltros(f => ({ ...f, unidadeId: p.unidadeId!, setorId: p.setorId || '' }));
+      const data = p?.data || new Date().toISOString().slice(0, 10);
+      // Aguarda um tick para garantir que filtros sejam aplicados
+      setTimeout(() => openCreateForCell(data, p?.setorId, p?.unidadeId, p?.tipo), 50);
+    } catch { /* noop */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Abre o menu de ações da célula vazia (com data + setor/unidade do filtro)
   const openEmptyCellMenu = (date: string, sectorId?: string, unidadeId?: string) => {
     setEmptyCell({
