@@ -206,7 +206,7 @@ export function abrirVisualizacaoImpressao(
   return true;
 }
 
-export function gerarPdfEscala(
+export async function gerarPdfEscala(
   cab: PrintCabecalho,
   linhas: PrintLinha[],
   opts: PrintOptions,
@@ -216,11 +216,27 @@ export function gerarPdfEscala(
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
 
+  // Logo redonda no canto superior esquerdo
+  const logo = await getLogoSmsDataUrl();
+  const logoSize = 18; // mm
+  const headerLeft = logo ? 14 + logoSize + 4 : 14;
+  if (logo) {
+    try {
+      // Desenha círculo branco de fundo + clip visual via borda
+      doc.setFillColor(255, 255, 255);
+      doc.circle(14 + logoSize / 2, 14 + logoSize / 2 - 4, logoSize / 2 + 0.5, "F");
+      doc.addImage(logo, "JPEG", 14, 14 - 4, logoSize, logoSize);
+      doc.setDrawColor(14, 116, 144);
+      doc.setLineWidth(0.4);
+      doc.circle(14 + logoSize / 2, 14 + logoSize / 2 - 4, logoSize / 2, "S");
+    } catch { /* ignora se a imagem falhar */ }
+  }
+
   // Cabeçalho
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
   doc.setTextColor(14, 116, 144);
-  doc.text(cab.instituicao.nome || "Instituição", 14, 14);
+  doc.text(cab.instituicao.nome || "Instituição", headerLeft, 14);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
