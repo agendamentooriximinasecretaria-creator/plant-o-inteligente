@@ -148,6 +148,7 @@ export default function EscalaPage() {
   const [workloadAlerts, setWorkloadAlerts] = useState<string[]>([]);
   const [horasPorProfissional, setHorasPorProfissional] = useState<Record<string, number>>({});
   const [detailShift, setDetailShift] = useState<any>(null);
+  const keepOpenAfterSaveRef = useRef(false);
   // Menu de ações na célula vazia (data + setor opcional)
   const [emptyCell, setEmptyCell] = useState<{ data: string; setorId?: string; unidadeId?: string } | null>(null);
   // Sub-modais a partir do menu de célula
