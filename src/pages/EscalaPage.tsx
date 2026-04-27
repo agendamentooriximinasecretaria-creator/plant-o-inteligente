@@ -1134,7 +1134,21 @@ export default function EscalaPage() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-60">
               <DropdownMenuLabel>Documentos</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => setPrintOpen(true)}><Printer className="h-4 w-4 mr-2" /> Imprimir Escala</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                // Pré-popula o modal com os filtros ativos da Escala
+                setPrintForm(pf => ({
+                  ...pf,
+                  unidadeId: filtros.unidadeId, setorId: filtros.setorId,
+                  profissionalId: filtros.profissionalId, profissao: filtros.profissao,
+                  tipoPlantao: filtros.tipoPlantao, status: filtros.status,
+                  somentePublicada: filtros.soPublicados,
+                  incluirFolgas: filtros.soFolgas ? true : pf.incluirFolgas,
+                  ...(filtros.dataIni && filtros.dataFim
+                    ? { periodo: 'personalizado' as const, dataIni: filtros.dataIni, dataFim: filtros.dataFim }
+                    : {}),
+                }));
+                setPrintOpen(true);
+              }}><Printer className="h-4 w-4 mr-2" /> Imprimir Escala</DropdownMenuItem>
               <DropdownMenuItem onClick={handleExportPDF}><FileText className="h-4 w-4 mr-2" /> Exportar PDF</DropdownMenuItem>
               <DropdownMenuItem onClick={handleExportExcel}><FileSpreadsheet className="h-4 w-4 mr-2" /> Exportar Excel</DropdownMenuItem>
               {canManage && (
