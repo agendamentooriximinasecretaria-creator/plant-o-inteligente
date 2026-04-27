@@ -63,6 +63,13 @@ export default function UsuariosPage() {
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      // NEVER log password
+      await logAudit('Usuário criado', 'usuarios', {
+        email: form.email,
+        nome: form.nome,
+        role: form.role,
+        professional_id: form.role === "profissional" ? form.professional_id : null,
+      });
     },
     onSuccess: () => {
       toast.success("Usuário criado com sucesso.");
@@ -85,6 +92,9 @@ export default function UsuariosPage() {
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      const target = users.find((u: any) => u.user_id === userId || u.id === userId);
+      // NEVER log the new password — just track who reset whose
+      await logAudit('Senha redefinida', 'usuarios', { user_id: userId, alvo_email: target?.email, alvo_nome: target?.nome });
     },
     onSuccess: () => toast.success("Senha redefinida com sucesso."),
     onError: (error: any) => toast.error(error.message ?? "Erro ao redefinir senha."),
@@ -98,6 +108,10 @@ export default function UsuariosPage() {
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      const target = users.find((u: any) => u.user_id === userId || u.id === userId);
+      await logAudit(active ? 'Usuário ativado' : 'Usuário inativado', 'usuarios', {
+        user_id: userId, alvo_email: target?.email, alvo_nome: target?.nome, novo_status: active ? 'ativo' : 'inativo',
+      });
     },
     onSuccess: () => {
       toast.success("Status do usuário atualizado.");
