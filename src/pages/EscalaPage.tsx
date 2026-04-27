@@ -1688,7 +1688,8 @@ export default function EscalaPage() {
                           profissional={{ nome: (s.professionals as any)?.nome || '', telefone: (professionals as any[]).find((p: any) => p.id === s.profissional_id)?.telefone }}
                           contexto={{ tipo: 'plantao', data: new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR'), horario: `${s.hora_inicio} às ${s.hora_fim}`, setor: (s.sectors as any)?.nome, unidade: (s.units as any)?.nome }}
                         />
-                        <button onClick={() => openEdit(s)} className="p-1 rounded hover:bg-muted"><Edit className="h-4 w-4 text-muted-foreground" /></button>
+                        <button onClick={() => openEdit(s)} title="Editar plantão" className="p-1 rounded hover:bg-muted"><Edit className="h-4 w-4 text-muted-foreground" /></button>
+                        <button onClick={() => printShiftReceipt(s)} title="Imprimir comprovante" className="p-1 rounded hover:bg-muted"><Printer className="h-4 w-4 text-muted-foreground" /></button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild><button className="p-1 rounded hover:bg-destructive/10" disabled={deleteMutation.isPending}><Trash2 className="h-4 w-4 text-destructive" /></button></AlertDialogTrigger>
                           <AlertDialogContent>
