@@ -99,8 +99,6 @@ function ShiftHistoryView({ shiftId }: { shiftId: string }) {
         <p className="text-sm text-muted-foreground py-6 text-center">Nenhum evento registrado para este plantão.</p>
       ) : (
         <ul className="divide-y divide-border max-h-[55vh] overflow-y-auto">
-      ) : (
-        <ul className="divide-y divide-border max-h-[55vh] overflow-y-auto">
           {logs.map((l: any) => (
             <li key={l.id} className="py-2">
               <p className="text-sm font-medium text-foreground">{l.acao}</p>
