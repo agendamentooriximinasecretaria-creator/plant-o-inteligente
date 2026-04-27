@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { invalidateCrossSwaps } from "@/lib/queryInvalidation";
@@ -7,12 +7,17 @@ import { dispatchNotification } from "@/lib/notifyHelper";
 import { useAuth } from "@/hooks/useAuth";
 import { SWAP_STATUS_LABELS } from "@/types/hospital";
 import type { SwapStatus } from "@/types/hospital";
-import { ArrowLeftRight, Clock, CheckCircle2, XCircle, AlertCircle, Plus, Zap, FileText, Eye, Filter, ChevronDown, Calendar as CalIcon } from "lucide-react";
+import {
+  ArrowLeftRight, Clock, CheckCircle2, XCircle, AlertCircle, Plus, Zap, FileText, Filter,
+  ChevronDown, Calendar as CalIcon, Search, X, Printer, Download, BellRing, Activity, History,
+} from "lucide-react";
 import { ContactActionButton } from "@/components/ContactActionButton";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import ComprovanteTroca from "@/components/ComprovanteTroca";
+import { printSolicitacaoTroca } from "@/lib/printSolicitacaoTroca";
+import { calcularHorasMes } from "@/lib/horas";
 
 const statusStyles: Record<SwapStatus, { class: string; icon: typeof Clock; ring: string }> = {
   solicitada: { class: 'bg-info/10 text-info border-info/20', icon: Clock, ring: 'ring-info/30' },
@@ -28,6 +33,14 @@ const statusStyles: Record<SwapStatus, { class: string; icon: typeof Clock; ring
 
 type FilterStatus = 'todas' | 'pendentes' | 'aprovadas' | 'recusadas';
 
+const norm = (s: any) => (s ?? '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+function useDebounced<T>(value: T, delay = 300): T {
+  const [v, setV] = useState(value);
+  useEffect(() => { const t = setTimeout(() => setV(value), delay); return () => clearTimeout(t); }, [value, delay]);
+  return v;
+}
+
 export default function TrocasPage() {
   const qc = useQueryClient();
   const { isMaster } = useAuth();
@@ -38,6 +51,20 @@ export default function TrocasPage() {
   const [reviewMotivo, setReviewMotivo] = useState('');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('todas');
   const [expandedHistory, setExpandedHistory] = useState<Record<string, boolean>>({});
+  const [impactSwap, setImpactSwap] = useState<any | null>(null);
+  const [notifyingId, setNotifyingId] = useState<string | null>(null);
+
+  // Filtros avançados
+  const [searchInput, setSearchInput] = useState('');
+  const search = useDebounced(searchInput, 300);
+  const [fUnidade, setFUnidade] = useState<string>('');
+  const [fSetor, setFSetor] = useState<string>('');
+  const [fSolicitante, setFSolicitante] = useState<string>('');
+  const [fSubstituto, setFSubstituto] = useState<string>('');
+  const [fTipo, setFTipo] = useState<string>(''); // tipo_plantao do shift
+  const [fDataIni, setFDataIni] = useState<string>('');
+  const [fDataFim, setFDataFim] = useState<string>('');
+  const [showFilters, setShowFilters] = useState(false);
 
   const [adminForm, setAdminForm] = useState({ profA: '', shiftA: '', profB: '', shiftB: '', motivo: '' });
 
@@ -45,7 +72,7 @@ export default function TrocasPage() {
     queryKey: ['swaps'],
     queryFn: async () => {
       const { data, error } = await supabase.from('shift_swaps')
-        .select('*, solicitante:solicitante_id(nome), destinatario:destinatario_id(nome), shifts:shift_id(data, hora_inicio, hora_fim, sectors:setor_id(nome)), shift_destino:shift_id_destino(data, hora_inicio, hora_fim, sectors:setor_id(nome))')
+        .select('*, solicitante:solicitante_id(nome), destinatario:destinatario_id(nome), shifts:shift_id(data, hora_inicio, hora_fim, tipo_plantao, setor_id, unidade_id, sectors:setor_id(nome), units:unidade_id(nome)), shift_destino:shift_id_destino(data, hora_inicio, hora_fim, tipo_plantao, sectors:setor_id(nome), units:unidade_id(nome))')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
@@ -73,9 +100,24 @@ export default function TrocasPage() {
 
   const { data: professionals = [] } = useQuery({
     queryKey: ['swap-professionals'],
-    enabled: isMaster,
     queryFn: async () => {
       const { data } = await supabase.from('professionals_safe').select('id, nome, telefone').eq('status', 'ativo').order('nome');
+      return data || [];
+    },
+  });
+
+  const { data: units = [] } = useQuery({
+    queryKey: ['swap-units'],
+    queryFn: async () => {
+      const { data } = await supabase.from('units').select('id, nome').order('nome');
+      return data || [];
+    },
+  });
+
+  const { data: sectors = [] } = useQuery({
+    queryKey: ['swap-sectors'],
+    queryFn: async () => {
+      const { data } = await supabase.from('sectors').select('id, nome, unidade_id').order('nome');
       return data || [];
     },
   });
@@ -90,6 +132,21 @@ export default function TrocasPage() {
         .gte('data', today)
         .neq('status', 'cancelado')
         .order('data');
+      return data || [];
+    },
+  });
+
+  // Snapshot de horas mensais por profissional para análise de impacto
+  const { data: monthShifts = [] } = useQuery({
+    queryKey: ['swap-month-shifts'],
+    queryFn: async () => {
+      const ini = new Date(); ini.setDate(1);
+      const fim = new Date(ini); fim.setMonth(fim.getMonth() + 1); fim.setDate(0);
+      const iniStr = ini.toISOString().slice(0, 10);
+      const fimStr = fim.toISOString().slice(0, 10);
+      const { data } = await supabase.from('shifts')
+        .select('id, profissional_id, setor_id, data, carga_horaria, status, tipo_plantao, faltou, hora_inicio, hora_fim')
+        .gte('data', iniStr).lte('data', fimStr);
       return data || [];
     },
   });
@@ -119,17 +176,12 @@ export default function TrocasPage() {
 
     const { data: { user } } = await supabase.auth.getUser();
     await supabase.from('swap_history').insert({
-      swap_id: trocaId,
-      acao: 'Troca efetivada na escala',
-      usuario: user?.email || 'Sistema',
-      user_id: user?.id,
+      swap_id: trocaId, acao: 'Troca efetivada na escala',
+      usuario: user?.email || 'Sistema', user_id: user?.id,
     });
     await logAudit('Troca efetivada na escala', 'trocas', {
-      swap_id: trocaId,
-      shift_id: troca.shift_id,
-      shift_id_destino: troca.shift_id_destino,
-      solicitante_id: troca.solicitante_id,
-      destinatario_id: troca.destinatario_id,
+      swap_id: trocaId, shift_id: troca.shift_id, shift_id_destino: troca.shift_id_destino,
+      solicitante_id: troca.solicitante_id, destinatario_id: troca.destinatario_id,
     });
   };
 
@@ -153,22 +205,13 @@ export default function TrocasPage() {
       await supabase.from('swap_history').insert({
         swap_id: id,
         acao: status === 'aprovada' ? 'Aprovada pelo gestor' : status === 'rejeitada' ? 'Rejeitada pelo gestor' : `Status alterado para ${status}`,
-        usuario: user?.email || 'Gestor',
-        user_id: user?.id,
-        detalhes: motivo || null,
+        usuario: user?.email || 'Gestor', user_id: user?.id, detalhes: motivo || null,
       });
       const swapCtx = swaps.find((s: any) => s.id === id);
       await logAudit(
         status === 'aprovada' ? 'Troca aprovada pelo gestor' : status === 'rejeitada' ? 'Troca recusada pelo gestor' : `Troca status alterado: ${status}`,
         'trocas',
-        {
-          swap_id: id,
-          novo_status: status,
-          motivo,
-          shift_id: swapCtx?.shift_id,
-          solicitante_id: swapCtx?.solicitante_id,
-          destinatario_id: swapCtx?.destinatario_id,
-        },
+        { swap_id: id, novo_status: status, motivo, shift_id: swapCtx?.shift_id, solicitante_id: swapCtx?.solicitante_id, destinatario_id: swapCtx?.destinatario_id },
       );
       const swap = swaps.find((s: any) => s.id === id);
       if (swap) {
@@ -183,9 +226,7 @@ export default function TrocasPage() {
     onSuccess: () => {
       invalidateCrossSwaps(qc);
       toast.success('Troca processada e escala atualizada!');
-      setReviewSwap(null);
-      setReviewAction(null);
-      setReviewMotivo('');
+      setReviewSwap(null); setReviewAction(null); setReviewMotivo('');
     },
     onError: (e: Error) => toast.error('Erro: ' + e.message),
   });
@@ -256,18 +297,67 @@ export default function TrocasPage() {
   const formatShiftLabel = (s: any) =>
     `${new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR')} • ${s.hora_inicio?.slice(0,5)}-${s.hora_fim?.slice(0,5)} • ${(s.sectors as any)?.nome || ''}`;
 
+  const tiposPlantao = useMemo(() => {
+    const set = new Set<string>();
+    swaps.forEach((s: any) => {
+      const t = (s.shifts as any)?.tipo_plantao;
+      if (t) set.add(t);
+    });
+    return Array.from(set).sort();
+  }, [swaps]);
+
   const filteredSwaps = useMemo(() => {
-    if (filterStatus === 'todas') return swaps;
-    if (filterStatus === 'pendentes') return swaps.filter((s: any) => pendingStatuses.includes(s.status));
-    if (filterStatus === 'aprovadas') return swaps.filter((s: any) => ['aprovada', 'concluida'].includes(s.status));
-    if (filterStatus === 'recusadas') return swaps.filter((s: any) => ['recusada', 'rejeitada'].includes(s.status));
-    return swaps;
-  }, [swaps, filterStatus]);
+    let list = swaps as any[];
+
+    // Status (KPI quick filter)
+    if (filterStatus === 'pendentes') list = list.filter(s => pendingStatuses.includes(s.status));
+    else if (filterStatus === 'aprovadas') list = list.filter(s => ['aprovada', 'concluida'].includes(s.status));
+    else if (filterStatus === 'recusadas') list = list.filter(s => ['recusada', 'rejeitada'].includes(s.status));
+
+    if (fSolicitante) list = list.filter(s => s.solicitante_id === fSolicitante);
+    if (fSubstituto) list = list.filter(s => s.destinatario_id === fSubstituto);
+    if (fUnidade) list = list.filter(s => (s.shifts as any)?.unidade_id === fUnidade);
+    if (fSetor) list = list.filter(s => (s.shifts as any)?.setor_id === fSetor);
+    if (fTipo) list = list.filter(s => (s.shifts as any)?.tipo_plantao === fTipo);
+    if (fDataIni) list = list.filter(s => ((s.shifts as any)?.data || '') >= fDataIni);
+    if (fDataFim) list = list.filter(s => ((s.shifts as any)?.data || '') <= fDataFim);
+
+    if (search.trim()) {
+      const q = norm(search);
+      list = list.filter(s => {
+        const haystack = [
+          (s.solicitante as any)?.nome,
+          (s.destinatario as any)?.nome,
+          (s.shifts as any)?.units?.nome,
+          (s.shifts as any)?.sectors?.nome,
+          (s.shifts as any)?.data,
+          SWAP_STATUS_LABELS[s.status as SwapStatus] || s.status,
+          s.status,
+          s.motivo,
+          s.observacao_gestor,
+          s.observacao_rejeicao,
+        ].map(norm).join(' ');
+        return haystack.includes(q);
+      });
+    }
+    return list;
+  }, [swaps, filterStatus, fSolicitante, fSubstituto, fUnidade, fSetor, fTipo, fDataIni, fDataFim, search]);
+
+  const sectorsForUnidade = useMemo(
+    () => fUnidade ? sectors.filter((x: any) => x.unidade_id === fUnidade) : sectors,
+    [sectors, fUnidade],
+  );
+
+  const hasAdvancedFilters = !!(search || fUnidade || fSetor || fSolicitante || fSubstituto || fTipo || fDataIni || fDataFim);
+
+  const limparFiltros = () => {
+    setSearchInput(''); setFUnidade(''); setFSetor(''); setFSolicitante('');
+    setFSubstituto(''); setFTipo(''); setFDataIni(''); setFDataFim('');
+    setFilterStatus('todas');
+  };
 
   const openReview = (swap: any, action: 'aprovar' | 'rejeitar') => {
-    setReviewSwap(swap);
-    setReviewAction(action);
-    setReviewMotivo('');
+    setReviewSwap(swap); setReviewAction(action); setReviewMotivo('');
   };
 
   const submitReview = () => {
@@ -279,6 +369,146 @@ export default function TrocasPage() {
     });
   };
 
+  const handlePrintSolicitacao = useCallback(async (swap: any) => {
+    const history = swapHistories.filter((h: any) => h.swap_id === swap.id) as any[];
+    const { data: { user } } = await supabase.auth.getUser();
+    const responsavel = history.find((h: any) =>
+      /aprovad|rejeitad|recusad|efetivad/i.test(h.acao || '')
+    )?.usuario || null;
+
+    printSolicitacaoTroca({
+      swapId: swap.id,
+      solicitanteNome: (swap.solicitante as any)?.nome || '—',
+      substitutoNome: (swap.destinatario as any)?.nome || 'Cobertura aberta',
+      unidade: (swap.shifts as any)?.units?.nome || '—',
+      setor: (swap.shifts as any)?.sectors?.nome || '—',
+      data: (swap.shifts as any)?.data || '',
+      horaInicio: (swap.shifts as any)?.hora_inicio || '',
+      horaFim: (swap.shifts as any)?.hora_fim || '',
+      motivo: swap.motivo || '',
+      status: SWAP_STATUS_LABELS[swap.status as SwapStatus] || swap.status,
+      criadoEm: swap.created_at,
+      responsavel,
+      historico: history.map(h => ({ acao: h.acao, usuario: h.usuario, detalhes: h.detalhes, created_at: h.created_at })),
+      emitidoPor: user?.email || undefined,
+    });
+    await logAudit('Solicitação de troca impressa', 'trocas', { swap_id: swap.id });
+  }, [swapHistories]);
+
+  const exportCSV = () => {
+    if (!filteredSwaps.length) { toast.info('Nada para exportar.'); return; }
+    const header = ['ID','Status','Tipo','Solicitante','Substituto','Unidade','Setor','Data','Hora Início','Hora Fim','Tipo Plantão','Motivo','Criado em','Aprovado em','Rejeitado em'];
+    const rows = filteredSwaps.map((s: any) => [
+      s.id, SWAP_STATUS_LABELS[s.status as SwapStatus] || s.status, s.tipo,
+      (s.solicitante as any)?.nome || '', (s.destinatario as any)?.nome || '',
+      (s.shifts as any)?.units?.nome || '', (s.shifts as any)?.sectors?.nome || '',
+      (s.shifts as any)?.data || '', (s.shifts as any)?.hora_inicio || '', (s.shifts as any)?.hora_fim || '',
+      (s.shifts as any)?.tipo_plantao || '',
+      (s.motivo || '').replace(/[\r\n]+/g, ' '),
+      s.created_at || '', s.aprovado_em || '', s.rejeitado_em || '',
+    ]);
+    const csv = [header, ...rows]
+      .map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';'))
+      .join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `trocas_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+    logAudit('Exportação de trocas (CSV)', 'trocas', { total: filteredSwaps.length });
+  };
+
+  const handleNotificar = async (swap: any) => {
+    if (notifyingId) return;
+    setNotifyingId(swap.id);
+    try {
+      const data = (swap.shifts as any)?.data ? new Date((swap.shifts as any).data + 'T12:00:00').toLocaleDateString('pt-BR') : '';
+      const titulo = '🔔 Lembrete: solicitação de troca';
+      const msg = `Sua solicitação de troca${data ? ` (${data})` : ''} está com status ${SWAP_STATUS_LABELS[swap.status as SwapStatus] || swap.status}.`;
+      await dispatchNotification({ professionalId: swap.solicitante_id, tipo: 'troca', titulo, mensagem: msg });
+      if (swap.destinatario_id) {
+        await dispatchNotification({ professionalId: swap.destinatario_id, tipo: 'troca', titulo, mensagem: msg });
+      }
+      await logAudit('Notificação manual de troca', 'trocas', { swap_id: swap.id });
+      toast.success('Notificação enviada.');
+    } catch (e: any) {
+      toast.error('Falha ao notificar: ' + (e?.message || 'erro'));
+    } finally {
+      setNotifyingId(null);
+    }
+  };
+
+  // ============== Análise de Impacto ==============
+  const impactoData = useMemo(() => {
+    if (!impactSwap) return null;
+    const sh = (impactSwap.shifts as any);
+    if (!sh) return null;
+    const carga = Number(sh.carga_horaria || 0) ||
+      // fallback: calcula pela diferença de horas (HH:MM)
+      (() => {
+        const [h1, m1] = (sh.hora_inicio || '0:0').split(':').map(Number);
+        const [h2, m2] = (sh.hora_fim || '0:0').split(':').map(Number);
+        let mins = (h2 * 60 + m2) - (h1 * 60 + m1);
+        if (mins <= 0) mins += 24 * 60;
+        return mins / 60;
+      })();
+
+    const solId = impactSwap.solicitante_id;
+    const subId = impactSwap.destinatario_id;
+    const monthPrefix = (sh.data || '').slice(0, 7) || new Date().toISOString().slice(0, 7);
+
+    const horasSolAtual = calcularHorasMes(monthShifts as any, solId, monthPrefix);
+    const horasSubAtual = subId ? calcularHorasMes(monthShifts as any, subId, monthPrefix) : 0;
+    const horasSolDepois = Math.max(0, horasSolAtual - carga);
+    const horasSubDepois = subId ? horasSubAtual + carga : horasSubAtual;
+
+    // Conflitos: substituto já tem plantão sobreposto na mesma data?
+    const subShiftsDia = subId
+      ? (monthShifts as any[]).filter(s => s.profissional_id === subId && s.data === sh.data && s.status !== 'cancelado')
+      : [];
+    const conflitos = subShiftsDia.filter(s => {
+      const a1 = (s.hora_inicio || '00:00').slice(0,5);
+      const a2 = (s.hora_fim || '00:00').slice(0,5);
+      const b1 = (sh.hora_inicio || '').slice(0,5);
+      const b2 = (sh.hora_fim || '').slice(0,5);
+      return a1 < b2 && b1 < a2;
+    });
+
+    // Descanso mínimo (~11h) — verifica vizinhos do mesmo dia ±1
+    const targetIni = new Date(sh.data + 'T' + (sh.hora_inicio || '00:00')).getTime();
+    const targetFim = new Date(sh.data + 'T' + (sh.hora_fim || '00:00')).getTime();
+    const subOutros = subId ? (monthShifts as any[]).filter(s =>
+      s.profissional_id === subId && s.id !== sh.id &&
+      Math.abs(new Date(s.data + 'T12:00:00').getTime() - new Date(sh.data + 'T12:00:00').getTime()) <= 36 * 3600 * 1000
+    ) : [];
+    let descansoOk = true;
+    let menorGap = Infinity;
+    subOutros.forEach(s => {
+      const ini = new Date(s.data + 'T' + (s.hora_inicio || '00:00')).getTime();
+      const fim = new Date(s.data + 'T' + (s.hora_fim || '00:00')).getTime();
+      const gap1 = Math.abs(targetIni - fim) / 3600000;
+      const gap2 = Math.abs(ini - targetFim) / 3600000;
+      menorGap = Math.min(menorGap, gap1, gap2);
+      if (gap1 < 11 || gap2 < 11) descansoOk = false;
+    });
+
+    // Cobertura do setor: quantos profissionais distintos no mesmo setor/dia
+    const cobertura = (monthShifts as any[]).filter(
+      s => s.setor_id === sh.setor_id && s.data === sh.data && s.status !== 'cancelado'
+    );
+    const profissionaisCobertura = new Set(cobertura.map(s => s.profissional_id));
+    const setorObj = sectors.find((x: any) => x.id === sh.setor_id) as any;
+    const minDiurno = setorObj?.min_profissionais_diurno || 1;
+    const deixaDescoberto = !subId; // sem substituto definido ⇒ vaga aberta
+
+    return {
+      carga, horasSolAtual, horasSubAtual, horasSolDepois, horasSubDepois,
+      conflitos, descansoOk, menorGap: isFinite(menorGap) ? menorGap : null,
+      coberturaAtual: profissionaisCobertura.size, minimoCobertura: minDiurno,
+      deixaDescoberto, setorNome: setorObj?.nome || sh.sectors?.nome || '—',
+    };
+  }, [impactSwap, monthShifts, sectors]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -286,11 +516,17 @@ export default function TrocasPage() {
           <h1 className="module-title">Trocas de Plantão</h1>
           <p className="text-muted-foreground text-sm mt-1">{filteredSwaps.length} de {swaps.length} trocas exibidas</p>
         </div>
-        {isMaster && (
-          <button onClick={() => setAdminModalOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity">
-            <Plus className="h-4 w-4" /> Nova Troca Administrativa
+        <div className="flex flex-wrap items-center gap-2">
+          <button onClick={exportCSV}
+            className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted transition-colors">
+            <Download className="h-4 w-4" /> Exportar
           </button>
-        )}
+          {isMaster && (
+            <button onClick={() => setAdminModalOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity">
+              <Plus className="h-4 w-4" /> Nova Troca Administrativa
+            </button>
+          )}
+        </div>
       </div>
 
       {/* KPI grid */}
@@ -312,12 +548,81 @@ export default function TrocasPage() {
         ))}
       </div>
 
+      {/* Search + filters */}
+      <div className="bg-card rounded-xl border border-border p-3 sm:p-4 space-y-3">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+              placeholder="Buscar por solicitante, substituto, unidade, setor, data, status, motivo…"
+              className="w-full bg-muted border border-border rounded-lg pl-9 pr-9 py-2 text-sm outline-none focus:ring-2 focus:ring-ring transition-all"
+            />
+            {searchInput && (
+              <button onClick={() => setSearchInput('')} aria-label="Limpar busca"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-background text-muted-foreground">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          <button onClick={() => setShowFilters(v => !v)}
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted transition-colors">
+            <Filter className="h-4 w-4" />
+            Filtros{hasAdvancedFilters ? ' •' : ''}
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+          </button>
+          {hasAdvancedFilters && (
+            <button onClick={limparFiltros}
+              className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted">
+              <X className="h-4 w-4" /> Limpar
+            </button>
+          )}
+        </div>
+
+        <AnimatePresence>
+          {showFilters && (
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-2">
+                <select value={fUnidade} onChange={e => { setFUnidade(e.target.value); setFSetor(''); }} className={inputClass}>
+                  <option value="">Todas as unidades</option>
+                  {units.map((u: any) => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                </select>
+                <select value={fSetor} onChange={e => setFSetor(e.target.value)} className={inputClass}>
+                  <option value="">Todos os setores</option>
+                  {sectorsForUnidade.map((s: any) => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                </select>
+                <select value={fSolicitante} onChange={e => setFSolicitante(e.target.value)} className={inputClass}>
+                  <option value="">Solicitante (todos)</option>
+                  {professionals.map((p: any) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                </select>
+                <select value={fSubstituto} onChange={e => setFSubstituto(e.target.value)} className={inputClass}>
+                  <option value="">Substituto (todos)</option>
+                  {professionals.map((p: any) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                </select>
+                <select value={fTipo} onChange={e => setFTipo(e.target.value)} className={inputClass}>
+                  <option value="">Tipo de plantão (todos)</option>
+                  {tiposPlantao.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <input type="date" value={fDataIni} onChange={e => setFDataIni(e.target.value)} className={inputClass} placeholder="Data início" />
+                <input type="date" value={fDataFim} onChange={e => setFDataFim(e.target.value)} className={inputClass} placeholder="Data fim" />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
       {isLoading ? (
         <div className="flex justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>
       ) : filteredSwaps.length === 0 ? (
         <div className="text-center py-16 bg-card border border-border rounded-xl">
           <ArrowLeftRight className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-50" />
-          <p className="text-muted-foreground">Nenhuma troca {filterStatus !== 'todas' ? filterStatus : ''} encontrada.</p>
+          <p className="text-muted-foreground">
+            {hasAdvancedFilters
+              ? 'Nenhum resultado encontrado para sua busca.'
+              : `Nenhuma troca ${filterStatus !== 'todas' ? filterStatus : ''} encontrada.`}
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -353,7 +658,6 @@ export default function TrocasPage() {
                       </div>
                       <p className="text-sm text-muted-foreground mt-1.5">{swap.motivo}</p>
 
-                      {/* Plantão preview */}
                       {swap.shifts && (
                         <div className="mt-2.5 inline-flex items-center gap-1.5 text-xs bg-muted/50 px-2 py-1 rounded-md border border-border/50">
                           <CalIcon className="h-3 w-3 text-muted-foreground" />
@@ -363,7 +667,9 @@ export default function TrocasPage() {
                           <span className="text-muted-foreground">·</span>
                           <span className="text-muted-foreground font-mono">{(swap.shifts as any).hora_inicio?.slice(0,5)}–{(swap.shifts as any).hora_fim?.slice(0,5)}</span>
                           <span className="text-muted-foreground">·</span>
-                          <span className="text-muted-foreground">{((swap.shifts as any).sectors as any)?.nome || ''}</span>
+                          <span className="text-muted-foreground">{(swap.shifts as any).units?.nome || ''}</span>
+                          <span className="text-muted-foreground">·</span>
+                          <span className="text-muted-foreground">{(swap.shifts as any).sectors?.nome || ''}</span>
                         </div>
                       )}
 
@@ -380,6 +686,27 @@ export default function TrocasPage() {
                     <span className={`status-badge ${style.class} border`}>
                       <Icon className="h-3.5 w-3.5 mr-1" />{SWAP_STATUS_LABELS[swap.status as SwapStatus] || swap.status}
                     </span>
+
+                    <button onClick={() => setImpactSwap(swap)}
+                      className="px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium hover:bg-muted transition-colors inline-flex items-center gap-1"
+                      title="Ver impacto da troca">
+                      <Activity className="h-3 w-3" /> Impacto
+                    </button>
+
+                    <button onClick={() => handlePrintSolicitacao(swap)}
+                      className="px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium hover:bg-muted transition-colors inline-flex items-center gap-1"
+                      title="Imprimir solicitação">
+                      <Printer className="h-3 w-3" /> Imprimir
+                    </button>
+
+                    {isMaster && (
+                      <button onClick={() => handleNotificar(swap)} disabled={notifyingId === swap.id}
+                        className="px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium hover:bg-muted transition-colors inline-flex items-center gap-1 disabled:opacity-50"
+                        title="Notificar profissional">
+                        <BellRing className="h-3 w-3" /> {notifyingId === swap.id ? 'Enviando…' : 'Notificar'}
+                      </button>
+                    )}
+
                     {['aprovada', 'concluida'].includes(swap.status) && (
                       <button onClick={() => setComprovanteId(swap.id)} className="px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors inline-flex items-center gap-1">
                         <FileText className="h-3 w-3" /> Comprovante
@@ -404,8 +731,9 @@ export default function TrocasPage() {
                   <div className="mt-3 pt-3 border-t border-border">
                     <button onClick={() => setExpandedHistory(p => ({ ...p, [swap.id]: !p[swap.id] }))}
                       className="flex items-center gap-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors">
-                      <ChevronDown className={`h-3 w-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                      <History className="h-3 w-3" />
                       Histórico ({history.length})
+                      <ChevronDown className={`h-3 w-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                     </button>
                     <AnimatePresence>
                       {isExpanded && (
@@ -435,7 +763,7 @@ export default function TrocasPage() {
         </div>
       )}
 
-      {/* Review Modal — preview + aprovação/recusa */}
+      {/* Review Modal */}
       <Dialog open={!!reviewSwap} onOpenChange={(o) => { if (!o) { setReviewSwap(null); setReviewAction(null); setReviewMotivo(''); } }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -455,7 +783,6 @@ export default function TrocasPage() {
 
           {reviewSwap && (
             <div className="space-y-4">
-              {/* Preview da troca */}
               <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Preview da Troca</p>
                 <div className="flex items-center gap-2 flex-wrap text-sm">
@@ -493,6 +820,9 @@ export default function TrocasPage() {
                 {reviewAction === 'rejeitar' && reviewMotivo.length > 0 && reviewMotivo.length < 5 && (
                   <p className="text-xs text-destructive mt-1">Mínimo 5 caracteres.</p>
                 )}
+                {reviewAction === 'rejeitar' && reviewMotivo.length === 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">O motivo é obrigatório para recusar.</p>
+                )}
               </div>
 
               <div className="flex justify-end gap-2">
@@ -503,6 +833,75 @@ export default function TrocasPage() {
                   className={`px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50 transition-opacity ${reviewAction === 'aprovar' ? 'bg-success' : 'bg-destructive'} hover:opacity-90`}>
                   {updateSwap.isPending ? 'Processando...' : reviewAction === 'aprovar' ? '✅ Confirmar aprovação' : '❌ Confirmar recusa'}
                 </button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Impact Modal */}
+      <Dialog open={!!impactSwap} onOpenChange={(o) => { if (!o) setImpactSwap(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-primary" /> Análise de Impacto
+            </DialogTitle>
+            <DialogDescription>Visão pré-aprovação do efeito desta troca.</DialogDescription>
+          </DialogHeader>
+          {impactSwap && impactoData && (
+            <div className="space-y-4 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-border p-3">
+                  <p className="text-xs text-muted-foreground">Solicitante</p>
+                  <p className="font-semibold text-foreground truncate">{(impactSwap.solicitante as any)?.nome}</p>
+                  <p className="text-xs mt-2">Atual: <strong>{impactoData.horasSolAtual.toFixed(1)}h</strong></p>
+                  <p className="text-xs">Após troca: <strong className="text-primary">{impactoData.horasSolDepois.toFixed(1)}h</strong></p>
+                </div>
+                <div className="rounded-lg border border-border p-3">
+                  <p className="text-xs text-muted-foreground">Substituto</p>
+                  <p className="font-semibold text-foreground truncate">{(impactSwap.destinatario as any)?.nome || 'Cobertura aberta'}</p>
+                  <p className="text-xs mt-2">Atual: <strong>{impactoData.horasSubAtual.toFixed(1)}h</strong></p>
+                  <p className="text-xs">Após troca: <strong className="text-primary">{impactoData.horasSubDepois.toFixed(1)}h</strong></p>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border p-3 space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Validações</p>
+                <div className="flex items-center justify-between text-xs">
+                  <span>Conflitos de horário (substituto)</span>
+                  <span className={impactoData.conflitos.length > 0 ? 'text-destructive font-semibold' : 'text-success font-semibold'}>
+                    {impactoData.conflitos.length > 0 ? `${impactoData.conflitos.length} conflito(s)` : 'OK'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span>Descanso mínimo (11h)</span>
+                  <span className={impactoData.descansoOk ? 'text-success font-semibold' : 'text-destructive font-semibold'}>
+                    {impactoData.descansoOk ? 'OK' : `Violado${impactoData.menorGap !== null ? ` (${impactoData.menorGap.toFixed(1)}h)` : ''}`}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span>Cobertura {impactoData.setorNome}</span>
+                  <span className={impactoData.coberturaAtual >= impactoData.minimoCobertura ? 'text-success font-semibold' : 'text-warning font-semibold'}>
+                    {impactoData.coberturaAtual}/{impactoData.minimoCobertura} mín.
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span>Setor descoberto após troca?</span>
+                  <span className={impactoData.deixaDescoberto ? 'text-warning font-semibold' : 'text-success font-semibold'}>
+                    {impactoData.deixaDescoberto ? 'SIM (sem substituto)' : 'Não'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setImpactSwap(null)}
+                  className="px-4 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted">Fechar</button>
+                {pendingStatuses.includes(impactSwap.status) && isMaster && (
+                  <button onClick={() => { const s = impactSwap; setImpactSwap(null); openReview(s, 'aprovar'); }}
+                    className="px-4 py-2 rounded-lg bg-success text-success-foreground text-sm font-semibold hover:opacity-90">
+                    Prosseguir para aprovação
+                  </button>
+                )}
               </div>
             </div>
           )}
