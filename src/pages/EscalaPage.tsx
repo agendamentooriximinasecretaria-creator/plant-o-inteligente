@@ -562,6 +562,62 @@ export default function EscalaPage() {
     onError: (e: Error) => toast.error(`Não foi possível excluir: ${e.message}`),
   });
 
+  // ------ Cancelar plantão (sem excluir) ------
+  const cancelMutation = useMutation({
+    mutationFn: async (shift: any) => {
+      const { error } = await supabase.from('shifts')
+        .update({ status: 'cancelado' as any })
+        .eq('id', shift.id);
+      if (error) throw error;
+      await logAudit('Plantão cancelado', 'escala', {
+        id: shift.id, profissional_id: shift.profissional_id, data: shift.data,
+      });
+      await dispatchNotification({
+        professionalId: shift.profissional_id, tipo: 'plantao',
+        titulo: '⚠️ Plantão cancelado',
+        mensagem: `Seu plantão em ${new Date(shift.data + 'T12:00:00').toLocaleDateString('pt-BR')} (${shift.hora_inicio}-${shift.hora_fim}) foi cancelado pela gestão.`,
+      });
+    },
+    onSuccess: () => { toast.success('Plantão cancelado'); invalidateCrossShifts(qc); },
+    onError: (e: Error) => toast.error(`Não foi possível cancelar: ${e.message}`),
+  });
+
+  // ------ Envio de notificação manual ao profissional do plantão ------
+  const notifyMutation = useMutation({
+    mutationFn: async ({ shift, mensagem }: { shift: any; mensagem: string }) => {
+      await dispatchNotification({
+        professionalId: shift.profissional_id, tipo: 'plantao',
+        titulo: '🔔 Aviso sobre plantão',
+        mensagem: `${new Date(shift.data + 'T12:00:00').toLocaleDateString('pt-BR')} ${shift.hora_inicio}-${shift.hora_fim} — ${mensagem}`,
+      });
+      await logAudit('Notificação manual enviada', 'escala', { shift_id: shift.id, mensagem });
+    },
+    onSuccess: () => toast.success('Notificação enviada'),
+    onError: (e: Error) => toast.error(`Falha ao notificar: ${e.message}`),
+  });
+
+  // ------ Solicitar troca a partir de uma célula (gestor cria solicitação aberta) ------
+  const requestSwapMutation = useMutation({
+    mutationFn: async (shift: any) => {
+      const profissionalId = isProfessional ? null : shift.profissional_id;
+      const solicitanteId = isProfessional ? shift.profissional_id : shift.profissional_id;
+      const { error } = await supabase.from('shift_swaps').insert({
+        shift_id: shift.id,
+        solicitante_id: solicitanteId,
+        destinatario_id: null,
+        tipo: 'grupo',
+        motivo: 'Solicitação aberta pela escala',
+        status: 'solicitada' as any,
+      } as any);
+      if (error) throw error;
+      await logAudit('Troca solicitada via escala', 'trocas', { shift_id: shift.id });
+    },
+    onSuccess: () => { toast.success('Solicitação de troca aberta'); invalidateCrossShifts(qc); },
+    onError: (e: Error) => toast.error(`Falha ao solicitar troca: ${e.message}`),
+  });
+
+  const navigate = useNavigate();
+
   // ============================================================
   // Ações secundárias da Escala (Imprimir, Exportar, Copiar, Validar, Publicar, Enviar)
   // ============================================================
