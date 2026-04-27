@@ -254,7 +254,72 @@ export default function ProfissionaisPage() {
   };
 
   const inputClass = "w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
-  const hasFilters = filterProfissao || filterUnidade || filterSetor || filterDisponivel || search;
+  const hasFilters = !!(
+    filterProfissao || filterUnidade || filterSetor || filterStatus || filterDisponivel ||
+    filterDocVencido || filterDocVencendo || filterSobrecarga || filterSemPlantao || search
+  );
+
+  const limparFiltros = () => {
+    setSearchInput(''); setFilterProfissao(''); setFilterUnidade(''); setFilterSetor('');
+    setFilterStatus(''); setFilterDisponivel(false); setFilterDocVencido(false);
+    setFilterDocVencendo(false); setFilterSobrecarga(false); setFilterSemPlantao(false);
+  };
+
+  const printFicha = async (p: any) => {
+    const horasMes = horasPorProfissional[p.id] || 0;
+    const ultimos = ultimosPorProf[p.id] || [];
+    const { data: { user } } = await supabase.auth.getUser();
+    printFichaProfissional({
+      profissionalId: p.id,
+      nome: p.nome,
+      profissao: PROFISSAO_LABELS[p.profissao] || p.profissao,
+      especialidade: p.especialidade,
+      conselho: p.conselho,
+      registro: p.registro,
+      unidadePrincipal: (p.units as any)?.nome || null,
+      setorPrincipal: (p.sectors as any)?.nome || null,
+      status: p.status,
+      horasMes,
+      limiteMes: LIMITE_HORAS_MENSAL,
+      documentoConselho: p.documento_conselho,
+      documentoNumero: p.documento_numero,
+      documentoValidade: p.documento_validade,
+      ultimosPlantoes: ultimos.map((s: any) => ({
+        data: s.data, horaInicio: s.hora_inicio, horaFim: s.hora_fim, setor: (s.sectors as any)?.nome,
+      })),
+      emitidoPor: user?.email || undefined,
+    });
+    await logAudit('Ficha de profissional impressa', 'profissionais', { id: p.id });
+  };
+
+  const enviarMensagem = (p: any) => {
+    const tel = (p.telefone || '').replace(/\D/g, '');
+    if (!tel) {
+      const subject = encodeURIComponent('Mensagem GestorPlantão');
+      const body = encodeURIComponent(`Olá ${p.nome},\n\n`);
+      window.open(`mailto:${p.email || ''}?subject=${subject}&body=${body}`, '_blank');
+      return;
+    }
+    const msg = encodeURIComponent(`Olá ${p.nome}, mensagem da gestão da escala.`);
+    window.open(`https://wa.me/55${tel}?text=${msg}`, '_blank');
+  };
+
+  const validarDocumentos = (p: any) => {
+    const di = docInfo(p.documento_validade);
+    if (!p.documento_conselho && !p.documento_numero && !p.documento_validade) {
+      toast.error('Profissional sem documento profissional cadastrado.');
+      return;
+    }
+    if (di.vencido) {
+      toast.error(`Documento ${p.documento_conselho || ''} ${p.documento_numero || ''} VENCIDO há ${Math.abs(di.dias!)} dias.`);
+      return;
+    }
+    if (di.vencendo) {
+      toast.warning(`Documento vence em ${di.dias} dias. Atualize antes do vencimento.`);
+      return;
+    }
+    toast.success(`Documento válido${di.dias !== null ? ` por ${di.dias} dias` : ''}.`);
+  };
 
   return (
     <div className="space-y-6">
