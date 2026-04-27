@@ -9,6 +9,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { calcularHorasPorProfissional, calcularCargaPercentual, CLT_LIMITE_MENSAL } from "@/lib/horas";
+import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 
 const PROFISSAO_OPTIONS = [
   { value: 'medico', label: 'Médico(a)' },
@@ -60,6 +61,12 @@ export default function ProfissionaisPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const qc = useQueryClient();
+
+  useRealtimeInvalidation({
+    tables: ["shifts", "shift_swaps", "professionals"],
+    invalidate: [["professionals"], ["professionals-month-shifts"]],
+    channelId: "profissionais-realtime",
+  });
 
   const { data: professionals = [], isLoading } = useQuery({
     queryKey: ['professionals'],

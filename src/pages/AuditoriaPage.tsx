@@ -5,6 +5,7 @@ import { Search, Download, ChevronDown, ChevronUp } from "lucide-react";
 import { motion } from "framer-motion";
 import { exportToCSV } from "@/lib/exportUtils";
 import { toast } from "sonner";
+import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 
 const actionColors: Record<string, string> = {
   criado: 'bg-success/10 text-success',
@@ -46,6 +47,13 @@ export default function AuditoriaPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  useRealtimeInvalidation({
+    tables: ["audit_logs"],
+    invalidate: ["audit-logs*"],
+    debounceMs: 600,
+    channelId: "auditoria-realtime",
+  });
 
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ['audit-logs', filterModulo],

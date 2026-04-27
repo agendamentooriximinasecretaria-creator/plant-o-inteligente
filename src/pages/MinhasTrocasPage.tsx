@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { invalidateCrossSwaps } from "@/lib/queryInvalidation";
 import { useAuth } from "@/hooks/useAuth";
 import { dispatchNotification } from "@/lib/notifyHelper";
 import { logAudit } from "@/lib/auditLog";
@@ -160,6 +161,7 @@ export default function MinhasTrocasPage() {
       toast.success("Troca solicitada com sucesso.");
       setForm({ shift_id: "", tipo: "grupo", destinatario_id: "", motivo: "" });
       qc.invalidateQueries({ queryKey: ["professional-swaps"] });
+      invalidateCrossSwaps(qc);
       refetchStatus();
     },
     onError: (error: any) => toast.error(error.message ?? "Erro ao solicitar troca."),
@@ -223,6 +225,7 @@ export default function MinhasTrocasPage() {
       toast.success(variables.accept ? "Troca aceita." : "Troca recusada.");
       qc.invalidateQueries({ queryKey: ["professional-swaps"] });
       qc.invalidateQueries({ queryKey: ["professional-my-shifts-for-swaps"] });
+      invalidateCrossSwaps(qc);
       refetchStatus();
     },
     onError: (error: any) => toast.error(error.message ?? "Erro ao responder troca."),

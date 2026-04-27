@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invalidateCrossSwaps } from "@/lib/queryInvalidation";
 import { logAudit } from "@/lib/auditLog";
 import { dispatchNotification } from "@/lib/notifyHelper";
 import { useAuth } from "@/hooks/useAuth";
@@ -180,9 +181,7 @@ export default function TrocasPage() {
       }
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['swaps'] });
-      qc.invalidateQueries({ queryKey: ['swap-histories'] });
-      qc.invalidateQueries({ queryKey: ['shifts'] });
+      invalidateCrossSwaps(qc);
       toast.success('Troca processada e escala atualizada!');
       setReviewSwap(null);
       setReviewAction(null);
@@ -242,10 +241,8 @@ export default function TrocasPage() {
       await dispatchNotification({ professionalId: profB, tipo: 'troca', titulo: '⚠️ Troca administrativa', mensagem: `Gestor Master trocou seu plantão com ${profAName}.` });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['swaps'] });
-      qc.invalidateQueries({ queryKey: ['swap-histories'] });
+      invalidateCrossSwaps(qc);
       qc.invalidateQueries({ queryKey: ['swap-all-shifts'] });
-      qc.invalidateQueries({ queryKey: ['shifts'] });
       toast.success('Troca administrativa confirmada!');
       setAdminModalOpen(false);
       setAdminForm({ profA: '', shiftA: '', profB: '', shiftB: '', motivo: '' });

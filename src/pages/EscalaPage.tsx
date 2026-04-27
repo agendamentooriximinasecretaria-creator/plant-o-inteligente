@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invalidateCrossShifts } from "@/lib/queryInvalidation";
 import { logAudit } from "@/lib/auditLog";
 import { dispatchNotification } from "@/lib/notifyHelper";
 import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info, Users as UsersIcon, Palmtree, AlertTriangle, LayoutGrid } from "lucide-react";
@@ -418,7 +419,7 @@ export default function EscalaPage() {
       }
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['shifts'] });
+      invalidateCrossShifts(qc);
       toast.success(editingId ? 'Plantão atualizado!' : `${form.profissional_ids.length} plantão(ões) criado(s)!`);
       closeModal();
     },
@@ -464,7 +465,7 @@ export default function EscalaPage() {
     },
     onSuccess: () => {
       toast.success('Folga registrada com sucesso.');
-      qc.invalidateQueries({ queryKey: ['shifts'] });
+      invalidateCrossShifts(qc);
       setFolgaModalOpen(false);
       setFolgaForm(emptyFolga);
     },
@@ -493,7 +494,7 @@ export default function EscalaPage() {
         mensagem: `Seu plantão em ${new Date(shift.data + 'T12:00:00').toLocaleDateString('pt-BR')} foi cancelado.`,
       });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['shifts'] }),
+    onSuccess: () => invalidateCrossShifts(qc),
     onError: (e: Error) => toast.error(`Não foi possível excluir: ${e.message}`),
   });
 

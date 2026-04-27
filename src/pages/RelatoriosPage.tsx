@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { isPlantaoContabilizavel } from "@/lib/horas";
+import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 
 const PROFISSAO_LABELS: Record<string, string> = { medico: 'Médico(a)', enfermeiro: 'Enfermeiro(a)', fisioterapeuta: 'Fisioterapeuta', tecnico_enfermagem: 'Téc. Enfermagem', biomedico: 'Biomédico(a)', psicologo: 'Psicólogo(a)', terapeuta_ocupacional: 'Terapeuta Ocupacional', nutricionista: 'Nutricionista', fonoaudiologo: 'Fonoaudiólogo(a)', farmaceutico: 'Farmacêutico(a)', outro: 'Outro' };
 
@@ -28,6 +29,12 @@ const reports = [
 export default function RelatoriosPage() {
   const [exporting, setExporting] = useState('');
   const [chartReport, setChartReport] = useState<string | null>(null);
+
+  useRealtimeInvalidation({
+    tables: ["shifts", "shift_swaps", "professionals", "sectors", "units"],
+    invalidate: [["professionals"], ["shifts-report"], ["swaps-report"], ["units"], ["sectors"]],
+    channelId: "relatorios-realtime",
+  });
 
   const { data: professionals = [] } = useQuery({ queryKey: ['professionals'], queryFn: async () => { const { data } = await supabase.from('professionals_safe').select('id, nome, profissao, especialidade, telefone, email, status, setor_principal_id, unidade_principal_id').order('nome'); return data || []; } });
   const { data: shifts = [] } = useQuery({ queryKey: ['shifts-report'], queryFn: async () => { const { data } = await supabase.from('shifts').select('*, professionals:profissional_id(nome, profissao), sectors:setor_id(nome), units:unidade_id(nome)').order('data', { ascending: false }); return data || []; } });

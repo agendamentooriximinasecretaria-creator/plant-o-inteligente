@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { PainelOcupacao } from "@/components/PainelOcupacao";
 import { AcionamentosTracker } from "@/components/AcionamentosTracker";
 import { PROFISSAO_LABELS } from "@/types/hospital";
+import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 
 const fadeIn = { hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0, transition: { duration: 0.25 } } };
 const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.04 } } };
@@ -76,6 +77,13 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const todayStr = new Date().toISOString().split("T")[0];
+
+  // ── Realtime cross-invalidation ──
+  useRealtimeInvalidation({
+    tables: ["shifts", "shift_swaps", "notifications", "audit_logs", "censo_pacientes", "setor_ocupacao", "professionals"],
+    invalidate: ["dashboard-*"],
+    channelId: "dashboard-realtime",
+  });
 
   // ── Data Queries ──
   const { data: shifts = [] } = useQuery({
