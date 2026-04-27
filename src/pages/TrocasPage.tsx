@@ -241,10 +241,8 @@ export default function TrocasPage() {
       await dispatchNotification({ professionalId: profB, tipo: 'troca', titulo: '⚠️ Troca administrativa', mensagem: `Gestor Master trocou seu plantão com ${profAName}.` });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['swaps'] });
-      qc.invalidateQueries({ queryKey: ['swap-histories'] });
+      invalidateCrossSwaps(qc);
       qc.invalidateQueries({ queryKey: ['swap-all-shifts'] });
-      qc.invalidateQueries({ queryKey: ['shifts'] });
       toast.success('Troca administrativa confirmada!');
       setAdminModalOpen(false);
       setAdminForm({ profA: '', shiftA: '', profB: '', shiftB: '', motivo: '' });
