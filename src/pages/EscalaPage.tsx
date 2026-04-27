@@ -1030,13 +1030,30 @@ export default function EscalaPage() {
     setModalOpen(true);
   };
 
-  const openCreateForCell = (date: string, sectorId?: string, unidadeId?: string) => {
+  const openCreateForCell = (date: string, sectorId?: string, unidadeId?: string, tipoSugerido?: string) => {
     setEditingId(null);
+    const tipoDefault = tipoSugerido
+      || filtros.tipoPlantao
+      || (TIPOS_PLANTAO[0]?.value ?? '');
+    const preset = TIPOS_PLANTAO.find(t => t.value === tipoDefault);
     setForm({
       ...emptyForm, data: date,
-      setor_id: sectorId || '', unidade_id: unidadeId || '',
+      setor_id: sectorId || filtros.setorId || '',
+      unidade_id: unidadeId || filtros.unidadeId || '',
+      tipo_plantao: tipoDefault || emptyForm.tipo_plantao,
+      hora_inicio: preset?.start ?? emptyForm.hora_inicio,
+      hora_fim: preset?.end ?? emptyForm.hora_fim,
     });
     setModalOpen(true);
+  };
+
+  // Abre o menu de ações da célula vazia (com data + setor/unidade do filtro)
+  const openEmptyCellMenu = (date: string, sectorId?: string, unidadeId?: string) => {
+    setEmptyCell({
+      data: date,
+      setorId: sectorId || filtros.setorId || undefined,
+      unidadeId: unidadeId || filtros.unidadeId || undefined,
+    });
   };
 
   // Aplica preset de tipo de plantão (preenche horários automaticamente)
