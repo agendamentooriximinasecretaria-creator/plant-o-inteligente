@@ -204,6 +204,14 @@ export default function MinhasTrocasPage() {
         user_id: (await supabase.auth.getUser()).data.user?.id,
       });
 
+      await logAudit(accept ? 'Troca aceita pelo destinatário' : 'Troca recusada pelo destinatário', 'trocas', {
+        swap_id: swapId,
+        shift_id: selected.shift_id,
+        solicitante_id: selected.solicitante_id,
+        destinatario_id: professionalId,
+        novo_status: nextStatus,
+      });
+
       await dispatchNotification({
         professionalId: selected.solicitante_id,
         tipo: 'troca',
