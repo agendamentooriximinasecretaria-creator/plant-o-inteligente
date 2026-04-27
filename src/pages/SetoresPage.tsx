@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { abrirVisualizacaoImpressao, diaSemanaPt, type PrintLinha, type PrintCabecalho, type PrintOptions } from "@/lib/printEscala";
+import { MoreActionsMenu } from "@/components/MoreActionsMenu";
 
 type SectorRow = { id: string; nome: string; unidade_id: string; min_profissionais_diurno: number | null; min_profissionais_noturno: number | null; min_profissionais_fds: number | null; units?: { nome?: string } };
 type ShiftToday = { setor_id: string; status: string; tipo_plantao: string };
