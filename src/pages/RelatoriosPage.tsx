@@ -95,7 +95,7 @@ export default function RelatoriosPage() {
           const nome = (s.sectors as any)?.nome || 'Desconhecido';
           if (!bySetor[s.setor_id]) bySetor[s.setor_id] = { nome, count: 0, horas: 0 };
           bySetor[s.setor_id].count++;
-          if (s.status !== 'cancelado') bySetor[s.setor_id].horas += Number(s.carga_horaria || 0);
+          if (isPlantaoContabilizavel(s)) bySetor[s.setor_id].horas += Number(s.carga_horaria || 0);
         });
         return { columns: ['Setor', 'Qtd. Plantões', 'Horas Totais'], rows: Object.values(bySetor).map(s => [s.nome, String(s.count), `${s.horas.toFixed(1)}h`]) };
       }
