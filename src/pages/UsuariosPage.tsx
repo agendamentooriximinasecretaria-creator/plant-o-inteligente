@@ -208,18 +208,28 @@ export default function UsuariosPage() {
                   </td>
                   <td className="p-3">
                     <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => resetPassword.mutate(u.user_id)}
-                        className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground hover:bg-muted"
-                      >
-                        <KeyRound className="h-3.5 w-3.5" /> Senha
-                      </button>
-                      <button
-                        onClick={() => toggleActive.mutate({ userId: u.user_id, active: !u.ativo })}
-                        className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground hover:bg-muted"
-                      >
-                        <Power className="h-3.5 w-3.5" /> {u.ativo ? "Inativar" : "Ativar"}
-                      </button>
+                      {(() => {
+                        const resetting = resetPassword.isPending && (resetPassword.variables as any) === u.user_id;
+                        const toggling = toggleActive.isPending && (toggleActive.variables as any)?.userId === u.user_id;
+                        return (
+                          <>
+                            <button
+                              onClick={() => { if (!resetPassword.isPending) resetPassword.mutate(u.user_id); }}
+                              disabled={resetPassword.isPending}
+                              className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <KeyRound className="h-3.5 w-3.5" /> {resetting ? 'Enviando...' : 'Senha'}
+                            </button>
+                            <button
+                              onClick={() => { if (!toggleActive.isPending) toggleActive.mutate({ userId: u.user_id, active: !u.ativo }); }}
+                              disabled={toggleActive.isPending}
+                              className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <Power className="h-3.5 w-3.5" /> {toggling ? '...' : (u.ativo ? "Inativar" : "Ativar")}
+                            </button>
+                          </>
+                        );
+                      })()}
                       {u.role === 'profissional' && u.profissional_id && (
                         <ContactActionButton
                           profissional={{ nome: u.nome, telefone: professionals.find((p: any) => p.id === u.profissional_id)?.telefone }}
