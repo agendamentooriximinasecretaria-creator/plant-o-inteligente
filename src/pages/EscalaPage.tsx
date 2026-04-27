@@ -1805,6 +1805,21 @@ export default function EscalaPage() {
                 </select></div>
             </div>
 
+            {/* Cobertura do setor no dia */}
+            {coberturaSetorDia && (
+              <div className={`rounded-lg p-2.5 text-xs flex items-center gap-2 border ${
+                coberturaSetorDia.total === 0 ? 'bg-destructive/10 border-destructive/30 text-destructive'
+                : coberturaSetorDia.total < coberturaSetorDia.min ? 'bg-warning/10 border-warning/30 text-warning'
+                : 'bg-success/10 border-success/30 text-success'
+              }`}>
+                <UsersIcon className="h-4 w-4" />
+                <span>
+                  Cobertura atual do setor em <strong>{new Date(form.data + 'T12:00:00').toLocaleDateString('pt-BR')}</strong>:{' '}
+                  <strong>{coberturaSetorDia.total}</strong> profissional(is) escalado(s) (mínimo {coberturaSetorDia.min}).
+                </span>
+              </div>
+            )}
+
             {/* Multi-select de profissionais com horas no mês */}
             <div>
               <label className="text-sm font-medium text-foreground flex items-center gap-2">
@@ -1813,14 +1828,18 @@ export default function EscalaPage() {
                   <span className="text-xs text-muted-foreground">({form.profissional_ids.length} selecionado{form.profissional_ids.length > 1 ? 's' : ''})</span>
                 )}
               </label>
-              <p className="text-xs text-muted-foreground mb-2">Filtrado por <strong>{PROFISSAO_LABELS[form.profissao]}</strong>. Horas exibidas: trabalhadas no mês / limite CLT (220h).</p>
+              <p className="text-xs text-muted-foreground mb-2">
+                Filtrado por <strong>{PROFISSAO_LABELS[form.profissao]}</strong>{form.setor_id && <> · vinculados ao setor primeiro</>}. Horas exibidas: trabalhadas no mês / limite CLT (220h).
+              </p>
               <div className="border border-border rounded-lg p-2 max-h-56 overflow-y-auto space-y-1">
                 {profissionaisFiltrados.map((p: any) => {
                   const checked = form.profissional_ids.includes(p.id);
                   const horas = horasPorProfissional[p.id] ?? 0;
                   const overLimit = horas >= LIMITE_HORAS_MENSAL;
+                  const st = statusPorProf[p.id];
+                  const vinculado = form.setor_id && p.setor_principal_id === form.setor_id;
                   return (
-                    <label key={p.id} className={`flex items-center gap-2 p-2 rounded cursor-pointer text-sm ${checked ? 'bg-primary/10' : 'hover:bg-muted'}`}>
+                    <label key={p.id} className={`flex items-center gap-2 p-2 rounded cursor-pointer text-sm ${checked ? 'bg-primary/10' : 'hover:bg-muted'} ${st === 'conflito' ? 'opacity-80' : ''}`}>
                       <input
                         type="checkbox"
                         checked={checked}
@@ -1829,7 +1848,19 @@ export default function EscalaPage() {
                         className="rounded"
                       />
                       <span className="h-6 w-6 rounded-full bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center">{initials(p.nome)}</span>
-                      <span className="text-foreground flex-1 truncate">{p.nome}</span>
+                      <span className="text-foreground flex-1 truncate flex items-center gap-1.5">
+                        {p.nome}
+                        {vinculado && <span className="text-[9px] uppercase font-semibold px-1 py-0.5 rounded bg-accent/15 text-accent">Setor</span>}
+                      </span>
+                      {form.data && st === 'conflito' && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-destructive/15 text-destructive flex items-center gap-1"><AlertTriangle className="h-3 w-3" />conflito</span>
+                      )}
+                      {form.data && st === 'no_setor' && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-warning/15 text-warning">já no setor</span>
+                      )}
+                      {form.data && st === 'disponivel' && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-success/15 text-success">disponível</span>
+                      )}
                       <span className={`text-[11px] font-mono px-1.5 py-0.5 rounded ${overLimit ? 'bg-destructive/15 text-destructive' : horas > 180 ? 'bg-warning/15 text-warning' : 'bg-muted text-muted-foreground'}`}>
                         {horas}h/{LIMITE_HORAS_MENSAL}h
                       </span>
@@ -1842,6 +1873,29 @@ export default function EscalaPage() {
               </div>
               {editingId && <p className="text-xs text-muted-foreground mt-1">Edição permite apenas 1 profissional. Para adicionar outros, crie um novo plantão.</p>}
             </div>
+
+            {/* Próximos plantões dos profissionais selecionados (janela ±7 dias) */}
+            {form.profissional_ids.length > 0 && form.data && (() => {
+              const items = form.profissional_ids
+                .map(pid => ({ pid, prof: (professionals as any[]).find(p => p.id === pid), list: proxPlantoesPorProf[pid] || [] }))
+                .filter(x => x.list.length > 0);
+              if (!items.length) return null;
+              return (
+                <div className="rounded-lg border border-border bg-muted/30 p-2.5 text-xs space-y-1.5">
+                  <p className="font-semibold text-foreground flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> Plantões próximos (±7 dias)</p>
+                  {items.map(it => (
+                    <div key={it.pid}>
+                      <p className="font-medium text-foreground">{it.prof?.nome}</p>
+                      <ul className="ml-4 text-muted-foreground space-y-0.5">
+                        {it.list.map((s: any) => (
+                          <li key={s.id}>• {new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR')} · {(s.hora_inicio || '').slice(0, 5)}–{(s.hora_fim || '').slice(0, 5)} · {s.tipo_plantao}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
 
             {conflictWarnings.length > 0 && (
               <div className="space-y-1">
@@ -1867,10 +1921,24 @@ export default function EscalaPage() {
               </div>
             )}
             <div><label className="text-sm font-medium text-foreground">Observações</label><textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} rows={2} className={inputClass} /></div>
-            <div className="flex justify-end gap-3">
+            <div className="flex flex-wrap justify-end gap-2">
               <button type="button" onClick={closeModal} className="px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted">Cancelar</button>
+              {!editingId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (saveMutation.isPending || conflictWarnings.length > 0 || restWarnings.length > 0 || form.profissional_ids.length === 0) return;
+                    keepOpenAfterSaveRef.current = true;
+                    saveMutation.mutate(form);
+                  }}
+                  disabled={saveMutation.isPending || conflictWarnings.length > 0 || restWarnings.length > 0 || form.profissional_ids.length === 0}
+                  className="px-4 py-2 rounded-lg border border-primary/40 text-sm font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
+                >
+                  Salvar e adicionar outro
+                </button>
+              )}
               <button type="submit" disabled={saveMutation.isPending || conflictWarnings.length > 0 || restWarnings.length > 0 || form.profissional_ids.length === 0} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50">
-                {saveMutation.isPending ? 'Salvando...' : editingId ? 'Salvar' : `Escalar ${form.profissional_ids.length || ''}`}
+                {saveMutation.isPending ? 'Salvando...' : editingId ? 'Salvar plantão' : `Salvar plantão${form.profissional_ids.length > 1 ? ` (${form.profissional_ids.length})` : ''}`}
               </button>
             </div>
           </form>
