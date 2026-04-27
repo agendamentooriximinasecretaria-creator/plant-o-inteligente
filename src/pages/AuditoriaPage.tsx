@@ -133,7 +133,22 @@ export default function AuditoriaPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>
+        <div className="bg-card rounded-lg border border-border overflow-hidden shadow-[var(--shadow-card)]">
+          {Array.from({ length: 6 }).map((_, i) => <TableRowSkeleton key={i} cols={6} />)}
+        </div>
+      ) : isError ? (
+        <ErrorState
+          title="Não foi possível carregar a auditoria"
+          description="Erro ao consultar os logs do sistema. Tente novamente."
+          onRetry={() => refetch()}
+          retryLoading={isRefetching}
+        />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={FileSearch}
+          title="Nenhum log encontrado"
+          description="Nenhum registro corresponde aos filtros aplicados."
+        />
       ) : (
         <div className="bg-card rounded-lg border border-border overflow-hidden shadow-[var(--shadow-card)]">
           <div className="overflow-x-auto">
@@ -174,7 +189,6 @@ export default function AuditoriaPage() {
                     </td>
                   </motion.tr>
                 ))}
-                {filtered.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Nenhum log encontrado.</td></tr>}
               </tbody>
             </table>
           </div>
