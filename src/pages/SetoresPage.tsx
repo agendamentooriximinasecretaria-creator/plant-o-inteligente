@@ -175,7 +175,7 @@ export default function SetoresPage() {
                         <AlertDialog>
                           <AlertDialogTrigger asChild><button className="p-1.5 rounded hover:bg-destructive/10"><Trash2 className="h-3.5 w-3.5 text-destructive" /></button></AlertDialogTrigger>
                           <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir unidade?</AlertDialogTitle><AlertDialogDescription>Todos os setores vinculados serão afetados.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => deleteUnit.mutate(u.id)}>Excluir</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+                            <AlertDialogFooter><AlertDialogCancel disabled={deleteUnit.isPending}>Cancelar</AlertDialogCancel><AlertDialogAction disabled={deleteUnit.isPending} onClick={(e) => { e.preventDefault(); if (!deleteUnit.isPending) deleteUnit.mutate(u.id); }}>{deleteUnit.isPending ? 'Excluindo...' : 'Excluir'}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
                         </AlertDialog>
                       </div>
                     </div>
