@@ -321,10 +321,71 @@ export default function EscalaPage() {
   };
 
   // Carrega horas do mês para profissionais filtrados (para mostrar 24h/220h ao lado do nome)
-  const profissionaisFiltrados = useMemo(
-    () => (professionals as any[]).filter((p: any) => !form.profissao || p.profissao === form.profissao),
-    [professionals, form.profissao],
-  );
+  // Ordena: vinculados ao setor selecionado vêm primeiro
+  const profissionaisFiltrados = useMemo(() => {
+    const base = (professionals as any[]).filter((p: any) => !form.profissao || p.profissao === form.profissao);
+    if (!form.setor_id) return base;
+    return [...base].sort((a, b) => {
+      const av = a.setor_principal_id === form.setor_id ? 0 : 1;
+      const bv = b.setor_principal_id === form.setor_id ? 0 : 1;
+      return av - bv;
+    });
+  }, [professionals, form.profissao, form.setor_id]);
+
+  // Cobertura do setor no dia selecionado (em memória, a partir de shifts já carregados)
+  const coberturaSetorDia = useMemo(() => {
+    if (!form.setor_id || !form.data) return null;
+    const escalados = (shifts as any[]).filter((s: any) =>
+      s.setor_id === form.setor_id && s.data === form.data && s.status !== 'cancelado'
+      && s.tipo_plantao !== 'folga' && s.tipo_plantao !== 'indisponibilidade'
+    );
+    const setor = (sectors as any[]).find((s: any) => s.id === form.setor_id);
+    const min = setor?.min_profissionais_diurno || 1;
+    return { total: escalados.length, min, ids: new Set(escalados.map((e: any) => e.profissional_id)) };
+  }, [shifts, sectors, form.setor_id, form.data]);
+
+  // Próximos plantões (até 3) do(s) profissional(is) selecionado(s) — janela ±7 dias da data escolhida
+  const proxPlantoesPorProf = useMemo(() => {
+    const out: Record<string, any[]> = {};
+    if (!form.data) return out;
+    const ref = new Date(form.data + 'T00:00:00').getTime();
+    for (const pid of form.profissional_ids) {
+      out[pid] = (shifts as any[])
+        .filter((s: any) => s.profissional_id === pid && s.status !== 'cancelado'
+          && Math.abs(new Date(s.data + 'T00:00:00').getTime() - ref) <= 7 * 86400000
+          && s.id !== editingId)
+        .sort((a: any, b: any) => a.data.localeCompare(b.data) || a.hora_inicio.localeCompare(b.hora_inicio))
+        .slice(0, 3);
+    }
+    return out;
+  }, [shifts, form.profissional_ids, form.data, editingId]);
+
+  // Status por profissional (para badge na lista): conflito de horário no dia ou já escalado no setor
+  const statusPorProf = useMemo(() => {
+    const out: Record<string, 'conflito' | 'no_setor' | 'disponivel'> = {};
+    if (!form.data) return out;
+    const startMin = (() => { const [h, m] = form.hora_inicio.split(':').map(Number); return h * 60 + m; })();
+    const endMinRaw = (() => { const [h, m] = form.hora_fim.split(':').map(Number); return h * 60 + m; })();
+    const endMin = endMinRaw <= startMin ? endMinRaw + 24 * 60 : endMinRaw;
+    for (const p of profissionaisFiltrados) {
+      const doDia = (shifts as any[]).filter((s: any) => s.profissional_id === p.id && s.data === form.data
+        && s.status !== 'cancelado' && s.id !== editingId);
+      let conflito = false;
+      for (const s of doDia) {
+        const [sh, sm] = (s.hora_inicio || '00:00').split(':').map(Number);
+        const [eh, em] = (s.hora_fim || '00:00').split(':').map(Number);
+        const sStart = sh * 60 + sm;
+        let sEnd = eh * 60 + em;
+        if (sEnd <= sStart) sEnd += 24 * 60;
+        if (startMin < sEnd && endMin > sStart) { conflito = true; break; }
+      }
+      if (conflito) out[p.id] = 'conflito';
+      else if (coberturaSetorDia?.ids.has(p.id)) out[p.id] = 'no_setor';
+      else out[p.id] = 'disponivel';
+    }
+    return out;
+  }, [profissionaisFiltrados, shifts, form.data, form.hora_inicio, form.hora_fim, editingId, coberturaSetorDia]);
+
 
   useEffect(() => {
     if (!modalOpen || profissionaisFiltrados.length === 0) return;
