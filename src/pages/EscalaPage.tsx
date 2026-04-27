@@ -1816,16 +1816,133 @@ export default function EscalaPage() {
                   <span className="status-badge bg-warning/10 text-warning ml-2"><ArrowLeftRight className="h-3 w-3 mr-1 inline" />Em troca</span>
                 )}
               </div>
-              <div className="flex gap-2 mt-4 pt-3 border-t border-border">
-                <button onClick={() => { openEdit(detailShift); setDetailShift(null); }}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
-                  <Edit className="h-3.5 w-3.5" /> Editar
-                </button>
-                <button onClick={() => setDetailShift(null)}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted">
-                  Fechar
-                </button>
-              </div>
+              {(() => {
+                const myProfId = (professionals as any[]).find((p: any) => p.user_id === user?.id)?.id;
+                const isOwn = !!myProfId && detailShift.profissional_id === myProfId;
+                const isAdministrativo = detailShift.tipo_plantao === 'administrativa' || detailShift.tipo_plantao === 'administrativo';
+                const canEdit = canManage && !(isProfessional && isAdministrativo);
+                const canCancel = canManage && detailShift.status !== 'cancelado';
+                const canDelete = isMaster;
+                const canSwap = isOwn || canManage;
+                const canNotify = canManage;
+                const canViewHistory = canManage;
+                const swapState = swapByShiftId[detailShift.id];
+                const hasOpenSwap = !!swapState && ['solicitada', 'aguardando_resposta', 'aceita', 'aguardando_aprovacao'].includes(swapState.status);
+
+                return (
+                  <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-border">
+                    {canEdit && (
+                      <button onClick={() => { openEdit(detailShift); setDetailShift(null); }}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
+                        <Edit className="h-3.5 w-3.5" /> Editar
+                      </button>
+                    )}
+                    {canSwap && !hasOpenSwap && (
+                      <button
+                        disabled={requestSwapMutation.isPending}
+                        onClick={() => { if (!confirm('Solicitar troca para este plantão?')) return; requestSwapMutation.mutate(detailShift, { onSuccess: () => setDetailShift(null) }); }}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted disabled:opacity-50">
+                        {requestSwapMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowLeftRight className="h-3.5 w-3.5" />} Solicitar troca
+                      </button>
+                    )}
+                    {canCancel && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button disabled={cancelMutation.isPending}
+                            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-warning/40 text-warning text-sm font-medium hover:bg-warning/10 disabled:opacity-50">
+                            {cancelMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <AlertTriangle className="h-3.5 w-3.5" />} Cancelar
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Cancelar plantão?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              O profissional será notificado. O registro permanece para histórico.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel disabled={cancelMutation.isPending}>Voltar</AlertDialogCancel>
+                            <AlertDialogAction disabled={cancelMutation.isPending}
+                              onClick={(e) => { e.preventDefault(); if (cancelMutation.isPending) return; cancelMutation.mutate(detailShift, { onSuccess: () => setDetailShift(null) }); }}
+                              className="bg-warning text-warning-foreground hover:bg-warning/90">
+                              {cancelMutation.isPending ? 'Cancelando...' : 'Confirmar cancelamento'}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                    {canDelete && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button disabled={deleteMutation.isPending}
+                            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-destructive/40 text-destructive text-sm font-medium hover:bg-destructive/10 disabled:opacity-50">
+                            {deleteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />} Excluir
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir plantão?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Esta ação não pode ser desfeita. {hasOpenSwap && 'A solicitação de troca em aberto será cancelada.'}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel disabled={deleteMutation.isPending}>Voltar</AlertDialogCancel>
+                            <AlertDialogAction disabled={deleteMutation.isPending}
+                              onClick={(e) => { e.preventDefault(); if (deleteMutation.isPending) return; deleteMutation.mutate(detailShift, { onSuccess: () => setDetailShift(null) } as any); }}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                              {deleteMutation.isPending ? 'Excluindo...' : 'Excluir'}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                    <button
+                      onClick={() => {
+                        const s = detailShift;
+                        const html = `<!doctype html><html><head><meta charset="utf-8"><title>Comprovante de Plantão</title>
+                          <style>body{font-family:Inter,Arial,sans-serif;padding:32px;color:#111}h1{font-size:18px;margin:0 0 8px}h2{font-size:13px;margin:24px 0 4px;color:#555;text-transform:uppercase;letter-spacing:.05em}p{margin:4px 0;font-size:13px}.box{border:1px solid #ddd;border-radius:8px;padding:16px;margin-top:12px}.row{display:flex;justify-content:space-between;gap:24px}.sig{margin-top:64px;border-top:1px solid #333;width:60%;text-align:center;font-size:11px;padding-top:6px;color:#555}</style>
+                          </head><body>
+                          <h1>GestorPlantão · SMS Oriximiná</h1>
+                          <p style="font-size:11px;color:#555">CNPJ 05.131.081/0001-82 · Comprovante de Plantão</p>
+                          <div class="box">
+                            <div class="row"><p><b>Profissional:</b> ${(s.professionals as any)?.nome || ''}</p><p><b>Profissão:</b> ${PROFISSAO_LABELS[(s.professionals as any)?.profissao] || ''}</p></div>
+                            <div class="row"><p><b>Data:</b> ${new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR')}</p><p><b>Horário:</b> ${s.hora_inicio} às ${s.hora_fim} (${s.carga_horaria}h)</p></div>
+                            <div class="row"><p><b>Unidade:</b> ${(s.units as any)?.nome || ''}</p><p><b>Setor:</b> ${(s.sectors as any)?.nome || ''}</p></div>
+                            <div class="row"><p><b>Tipo:</b> ${s.tipo_plantao || ''}</p><p><b>Status:</b> ${STATUS_LABELS[s.status] || s.status}</p></div>
+                            ${s.observacoes ? `<p style="margin-top:12px"><b>Observações:</b> ${s.observacoes}</p>` : ''}
+                          </div>
+                          <div class="sig">Assinatura do Gestor</div>
+                          <p style="font-size:10px;color:#777;margin-top:24px">Documento emitido pelo GestorPlantão SMS Oriximiná em ${new Date().toLocaleString('pt-BR')}</p>
+                          <script>window.onload=()=>{window.print()}</script>
+                          </body></html>`;
+                        const w = window.open('', '_blank', 'width=900,height=700');
+                        if (!w) { toast.error('Bloqueador de pop-up impediu a impressão'); return; }
+                        w.document.write(html); w.document.close();
+                        logAudit('Comprovante de plantão impresso', 'escala', { shift_id: s.id });
+                      }}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted">
+                      <Printer className="h-3.5 w-3.5" /> Comprovante
+                    </button>
+                    {canNotify && (
+                      <button onClick={() => { setNotifyMsg(''); setNotifyTarget(detailShift); }}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted">
+                        <Megaphone className="h-3.5 w-3.5" /> Notificar
+                      </button>
+                    )}
+                    {canViewHistory && (
+                      <button onClick={() => setHistoryTarget(detailShift)}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted">
+                        <FileText className="h-3.5 w-3.5" /> Histórico
+                      </button>
+                    )}
+                    <button onClick={() => setDetailShift(null)}
+                      className="col-span-2 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:bg-muted">
+                      Fechar
+                    </button>
+                  </div>
+                );
+              })()}
             </>
           )}
         </DialogContent>
