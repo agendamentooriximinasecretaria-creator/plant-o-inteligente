@@ -3,10 +3,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
 import { toast } from "sonner";
-import { UserPlus, KeyRound, Shield, Power, Download, Printer } from "lucide-react";
+import { UserPlus, KeyRound, Shield, Power, Download, Printer, Users } from "lucide-react";
 import { ContactActionButton } from "@/components/ContactActionButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MoreActionsMenu } from "@/components/MoreActionsMenu";
+import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
+import { TableRowSkeleton } from "@/components/PageSkeleton";
 
 const roleLabels: Record<string, string> = {
   gestor_master: "Gestor Master",
@@ -26,7 +29,7 @@ export default function UsuariosPage() {
     professional_id: "",
   });
 
-  const { data: users = [], isLoading } = useQuery({
+  const { data: users = [], isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ["users-admin"],
     queryFn: async () => {
       const { data, error } = await sb.from("profiles").select("*").order("created_at", { ascending: false });
