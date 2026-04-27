@@ -97,12 +97,14 @@ export default function ConfiguracoesPage() {
       const resp = await fetch(webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (resp.ok) {
         toast.success('Webhook testado com sucesso!');
-        await logAudit('Teste de webhook realizado', 'configuracoes', { url: webhookUrl, status: 'sucesso' });
+        await logAudit('Teste de webhook realizado', 'configuracoes', { url: webhookUrl, http_status: resp.status }, 'sucesso');
       } else {
         toast.error(`Webhook retornou status ${resp.status}`);
+        await logAudit('Teste de webhook falhou', 'configuracoes', { url: webhookUrl, http_status: resp.status }, 'falha');
       }
     } catch (e: any) {
       toast.error('Erro ao testar webhook: ' + e.message);
+      await logAudit('Teste de webhook erro', 'configuracoes', { url: webhookUrl, erro: e?.message }, 'falha');
     } finally { setTesting(''); }
   };
 
