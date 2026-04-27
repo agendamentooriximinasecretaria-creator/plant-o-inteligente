@@ -571,7 +571,7 @@ export default function EscalaPage() {
       const has = f.profissional_ids.includes(pid);
       return { ...f, profissional_ids: has ? f.profissional_ids.filter(x => x !== pid) : [...f.profissional_ids, pid] };
     });
-    setTimeout(() => { checkConflicts(); checkWorkload(); }, 100);
+    // Validação acontece via useEffect debouncado quando o form mudar.
   };
 
   const initials = (nome?: string) => (nome || '').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
