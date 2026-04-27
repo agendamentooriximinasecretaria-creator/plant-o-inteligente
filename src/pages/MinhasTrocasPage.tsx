@@ -140,7 +140,7 @@ export default function MinhasTrocasPage() {
       if (form.tipo === "direto" && form.destinatario_id) {
         await dispatchNotification({ professionalId: form.destinatario_id, tipo: 'troca', titulo: '🔄 Nova solicitação de troca', mensagem: 'Um colega solicitou uma troca de plantão com você.' });
       } else {
-        const { data: allProfs } = await supabase.from("professionals").select("id").eq("status", "ativo").neq("id", professionalId!);
+        const { data: allProfs } = await supabase.from("professionals_safe").select("id").eq("status", "ativo").neq("id", professionalId!);
         for (const p of allProfs || []) {
           await dispatchNotification({ professionalId: p.id, tipo: 'troca', titulo: '🔄 Plantão disponível para troca', mensagem: 'Um colega disponibilizou um plantão para troca.' });
         }
