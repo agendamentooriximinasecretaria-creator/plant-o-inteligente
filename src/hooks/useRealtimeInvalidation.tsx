@@ -17,7 +17,11 @@ type TableName =
 interface Subscription {
   /** Tabelas a observar via Supabase Realtime. */
   tables: TableName[];
-  /** queryKeys (raízes) que devem ser invalidados quando algum evento chegar. */
+  /**
+   * queryKeys (raízes) que devem ser invalidados quando algum evento chegar.
+   * Para invalidar por prefixo (ex: todas as queries que começam com 'dashboard-'),
+   * passe uma string que termina com '*' (ex: 'dashboard-*').
+   */
   invalidate: (string | (string | undefined)[])[];
   /** Janela de debounce (ms). Default 400ms para evitar refetch em rajada. */
   debounceMs?: number;
