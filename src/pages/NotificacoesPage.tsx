@@ -5,6 +5,9 @@ import { logAudit } from "@/lib/auditLog";
 import { Bell, CheckCircle2, Clock, AlertTriangle, Info, Calendar as CalIcon, ArrowLeftRight, Activity } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
+import { CardListSkeleton } from "@/components/PageSkeleton";
 
 const iconMap: Record<string, { icon: typeof Info; class: string; label: string }> = {
   plantao:    { icon: CalIcon, class: 'bg-info/10 text-info', label: 'Plantão' },
