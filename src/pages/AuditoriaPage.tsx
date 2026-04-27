@@ -5,6 +5,7 @@ import { Search, Download, ChevronDown, ChevronUp } from "lucide-react";
 import { motion } from "framer-motion";
 import { exportToCSV } from "@/lib/exportUtils";
 import { toast } from "sonner";
+import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 
 const actionColors: Record<string, string> = {
   criado: 'bg-success/10 text-success',
