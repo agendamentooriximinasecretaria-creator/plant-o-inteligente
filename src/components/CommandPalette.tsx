@@ -362,30 +362,17 @@ export function CommandPalette() {
             </>
           )}
 
-          {(isMaster || isCoordinator) && (
-            <>
-              <CommandGroup heading="Ações rápidas">
-                <CommandItem onSelect={() => run(() => navigate("/escala?new=1"))}>
-                  <Plus className="h-4 w-4 mr-2" /> Novo plantão
-                  <CommandShortcut>N</CommandShortcut>
-                </CommandItem>
-                <CommandItem onSelect={() => run(() => navigate("/profissionais?new=1"))}>
-                  <Plus className="h-4 w-4 mr-2" /> Novo profissional
-                </CommandItem>
-              </CommandGroup>
-              <CommandSeparator />
-            </>
-          )}
-
           {["Navegação", "Gestão", "Sistema"].map((group) => {
-            const items = allCommands.filter((c) => c.group === group);
+            const items = allCommands
+              .filter((c) => c.group === group)
+              .filter((c) => matchesQuery(`${c.label} ${c.keywords ?? ""}`));
             if (items.length === 0) return null;
             return (
               <CommandGroup key={group} heading={group}>
                 {items.map((cmd) => (
                   <CommandItem
                     key={cmd.id}
-                    value={`${cmd.label} ${cmd.keywords ?? ""}`}
+                    value={`nav-${cmd.id}`}
                     onSelect={() => run(() => navigate(cmd.path))}
                   >
                     <cmd.icon className="h-4 w-4 mr-2" />
@@ -408,17 +395,21 @@ export function CommandPalette() {
             );
           })}
 
-          <CommandSeparator />
-          <CommandGroup heading="Tema">
-            <CommandItem onSelect={() => run(() => setTheme(resolvedTheme === "dark" ? "light" : "dark"))}>
-              {resolvedTheme === "dark" ? (
-                <><Sun className="h-4 w-4 mr-2" /> Mudar para claro</>
-              ) : (
-                <><Moon className="h-4 w-4 mr-2" /> Mudar para escuro</>
-              )}
-              <CommandShortcut>⇧⌘T</CommandShortcut>
-            </CommandItem>
-          </CommandGroup>
+          {matchesQuery("tema claro escuro dark light theme") && (
+            <>
+              <CommandSeparator />
+              <CommandGroup heading="Tema">
+                <CommandItem value="theme-toggle" onSelect={() => run(() => setTheme(resolvedTheme === "dark" ? "light" : "dark"))}>
+                  {resolvedTheme === "dark" ? (
+                    <><Sun className="h-4 w-4 mr-2" /> Mudar para claro</>
+                  ) : (
+                    <><Moon className="h-4 w-4 mr-2" /> Mudar para escuro</>
+                  )}
+                  <CommandShortcut>⇧⌘T</CommandShortcut>
+                </CommandItem>
+              </CommandGroup>
+            </>
+          )}
         </CommandList>
       </CommandDialog>
     </>
