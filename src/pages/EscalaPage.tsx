@@ -1262,6 +1262,104 @@ export default function EscalaPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* MODAL: Imprimir Escala */}
+      <Dialog open={printOpen} onOpenChange={setPrintOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Printer className="h-5 w-5" /> Imprimir Escala</DialogTitle>
+            <DialogDescription>Será aberta uma nova aba com a escala filtrada formatada para impressão ({filtered.length} plantões).</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button type="button" onClick={() => setPrintOpen(false)} className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-muted">Cancelar</button>
+            <button type="button" onClick={doPrint} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">Abrir impressão</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: Copiar Semana */}
+      <Dialog open={copySemanaOpen} onOpenChange={setCopySemanaOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><CopyPlus className="h-5 w-5" /> Copiar Semana</DialogTitle>
+            <DialogDescription>Copia todos os plantões da semana de origem (segunda a domingo) para a semana de destino. Plantões cancelados são ignorados. Os novos plantões ficam como <strong>pendente</strong> até serem publicados.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); if (!copySemanaMutation.isPending) copySemanaMutation.mutate(copySemanaForm); }} className="space-y-3">
+            <div>
+              <label className="text-sm font-medium">Data dentro da semana de origem</label>
+              <input required type="date" value={copySemanaForm.origem} onChange={e => setCopySemanaForm(f => ({ ...f, origem: e.target.value }))} className={inputClass} />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Data dentro da semana de destino</label>
+              <input required type="date" value={copySemanaForm.destino} onChange={e => setCopySemanaForm(f => ({ ...f, destino: e.target.value }))} className={inputClass} />
+            </div>
+            <DialogFooter>
+              <button type="button" onClick={() => setCopySemanaOpen(false)} disabled={copySemanaMutation.isPending} className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-muted">Cancelar</button>
+              <button type="submit" disabled={copySemanaMutation.isPending} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-2">
+                {copySemanaMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                {copySemanaMutation.isPending ? 'Copiando...' : 'Copiar semana'}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: Copiar Mês */}
+      <Dialog open={copyMesOpen} onOpenChange={setCopyMesOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><CopyPlus className="h-5 w-5" /> Copiar Mês</DialogTitle>
+            <DialogDescription>Copia todos os plantões do mês de origem para o mês de destino, mantendo o dia. Os novos plantões ficam como <strong>pendente</strong> até serem publicados.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); if (!copyMesMutation.isPending) copyMesMutation.mutate(copyMesForm); }} className="space-y-3">
+            <div>
+              <label className="text-sm font-medium">Mês de origem</label>
+              <input required type="month" value={copyMesForm.origem} onChange={e => setCopyMesForm(f => ({ ...f, origem: e.target.value }))} className={inputClass} />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Mês de destino</label>
+              <input required type="month" value={copyMesForm.destino} onChange={e => setCopyMesForm(f => ({ ...f, destino: e.target.value }))} className={inputClass} />
+            </div>
+            <DialogFooter>
+              <button type="button" onClick={() => setCopyMesOpen(false)} disabled={copyMesMutation.isPending} className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-muted">Cancelar</button>
+              <button type="submit" disabled={copyMesMutation.isPending} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-2">
+                {copyMesMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                {copyMesMutation.isPending ? 'Copiando...' : 'Copiar mês'}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: Enviar Escala */}
+      <Dialog open={enviarOpen} onOpenChange={setEnviarOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Send className="h-5 w-5" /> Enviar Escala</DialogTitle>
+            <DialogDescription>Envia a escala filtrada via webhook configurado em Configurações → Integrações. {filtered.length} plantões serão incluídos.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); if (!enviarMutation.isPending) enviarMutation.mutate(enviarForm); }} className="space-y-3">
+            <div>
+              <label className="text-sm font-medium">Canal</label>
+              <select value={enviarForm.canal} onChange={e => setEnviarForm(f => ({ ...f, canal: e.target.value as any }))} className={inputClass}>
+                <option value="email">E-mail</option>
+                <option value="whatsapp">WhatsApp</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Mensagem (opcional)</label>
+              <textarea rows={3} value={enviarForm.mensagem} onChange={e => setEnviarForm(f => ({ ...f, mensagem: e.target.value }))} className={inputClass} placeholder="Mensagem que acompanhará a escala..." />
+            </div>
+            <DialogFooter>
+              <button type="button" onClick={() => setEnviarOpen(false)} disabled={enviarMutation.isPending} className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-muted">Cancelar</button>
+              <button type="submit" disabled={enviarMutation.isPending} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-2">
+                {enviarMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                {enviarMutation.isPending ? 'Enviando...' : 'Enviar agora'}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
