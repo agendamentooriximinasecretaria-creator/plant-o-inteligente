@@ -538,6 +538,230 @@ export default function EscalaPage() {
     onError: (e: Error) => toast.error(`Não foi possível excluir: ${e.message}`),
   });
 
+  // ============================================================
+  // Ações secundárias da Escala (Imprimir, Exportar, Copiar, Validar, Publicar, Enviar)
+  // ============================================================
+  const { isMaster, isCoordinator, isProfessional } = useAuth();
+  const canManage = isMaster || isCoordinator;
+
+  const [copySemanaOpen, setCopySemanaOpen] = useState(false);
+  const [copyMesOpen, setCopyMesOpen] = useState(false);
+  const [enviarOpen, setEnviarOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
+  const [validatingAll, setValidatingAll] = useState(false);
+  const [copySemanaForm, setCopySemanaForm] = useState({ origem: '', destino: '' });
+  const [copyMesForm, setCopyMesForm] = useState({ origem: '', destino: '' });
+  const [enviarForm, setEnviarForm] = useState({ canal: 'email' as 'email' | 'whatsapp', mensagem: '' });
+
+  // Helpers de período
+  const ymd = (d: Date) => d.toISOString().split('T')[0];
+  const startOfWeek = (d: Date) => { const x = new Date(d); const dow = x.getDay(); const diff = (dow + 6) % 7; x.setDate(x.getDate() - diff); x.setHours(0,0,0,0); return x; };
+  const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+  const startOfMonth = (year: number, month: number) => new Date(year, month, 1);
+  const endOfMonth = (year: number, month: number) => new Date(year, month + 1, 0);
+
+  const EXPORT_COLS = ['Profissional', 'Profissão', 'Unidade', 'Setor', 'Data', 'Horário', 'Carga', 'Tipo', 'Status'];
+
+  // Imprimir Escala
+  const doPrint = () => {
+    const w = window.open('', '_blank', 'width=1024,height=720');
+    if (!w) { toast.error('Bloqueador de popups impediu a impressão.'); return; }
+    const rows = (filteredRef.current || []).map((s: any) => `
+      <tr>
+        <td>${(s.professionals as any)?.nome || ''}</td>
+        <td>${(s.units as any)?.nome || ''} / ${(s.sectors as any)?.nome || ''}</td>
+        <td>${new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
+        <td>${(s.hora_inicio || '').slice(0,5)} - ${(s.hora_fim || '').slice(0,5)}</td>
+        <td>${s.tipo_plantao || ''}</td>
+        <td>${STATUS_LABELS[s.status] || s.status}</td>
+      </tr>`).join('');
+    w.document.write(`<!doctype html><html><head><title>Escala de Plantões</title>
+      <style>body{font-family:Arial,sans-serif;margin:24px;color:#111}h1{font-size:18px;margin:0 0 4px}small{color:#555}
+      table{width:100%;border-collapse:collapse;margin-top:16px;font-size:12px}
+      th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}th{background:#f3f4f6}</style></head>
+      <body><h1>HOSPITAL MUNICIPAL DE ORIXIMINÁ — Escala de Plantões</h1>
+      <small>Emitido em ${new Date().toLocaleString('pt-BR')} · ${(filteredRef.current||[]).length} plantões</small>
+      <table><thead><tr><th>Profissional</th><th>Unidade/Setor</th><th>Data</th><th>Horário</th><th>Tipo</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+      <script>window.onload=()=>{setTimeout(()=>window.print(),200)}</script>
+      </body></html>`);
+    w.document.close();
+    setPrintOpen(false);
+  };
+
+  // Ref para acessar a lista filtrada nas mutations sem reordenar o código
+  const filteredRef = useRef<any[]>([]);
+
+  // Copiar período (semana ou mês)
+  const copyShifts = async (origemIni: Date, origemFim: Date, destinoIni: Date) => {
+    const oIni = ymd(origemIni), oFim = ymd(origemFim);
+    const { data: src, error } = await supabase.from('shifts')
+      .select('unidade_id, setor_id, profissao, profissional_id, data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, observacoes, status')
+      .gte('data', oIni).lte('data', oFim).neq('status', 'cancelado');
+    if (error) throw error;
+    if (!src || !src.length) throw new Error('Não há plantões no período de origem.');
+    const offsetDays = Math.round((destinoIni.getTime() - origemIni.getTime()) / (1000 * 60 * 60 * 24));
+    const payloads = src.map((s: any) => {
+      const newDate = addDays(new Date(s.data + 'T12:00:00'), offsetDays);
+      return {
+        unidade_id: s.unidade_id, setor_id: s.setor_id, profissao: s.profissao,
+        profissional_id: s.profissional_id, data: ymd(newDate),
+        hora_inicio: s.hora_inicio, hora_fim: s.hora_fim, carga_horaria: s.carga_horaria,
+        tipo_plantao: s.tipo_plantao, observacoes: s.observacoes,
+        status: 'pendente' as any,
+      };
+    });
+    const { error: insErr } = await supabase.from('shifts').insert(payloads);
+    if (insErr) throw insErr;
+    return payloads.length;
+  };
+
+  const copySemanaMutation = useMutation({
+    mutationFn: async (f: { origem: string; destino: string }) => {
+      if (!f.origem || !f.destino) throw new Error('Selecione semana de origem e de destino.');
+      const oIni = startOfWeek(new Date(f.origem + 'T12:00:00'));
+      const dIni = startOfWeek(new Date(f.destino + 'T12:00:00'));
+      const oFim = addDays(oIni, 6);
+      return copyShifts(oIni, oFim, dIni);
+    },
+    onSuccess: (n) => {
+      toast.success(`${n} plantões copiados como rascunho (pendente). Revise e publique.`);
+      invalidateCrossShifts(qc);
+      setCopySemanaOpen(false); setCopySemanaForm({ origem: '', destino: '' });
+      logAudit('Semana copiada', 'escala', { total: n });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const copyMesMutation = useMutation({
+    mutationFn: async (f: { origem: string; destino: string }) => {
+      if (!f.origem || !f.destino) throw new Error('Selecione mês de origem e de destino (formato AAAA-MM).');
+      const [oy, om] = f.origem.split('-').map(Number);
+      const [dy, dm] = f.destino.split('-').map(Number);
+      const oIni = startOfMonth(oy, om - 1);
+      const oFim = endOfMonth(oy, om - 1);
+      const dIni = startOfMonth(dy, dm - 1);
+      return copyShifts(oIni, oFim, dIni);
+    },
+    onSuccess: (n) => {
+      toast.success(`${n} plantões copiados como rascunho. Revise e publique.`);
+      invalidateCrossShifts(qc);
+      setCopyMesOpen(false); setCopyMesForm({ origem: '', destino: '' });
+      logAudit('Mês copiado', 'escala', { total: n });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Validar Conflitos da escala filtrada
+  const handleValidarConflitos = async () => {
+    if (validatingAll) return;
+    setValidatingAll(true);
+    try {
+      const list = filteredRef.current || [];
+      const erros: string[] = [];
+      const sample = list.slice(0, 200);
+      for (const s of sample) {
+        const { data: c } = await supabase.rpc('check_shift_conflict', {
+          p_profissional_id: s.profissional_id, p_data: s.data,
+          p_hora_inicio: s.hora_inicio, p_hora_fim: s.hora_fim, p_exclude_id: s.id,
+        });
+        if (c && c.length > 0) {
+          erros.push(`${(s.professionals as any)?.nome} em ${new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR')}: choque com ${c[0].conflicting_start}-${c[0].conflicting_end}`);
+        }
+      }
+      if (!erros.length) toast.success(`✅ Nenhum conflito encontrado em ${sample.length} plantões.`);
+      else toast.error(`${erros.length} conflito(s) detectado(s)`, { description: erros.slice(0, 5).join('\n'), duration: 10000 });
+      logAudit('Validação de conflitos', 'escala', { total: sample.length, conflitos: erros.length });
+    } catch (e: any) {
+      toast.error('Falha ao validar: ' + e.message);
+    } finally {
+      setValidatingAll(false);
+    }
+  };
+
+  // Publicar Escala — confirma plantões em rascunho (pendente / em_aberto)
+  const publishMutation = useMutation({
+    mutationFn: async () => {
+      const list = filteredRef.current || [];
+      const candidates = list.filter((s: any) => ['pendente', 'em_aberto'].includes(s.status));
+      if (!candidates.length) throw new Error('Nenhum plantão em rascunho (pendente/em aberto) com os filtros atuais.');
+      const ids = candidates.map((s: any) => s.id);
+      const { error } = await supabase.from('shifts').update({ status: 'confirmado' as any }).in('id', ids);
+      if (error) throw error;
+      for (const s of candidates) {
+        await dispatchNotification({
+          professionalId: s.profissional_id, tipo: 'plantao',
+          titulo: '📢 Escala publicada',
+          mensagem: `Seu plantão em ${new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR')} (${s.hora_inicio}-${s.hora_fim}) foi confirmado.`,
+        });
+      }
+      await logAudit('Escala publicada', 'escala', { total: candidates.length });
+      return candidates.length;
+    },
+    onSuccess: (n) => { toast.success(`${n} plantão(ões) publicado(s) e profissionais notificados.`); invalidateCrossShifts(qc); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Enviar Escala (WhatsApp/E-mail) via webhook configurado
+  const enviarMutation = useMutation({
+    mutationFn: async (f: { canal: 'email' | 'whatsapp'; mensagem: string }) => {
+      const list = filteredRef.current || [];
+      const { data: setting } = await sb.from('system_settings').select('value').eq('key', 'webhook').maybeSingle();
+      const w: any = setting?.value || {};
+      if (!w.url || !w.ativo) throw new Error('Webhook não configurado. Configure em Configurações → Integrações.');
+      const payload = {
+        evento: 'envio_escala',
+        canal: f.canal,
+        mensagem: f.mensagem || `Escala de plantões — ${new Date().toLocaleDateString('pt-BR')}`,
+        total_plantoes: list.length,
+        plantoes: list.slice(0, 200).map((s: any) => ({
+          profissional: (s.professionals as any)?.nome,
+          email: (professionals as any[]).find((p: any) => p.id === s.profissional_id)?.email,
+          telefone: (professionals as any[]).find((p: any) => p.id === s.profissional_id)?.telefone,
+          data: s.data, hora_inicio: s.hora_inicio, hora_fim: s.hora_fim,
+          setor: (s.sectors as any)?.nome, unidade: (s.units as any)?.nome,
+          tipo: s.tipo_plantao, status: s.status,
+        })),
+      };
+      const resp = await fetch(w.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (!resp.ok) throw new Error(`Webhook respondeu ${resp.status}`);
+      await logAudit('Escala enviada', 'escala', { canal: f.canal, total: payload.total_plantoes });
+    },
+    onSuccess: () => { toast.success('Escala enviada com sucesso.'); setEnviarOpen(false); setEnviarForm({ canal: 'email', mensagem: '' }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const handleExportPDF = () => {
+    const list = filteredRef.current || [];
+    if (!list.length) { toast.warning('Nada para exportar com os filtros atuais.'); return; }
+    const rows = list.map((s: any) => [
+      (s.professionals as any)?.nome || '',
+      PROFISSAO_LABELS[(s.professionals as any)?.profissao] || '',
+      (s.units as any)?.nome || '',
+      (s.sectors as any)?.nome || '',
+      new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR'),
+      `${(s.hora_inicio || '').slice(0,5)} - ${(s.hora_fim || '').slice(0,5)}`,
+      `${s.carga_horaria}h`, s.tipo_plantao || '', STATUS_LABELS[s.status] || s.status,
+    ]);
+    exportToPDF('Escala de Plantões', EXPORT_COLS, rows, `escala_${todayStr}`);
+    logAudit('Escala exportada (PDF)', 'escala', { total: list.length });
+  };
+  const handleExportExcel = () => {
+    const list = filteredRef.current || [];
+    if (!list.length) { toast.warning('Nada para exportar com os filtros atuais.'); return; }
+    const rows = list.map((s: any) => [
+      (s.professionals as any)?.nome || '',
+      PROFISSAO_LABELS[(s.professionals as any)?.profissao] || '',
+      (s.units as any)?.nome || '',
+      (s.sectors as any)?.nome || '',
+      new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR'),
+      `${(s.hora_inicio || '').slice(0,5)} - ${(s.hora_fim || '').slice(0,5)}`,
+      `${s.carga_horaria}h`, s.tipo_plantao || '', STATUS_LABELS[s.status] || s.status,
+    ]);
+    exportToExcel('Escala', EXPORT_COLS, rows, `escala_${todayStr}`);
+    logAudit('Escala exportada (Excel)', 'escala', { total: list.length });
+  };
+
   const closeModal = () => {
     setModalOpen(false); setEditingId(null); setForm(emptyForm);
     setConflictWarnings([]); setRestWarnings([]); setWorkloadAlerts([]);
