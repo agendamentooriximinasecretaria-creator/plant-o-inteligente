@@ -78,6 +78,13 @@ export default function Dashboard() {
   const qc = useQueryClient();
   const todayStr = new Date().toISOString().split("T")[0];
 
+  // ── Realtime cross-invalidation ──
+  useRealtimeInvalidation({
+    tables: ["shifts", "shift_swaps", "notifications", "audit_logs", "censo_pacientes", "setor_ocupacao", "professionals"],
+    invalidate: ["dashboard-*"],
+    channelId: "dashboard-realtime",
+  });
+
   // ── Data Queries ──
   const { data: shifts = [] } = useQuery({
     queryKey: ["dashboard-shifts"],
