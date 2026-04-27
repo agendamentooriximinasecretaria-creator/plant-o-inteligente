@@ -555,7 +555,7 @@ export default function EscalaPage() {
       hora_inicio: preset?.start ?? f.hora_inicio,
       hora_fim: preset?.end ?? f.hora_fim,
     }));
-    setTimeout(() => { checkConflicts(); checkWorkload(); }, 100);
+    // Validação acontece via useEffect debouncado quando o form mudar.
   };
 
   const filtered = (shifts as any[]).filter((s: any) => {
