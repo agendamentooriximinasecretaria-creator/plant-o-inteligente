@@ -478,7 +478,14 @@ export default function ProfissionaisPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>
+        <CardListSkeleton count={6} />
+      ) : isError ? (
+        <ErrorState
+          title="Não foi possível carregar os profissionais"
+          description="Erro ao consultar a lista de profissionais. Tente novamente."
+          onRetry={() => refetch()}
+          retryLoading={isRefetching}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((p: any, i: number) => {
