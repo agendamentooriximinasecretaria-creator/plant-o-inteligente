@@ -246,14 +246,14 @@ export async function gerarPdfEscala(
   if (cab.instituicao.cnpj) metaParts.push(`CNPJ: ${cab.instituicao.cnpj}`);
   if (cab.instituicao.endereco) metaParts.push(cab.instituicao.endereco);
   if (metaParts.length) {
-    doc.text(metaParts.join("  •  "), 14, metaY);
+    doc.text(metaParts.join("  •  "), headerLeft, metaY);
     metaY += 5;
   }
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(17, 24, 39);
-  doc.text("Escala de Plantões", 14, metaY + 2);
+  doc.text("Escala de Plantões", headerLeft, metaY + 2);
 
   const infoParts: string[] = [];
   if (cab.unidade) infoParts.push(`Unidade: ${cab.unidade}`);
