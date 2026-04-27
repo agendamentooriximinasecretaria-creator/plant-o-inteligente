@@ -1209,6 +1209,36 @@ export default function EscalaPage() {
 
       {/* ===== Filtros da Escala ===== */}
       <div className="bg-card border border-border/60 rounded-xl p-3 shadow-[var(--shadow-card)] space-y-3">
+        {/* Busca global */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 max-w-xl">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <input
+              type="text"
+              value={busca}
+              onChange={e => setBusca(e.target.value)}
+              placeholder="Buscar por profissional, profissão, unidade, setor, tipo, horário, data, status ou observação..."
+              className="w-full bg-background border border-input rounded-lg pl-9 pr-9 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50"
+              aria-label="Buscar na escala"
+            />
+            {busca && (
+              <button
+                type="button"
+                onClick={() => setBusca("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted text-muted-foreground"
+                aria-label="Limpar busca"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          {buscaDebounced && (
+            <span className="text-[11px] text-muted-foreground">
+              {filtered.length} resultado{filtered.length === 1 ? '' : 's'} para "{buscaDebounced}"
+            </span>
+          )}
+        </div>
+
         <div className="flex flex-wrap items-end gap-2">
           {/* Unidade */}
           <div className="flex flex-col">
