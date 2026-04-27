@@ -63,7 +63,12 @@ export default function ProfissionaisPage() {
   const { data: professionals = [], isLoading } = useQuery({
     queryKey: ['professionals'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('professionals').select('*, units:unidade_principal_id(nome), sectors:setor_principal_id(nome)').order('nome');
+      // PII-safe listing: explicit columns only, NO cpf/observacoes/banking/limites.
+      // Sensitive fields are fetched on-demand when opening the edit modal.
+      const { data, error } = await supabase
+        .from('professionals')
+        .select('id, nome, profissao, especialidade, conselho, registro, telefone, email, status, vinculo, unidade_principal_id, setor_principal_id, competencias, documento_conselho, documento_numero, documento_validade, avatar_url, units:unidade_principal_id(nome), sectors:setor_principal_id(nome)')
+        .order('nome');
       if (error) throw error;
       return data;
     },
