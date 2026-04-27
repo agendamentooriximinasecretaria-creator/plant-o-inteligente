@@ -41,7 +41,8 @@ export default function ConfiguracoesPage() {
 
   const saveSetting = useMutation({
     mutationFn: async ({ key, value }: { key: string; value: any }) => {
-      const { data: existing } = await supabase.from('system_settings').select('id').eq('key', key).maybeSingle();
+      const { data: existing } = await supabase.from('system_settings').select('id, value').eq('key', key).maybeSingle();
+      const valorAnterior = existing?.value ?? null;
       if (existing) {
         const { error } = await supabase.from('system_settings').update({ value }).eq('key', key);
         if (error) throw error;
@@ -49,7 +50,10 @@ export default function ConfiguracoesPage() {
         const { error } = await supabase.from('system_settings').insert({ key, value });
         if (error) throw error;
       }
-      await logAudit(`Configuração salva: ${key}`, 'configuracoes', { key });
+      // Sanitize value: strip credentials before audit
+      const sanitized = sanitizeSettingForAudit(key, value);
+      const sanitizedAnterior = sanitizeSettingForAudit(key, valorAnterior);
+      await logAudit(`Configuração salva: ${key}`, 'configuracoes', { key, valor_anterior: sanitizedAnterior, valor_novo: sanitized });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['system-settings'] }); toast.success('Configuração salva!'); },
     onError: (e: Error) => toast.error('Erro: ' + e.message),
