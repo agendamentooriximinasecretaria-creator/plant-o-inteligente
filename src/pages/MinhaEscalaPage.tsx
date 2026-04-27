@@ -6,6 +6,7 @@ import { dispatchNotification } from "@/lib/notifyHelper";
 import { toast } from "sonner";
 import { ArrowLeftRight } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { calcularHorasMes } from "@/lib/horas";
 
 export default function MinhaEscalaPage() {
   const qc = useQueryClient();
