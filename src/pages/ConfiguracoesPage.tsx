@@ -7,6 +7,19 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { ShiftTypesManager } from "@/components/ShiftTypesManager";
 
+// Strip credentials/secrets before logging settings to audit trail.
+function sanitizeSettingForAudit(key: string, value: any): any {
+  if (value == null || typeof value !== 'object') return value;
+  const SENSITIVE = ['senha', 'password', 'token', 'secret', 'api_key', 'apikey', 'auth'];
+  const clone: any = Array.isArray(value) ? [...value] : { ...value };
+  for (const k of Object.keys(clone)) {
+    if (SENSITIVE.some((s) => k.toLowerCase().includes(s))) {
+      clone[k] = '[REDACTED]';
+    }
+  }
+  return clone;
+}
+
 export default function ConfiguracoesPage() {
   const qc = useQueryClient();
   const { data: settings = {} } = useQuery({
