@@ -598,9 +598,12 @@ export default function ProfissionaisPage() {
             );
           })}
           {filtered.length === 0 && (
-            <div className="col-span-full text-center py-12 bg-card border border-border rounded-xl">
-              <User2 className="h-10 w-10 text-muted-foreground mx-auto mb-2 opacity-50" />
-              <p className="text-muted-foreground text-sm">Nenhum profissional encontrado.</p>
+            <div className="col-span-full">
+              <EmptyState
+                icon={User2}
+                title="Nenhum profissional encontrado"
+                description="Ajuste a busca ou os filtros para localizar profissionais."
+              />
             </div>
           )}
         </div>
