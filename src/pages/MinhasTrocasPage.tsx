@@ -225,6 +225,7 @@ export default function MinhasTrocasPage() {
       toast.success(variables.accept ? "Troca aceita." : "Troca recusada.");
       qc.invalidateQueries({ queryKey: ["professional-swaps"] });
       qc.invalidateQueries({ queryKey: ["professional-my-shifts-for-swaps"] });
+      invalidateCrossSwaps(qc);
       refetchStatus();
     },
     onError: (error: any) => toast.error(error.message ?? "Erro ao responder troca."),
