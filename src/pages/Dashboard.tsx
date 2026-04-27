@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logAudit } from "@/lib/auditLog";
 import {
   TrendingUp, TrendingDown, Calendar, CheckCircle2, Clock,
   ArrowLeftRight, AlertTriangle, Users, Activity,
