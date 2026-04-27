@@ -161,6 +161,7 @@ export default function MinhasTrocasPage() {
       toast.success("Troca solicitada com sucesso.");
       setForm({ shift_id: "", tipo: "grupo", destinatario_id: "", motivo: "" });
       qc.invalidateQueries({ queryKey: ["professional-swaps"] });
+      invalidateCrossSwaps(qc);
       refetchStatus();
     },
     onError: (error: any) => toast.error(error.message ?? "Erro ao solicitar troca."),
