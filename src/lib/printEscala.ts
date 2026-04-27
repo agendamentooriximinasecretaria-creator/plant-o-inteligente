@@ -4,6 +4,7 @@
 
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { getLogoSmsDataUrl, logoSmsImgHtml } from "./logoSMS";
 
 export interface PrintInstituicao {
   nome?: string;
@@ -109,7 +110,8 @@ function buildHtml(
 <style>
   * { box-sizing: border-box; }
   body { font-family: Arial, Helvetica, sans-serif; color: #111; margin: 24px; }
-  .header { border-bottom: 2px solid #0e7490; padding-bottom: 10px; margin-bottom: 12px; }
+  .header { border-bottom: 2px solid #0e7490; padding-bottom: 10px; margin-bottom: 12px; display:flex; align-items:center; gap:14px; }
+  .header .brand { flex: 1; }
   .header h1 { font-size: 16px; margin: 0; color: #0e7490; }
   .header h2 { font-size: 13px; margin: 2px 0 0; color: #111; font-weight: 600; }
   .meta { font-size: 11px; color: #444; margin-top: 6px; }
@@ -142,6 +144,8 @@ function buildHtml(
   </div>
 
   <div class="header">
+    ${logoSmsImgHtml(64)}
+    <div class="brand">
     <h1>${escapeHtml(cab.instituicao.nome || "Instituição")}</h1>
     ${cab.instituicao.cnpj ? `<div class="meta"><span>CNPJ: ${escapeHtml(cab.instituicao.cnpj)}</span>${cab.instituicao.endereco ? `<span>${escapeHtml(cab.instituicao.endereco)}</span>` : ""}</div>` : ""}
     <h2>Escala de Plantões</h2>
