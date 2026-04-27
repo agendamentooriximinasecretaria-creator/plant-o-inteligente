@@ -627,20 +627,17 @@ export default function RelatoriosPage() {
               <button onClick={acaoImprimir} disabled={!preview} className="px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted inline-flex items-center gap-1.5 disabled:opacity-50">
                 <Printer className="h-4 w-4" /> Imprimir
               </button>
-              <button onClick={() => acaoBaixar('pdf')} disabled={!!exporting} className="px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted inline-flex items-center gap-1.5 disabled:opacity-50">
-                {exporting.endsWith('-pdf') ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />} PDF
+              <button onClick={() => acaoBaixar('pdf')} disabled={!!exporting || !preview} className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 inline-flex items-center gap-1.5 disabled:opacity-50">
+                {exporting.endsWith('-pdf') ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />} Exportar PDF
               </button>
-              <button onClick={() => acaoBaixar('excel')} disabled={!!exporting} className="px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted inline-flex items-center gap-1.5 disabled:opacity-50">
-                {exporting.endsWith('-excel') ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />} Excel
-              </button>
-              <button onClick={() => acaoBaixar('csv')} disabled={!!exporting} className="px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted inline-flex items-center gap-1.5 disabled:opacity-50">
-                {exporting.endsWith('-csv') ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} CSV
-              </button>
-              {emailHabilitado && (
-                <button onClick={acaoEnviarEmail} disabled={!preview} className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 inline-flex items-center gap-1.5 disabled:opacity-50">
-                  <Mail className="h-4 w-4" /> Enviar por e-mail
-                </button>
-              )}
+              <MoreActionsMenu
+                triggerClassName="px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted inline-flex items-center gap-1.5"
+                items={[
+                  { id: 'excel', label: exporting.endsWith('-excel') ? 'Exportando...' : 'Exportar Excel', icon: <FileSpreadsheet />, onClick: () => acaoBaixar('excel'), disabled: !preview, loading: exporting.endsWith('-excel'), group: 'Exportar' },
+                  { id: 'csv', label: exporting.endsWith('-csv') ? 'Exportando...' : 'Exportar CSV', icon: <Download />, onClick: () => acaoBaixar('csv'), disabled: !preview, loading: exporting.endsWith('-csv'), group: 'Exportar' },
+                  { id: 'email', label: 'Enviar por e-mail', icon: <Mail />, onClick: acaoEnviarEmail, disabled: !preview, hidden: !emailHabilitado, group: 'Distribuir' },
+                ]}
+              />
             </div>
           </DialogFooter>
         </DialogContent>
