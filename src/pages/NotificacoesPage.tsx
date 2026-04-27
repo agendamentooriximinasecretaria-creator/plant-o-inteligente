@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logAudit } from "@/lib/auditLog";
 import { Bell, CheckCircle2, Clock, AlertTriangle, Info, Calendar as CalIcon, ArrowLeftRight, Activity } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
