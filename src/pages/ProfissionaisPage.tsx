@@ -426,18 +426,55 @@ export default function ProfissionaisPage() {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-2">
                       <h3 className="font-display font-semibold text-foreground truncate">{p.nome}</h3>
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => openEdit(p)} className="p-1 rounded hover:bg-muted"><Edit className="h-3.5 w-3.5 text-muted-foreground" /></button>
+                      <div className="flex items-center gap-1 shrink-0">
                         <span className={`status-badge text-[10px] cursor-pointer ${p.status === 'ativo' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}
                           onClick={() => toggleStatusMutation.mutate({ id: p.id, newStatus: p.status === 'ativo' ? 'inativo' : 'ativo' })}>
                           {p.status === 'ativo' ? 'Ativo' : 'Inativo'}
                         </span>
+                        <button onClick={() => openEdit(p)} className="p-1 rounded hover:bg-muted" title="Editar"><Edit className="h-3.5 w-3.5 text-muted-foreground" /></button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="p-1 rounded hover:bg-muted" title="Ações rápidas">
+                              <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-56">
+                            <DropdownMenuItem onClick={() => navigate(`/escala?profissional=${p.id}`)}>
+                              <CalIcon className="h-4 w-4 mr-2" /> Ver escala
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(`/escala?profissional=${p.id}&aba=historico`)}>
+                              <History className="h-4 w-4 mr-2" /> Ver histórico
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(`/escala?profissional=${p.id}&novo=1`)}>
+                              <Plus className="h-4 w-4 mr-2" /> Criar plantão
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => printFicha(p)}>
+                              <Printer className="h-4 w-4 mr-2" /> Imprimir ficha resumida
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => enviarMensagem(p)}>
+                              <MessageSquare className="h-4 w-4 mr-2" /> Enviar mensagem
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => validarDocumentos(p)}>
+                              <FileCheck2 className="h-4 w-4 mr-2" /> Validar documentos
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                     <p className="text-sm text-primary font-medium">{PROFISSAO_LABELS[p.profissao] || p.profissao}</p>
                     <p className="text-xs text-muted-foreground">{p.especialidade || '—'}{p.registro ? ` · ${p.registro}` : ''}</p>
+
+                    {(di.vencido || di.vencendo) && (
+                      <div className={`mt-2 flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-md border ${di.vencido ? 'bg-destructive/10 text-destructive border-destructive/30' : 'bg-warning/10 text-warning border-warning/30'}`}>
+                        <AlertTriangle className="h-3 w-3 shrink-0" />
+                        <span className="font-medium">
+                          {di.vencido ? `Documento VENCIDO há ${Math.abs(di.dias!)}d` : `Documento vence em ${di.dias}d`}
+                        </span>
+                      </div>
+                    )}
 
                     {p.status === 'ativo' && (
                       <div className="mt-2">
