@@ -181,9 +181,7 @@ export default function TrocasPage() {
       }
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['swaps'] });
-      qc.invalidateQueries({ queryKey: ['swap-histories'] });
-      qc.invalidateQueries({ queryKey: ['shifts'] });
+      invalidateCrossSwaps(qc);
       toast.success('Troca processada e escala atualizada!');
       setReviewSwap(null);
       setReviewAction(null);
