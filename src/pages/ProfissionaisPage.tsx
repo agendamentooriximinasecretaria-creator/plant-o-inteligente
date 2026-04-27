@@ -408,6 +408,7 @@ export default function ProfissionaisPage() {
             const ultimos = ultimosPorProf[p.id] || [];
             const ocupadoHoje = ocupadosHoje.has(p.id);
             const disponivel = p.status === 'ativo' && !ocupadoHoje;
+            const di = docInfo(p.documento_validade);
             return (
               <motion.div key={p.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 12) * 0.03 }}
                 className="bg-card rounded-xl border border-border p-5 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elevated)] transition-all">
