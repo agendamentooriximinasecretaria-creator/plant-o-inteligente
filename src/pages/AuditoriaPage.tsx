@@ -1,11 +1,14 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Download, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Download, ChevronDown, ChevronUp, FileSearch } from "lucide-react";
 import { motion } from "framer-motion";
 import { exportToCSV } from "@/lib/exportUtils";
 import { toast } from "sonner";
 import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
+import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
+import { TableRowSkeleton } from "@/components/PageSkeleton";
 
 const actionColors: Record<string, string> = {
   criado: 'bg-success/10 text-success',
@@ -55,7 +58,7 @@ export default function AuditoriaPage() {
     channelId: "auditoria-realtime",
   });
 
-  const { data: logs = [], isLoading } = useQuery({
+  const { data: logs = [], isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['audit-logs', filterModulo],
     queryFn: async () => {
       let q = supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(500);
