@@ -982,12 +982,91 @@ export default function EscalaPage() {
     // Validação acontece via useEffect debouncado quando o form mudar.
   };
 
-  const filtered = (shifts as any[]).filter((s: any) => {
-    if (filterSetor && s.setor_id !== filterSetor) return false;
-    if (filterStatus && s.status !== filterStatus) return false;
+  const isFolgaShift = (s: any) => s?.tipo_plantao === 'folga' || s?.tipo_plantao === 'indisponibilidade';
+
+  // Setores sem cobertura no dia (hoje) — usado pelo filtro "Somente setores descobertos"
+  const setoresDescobertosIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const s of (sectors as any[])) {
+      const escalados = (todayAllShifts as any[]).filter((sh: any) => sh.setor_id === s.id).length;
+      if (escalados === 0) ids.add(s.id);
+    }
+    return ids;
+  }, [sectors, todayAllShifts]);
+
+  // Conflitos detectados em memória: mesmo profissional+data com sobreposição de horário
+  const conflictIds = useMemo(() => {
+    const out = new Set<string>();
+    const groups = new Map<string, any[]>();
+    for (const s of (shifts as any[])) {
+      if (s.status === 'cancelado' || isFolgaShift(s)) continue;
+      const k = `${s.profissional_id}|${s.data}`;
+      (groups.get(k) || groups.set(k, []).get(k)!).push(s);
+    }
+    for (const arr of groups.values()) {
+      if (arr.length < 2) continue;
+      for (let i = 0; i < arr.length; i++) {
+        for (let j = i + 1; j < arr.length; j++) {
+          const a = arr[i], b = arr[j];
+          if (a.hora_inicio < b.hora_fim && b.hora_inicio < a.hora_fim) {
+            out.add(a.id); out.add(b.id);
+          }
+        }
+      }
+    }
+    return out;
+  }, [shifts]);
+
+  const filtered = useMemo(() => (shifts as any[]).filter((s: any) => {
+    const f = filtros;
+    if (f.unidadeId && s.unidade_id !== f.unidadeId) return false;
+    if (f.setorId && s.setor_id !== f.setorId) return false;
+    if (f.profissao && s.profissao !== f.profissao) return false;
+    if (f.profissionalId && s.profissional_id !== f.profissionalId) return false;
+    if (f.tipoPlantao && s.tipo_plantao !== f.tipoPlantao) return false;
+    if (f.status && s.status !== f.status) return false;
+    if (f.dataIni && s.data < f.dataIni) return false;
+    if (f.dataFim && s.data > f.dataFim) return false;
+    if (f.soPublicados && !['confirmado', 'concluido', 'agendado'].includes(s.status)) return false;
+    if (f.soRascunhos && !['pendente', 'em_aberto'].includes(s.status)) return false;
+    if (f.soFolgas && !isFolgaShift(s)) return false;
+    if (f.soConflitos && !conflictIds.has(s.id)) return false;
+    if (f.soDescobertos && !setoresDescobertosIds.has(s.setor_id)) return false;
     return true;
-  });
+  }), [shifts, filtros, conflictIds, setoresDescobertosIds]);
   filteredRef.current = filtered;
+
+  const filtrosAtivos = useMemo(() => {
+    const f = filtros;
+    let n = 0;
+    (['unidadeId','setorId','profissao','profissionalId','tipoPlantao','status','dataIni','dataFim'] as const)
+      .forEach(k => { if ((f as any)[k]) n++; });
+    if (f.soConflitos) n++; if (f.soDescobertos) n++;
+    if (f.soPublicados) n++; if (f.soRascunhos) n++; if (f.soFolgas) n++;
+    return n;
+  }, [filtros]);
+
+  const aplicarPeriodoFiltro = (p: FiltrosEscala['periodo']) => {
+    const t = new Date();
+    const ymdL = (d: Date) => d.toISOString().split('T')[0];
+    const sow = (d: Date) => { const x = new Date(d); const dow = x.getDay(); const diff = (dow + 6) % 7; x.setDate(x.getDate() - diff); x.setHours(0,0,0,0); return x; };
+    const addD = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+    if (p === 'semana') {
+      const ini = sow(t);
+      setFiltros(f => ({ ...f, periodo: p, dataIni: ymdL(ini), dataFim: ymdL(addD(ini, 6)) }));
+    } else if (p === 'mes') {
+      const ini = new Date(t.getFullYear(), t.getMonth(), 1);
+      const fim = new Date(t.getFullYear(), t.getMonth() + 1, 0);
+      setFiltros(f => ({ ...f, periodo: p, dataIni: ymdL(ini), dataFim: ymdL(fim) }));
+    } else if (p === 'personalizado') {
+      setFiltros(f => ({ ...f, periodo: p }));
+    } else {
+      setFiltros(f => ({ ...f, periodo: '', dataIni: '', dataFim: '' }));
+    }
+  };
+
+  const limparFiltros = () => setFiltros(filtrosVazios);
+
 
   const inputClass = "w-full bg-background border border-input rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50 transition-colors";
 
