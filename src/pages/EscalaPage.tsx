@@ -115,14 +115,29 @@ export default function EscalaPage() {
   const tipoToSigla = (tipo?: string) => TIPOS_PLANTAO.find(t => t.value === tipo)?.sigla ?? (tipo?.[0]?.toUpperCase() ?? '?');
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let pending = 0;
+    const scheduleRefetch = () => {
+      pending++;
+      if (timer) return;
+      timer = setTimeout(() => {
+        const batched = pending;
+        pending = 0;
+        timer = null;
+        refetchShifts();
+        if (batched <= 2) {
+          toast.info('📅 Escala atualizada', { duration: 2000, position: 'bottom-right' });
+        }
+      }, 600);
+    };
     const shiftsChannel = supabase
       .channel('escala-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts' }, () => {
-        refetchShifts();
-        toast.info('📅 Escala atualizada', { duration: 2000, position: 'bottom-right' });
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts' }, scheduleRefetch)
       .subscribe();
-    return () => { supabase.removeChannel(shiftsChannel); };
+    return () => {
+      if (timer) clearTimeout(timer);
+      supabase.removeChannel(shiftsChannel);
+    };
   }, [refetchShifts]);
 
   const { data: activeSwaps = [] } = useQuery({
