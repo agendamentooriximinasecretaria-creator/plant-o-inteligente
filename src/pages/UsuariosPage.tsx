@@ -136,7 +136,7 @@ export default function UsuariosPage() {
         const { error: insErr } = await supabase.from('user_roles').insert({ user_id: user.user_id, role: newRole as any });
         if (insErr) throw insErr;
       }
-      await logAudit('Permissão alterada', 'usuarios', { profileId, role_anterior: currentRole, role_novo: newRole });
+      await logAudit('Permissão alterada', 'usuarios', { profileId, alvo_email: user?.email, alvo_nome: user?.nome, role_anterior: currentRole, role_novo: newRole });
     },
     onSuccess: () => {
       toast.success("Perfil atualizado com sucesso.");
