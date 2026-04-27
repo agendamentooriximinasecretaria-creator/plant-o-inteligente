@@ -280,112 +280,118 @@ export default function EscalaPage() {
     setWorkloadAlerts(alerts);
   };
 
-  // Revalidação server-side imediatamente antes do mutate (evita race entre abas / estado local desatualizado)
+  // Revalidação server-side imediatamente antes do mutate.
+  // Valida TODOS os profissionais selecionados (não para no primeiro) e retorna lista agregada de conflitos.
   const revalidateServerSide = async (data: typeof form): Promise<void> => {
     const limiteDia = Number(conflictRules?.limite_horas_dia ?? 24);
     const limiteSemana = Number(conflictRules?.limite_horas_semana ?? 60);
     const novaCarga = calcHours(data.hora_inicio, data.hora_fim);
+    const erros: string[] = [];
 
-    // 1. Tipo de plantão ativo (consulta direta para detectar inativos)
-    if (data.tipo_plantao && data.tipo_plantao !== 'regular' && data.tipo_plantao !== 'folga' && data.tipo_plantao !== 'indisponibilidade') {
+    // 1. Tipo de plantão ativo
+    if (data.tipo_plantao && !['regular', 'folga', 'indisponibilidade'].includes(data.tipo_plantao)) {
       const { data: tipoRow } = await sb.from('shift_types')
         .select('ativo')
         .or(`sigla.eq.${data.tipo_plantao},nome.eq.${data.tipo_plantao}`)
         .maybeSingle();
       if (tipoRow && (tipoRow as any).ativo === false) {
-        throw new Error(`Tipo de plantão "${data.tipo_plantao}" está inativo.`);
+        erros.push(`Tipo de plantão "${data.tipo_plantao}" está inativo.`);
       }
     }
 
     // 2. Setor/Unidade válidos
     const setor = (sectors as any[]).find((s: any) => s.id === data.setor_id);
-    if (!setor) throw new Error('Setor selecionado é inválido.');
-    if (setor.unidade_id && setor.unidade_id !== data.unidade_id) {
-      throw new Error('Setor não pertence à unidade selecionada.');
+    if (!setor) erros.push('Setor selecionado é inválido.');
+    else if (setor.unidade_id && setor.unidade_id !== data.unidade_id) {
+      erros.push('Setor não pertence à unidade selecionada.');
     }
 
     // Janela de semana (segunda a domingo) para limite semanal
     const ref = new Date(data.data + 'T00:00:00');
-    const dow = ref.getDay(); // 0=dom
+    const dow = ref.getDay();
     const diffToMon = (dow + 6) % 7;
     const semanaIni = new Date(ref); semanaIni.setDate(ref.getDate() - diffToMon);
     const semanaFim = new Date(semanaIni); semanaFim.setDate(semanaIni.getDate() + 6);
     const semanaIniStr = semanaIni.toISOString().split('T')[0];
     const semanaFimStr = semanaFim.toISOString().split('T')[0];
 
-    for (const pid of data.profissional_ids) {
+    // Validação paralela por profissional, agregando todos os erros
+    const validarProfissional = async (pid: string): Promise<string[]> => {
+      const out: string[] = [];
       const prof = (professionals as any[]).find((p: any) => p.id === pid);
-      const nome = prof?.nome || 'Profissional';
+      const nome = prof?.nome || `Profissional ${pid.slice(0, 8)}`;
 
-      // 3. Profissional ativo
       if (!prof || prof.status !== 'ativo') {
-        throw new Error(`${nome}: profissional inativo.`);
+        out.push(`${nome}: profissional inativo.`);
+        return out;
       }
 
-      // 4. Conflito de horário (RPC)
-      const { data: conflicts, error: cErr } = await supabase.rpc('check_shift_conflict', {
-        p_profissional_id: pid,
-        p_data: data.data,
-        p_hora_inicio: data.hora_inicio,
-        p_hora_fim: data.hora_fim,
-        p_exclude_id: editingId,
-      });
-      if (cErr) throw new Error(`Falha ao revalidar conflito de ${nome}: ${cErr.message}`);
-      if (conflicts && conflicts.length > 0) {
-        const c: any = conflicts[0];
-        throw new Error(`${nome}: já possui plantão ${c.conflicting_start}–${c.conflicting_end} neste dia.`);
+      const [conflictsRes, restRes, doDiaRes, doSemRes] = await Promise.all([
+        supabase.rpc('check_shift_conflict', {
+          p_profissional_id: pid, p_data: data.data,
+          p_hora_inicio: data.hora_inicio, p_hora_fim: data.hora_fim,
+          p_exclude_id: editingId,
+        }),
+        supabase.rpc('check_descanso_minimo', {
+          p_profissional_id: pid, p_data: data.data,
+          p_hora_inicio: data.hora_inicio, p_hora_fim: data.hora_fim,
+          p_descanso_horas: descansoMinimo, p_exclude_id: editingId,
+        }),
+        (() => {
+          let q = supabase.from('shifts').select('carga_horaria')
+            .eq('profissional_id', pid).eq('data', data.data).neq('status', 'cancelado');
+          if (editingId) q = q.neq('id', editingId);
+          return q;
+        })(),
+        (() => {
+          let q = supabase.from('shifts').select('carga_horaria')
+            .eq('profissional_id', pid).gte('data', semanaIniStr).lte('data', semanaFimStr).neq('status', 'cancelado');
+          if (editingId) q = q.neq('id', editingId);
+          return q;
+        })(),
+      ]);
+
+      if (conflictsRes.error) out.push(`${nome}: falha ao revalidar conflito (${conflictsRes.error.message}).`);
+      else if (conflictsRes.data && conflictsRes.data.length > 0) {
+        const c: any = conflictsRes.data[0];
+        out.push(`${nome}: já possui plantão ${c.conflicting_start}–${c.conflicting_end} neste dia.`);
       }
 
-      // 5. Descanso mínimo (RPC)
-      const { data: restData, error: rErr } = await supabase.rpc('check_descanso_minimo', {
-        p_profissional_id: pid,
-        p_data: data.data,
-        p_hora_inicio: data.hora_inicio,
-        p_hora_fim: data.hora_fim,
-        p_descanso_horas: descansoMinimo,
-        p_exclude_id: editingId,
-      });
-      if (rErr) throw new Error(`Falha ao revalidar descanso de ${nome}: ${rErr.message}`);
-      if (restData && restData.length > 0) {
-        const gap = Number((restData[0] as any).gap_horas).toFixed(1);
-        throw new Error(`${nome}: descanso de ${gap}h entre plantões (mínimo: ${descansoMinimo}h).`);
+      if (restRes.error) out.push(`${nome}: falha ao revalidar descanso (${restRes.error.message}).`);
+      else if (restRes.data && restRes.data.length > 0) {
+        const gap = Number((restRes.data[0] as any).gap_horas).toFixed(1);
+        out.push(`${nome}: descanso de ${gap}h (mínimo ${descansoMinimo}h).`);
       }
 
-      // 6. Limite de horas/dia
-      let q = supabase.from('shifts')
-        .select('carga_horaria')
-        .eq('profissional_id', pid)
-        .eq('data', data.data)
-        .neq('status', 'cancelado');
-      if (editingId) q = q.neq('id', editingId);
-      const { data: doDia } = await q;
-      const horasDia = (doDia || []).reduce((s: number, r: any) => s + Number(r.carga_horaria || 0), 0) + novaCarga;
-      if (horasDia > limiteDia) {
-        throw new Error(`${nome}: excede limite diário (${horasDia.toFixed(1)}h > ${limiteDia}h).`);
-      }
+      const horasDia = (doDiaRes.data || []).reduce((s: number, r: any) => s + Number(r.carga_horaria || 0), 0) + novaCarga;
+      if (horasDia > limiteDia) out.push(`${nome}: excede limite diário (${horasDia.toFixed(1)}h > ${limiteDia}h).`);
 
-      // 7. Limite de horas/semana
-      let qw = supabase.from('shifts')
-        .select('carga_horaria')
-        .eq('profissional_id', pid)
-        .gte('data', semanaIniStr)
-        .lte('data', semanaFimStr)
-        .neq('status', 'cancelado');
-      if (editingId) qw = qw.neq('id', editingId);
-      const { data: doSem } = await qw;
-      const horasSem = (doSem || []).reduce((s: number, r: any) => s + Number(r.carga_horaria || 0), 0) + novaCarga;
-      if (horasSem > limiteSemana) {
-        throw new Error(`${nome}: excede limite semanal (${horasSem.toFixed(1)}h > ${limiteSemana}h).`);
-      }
+      const horasSem = (doSemRes.data || []).reduce((s: number, r: any) => s + Number(r.carga_horaria || 0), 0) + novaCarga;
+      if (horasSem > limiteSemana) out.push(`${nome}: excede limite semanal (${horasSem.toFixed(1)}h > ${limiteSemana}h).`);
+
+      return out;
+    };
+
+    const resultados = await Promise.all(data.profissional_ids.map(validarProfissional));
+    resultados.forEach(r => erros.push(...r));
+
+    if (erros.length > 0) {
+      const cabecalho = erros.length === 1
+        ? 'Não foi possível salvar:'
+        : `Não foi possível salvar — ${erros.length} conflitos detectados:`;
+      throw new Error(`${cabecalho}\n• ${erros.join('\n• ')}`);
     }
   };
 
   const saveMutation = useMutation({
     mutationFn: async (data: typeof form) => {
-      if (!data.profissional_ids.length) throw new Error('Selecione ao menos um profissional.');
-      // Revalidação server-side final (não confia em conflictWarnings/restWarnings locais)
-      await revalidateServerSide(data);
-      const hours = calcHours(data.hora_inicio, data.hora_fim);
+      // Captura snapshot da lista atual no momento exato do submit (deduplicada)
+      const idsSnapshot = Array.from(new Set(data.profissional_ids));
+      if (!idsSnapshot.length) throw new Error('Selecione ao menos um profissional.');
+      const finalData = { ...data, profissional_ids: idsSnapshot };
+      // Revalidação server-side final — valida TODOS os selecionados, não apenas o primeiro
+      await revalidateServerSide(finalData);
+      const hours = calcHours(finalData.hora_inicio, finalData.hora_fim);
       const basePayload = {
         unidade_id: data.unidade_id, setor_id: data.setor_id, profissao: data.profissao as any,
         data: data.data, hora_inicio: data.hora_inicio, hora_fim: data.hora_fim,
