@@ -1561,10 +1561,10 @@ export default function EscalaPage() {
                 const found = (shifts as any[]).find((s: any) => s.id === shift.id);
                 if (found) setDetailShift(found);
               } else {
-                openCreateForCell(dateStr);
+                openEmptyCellMenu(dateStr);
               }
             }}
-            onCreateClick={(dateStr) => openCreateForCell(dateStr)}
+            onCreateClick={(dateStr) => openEmptyCellMenu(dateStr)}
           />
         </motion.div>
       ) : (
