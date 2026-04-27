@@ -99,7 +99,7 @@ export default function Dashboard() {
 
   const { data: profCount = 0 } = useQuery({
     queryKey: ["dashboard-prof-count"],
-    queryFn: async () => { const { count } = await supabase.from("professionals").select("*", { count: "exact", head: true }).eq("status", "ativo"); return count || 0; },
+    queryFn: async () => { const { count } = await supabase.from("professionals_safe").select("id", { count: "exact", head: true }).eq("status", "ativo"); return count || 0; },
   });
 
   const { data: recentLogs = [] } = useQuery({
