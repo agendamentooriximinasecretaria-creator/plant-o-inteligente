@@ -20,6 +20,9 @@ import {
 import { calcularHorasPorProfissional, calcularCargaPercentual, CLT_LIMITE_MENSAL } from "@/lib/horas";
 import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 import { printFichaProfissional } from "@/lib/printFichaProfissional";
+import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
+import { CardListSkeleton } from "@/components/PageSkeleton";
 
 function useDebounced<T>(value: T, delay = 300): T {
   const [v, setV] = useState(value);
@@ -94,7 +97,7 @@ export default function ProfissionaisPage() {
     channelId: "profissionais-realtime",
   });
 
-  const { data: professionals = [], isLoading } = useQuery({
+  const { data: professionals = [], isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['professionals'],
     queryFn: async () => {
       // PII-safe listing: explicit columns only, NO cpf/observacoes/banking/limites.
