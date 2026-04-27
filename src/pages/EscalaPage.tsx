@@ -5,14 +5,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { invalidateCrossShifts } from "@/lib/queryInvalidation";
 import { logAudit } from "@/lib/auditLog";
 import { dispatchNotification } from "@/lib/notifyHelper";
-import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info, Users as UsersIcon, Palmtree, AlertTriangle, LayoutGrid } from "lucide-react";
+import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info, Users as UsersIcon, Palmtree, AlertTriangle, LayoutGrid, MoreHorizontal, Printer, FileText, FileSpreadsheet, CopyPlus, ShieldCheck, Send, Megaphone, Loader2 } from "lucide-react";
 import { WeeklyGrid, type ProfRow, type GridShift } from "@/components/schedule/WeeklyGrid";
 import { ContactActionButton } from "@/components/ContactActionButton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/hooks/useAuth";
+import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 
 const STATUS_LABELS: Record<string, string> = {
   agendado: 'Agendado', confirmado: 'Confirmado', pendente: 'Pendente',
@@ -535,6 +538,230 @@ export default function EscalaPage() {
     onError: (e: Error) => toast.error(`Não foi possível excluir: ${e.message}`),
   });
 
+  // ============================================================
+  // Ações secundárias da Escala (Imprimir, Exportar, Copiar, Validar, Publicar, Enviar)
+  // ============================================================
+  const { isMaster, isCoordinator, isProfessional } = useAuth();
+  const canManage = isMaster || isCoordinator;
+
+  const [copySemanaOpen, setCopySemanaOpen] = useState(false);
+  const [copyMesOpen, setCopyMesOpen] = useState(false);
+  const [enviarOpen, setEnviarOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
+  const [validatingAll, setValidatingAll] = useState(false);
+  const [copySemanaForm, setCopySemanaForm] = useState({ origem: '', destino: '' });
+  const [copyMesForm, setCopyMesForm] = useState({ origem: '', destino: '' });
+  const [enviarForm, setEnviarForm] = useState({ canal: 'email' as 'email' | 'whatsapp', mensagem: '' });
+
+  // Helpers de período
+  const ymd = (d: Date) => d.toISOString().split('T')[0];
+  const startOfWeek = (d: Date) => { const x = new Date(d); const dow = x.getDay(); const diff = (dow + 6) % 7; x.setDate(x.getDate() - diff); x.setHours(0,0,0,0); return x; };
+  const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+  const startOfMonth = (year: number, month: number) => new Date(year, month, 1);
+  const endOfMonth = (year: number, month: number) => new Date(year, month + 1, 0);
+
+  const EXPORT_COLS = ['Profissional', 'Profissão', 'Unidade', 'Setor', 'Data', 'Horário', 'Carga', 'Tipo', 'Status'];
+
+  // Imprimir Escala
+  const doPrint = () => {
+    const w = window.open('', '_blank', 'width=1024,height=720');
+    if (!w) { toast.error('Bloqueador de popups impediu a impressão.'); return; }
+    const rows = (filteredRef.current || []).map((s: any) => `
+      <tr>
+        <td>${(s.professionals as any)?.nome || ''}</td>
+        <td>${(s.units as any)?.nome || ''} / ${(s.sectors as any)?.nome || ''}</td>
+        <td>${new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
+        <td>${(s.hora_inicio || '').slice(0,5)} - ${(s.hora_fim || '').slice(0,5)}</td>
+        <td>${s.tipo_plantao || ''}</td>
+        <td>${STATUS_LABELS[s.status] || s.status}</td>
+      </tr>`).join('');
+    w.document.write(`<!doctype html><html><head><title>Escala de Plantões</title>
+      <style>body{font-family:Arial,sans-serif;margin:24px;color:#111}h1{font-size:18px;margin:0 0 4px}small{color:#555}
+      table{width:100%;border-collapse:collapse;margin-top:16px;font-size:12px}
+      th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}th{background:#f3f4f6}</style></head>
+      <body><h1>HOSPITAL MUNICIPAL DE ORIXIMINÁ — Escala de Plantões</h1>
+      <small>Emitido em ${new Date().toLocaleString('pt-BR')} · ${(filteredRef.current||[]).length} plantões</small>
+      <table><thead><tr><th>Profissional</th><th>Unidade/Setor</th><th>Data</th><th>Horário</th><th>Tipo</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+      <script>window.onload=()=>{setTimeout(()=>window.print(),200)}</script>
+      </body></html>`);
+    w.document.close();
+    setPrintOpen(false);
+  };
+
+  // Ref para acessar a lista filtrada nas mutations sem reordenar o código
+  const filteredRef = useRef<any[]>([]);
+
+  // Copiar período (semana ou mês)
+  const copyShifts = async (origemIni: Date, origemFim: Date, destinoIni: Date) => {
+    const oIni = ymd(origemIni), oFim = ymd(origemFim);
+    const { data: src, error } = await supabase.from('shifts')
+      .select('unidade_id, setor_id, profissao, profissional_id, data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, observacoes, status')
+      .gte('data', oIni).lte('data', oFim).neq('status', 'cancelado');
+    if (error) throw error;
+    if (!src || !src.length) throw new Error('Não há plantões no período de origem.');
+    const offsetDays = Math.round((destinoIni.getTime() - origemIni.getTime()) / (1000 * 60 * 60 * 24));
+    const payloads = src.map((s: any) => {
+      const newDate = addDays(new Date(s.data + 'T12:00:00'), offsetDays);
+      return {
+        unidade_id: s.unidade_id, setor_id: s.setor_id, profissao: s.profissao,
+        profissional_id: s.profissional_id, data: ymd(newDate),
+        hora_inicio: s.hora_inicio, hora_fim: s.hora_fim, carga_horaria: s.carga_horaria,
+        tipo_plantao: s.tipo_plantao, observacoes: s.observacoes,
+        status: 'pendente' as any,
+      };
+    });
+    const { error: insErr } = await supabase.from('shifts').insert(payloads);
+    if (insErr) throw insErr;
+    return payloads.length;
+  };
+
+  const copySemanaMutation = useMutation({
+    mutationFn: async (f: { origem: string; destino: string }) => {
+      if (!f.origem || !f.destino) throw new Error('Selecione semana de origem e de destino.');
+      const oIni = startOfWeek(new Date(f.origem + 'T12:00:00'));
+      const dIni = startOfWeek(new Date(f.destino + 'T12:00:00'));
+      const oFim = addDays(oIni, 6);
+      return copyShifts(oIni, oFim, dIni);
+    },
+    onSuccess: (n) => {
+      toast.success(`${n} plantões copiados como rascunho (pendente). Revise e publique.`);
+      invalidateCrossShifts(qc);
+      setCopySemanaOpen(false); setCopySemanaForm({ origem: '', destino: '' });
+      logAudit('Semana copiada', 'escala', { total: n });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const copyMesMutation = useMutation({
+    mutationFn: async (f: { origem: string; destino: string }) => {
+      if (!f.origem || !f.destino) throw new Error('Selecione mês de origem e de destino (formato AAAA-MM).');
+      const [oy, om] = f.origem.split('-').map(Number);
+      const [dy, dm] = f.destino.split('-').map(Number);
+      const oIni = startOfMonth(oy, om - 1);
+      const oFim = endOfMonth(oy, om - 1);
+      const dIni = startOfMonth(dy, dm - 1);
+      return copyShifts(oIni, oFim, dIni);
+    },
+    onSuccess: (n) => {
+      toast.success(`${n} plantões copiados como rascunho. Revise e publique.`);
+      invalidateCrossShifts(qc);
+      setCopyMesOpen(false); setCopyMesForm({ origem: '', destino: '' });
+      logAudit('Mês copiado', 'escala', { total: n });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Validar Conflitos da escala filtrada
+  const handleValidarConflitos = async () => {
+    if (validatingAll) return;
+    setValidatingAll(true);
+    try {
+      const list = filteredRef.current || [];
+      const erros: string[] = [];
+      const sample = list.slice(0, 200);
+      for (const s of sample) {
+        const { data: c } = await supabase.rpc('check_shift_conflict', {
+          p_profissional_id: s.profissional_id, p_data: s.data,
+          p_hora_inicio: s.hora_inicio, p_hora_fim: s.hora_fim, p_exclude_id: s.id,
+        });
+        if (c && c.length > 0) {
+          erros.push(`${(s.professionals as any)?.nome} em ${new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR')}: choque com ${c[0].conflicting_start}-${c[0].conflicting_end}`);
+        }
+      }
+      if (!erros.length) toast.success(`✅ Nenhum conflito encontrado em ${sample.length} plantões.`);
+      else toast.error(`${erros.length} conflito(s) detectado(s)`, { description: erros.slice(0, 5).join('\n'), duration: 10000 });
+      logAudit('Validação de conflitos', 'escala', { total: sample.length, conflitos: erros.length });
+    } catch (e: any) {
+      toast.error('Falha ao validar: ' + e.message);
+    } finally {
+      setValidatingAll(false);
+    }
+  };
+
+  // Publicar Escala — confirma plantões em rascunho (pendente / em_aberto)
+  const publishMutation = useMutation({
+    mutationFn: async () => {
+      const list = filteredRef.current || [];
+      const candidates = list.filter((s: any) => ['pendente', 'em_aberto'].includes(s.status));
+      if (!candidates.length) throw new Error('Nenhum plantão em rascunho (pendente/em aberto) com os filtros atuais.');
+      const ids = candidates.map((s: any) => s.id);
+      const { error } = await supabase.from('shifts').update({ status: 'confirmado' as any }).in('id', ids);
+      if (error) throw error;
+      for (const s of candidates) {
+        await dispatchNotification({
+          professionalId: s.profissional_id, tipo: 'plantao',
+          titulo: '📢 Escala publicada',
+          mensagem: `Seu plantão em ${new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR')} (${s.hora_inicio}-${s.hora_fim}) foi confirmado.`,
+        });
+      }
+      await logAudit('Escala publicada', 'escala', { total: candidates.length });
+      return candidates.length;
+    },
+    onSuccess: (n) => { toast.success(`${n} plantão(ões) publicado(s) e profissionais notificados.`); invalidateCrossShifts(qc); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Enviar Escala (WhatsApp/E-mail) via webhook configurado
+  const enviarMutation = useMutation({
+    mutationFn: async (f: { canal: 'email' | 'whatsapp'; mensagem: string }) => {
+      const list = filteredRef.current || [];
+      const { data: setting } = await sb.from('system_settings').select('value').eq('key', 'webhook').maybeSingle();
+      const w: any = setting?.value || {};
+      if (!w.url || !w.ativo) throw new Error('Webhook não configurado. Configure em Configurações → Integrações.');
+      const payload = {
+        evento: 'envio_escala',
+        canal: f.canal,
+        mensagem: f.mensagem || `Escala de plantões — ${new Date().toLocaleDateString('pt-BR')}`,
+        total_plantoes: list.length,
+        plantoes: list.slice(0, 200).map((s: any) => ({
+          profissional: (s.professionals as any)?.nome,
+          email: (professionals as any[]).find((p: any) => p.id === s.profissional_id)?.email,
+          telefone: (professionals as any[]).find((p: any) => p.id === s.profissional_id)?.telefone,
+          data: s.data, hora_inicio: s.hora_inicio, hora_fim: s.hora_fim,
+          setor: (s.sectors as any)?.nome, unidade: (s.units as any)?.nome,
+          tipo: s.tipo_plantao, status: s.status,
+        })),
+      };
+      const resp = await fetch(w.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (!resp.ok) throw new Error(`Webhook respondeu ${resp.status}`);
+      await logAudit('Escala enviada', 'escala', { canal: f.canal, total: payload.total_plantoes });
+    },
+    onSuccess: () => { toast.success('Escala enviada com sucesso.'); setEnviarOpen(false); setEnviarForm({ canal: 'email', mensagem: '' }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const handleExportPDF = () => {
+    const list = filteredRef.current || [];
+    if (!list.length) { toast.warning('Nada para exportar com os filtros atuais.'); return; }
+    const rows = list.map((s: any) => [
+      (s.professionals as any)?.nome || '',
+      PROFISSAO_LABELS[(s.professionals as any)?.profissao] || '',
+      (s.units as any)?.nome || '',
+      (s.sectors as any)?.nome || '',
+      new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR'),
+      `${(s.hora_inicio || '').slice(0,5)} - ${(s.hora_fim || '').slice(0,5)}`,
+      `${s.carga_horaria}h`, s.tipo_plantao || '', STATUS_LABELS[s.status] || s.status,
+    ]);
+    exportToPDF('Escala de Plantões', EXPORT_COLS, rows, `escala_${todayStr}`);
+    logAudit('Escala exportada (PDF)', 'escala', { total: list.length });
+  };
+  const handleExportExcel = () => {
+    const list = filteredRef.current || [];
+    if (!list.length) { toast.warning('Nada para exportar com os filtros atuais.'); return; }
+    const rows = list.map((s: any) => [
+      (s.professionals as any)?.nome || '',
+      PROFISSAO_LABELS[(s.professionals as any)?.profissao] || '',
+      (s.units as any)?.nome || '',
+      (s.sectors as any)?.nome || '',
+      new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR'),
+      `${(s.hora_inicio || '').slice(0,5)} - ${(s.hora_fim || '').slice(0,5)}`,
+      `${s.carga_horaria}h`, s.tipo_plantao || '', STATUS_LABELS[s.status] || s.status,
+    ]);
+    exportToExcel('Escala', EXPORT_COLS, rows, `escala_${todayStr}`);
+    logAudit('Escala exportada (Excel)', 'escala', { total: list.length });
+  };
+
   const closeModal = () => {
     setModalOpen(false); setEditingId(null); setForm(emptyForm);
     setConflictWarnings([]); setRestWarnings([]); setWorkloadAlerts([]);
@@ -578,6 +805,7 @@ export default function EscalaPage() {
     if (filterStatus && s.status !== filterStatus) return false;
     return true;
   });
+  filteredRef.current = filtered;
 
   const inputClass = "w-full bg-background border border-input rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50 transition-colors";
 
@@ -631,8 +859,42 @@ export default function EscalaPage() {
             <button onClick={() => setView('calendario')} className={`p-1.5 rounded-md transition-all ${view === 'calendario' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}><Calendar className="h-4 w-4" /></button>
             <button onClick={() => setView('grade')} className={`p-1.5 rounded-md transition-all ${view === 'grade' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`} title="Grade semanal"><LayoutGrid className="h-4 w-4" /></button>
           </div>
-          <button onClick={() => { setFolgaForm(emptyFolga); setFolgaModalOpen(true); }} className="flex items-center gap-1.5 border border-input bg-card px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-muted text-foreground transition-colors"><Palmtree className="h-3.5 w-3.5 text-amber-600" /> Folga</button>
-          <button onClick={() => { setForm(emptyForm); setEditingId(null); setModalOpen(true); }} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"><Plus className="h-3.5 w-3.5" /> Novo Plantão</button>
+          {!isProfessional && (
+            <button onClick={() => { setFolgaForm(emptyFolga); setFolgaModalOpen(true); }} className="flex items-center gap-1.5 border border-input bg-card px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-muted text-foreground transition-colors"><Palmtree className="h-3.5 w-3.5 text-amber-600" /> Folga</button>
+          )}
+          {!isProfessional && (
+            <button onClick={() => { setForm(emptyForm); setEditingId(null); setModalOpen(true); }} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"><Plus className="h-3.5 w-3.5" /> Novo Plantão</button>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-1.5 border border-input bg-card px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-muted text-foreground transition-colors" title="Mais ações">
+                <MoreHorizontal className="h-3.5 w-3.5" /> Mais ações
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60">
+              <DropdownMenuLabel>Documentos</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => setPrintOpen(true)}><Printer className="h-4 w-4 mr-2" /> Imprimir Escala</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportPDF}><FileText className="h-4 w-4 mr-2" /> Exportar PDF</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportExcel}><FileSpreadsheet className="h-4 w-4 mr-2" /> Exportar Excel</DropdownMenuItem>
+              {canManage && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>Gestão da escala</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => setCopySemanaOpen(true)}><CopyPlus className="h-4 w-4 mr-2" /> Copiar Semana</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setCopyMesOpen(true)}><CopyPlus className="h-4 w-4 mr-2" /> Copiar Mês</DropdownMenuItem>
+                  <DropdownMenuItem disabled={validatingAll} onClick={handleValidarConflitos}>
+                    {validatingAll ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
+                    {validatingAll ? 'Validando...' : 'Validar Conflitos'}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled={publishMutation.isPending} onClick={() => { if (!publishMutation.isPending) publishMutation.mutate(); }}>
+                    {publishMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Megaphone className="h-4 w-4 mr-2" />}
+                    {publishMutation.isPending ? 'Publicando...' : 'Publicar Escala'}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setEnviarOpen(true)}><Send className="h-4 w-4 mr-2" /> Enviar Escala</DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -998,6 +1260,104 @@ export default function EscalaPage() {
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: Imprimir Escala */}
+      <Dialog open={printOpen} onOpenChange={setPrintOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Printer className="h-5 w-5" /> Imprimir Escala</DialogTitle>
+            <DialogDescription>Será aberta uma nova aba com a escala filtrada formatada para impressão ({filtered.length} plantões).</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button type="button" onClick={() => setPrintOpen(false)} className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-muted">Cancelar</button>
+            <button type="button" onClick={doPrint} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">Abrir impressão</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: Copiar Semana */}
+      <Dialog open={copySemanaOpen} onOpenChange={setCopySemanaOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><CopyPlus className="h-5 w-5" /> Copiar Semana</DialogTitle>
+            <DialogDescription>Copia todos os plantões da semana de origem (segunda a domingo) para a semana de destino. Plantões cancelados são ignorados. Os novos plantões ficam como <strong>pendente</strong> até serem publicados.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); if (!copySemanaMutation.isPending) copySemanaMutation.mutate(copySemanaForm); }} className="space-y-3">
+            <div>
+              <label className="text-sm font-medium">Data dentro da semana de origem</label>
+              <input required type="date" value={copySemanaForm.origem} onChange={e => setCopySemanaForm(f => ({ ...f, origem: e.target.value }))} className={inputClass} />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Data dentro da semana de destino</label>
+              <input required type="date" value={copySemanaForm.destino} onChange={e => setCopySemanaForm(f => ({ ...f, destino: e.target.value }))} className={inputClass} />
+            </div>
+            <DialogFooter>
+              <button type="button" onClick={() => setCopySemanaOpen(false)} disabled={copySemanaMutation.isPending} className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-muted">Cancelar</button>
+              <button type="submit" disabled={copySemanaMutation.isPending} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-2">
+                {copySemanaMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                {copySemanaMutation.isPending ? 'Copiando...' : 'Copiar semana'}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: Copiar Mês */}
+      <Dialog open={copyMesOpen} onOpenChange={setCopyMesOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><CopyPlus className="h-5 w-5" /> Copiar Mês</DialogTitle>
+            <DialogDescription>Copia todos os plantões do mês de origem para o mês de destino, mantendo o dia. Os novos plantões ficam como <strong>pendente</strong> até serem publicados.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); if (!copyMesMutation.isPending) copyMesMutation.mutate(copyMesForm); }} className="space-y-3">
+            <div>
+              <label className="text-sm font-medium">Mês de origem</label>
+              <input required type="month" value={copyMesForm.origem} onChange={e => setCopyMesForm(f => ({ ...f, origem: e.target.value }))} className={inputClass} />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Mês de destino</label>
+              <input required type="month" value={copyMesForm.destino} onChange={e => setCopyMesForm(f => ({ ...f, destino: e.target.value }))} className={inputClass} />
+            </div>
+            <DialogFooter>
+              <button type="button" onClick={() => setCopyMesOpen(false)} disabled={copyMesMutation.isPending} className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-muted">Cancelar</button>
+              <button type="submit" disabled={copyMesMutation.isPending} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-2">
+                {copyMesMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                {copyMesMutation.isPending ? 'Copiando...' : 'Copiar mês'}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: Enviar Escala */}
+      <Dialog open={enviarOpen} onOpenChange={setEnviarOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Send className="h-5 w-5" /> Enviar Escala</DialogTitle>
+            <DialogDescription>Envia a escala filtrada via webhook configurado em Configurações → Integrações. {filtered.length} plantões serão incluídos.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); if (!enviarMutation.isPending) enviarMutation.mutate(enviarForm); }} className="space-y-3">
+            <div>
+              <label className="text-sm font-medium">Canal</label>
+              <select value={enviarForm.canal} onChange={e => setEnviarForm(f => ({ ...f, canal: e.target.value as any }))} className={inputClass}>
+                <option value="email">E-mail</option>
+                <option value="whatsapp">WhatsApp</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Mensagem (opcional)</label>
+              <textarea rows={3} value={enviarForm.mensagem} onChange={e => setEnviarForm(f => ({ ...f, mensagem: e.target.value }))} className={inputClass} placeholder="Mensagem que acompanhará a escala..." />
+            </div>
+            <DialogFooter>
+              <button type="button" onClick={() => setEnviarOpen(false)} disabled={enviarMutation.isPending} className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-muted">Cancelar</button>
+              <button type="submit" disabled={enviarMutation.isPending} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-2">
+                {enviarMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                {enviarMutation.isPending ? 'Enviando...' : 'Enviar agora'}
+              </button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
