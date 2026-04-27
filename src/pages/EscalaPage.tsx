@@ -465,7 +465,7 @@ export default function EscalaPage() {
     },
     onSuccess: () => {
       toast.success('Folga registrada com sucesso.');
-      qc.invalidateQueries({ queryKey: ['shifts'] });
+      invalidateCrossShifts(qc);
       setFolgaModalOpen(false);
       setFolgaForm(emptyFolga);
     },
