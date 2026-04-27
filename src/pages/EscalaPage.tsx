@@ -1426,15 +1426,144 @@ export default function EscalaPage() {
       </Dialog>
 
       {/* MODAL: Imprimir Escala */}
-      <Dialog open={printOpen} onOpenChange={setPrintOpen}>
-        <DialogContent className="max-w-md">
+      <Dialog open={printOpen} onOpenChange={(o) => { if (!printBusy) setPrintOpen(o); }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Printer className="h-5 w-5" /> Imprimir Escala</DialogTitle>
-            <DialogDescription>Será aberta uma nova aba com a escala filtrada formatada para impressão ({filtered.length} plantões).</DialogDescription>
+            <DialogDescription>
+              Configure período, filtros e o que deve aparecer no documento. A impressão usa dados reais e respeita as permissões de acesso.
+              <span className="block mt-1 text-xs">🔒 Não são impressos CPF, dados bancários nem endereço residencial dos profissionais.</span>
+            </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <button type="button" onClick={() => setPrintOpen(false)} className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-muted">Cancelar</button>
-            <button type="button" onClick={doPrint} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">Abrir impressão</button>
+
+          <div className="space-y-5">
+            {/* PERÍODO */}
+            <section>
+              <h4 className="text-sm font-semibold mb-2">Período</h4>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {([
+                  { v: 'semana', l: 'Semana atual' },
+                  { v: 'mes', l: 'Mês atual' },
+                  { v: 'personalizado', l: 'Personalizado' },
+                ] as const).map(o => (
+                  <button key={o.v} type="button"
+                    onClick={() => aplicarPeriodo(o.v)}
+                    className={`px-3 py-1.5 rounded-lg text-xs border transition ${printForm.periodo === o.v ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border hover:bg-muted'}`}>
+                    {o.l}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Data inicial</label>
+                  <input type="date" value={printForm.dataIni}
+                    onChange={e => setPrintForm(f => ({ ...f, dataIni: e.target.value, periodo: 'personalizado' }))}
+                    className={inputClass} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Data final</label>
+                  <input type="date" value={printForm.dataFim}
+                    onChange={e => setPrintForm(f => ({ ...f, dataFim: e.target.value, periodo: 'personalizado' }))}
+                    className={inputClass} />
+                </div>
+              </div>
+            </section>
+
+            {/* FILTROS */}
+            <section>
+              <h4 className="text-sm font-semibold mb-2">Filtros</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Unidade</label>
+                  <select value={printForm.unidadeId} onChange={e => setPrintForm(f => ({ ...f, unidadeId: e.target.value, setorId: '' }))} className={inputClass}>
+                    <option value="">Todas</option>
+                    {(units as any[]).map((u: any) => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Setor</label>
+                  <select value={printForm.setorId} onChange={e => setPrintForm(f => ({ ...f, setorId: e.target.value }))} className={inputClass}>
+                    <option value="">Todos</option>
+                    {(sectors as any[])
+                      .filter((s: any) => !printForm.unidadeId || s.unidade_id === printForm.unidadeId)
+                      .map((s: any) => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Profissional</label>
+                  <select value={printForm.profissionalId} onChange={e => setPrintForm(f => ({ ...f, profissionalId: e.target.value }))} className={inputClass}>
+                    <option value="">Todos</option>
+                    {(professionals as any[]).map((p: any) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Profissão</label>
+                  <select value={printForm.profissao} onChange={e => setPrintForm(f => ({ ...f, profissao: e.target.value }))} className={inputClass}>
+                    <option value="">Todas</option>
+                    {Object.entries(PROFISSAO_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Tipo de plantão</label>
+                  <select value={printForm.tipoPlantao} onChange={e => setPrintForm(f => ({ ...f, tipoPlantao: e.target.value }))} className={inputClass}>
+                    <option value="">Todos</option>
+                    {TIPOS_PLANTAO.map(t => <option key={t.value} value={t.value}>{t.value}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Status</label>
+                  <select value={printForm.status} onChange={e => setPrintForm(f => ({ ...f, status: e.target.value }))} className={inputClass}>
+                    <option value="">Todos</option>
+                    {Object.entries(STATUS_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                  </select>
+                </div>
+              </div>
+            </section>
+
+            {/* OPÇÕES */}
+            <section>
+              <h4 className="text-sm font-semibold mb-2">Opções de impressão</h4>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                {([
+                  ['somentePublicada', 'Somente escala publicada'],
+                  ['incluirFolgas', 'Incluir folgas/indisponibilidades'],
+                  ['incluirObservacoes', 'Incluir observações'],
+                  ['incluirTotalHoras', 'Incluir total de horas'],
+                  ['incluirAssinatura', 'Incluir campo de assinatura'],
+                  ['incluirConselho', 'Incluir conselho/registro'],
+                ] as const).map(([k, l]) => (
+                  <label key={k} className="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox"
+                      checked={(printForm as any)[k]}
+                      onChange={e => setPrintForm(f => ({ ...f, [k]: e.target.checked }))}
+                      className="rounded border-input" />
+                    <span>{l}</span>
+                  </label>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          <DialogFooter className="mt-4 gap-2 flex-wrap">
+            <button type="button" onClick={() => setPrintOpen(false)} disabled={!!printBusy}
+              className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-muted disabled:opacity-50">Cancelar</button>
+            <button type="button" onClick={() => handlePrintAction('view')} disabled={!!printBusy}
+              className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-muted disabled:opacity-50 inline-flex items-center gap-2">
+              {printBusy === 'view' && <Loader2 className="h-4 w-4 animate-spin" />} Visualizar
+            </button>
+            <button type="button" onClick={() => handlePrintAction('pdf-open')} disabled={!!printBusy}
+              className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-muted disabled:opacity-50 inline-flex items-center gap-2">
+              {printBusy === 'pdf-open' && <Loader2 className="h-4 w-4 animate-spin" />} Gerar PDF
+            </button>
+            <button type="button" onClick={() => handlePrintAction('pdf-save')} disabled={!!printBusy}
+              className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-muted disabled:opacity-50 inline-flex items-center gap-2">
+              {printBusy === 'pdf-save' && <Loader2 className="h-4 w-4 animate-spin" />} Baixar PDF
+            </button>
+            <button type="button" onClick={() => handlePrintAction('print')} disabled={!!printBusy}
+              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-2">
+              {printBusy === 'print' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+              Imprimir direto
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
