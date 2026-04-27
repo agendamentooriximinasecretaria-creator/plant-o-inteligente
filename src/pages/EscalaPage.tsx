@@ -422,7 +422,10 @@ export default function EscalaPage() {
       toast.success(editingId ? 'Plantão atualizado!' : `${form.profissional_ids.length} plantão(ões) criado(s)!`);
       closeModal();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => {
+      const [titulo, ...resto] = e.message.split('\n');
+      toast.error(titulo, resto.length ? { description: resto.join('\n'), duration: 8000 } : undefined);
+    },
   });
 
   // Mutation para registrar folga/indisponibilidade (usa shifts com tipo_plantao='folga')
