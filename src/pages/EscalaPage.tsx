@@ -72,8 +72,28 @@ const emptyFolga = { profissional_id: '', data_inicio: '', data_fim: '', motivo:
 export default function EscalaPage() {
   const sb = supabase as any;
   const [view, setView] = useState<'lista' | 'calendario' | 'grade'>('lista');
-  const [filterSetor, setFilterSetor] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  // ---- Filtros da Escala ----
+  type FiltrosEscala = {
+    unidadeId: string; setorId: string; profissao: string; profissionalId: string;
+    tipoPlantao: string; status: string;
+    periodo: '' | 'semana' | 'mes' | 'personalizado';
+    dataIni: string; dataFim: string;
+    soConflitos: boolean; soDescobertos: boolean;
+    soPublicados: boolean; soRascunhos: boolean; soFolgas: boolean;
+  };
+  const filtrosVazios: FiltrosEscala = {
+    unidadeId: '', setorId: '', profissao: '', profissionalId: '',
+    tipoPlantao: '', status: '',
+    periodo: '', dataIni: '', dataFim: '',
+    soConflitos: false, soDescobertos: false,
+    soPublicados: false, soRascunhos: false, soFolgas: false,
+  };
+  const [filtros, setFiltros] = useState<FiltrosEscala>(filtrosVazios);
+  // Aliases para compatibilidade com código existente que ainda lê filterSetor/filterStatus
+  const filterSetor = filtros.setorId;
+  const filterStatus = filtros.status;
+  const setFilterSetor = (v: string) => setFiltros(f => ({ ...f, setorId: v }));
+  const setFilterStatus = (v: string) => setFiltros(f => ({ ...f, status: v }));
   const [modalOpen, setModalOpen] = useState(false);
   const [folgaModalOpen, setFolgaModalOpen] = useState(false);
   const [folgaForm, setFolgaForm] = useState(emptyFolga);
@@ -962,12 +982,91 @@ export default function EscalaPage() {
     // Validação acontece via useEffect debouncado quando o form mudar.
   };
 
-  const filtered = (shifts as any[]).filter((s: any) => {
-    if (filterSetor && s.setor_id !== filterSetor) return false;
-    if (filterStatus && s.status !== filterStatus) return false;
+  const isFolgaShift = (s: any) => s?.tipo_plantao === 'folga' || s?.tipo_plantao === 'indisponibilidade';
+
+  // Setores sem cobertura no dia (hoje) — usado pelo filtro "Somente setores descobertos"
+  const setoresDescobertosIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const s of (sectors as any[])) {
+      const escalados = (todayAllShifts as any[]).filter((sh: any) => sh.setor_id === s.id).length;
+      if (escalados === 0) ids.add(s.id);
+    }
+    return ids;
+  }, [sectors, todayAllShifts]);
+
+  // Conflitos detectados em memória: mesmo profissional+data com sobreposição de horário
+  const conflictIds = useMemo(() => {
+    const out = new Set<string>();
+    const groups = new Map<string, any[]>();
+    for (const s of (shifts as any[])) {
+      if (s.status === 'cancelado' || isFolgaShift(s)) continue;
+      const k = `${s.profissional_id}|${s.data}`;
+      (groups.get(k) || groups.set(k, []).get(k)!).push(s);
+    }
+    for (const arr of groups.values()) {
+      if (arr.length < 2) continue;
+      for (let i = 0; i < arr.length; i++) {
+        for (let j = i + 1; j < arr.length; j++) {
+          const a = arr[i], b = arr[j];
+          if (a.hora_inicio < b.hora_fim && b.hora_inicio < a.hora_fim) {
+            out.add(a.id); out.add(b.id);
+          }
+        }
+      }
+    }
+    return out;
+  }, [shifts]);
+
+  const filtered = useMemo(() => (shifts as any[]).filter((s: any) => {
+    const f = filtros;
+    if (f.unidadeId && s.unidade_id !== f.unidadeId) return false;
+    if (f.setorId && s.setor_id !== f.setorId) return false;
+    if (f.profissao && s.profissao !== f.profissao) return false;
+    if (f.profissionalId && s.profissional_id !== f.profissionalId) return false;
+    if (f.tipoPlantao && s.tipo_plantao !== f.tipoPlantao) return false;
+    if (f.status && s.status !== f.status) return false;
+    if (f.dataIni && s.data < f.dataIni) return false;
+    if (f.dataFim && s.data > f.dataFim) return false;
+    if (f.soPublicados && !['confirmado', 'concluido', 'agendado'].includes(s.status)) return false;
+    if (f.soRascunhos && !['pendente', 'em_aberto'].includes(s.status)) return false;
+    if (f.soFolgas && !isFolgaShift(s)) return false;
+    if (f.soConflitos && !conflictIds.has(s.id)) return false;
+    if (f.soDescobertos && !setoresDescobertosIds.has(s.setor_id)) return false;
     return true;
-  });
+  }), [shifts, filtros, conflictIds, setoresDescobertosIds]);
   filteredRef.current = filtered;
+
+  const filtrosAtivos = useMemo(() => {
+    const f = filtros;
+    let n = 0;
+    (['unidadeId','setorId','profissao','profissionalId','tipoPlantao','status','dataIni','dataFim'] as const)
+      .forEach(k => { if ((f as any)[k]) n++; });
+    if (f.soConflitos) n++; if (f.soDescobertos) n++;
+    if (f.soPublicados) n++; if (f.soRascunhos) n++; if (f.soFolgas) n++;
+    return n;
+  }, [filtros]);
+
+  const aplicarPeriodoFiltro = (p: FiltrosEscala['periodo']) => {
+    const t = new Date();
+    const ymdL = (d: Date) => d.toISOString().split('T')[0];
+    const sow = (d: Date) => { const x = new Date(d); const dow = x.getDay(); const diff = (dow + 6) % 7; x.setDate(x.getDate() - diff); x.setHours(0,0,0,0); return x; };
+    const addD = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+    if (p === 'semana') {
+      const ini = sow(t);
+      setFiltros(f => ({ ...f, periodo: p, dataIni: ymdL(ini), dataFim: ymdL(addD(ini, 6)) }));
+    } else if (p === 'mes') {
+      const ini = new Date(t.getFullYear(), t.getMonth(), 1);
+      const fim = new Date(t.getFullYear(), t.getMonth() + 1, 0);
+      setFiltros(f => ({ ...f, periodo: p, dataIni: ymdL(ini), dataFim: ymdL(fim) }));
+    } else if (p === 'personalizado') {
+      setFiltros(f => ({ ...f, periodo: p }));
+    } else {
+      setFiltros(f => ({ ...f, periodo: '', dataIni: '', dataFim: '' }));
+    }
+  };
+
+  const limparFiltros = () => setFiltros(filtrosVazios);
+
 
   const inputClass = "w-full bg-background border border-input rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50 transition-colors";
 
@@ -1035,7 +1134,21 @@ export default function EscalaPage() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-60">
               <DropdownMenuLabel>Documentos</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => setPrintOpen(true)}><Printer className="h-4 w-4 mr-2" /> Imprimir Escala</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                // Pré-popula o modal com os filtros ativos da Escala
+                setPrintForm(pf => ({
+                  ...pf,
+                  unidadeId: filtros.unidadeId, setorId: filtros.setorId,
+                  profissionalId: filtros.profissionalId, profissao: filtros.profissao,
+                  tipoPlantao: filtros.tipoPlantao, status: filtros.status,
+                  somentePublicada: filtros.soPublicados,
+                  incluirFolgas: filtros.soFolgas ? true : pf.incluirFolgas,
+                  ...(filtros.dataIni && filtros.dataFim
+                    ? { periodo: 'personalizado' as const, dataIni: filtros.dataIni, dataFim: filtros.dataFim }
+                    : {}),
+                }));
+                setPrintOpen(true);
+              }}><Printer className="h-4 w-4 mr-2" /> Imprimir Escala</DropdownMenuItem>
               <DropdownMenuItem onClick={handleExportPDF}><FileText className="h-4 w-4 mr-2" /> Exportar PDF</DropdownMenuItem>
               <DropdownMenuItem onClick={handleExportExcel}><FileSpreadsheet className="h-4 w-4 mr-2" /> Exportar Excel</DropdownMenuItem>
               {canManage && (
@@ -1060,16 +1173,146 @@ export default function EscalaPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <select value={filterSetor} onChange={e => setFilterSetor(e.target.value)} className="bg-card border border-input rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50 transition-colors">
-          <option value="">Todos os setores</option>
-          {sectors.map((s: any) => <option key={s.id} value={s.id}>{s.nome}</option>)}
-        </select>
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="bg-card border border-input rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50 transition-colors">
-          <option value="">Todos os status</option>
-          {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
+      {/* ===== Filtros da Escala ===== */}
+      <div className="bg-card border border-border/60 rounded-xl p-3 shadow-[var(--shadow-card)] space-y-3">
+        <div className="flex flex-wrap items-end gap-2">
+          {/* Unidade */}
+          <div className="flex flex-col">
+            <label className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Unidade</label>
+            <select value={filtros.unidadeId}
+              onChange={e => setFiltros(f => ({ ...f, unidadeId: e.target.value, setorId: '' }))}
+              className="bg-background border border-input rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50 min-w-[140px]">
+              <option value="">Todas</option>
+              {(units as any[]).map((u: any) => <option key={u.id} value={u.id}>{u.nome}</option>)}
+            </select>
+          </div>
+
+          {/* Setor (filtrado pela unidade) */}
+          <div className="flex flex-col">
+            <label className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Setor</label>
+            <select value={filtros.setorId}
+              onChange={e => setFiltros(f => ({ ...f, setorId: e.target.value }))}
+              className="bg-background border border-input rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50 min-w-[140px]">
+              <option value="">Todos</option>
+              {(sectors as any[])
+                .filter((s: any) => !filtros.unidadeId || s.unidade_id === filtros.unidadeId)
+                .map((s: any) => <option key={s.id} value={s.id}>{s.nome}</option>)}
+            </select>
+          </div>
+
+          {/* Profissão */}
+          <div className="flex flex-col">
+            <label className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Profissão</label>
+            <select value={filtros.profissao}
+              onChange={e => setFiltros(f => ({ ...f, profissao: e.target.value, profissionalId: '' }))}
+              className="bg-background border border-input rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50 min-w-[140px]">
+              <option value="">Todas</option>
+              {Object.entries(PROFISSAO_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
+          </div>
+
+          {/* Profissional (filtrado por profissão / unidade / setor) */}
+          <div className="flex flex-col">
+            <label className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Profissional</label>
+            <select value={filtros.profissionalId}
+              onChange={e => setFiltros(f => ({ ...f, profissionalId: e.target.value }))}
+              className="bg-background border border-input rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50 min-w-[180px]">
+              <option value="">Todos</option>
+              {(professionals as any[])
+                .filter((p: any) => !filtros.profissao || p.profissao === filtros.profissao)
+                .filter((p: any) => !filtros.unidadeId || !p.unidade_principal_id || p.unidade_principal_id === filtros.unidadeId)
+                .filter((p: any) => !filtros.setorId || !p.setor_principal_id || p.setor_principal_id === filtros.setorId)
+                .map((p: any) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+            </select>
+          </div>
+
+          {/* Tipo de plantão */}
+          <div className="flex flex-col">
+            <label className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Tipo</label>
+            <select value={filtros.tipoPlantao}
+              onChange={e => setFiltros(f => ({ ...f, tipoPlantao: e.target.value }))}
+              className="bg-background border border-input rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50 min-w-[140px]">
+              <option value="">Todos</option>
+              {TIPOS_PLANTAO.map(t => <option key={t.value} value={t.value}>{t.value}</option>)}
+            </select>
+          </div>
+
+          {/* Status */}
+          <div className="flex flex-col">
+            <label className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Status</label>
+            <select value={filtros.status}
+              onChange={e => setFiltros(f => ({ ...f, status: e.target.value }))}
+              className="bg-background border border-input rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50 min-w-[130px]">
+              <option value="">Todos</option>
+              {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
+
+          {/* Período (preset) */}
+          <div className="flex flex-col">
+            <label className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Período</label>
+            <div className="flex items-center gap-1">
+              {([
+                { v: '', l: 'Tudo' },
+                { v: 'semana', l: 'Semana' },
+                { v: 'mes', l: 'Mês' },
+                { v: 'personalizado', l: 'Custom' },
+              ] as const).map(o => (
+                <button key={o.v} type="button" onClick={() => aplicarPeriodoFiltro(o.v as any)}
+                  className={`px-2.5 py-1.5 rounded-md text-[11px] border transition ${filtros.periodo === o.v ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-muted'}`}>
+                  {o.l}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Datas (apenas se período definido) */}
+          {(filtros.periodo === 'personalizado' || filtros.dataIni || filtros.dataFim) && (
+            <>
+              <div className="flex flex-col">
+                <label className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">De</label>
+                <input type="date" value={filtros.dataIni}
+                  onChange={e => setFiltros(f => ({ ...f, dataIni: e.target.value, periodo: 'personalizado' }))}
+                  className="bg-background border border-input rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring/40" />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Até</label>
+                <input type="date" value={filtros.dataFim}
+                  onChange={e => setFiltros(f => ({ ...f, dataFim: e.target.value, periodo: 'personalizado' }))}
+                  className="bg-background border border-input rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring/40" />
+              </div>
+            </>
+          )}
+
+          {/* Limpar */}
+          <button type="button" onClick={limparFiltros} disabled={filtrosAtivos === 0}
+            className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-input bg-background hover:bg-muted text-xs font-medium disabled:opacity-50">
+            Limpar filtros{filtrosAtivos > 0 ? ` (${filtrosAtivos})` : ''}
+          </button>
+        </div>
+
+        {/* Toggles rápidos */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border/60">
+          {([
+            ['soConflitos', '⚠️ Somente conflitos'],
+            ['soDescobertos', '🚫 Setores descobertos'],
+            ['soPublicados', '📢 Publicados'],
+            ['soRascunhos', '📝 Rascunhos'],
+            ['soFolgas', '🌴 Folgas'],
+          ] as const).map(([k, l]) => {
+            const active = (filtros as any)[k] as boolean;
+            return (
+              <button key={k} type="button"
+                onClick={() => setFiltros(f => ({ ...f, [k]: !(f as any)[k] }))}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input text-foreground hover:bg-muted'}`}>
+                {l}
+              </button>
+            );
+          })}
+          <span className="ml-auto text-[11px] text-muted-foreground">{filtered.length} resultado(s)</span>
+        </div>
       </div>
+
 
       {isLoading ? (
         <div className="flex justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>
@@ -1081,6 +1324,14 @@ export default function EscalaPage() {
                 <th className="text-left p-3">Profissional</th><th className="text-left p-3">Setor</th><th className="text-left p-3">Data</th><th className="text-left p-3">Horário</th><th className="text-left p-3">Tipo</th><th className="text-left p-3">Status</th><th className="text-left p-3">Ações</th>
               </tr></thead>
               <tbody>
+                {filtered.length === 0 && (
+                  <tr><td colSpan={7} className="p-10 text-center text-sm text-muted-foreground">
+                    Nenhum plantão encontrado para os filtros selecionados.
+                    {filtrosAtivos > 0 && (
+                      <button onClick={limparFiltros} className="block mx-auto mt-2 text-primary hover:underline text-xs font-medium">Limpar filtros</button>
+                    )}
+                  </td></tr>
+                )}
                 {filtered.map((s: any) => (
                   <tr key={s.id} className={`border-t border-border hover:bg-muted/30 transition-colors ${isFolga(s) ? 'bg-amber-50/40 dark:bg-amber-950/10' : ''}`}>
                     <td className="p-3">
