@@ -1,15 +1,31 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
-import { Search, Plus, User2, Edit, Calendar as CalIcon, X } from "lucide-react";
+import {
+  Search, Plus, User2, Edit, Calendar as CalIcon, X, MoreHorizontal,
+  Printer, MessageSquare, FileCheck2, History, AlertTriangle, Filter,
+} from "lucide-react";
 import { ContactActionButton } from "@/components/ContactActionButton";
 import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { calcularHorasPorProfissional, calcularCargaPercentual, CLT_LIMITE_MENSAL } from "@/lib/horas";
 import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
+import { printFichaProfissional } from "@/lib/printFichaProfissional";
+
+function useDebounced<T>(value: T, delay = 300): T {
+  const [v, setV] = useState(value);
+  useEffect(() => { const t = setTimeout(() => setV(value), delay); return () => clearTimeout(t); }, [value, delay]);
+  return v;
+}
+
+const norm = (s: any) => (s ?? '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
 const PROFISSAO_OPTIONS = [
   { value: 'medico', label: 'Médico(a)' },
@@ -52,15 +68,23 @@ const emptyForm = {
 };
 
 export default function ProfissionaisPage() {
-  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const search = useDebounced(searchInput, 300);
   const [filterProfissao, setFilterProfissao] = useState('');
   const [filterUnidade, setFilterUnidade] = useState('');
   const [filterSetor, setFilterSetor] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'' | 'ativo' | 'inativo'>('');
   const [filterDisponivel, setFilterDisponivel] = useState(false);
+  const [filterDocVencido, setFilterDocVencido] = useState(false);
+  const [filterDocVencendo, setFilterDocVencendo] = useState(false);
+  const [filterSobrecarga, setFilterSobrecarga] = useState(false);
+  const [filterSemPlantao, setFilterSemPlantao] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const qc = useQueryClient();
+  const navigate = useNavigate();
 
   useRealtimeInvalidation({
     tables: ["shifts", "shift_swaps", "professionals"],
@@ -186,12 +210,37 @@ export default function ProfissionaisPage() {
     setModalOpen(true);
   };
 
+  // Document expiry helpers
+  const docInfo = (validade?: string | null) => {
+    if (!validade) return { vencido: false, vencendo: false, dias: null as number | null };
+    const today = new Date(); today.setHours(0,0,0,0);
+    const v = new Date(validade + 'T12:00:00');
+    const dias = Math.round((v.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return { vencido: dias < 0, vencendo: dias >= 0 && dias <= 30, dias };
+  };
+
   const filtered = (professionals as any[]).filter((p: any) => {
-    if (search && !p.nome.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search) {
+      const q = norm(search);
+      const haystack = norm([
+        p.nome, PROFISSAO_LABELS[p.profissao] || p.profissao, p.profissao,
+        p.especialidade, p.conselho, p.registro, p.documento_conselho, p.documento_numero,
+        p.email, p.telefone,
+        (p.units as any)?.nome, (p.sectors as any)?.nome,
+      ].filter(Boolean).join(' '));
+      if (!haystack.includes(q)) return false;
+    }
     if (filterProfissao && p.profissao !== filterProfissao) return false;
     if (filterUnidade && p.unidade_principal_id !== filterUnidade) return false;
     if (filterSetor && p.setor_principal_id !== filterSetor) return false;
+    if (filterStatus && p.status !== filterStatus) return false;
     if (filterDisponivel && (ocupadosHoje.has(p.id) || p.status !== 'ativo')) return false;
+    const di = docInfo(p.documento_validade);
+    if (filterDocVencido && !di.vencido) return false;
+    if (filterDocVencendo && !di.vencendo) return false;
+    const horasMes = horasPorProfissional[p.id] || 0;
+    if (filterSobrecarga && horasMes < LIMITE_HORAS_MENSAL * 0.9) return false;
+    if (filterSemPlantao && horasMes > 0) return false;
     return true;
   });
 
@@ -205,7 +254,72 @@ export default function ProfissionaisPage() {
   };
 
   const inputClass = "w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
-  const hasFilters = filterProfissao || filterUnidade || filterSetor || filterDisponivel || search;
+  const hasFilters = !!(
+    filterProfissao || filterUnidade || filterSetor || filterStatus || filterDisponivel ||
+    filterDocVencido || filterDocVencendo || filterSobrecarga || filterSemPlantao || search
+  );
+
+  const limparFiltros = () => {
+    setSearchInput(''); setFilterProfissao(''); setFilterUnidade(''); setFilterSetor('');
+    setFilterStatus(''); setFilterDisponivel(false); setFilterDocVencido(false);
+    setFilterDocVencendo(false); setFilterSobrecarga(false); setFilterSemPlantao(false);
+  };
+
+  const printFicha = async (p: any) => {
+    const horasMes = horasPorProfissional[p.id] || 0;
+    const ultimos = ultimosPorProf[p.id] || [];
+    const { data: { user } } = await supabase.auth.getUser();
+    printFichaProfissional({
+      profissionalId: p.id,
+      nome: p.nome,
+      profissao: PROFISSAO_LABELS[p.profissao] || p.profissao,
+      especialidade: p.especialidade,
+      conselho: p.conselho,
+      registro: p.registro,
+      unidadePrincipal: (p.units as any)?.nome || null,
+      setorPrincipal: (p.sectors as any)?.nome || null,
+      status: p.status,
+      horasMes,
+      limiteMes: LIMITE_HORAS_MENSAL,
+      documentoConselho: p.documento_conselho,
+      documentoNumero: p.documento_numero,
+      documentoValidade: p.documento_validade,
+      ultimosPlantoes: ultimos.map((s: any) => ({
+        data: s.data, horaInicio: s.hora_inicio, horaFim: s.hora_fim, setor: (s.sectors as any)?.nome,
+      })),
+      emitidoPor: user?.email || undefined,
+    });
+    await logAudit('Ficha de profissional impressa', 'profissionais', { id: p.id });
+  };
+
+  const enviarMensagem = (p: any) => {
+    const tel = (p.telefone || '').replace(/\D/g, '');
+    if (!tel) {
+      const subject = encodeURIComponent('Mensagem GestorPlantão');
+      const body = encodeURIComponent(`Olá ${p.nome},\n\n`);
+      window.open(`mailto:${p.email || ''}?subject=${subject}&body=${body}`, '_blank');
+      return;
+    }
+    const msg = encodeURIComponent(`Olá ${p.nome}, mensagem da gestão da escala.`);
+    window.open(`https://wa.me/55${tel}?text=${msg}`, '_blank');
+  };
+
+  const validarDocumentos = (p: any) => {
+    const di = docInfo(p.documento_validade);
+    if (!p.documento_conselho && !p.documento_numero && !p.documento_validade) {
+      toast.error('Profissional sem documento profissional cadastrado.');
+      return;
+    }
+    if (di.vencido) {
+      toast.error(`Documento ${p.documento_conselho || ''} ${p.documento_numero || ''} VENCIDO há ${Math.abs(di.dias!)} dias.`);
+      return;
+    }
+    if (di.vencendo) {
+      toast.warning(`Documento vence em ${di.dias} dias. Atualize antes do vencimento.`);
+      return;
+    }
+    toast.success(`Documento válido${di.dias !== null ? ` por ${di.dias} dias` : ''}.`);
+  };
 
   return (
     <div className="space-y-6">
@@ -219,32 +333,67 @@ export default function ProfissionaisPage() {
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-2 items-center">
-        <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-3 py-2">
-          <Search className="h-4 w-4 text-muted-foreground" />
-          <input type="text" placeholder="Buscar por nome..." value={search} onChange={e => setSearch(e.target.value)} className="bg-transparent text-sm outline-none w-44 placeholder:text-muted-foreground" />
-        </div>
-        <select value={filterProfissao} onChange={e => setFilterProfissao(e.target.value)} className="bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
-          <option value="">Todas profissões</option>
-          {PROFISSAO_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-        </select>
-        <select value={filterUnidade} onChange={e => { setFilterUnidade(e.target.value); setFilterSetor(''); }} className="bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
-          <option value="">Todas unidades</option>
-          {(units as any[]).map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
-        </select>
-        <select value={filterSetor} onChange={e => setFilterSetor(e.target.value)} className="bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
-          <option value="">Todos setores</option>
-          {(sectors as any[]).filter((s: any) => !filterUnidade || s.unidade_id === filterUnidade).map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
-        </select>
-        <button onClick={() => setFilterDisponivel(!filterDisponivel)}
-          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium border transition-all ${filterDisponivel ? 'bg-success text-success-foreground border-success' : 'bg-card text-muted-foreground border-border hover:border-success/50'}`}>
-          <CalIcon className="h-4 w-4" /> Disponível hoje
-        </button>
-        {hasFilters && (
-          <button onClick={() => { setSearch(''); setFilterProfissao(''); setFilterUnidade(''); setFilterSetor(''); setFilterDisponivel(false); }}
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors px-2 py-1">
-            <X className="h-3 w-3" /> Limpar
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-2 items-center">
+          <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-3 py-2 flex-1 min-w-[240px]">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <input type="text"
+              placeholder="Buscar por nome, profissão, conselho, registro, e-mail, telefone, unidade, setor..."
+              value={searchInput} onChange={e => setSearchInput(e.target.value)}
+              className="bg-transparent text-sm outline-none flex-1 placeholder:text-muted-foreground" />
+            {searchInput && (
+              <button onClick={() => setSearchInput('')} aria-label="Limpar busca" className="p-0.5 rounded hover:bg-muted text-muted-foreground">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          <select value={filterProfissao} onChange={e => setFilterProfissao(e.target.value)} className="bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
+            <option value="">Todas profissões</option>
+            {PROFISSAO_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+          </select>
+          <select value={filterUnidade} onChange={e => { setFilterUnidade(e.target.value); setFilterSetor(''); }} className="bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
+            <option value="">Todas unidades</option>
+            {(units as any[]).map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+          </select>
+          <select value={filterSetor} onChange={e => setFilterSetor(e.target.value)} className="bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
+            <option value="">Todos setores</option>
+            {(sectors as any[]).filter((s: any) => !filterUnidade || s.unidade_id === filterUnidade).map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+          </select>
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)} className="bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
+            <option value="">Todos status</option>
+            <option value="ativo">Ativos</option>
+            <option value="inativo">Inativos</option>
+          </select>
+          <button onClick={() => setShowAdvanced(v => !v)}
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium border bg-card text-foreground border-border hover:bg-muted">
+            <Filter className="h-4 w-4" /> Mais filtros
           </button>
+          {hasFilters && (
+            <button onClick={limparFiltros}
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors px-2 py-1">
+              <X className="h-3 w-3" /> Limpar
+            </button>
+          )}
+        </div>
+
+        {showAdvanced && (
+          <div className="flex flex-wrap gap-2 items-center pt-1">
+            {([
+              { state: filterDisponivel, set: setFilterDisponivel, label: 'Disponível hoje', icon: CalIcon, on: 'bg-success text-success-foreground border-success', off: 'hover:border-success/50' },
+              { state: filterDocVencido, set: setFilterDocVencido, label: 'Documento vencido', icon: AlertTriangle, on: 'bg-destructive text-destructive-foreground border-destructive', off: 'hover:border-destructive/50' },
+              { state: filterDocVencendo, set: setFilterDocVencendo, label: 'Documento vencendo (30d)', icon: AlertTriangle, on: 'bg-warning text-warning-foreground border-warning', off: 'hover:border-warning/50' },
+              { state: filterSobrecarga, set: setFilterSobrecarga, label: 'Sobrecarga (≥90%)', icon: AlertTriangle, on: 'bg-destructive text-destructive-foreground border-destructive', off: 'hover:border-destructive/50' },
+              { state: filterSemPlantao, set: setFilterSemPlantao, label: 'Sem plantão no mês', icon: CalIcon, on: 'bg-primary text-primary-foreground border-primary', off: 'hover:border-primary/50' },
+            ] as const).map((f, idx) => {
+              const Icon = f.icon;
+              return (
+                <button key={idx} onClick={() => f.set(!f.state as any)}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium border transition-all ${f.state ? f.on : `bg-card text-muted-foreground border-border ${f.off}`}`}>
+                  <Icon className="h-3.5 w-3.5" /> {f.label}
+                </button>
+              );
+            })}
+          </div>
         )}
       </div>
 
@@ -259,6 +408,7 @@ export default function ProfissionaisPage() {
             const ultimos = ultimosPorProf[p.id] || [];
             const ocupadoHoje = ocupadosHoje.has(p.id);
             const disponivel = p.status === 'ativo' && !ocupadoHoje;
+            const di = docInfo(p.documento_validade);
             return (
               <motion.div key={p.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 12) * 0.03 }}
                 className="bg-card rounded-xl border border-border p-5 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elevated)] transition-all">
@@ -276,18 +426,55 @@ export default function ProfissionaisPage() {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-2">
                       <h3 className="font-display font-semibold text-foreground truncate">{p.nome}</h3>
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => openEdit(p)} className="p-1 rounded hover:bg-muted"><Edit className="h-3.5 w-3.5 text-muted-foreground" /></button>
+                      <div className="flex items-center gap-1 shrink-0">
                         <span className={`status-badge text-[10px] cursor-pointer ${p.status === 'ativo' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}
                           onClick={() => toggleStatusMutation.mutate({ id: p.id, newStatus: p.status === 'ativo' ? 'inativo' : 'ativo' })}>
                           {p.status === 'ativo' ? 'Ativo' : 'Inativo'}
                         </span>
+                        <button onClick={() => openEdit(p)} className="p-1 rounded hover:bg-muted" title="Editar"><Edit className="h-3.5 w-3.5 text-muted-foreground" /></button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="p-1 rounded hover:bg-muted" title="Ações rápidas">
+                              <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-56">
+                            <DropdownMenuItem onClick={() => navigate(`/escala?profissional=${p.id}`)}>
+                              <CalIcon className="h-4 w-4 mr-2" /> Ver escala
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(`/escala?profissional=${p.id}&aba=historico`)}>
+                              <History className="h-4 w-4 mr-2" /> Ver histórico
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(`/escala?profissional=${p.id}&novo=1`)}>
+                              <Plus className="h-4 w-4 mr-2" /> Criar plantão
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => printFicha(p)}>
+                              <Printer className="h-4 w-4 mr-2" /> Imprimir ficha resumida
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => enviarMensagem(p)}>
+                              <MessageSquare className="h-4 w-4 mr-2" /> Enviar mensagem
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => validarDocumentos(p)}>
+                              <FileCheck2 className="h-4 w-4 mr-2" /> Validar documentos
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                     <p className="text-sm text-primary font-medium">{PROFISSAO_LABELS[p.profissao] || p.profissao}</p>
                     <p className="text-xs text-muted-foreground">{p.especialidade || '—'}{p.registro ? ` · ${p.registro}` : ''}</p>
+
+                    {(di.vencido || di.vencendo) && (
+                      <div className={`mt-2 flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-md border ${di.vencido ? 'bg-destructive/10 text-destructive border-destructive/30' : 'bg-warning/10 text-warning border-warning/30'}`}>
+                        <AlertTriangle className="h-3 w-3 shrink-0" />
+                        <span className="font-medium">
+                          {di.vencido ? `Documento VENCIDO há ${Math.abs(di.dias!)}d` : `Documento vence em ${di.dias}d`}
+                        </span>
+                      </div>
+                    )}
 
                     {p.status === 'ativo' && (
                       <div className="mt-2">
