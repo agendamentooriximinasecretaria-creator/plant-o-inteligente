@@ -56,10 +56,9 @@ export function useRealtimeInvalidation(sub: Subscription) {
       }, debounceMs);
     };
 
-    let channel = supabase.channel(channelName);
+    let channel: any = supabase.channel(channelName);
     for (const t of sub.tables) {
       channel = channel.on(
-        // @ts-expect-error - supabase realtime typing
         "postgres_changes",
         { event: "*", schema: "public", table: t },
         triggerInvalidate,
