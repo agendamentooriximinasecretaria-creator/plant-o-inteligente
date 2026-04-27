@@ -1186,6 +1186,34 @@ export default function EscalaPage() {
     });
   };
 
+  // Imprime comprovante individual de plantão (sem expor dados sensíveis).
+  const printShiftReceipt = (s: any) => {
+    if (!s) return;
+    const prof = (s.professionals as any) || (professionals as any[]).find((p: any) => p.id === s.profissional_id) || {};
+    const unidadeNome = (s.units as any)?.nome || (units as any[]).find((u: any) => u.id === s.unidade_id)?.nome || '';
+    const setorNome = (s.sectors as any)?.nome || (sectors as any[]).find((sec: any) => sec.id === s.setor_id)?.nome || '';
+    const conselho = prof.conselho && prof.registro ? `${prof.conselho} ${prof.registro}` : (prof.registro || prof.conselho || '');
+    const data: ComprovantePlantaoData = {
+      shiftId: s.id,
+      data: s.data,
+      horaInicio: s.hora_inicio,
+      horaFim: s.hora_fim,
+      cargaHoraria: s.carga_horaria,
+      tipoPlantao: s.tipo_plantao || '',
+      status: STATUS_LABELS[s.status] || s.status || '',
+      observacoes: s.observacoes || '',
+      profissionalNome: prof.nome || '—',
+      profissaoLabel: PROFISSAO_LABELS[prof.profissao || s.profissao] || prof.profissao || s.profissao || '',
+      conselho,
+      unidadeNome,
+      setorNome,
+      emitidoPor: profileName || user?.email || '—',
+    };
+    const ok = imprimirComprovantePlantao(data);
+    if (!ok) { toast.error('Bloqueador de pop-up impediu a impressão'); return; }
+    logAudit('Comprovante de plantão impresso', 'escala', { shift_id: s.id });
+  };
+
   // Aplica preset de tipo de plantão (preenche horários automaticamente)
   const applyTipoPreset = (tipo: string) => {
     const preset = TIPOS_PLANTAO.find(t => t.value === tipo);
