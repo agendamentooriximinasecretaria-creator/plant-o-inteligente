@@ -119,7 +119,7 @@ export default function Dashboard() {
 
   const { data: allProfessionals = [] } = useQuery({
     queryKey: ["dashboard-all-professionals"],
-    queryFn: async () => { const { data } = await supabase.from("professionals").select("id, nome, profissao, setor_principal_id, telefone").eq("status", "ativo").order("nome"); return data || []; },
+    queryFn: async () => { const { data } = await supabase.from("professionals_safe").select("id, nome, profissao, setor_principal_id, telefone").eq("status", "ativo").order("nome"); return data || []; },
   });
 
   const { data: docAlerts = [] } = useQuery({
