@@ -48,6 +48,13 @@ export default function AuditoriaPage() {
   const [dateTo, setDateTo] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  useRealtimeInvalidation({
+    tables: ["audit_logs"],
+    invalidate: ["audit-logs*"],
+    debounceMs: 600,
+    channelId: "auditoria-realtime",
+  });
+
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ['audit-logs', filterModulo],
     queryFn: async () => {
