@@ -32,10 +32,23 @@ interface NavCommand {
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const debouncedQuery = useDebounce(query, 300);
   const navigate = useNavigate();
   const { isMaster, isCoordinator, isProfessional } = useAuth();
   const { favorites, toggle, isFavorite } = useFavorites();
   const { setTheme, resolvedTheme } = useTheme();
+
+  // Resultados dinâmicos da busca global
+  const [loadingSearch, setLoadingSearch] = useState(false);
+  const [results, setResults] = useState<{
+    profissionais: Array<{ id: string; nome: string; profissao: string }>;
+    plantoes: Array<{ id: string; data: string; profissional: string; setor: string }>;
+    trocas: Array<{ id: string; status: string; solicitante: string; motivo: string }>;
+    setores: Array<{ id: string; nome: string; unidade: string }>;
+    unidades: Array<{ id: string; nome: string; tipo: string }>;
+    notificacoes: Array<{ id: string; titulo: string; tipo: string }>;
+  }>({ profissionais: [], plantoes: [], trocas: [], setores: [], unidades: [], notificacoes: [] });
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -47,6 +60,93 @@ export function CommandPalette() {
     document.addEventListener("keydown", down);
     return () => document.removeEventListener("keydown", down);
   }, []);
+
+  // Busca dinâmica em dados (RLS garante permissões no servidor)
+  useEffect(() => {
+    const term = debouncedQuery.trim();
+    if (!open || term.length < 2) {
+      setResults({ profissionais: [], plantoes: [], trocas: [], setores: [], unidades: [], notificacoes: [] });
+      return;
+    }
+    let cancelled = false;
+    setLoadingSearch(true);
+    (async () => {
+      const like = `%${term}%`;
+      try {
+        const [profsRes, setoresRes, unidadesRes, plantoesRes, trocasRes, notifRes] = await Promise.all([
+          // PII-safe view
+          (supabase as any)
+            .from("professionals_safe")
+            .select("id, nome, profissao")
+            .or(`nome.ilike.${like},profissao.ilike.${like}`)
+            .limit(6),
+          supabase
+            .from("sectors")
+            .select("id, nome, unidade_id, units!inner(nome)")
+            .ilike("nome", like)
+            .limit(5),
+          supabase
+            .from("units")
+            .select("id, nome, tipo")
+            .or(`nome.ilike.${like},tipo.ilike.${like}`)
+            .limit(5),
+          // Plantões: buscar por data (ISO) ou observações
+          /^\d{4}-\d{2}-\d{2}$/.test(term)
+            ? supabase
+                .from("shifts")
+                .select("id, data, profissional_id, setor_id, professionals(nome), sectors(nome)")
+                .eq("data", term)
+                .limit(6)
+            : supabase
+                .from("shifts")
+                .select("id, data, profissional_id, setor_id, professionals(nome), sectors(nome)")
+                .ilike("observacoes", like)
+                .limit(6),
+          supabase
+            .from("shift_swaps")
+            .select("id, status, motivo, solicitante_id, professionals!shift_swaps_solicitante_id_fkey(nome)")
+            .or(`motivo.ilike.${like},status.ilike.${like}`)
+            .limit(5),
+          supabase
+            .from("notifications")
+            .select("id, titulo, tipo")
+            .or(`titulo.ilike.${like},mensagem.ilike.${like}`)
+            .order("created_at", { ascending: false })
+            .limit(5),
+        ]);
+        if (cancelled) return;
+        setResults({
+          profissionais: (profsRes.data || []).map((p: any) => ({ id: p.id, nome: p.nome, profissao: p.profissao })),
+          plantoes: (plantoesRes.data || []).map((s: any) => ({
+            id: s.id,
+            data: s.data,
+            profissional: s.professionals?.nome || "—",
+            setor: s.sectors?.nome || "—",
+          })),
+          trocas: (trocasRes.data || []).map((t: any) => ({
+            id: t.id,
+            status: t.status,
+            solicitante: t.professionals?.nome || "—",
+            motivo: t.motivo || "",
+          })),
+          setores: (setoresRes.data || []).map((s: any) => ({
+            id: s.id,
+            nome: s.nome,
+            unidade: s.units?.nome || "—",
+          })),
+          unidades: (unidadesRes.data || []).map((u: any) => ({ id: u.id, nome: u.nome, tipo: u.tipo })),
+          notificacoes: (notifRes.data || []).map((n: any) => ({ id: n.id, titulo: n.titulo, tipo: n.tipo })),
+        });
+      } catch {
+        if (!cancelled) {
+          setResults({ profissionais: [], plantoes: [], trocas: [], setores: [], unidades: [], notificacoes: [] });
+        }
+      } finally {
+        if (!cancelled) setLoadingSearch(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [debouncedQuery, open]);
 
   const allCommands: NavCommand[] = useMemo(() => {
     if (isProfessional) {
