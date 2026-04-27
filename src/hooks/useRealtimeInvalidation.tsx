@@ -54,8 +54,15 @@ export function useRealtimeInvalidation(sub: Subscription) {
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
         for (const key of subRef.current.invalidate) {
-          const queryKey = Array.isArray(key) ? key.filter(Boolean) : [key];
-          qc.invalidateQueries({ queryKey });
+          if (typeof key === "string" && key.endsWith("*")) {
+            const prefix = key.slice(0, -1);
+            qc.invalidateQueries({
+              predicate: (q) => typeof q.queryKey[0] === "string" && (q.queryKey[0] as string).startsWith(prefix),
+            });
+          } else {
+            const queryKey = Array.isArray(key) ? key.filter(Boolean) : [key];
+            qc.invalidateQueries({ queryKey });
+          }
         }
       }, debounceMs);
     };
