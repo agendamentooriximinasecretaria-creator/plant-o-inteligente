@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logAudit } from "@/lib/auditLog";
 import { Bell, CheckCircle2, Clock, AlertTriangle, Info, Calendar as CalIcon, ArrowLeftRight, Activity } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -39,16 +40,20 @@ export default function NotificacoesPage() {
 
   const markAllRead = useMutation({
     mutationFn: async () => {
+      const naoLidas = (notifications as any[]).filter((n: any) => !n.lida).length;
       const { error } = await supabase.from('notifications').update({ lida: true }).eq('lida', false);
       if (error) throw error;
+      await logAudit('Marcou todas notificações como lidas', 'notificacoes', { quantidade: naoLidas });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['notifications'] }); qc.invalidateQueries({ queryKey: ['unread-notifications-count'] }); toast.success('Todas marcadas como lidas'); },
   });
 
   const markRead = useMutation({
     mutationFn: async (id: string) => {
+      const notif = (notifications as any[]).find((n: any) => n.id === id);
       const { error } = await supabase.from('notifications').update({ lida: true }).eq('id', id);
       if (error) throw error;
+      await logAudit('Notificação marcada como lida', 'notificacoes', { notificacao_id: id, tipo: notif?.tipo, titulo: notif?.titulo });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['notifications'] }); qc.invalidateQueries({ queryKey: ['unread-notifications-count'] }); },
   });

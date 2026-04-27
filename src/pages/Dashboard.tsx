@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logAudit } from "@/lib/auditLog";
 import {
   TrendingUp, TrendingDown, Calendar, CheckCircle2, Clock,
   ArrowLeftRight, AlertTriangle, Users, Activity,
@@ -155,14 +156,18 @@ export default function Dashboard() {
 
   const salvarCensoMutation = useMutation({
     mutationFn: async () => {
+      const setoresAtualizados: { setor_id: string; setor_nome?: string; leitos: number }[] = [];
       for (const [setorId, leitos] of Object.entries(censoInputs)) {
         if (leitos > 0) {
           await supabase.from("censo_pacientes").upsert(
             { setor_id: setorId, data: todayStr, leitos_ocupados: leitos, proporcao_minima: 0.5 } as any,
             { onConflict: "setor_id,data" }
           );
+          const setor = (sectors as any[]).find((s: any) => s.id === setorId);
+          setoresAtualizados.push({ setor_id: setorId, setor_nome: setor?.nome, leitos });
         }
       }
+      await logAudit('Censo de pacientes atualizado', 'dashboard', { data: todayStr, setores: setoresAtualizados });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["dashboard-censo-hoje"] }); toast.success("Censo atualizado!"); setCensoModalOpen(false); },
     onError: (e: Error) => toast.error("Erro: " + e.message),

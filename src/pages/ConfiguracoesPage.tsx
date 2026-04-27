@@ -7,6 +7,19 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { ShiftTypesManager } from "@/components/ShiftTypesManager";
 
+// Strip credentials/secrets before logging settings to audit trail.
+function sanitizeSettingForAudit(key: string, value: any): any {
+  if (value == null || typeof value !== 'object') return value;
+  const SENSITIVE = ['senha', 'password', 'token', 'secret', 'api_key', 'apikey', 'auth'];
+  const clone: any = Array.isArray(value) ? [...value] : { ...value };
+  for (const k of Object.keys(clone)) {
+    if (SENSITIVE.some((s) => k.toLowerCase().includes(s))) {
+      clone[k] = '[REDACTED]';
+    }
+  }
+  return clone;
+}
+
 export default function ConfiguracoesPage() {
   const qc = useQueryClient();
   const { data: settings = {} } = useQuery({
@@ -41,7 +54,8 @@ export default function ConfiguracoesPage() {
 
   const saveSetting = useMutation({
     mutationFn: async ({ key, value }: { key: string; value: any }) => {
-      const { data: existing } = await supabase.from('system_settings').select('id').eq('key', key).maybeSingle();
+      const { data: existing } = await supabase.from('system_settings').select('id, value').eq('key', key).maybeSingle();
+      const valorAnterior = existing?.value ?? null;
       if (existing) {
         const { error } = await supabase.from('system_settings').update({ value }).eq('key', key);
         if (error) throw error;
@@ -49,7 +63,10 @@ export default function ConfiguracoesPage() {
         const { error } = await supabase.from('system_settings').insert({ key, value });
         if (error) throw error;
       }
-      await logAudit(`Configuração salva: ${key}`, 'configuracoes', { key });
+      // Sanitize value: strip credentials before audit
+      const sanitized = sanitizeSettingForAudit(key, value);
+      const sanitizedAnterior = sanitizeSettingForAudit(key, valorAnterior);
+      await logAudit(`Configuração salva: ${key}`, 'configuracoes', { key, valor_anterior: sanitizedAnterior, valor_novo: sanitized });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['system-settings'] }); toast.success('Configuração salva!'); },
     onError: (e: Error) => toast.error('Erro: ' + e.message),
@@ -80,12 +97,14 @@ export default function ConfiguracoesPage() {
       const resp = await fetch(webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (resp.ok) {
         toast.success('Webhook testado com sucesso!');
-        await logAudit('Teste de webhook realizado', 'configuracoes', { url: webhookUrl, status: 'sucesso' });
+        await logAudit('Teste de webhook realizado', 'configuracoes', { url: webhookUrl, http_status: resp.status }, 'sucesso');
       } else {
         toast.error(`Webhook retornou status ${resp.status}`);
+        await logAudit('Teste de webhook falhou', 'configuracoes', { url: webhookUrl, http_status: resp.status }, 'falha');
       }
     } catch (e: any) {
       toast.error('Erro ao testar webhook: ' + e.message);
+      await logAudit('Teste de webhook erro', 'configuracoes', { url: webhookUrl, erro: e?.message }, 'falha');
     } finally { setTesting(''); }
   };
 

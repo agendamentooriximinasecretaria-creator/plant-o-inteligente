@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { dispatchNotification } from "@/lib/notifyHelper";
+import { logAudit } from "@/lib/auditLog";
 import { toast } from "sonner";
 import { FileText, AlertCircle } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -137,6 +138,15 @@ export default function MinhasTrocasPage() {
         user_id: (await supabase.auth.getUser()).data.user?.id,
       });
 
+      await logAudit('Solicitação de troca criada', 'trocas', {
+        swap_id: inserted.id,
+        shift_id: form.shift_id,
+        tipo: form.tipo,
+        solicitante_id: professionalId,
+        destinatario_id: form.tipo === "direto" ? form.destinatario_id : null,
+        motivo: form.motivo,
+      });
+
       if (form.tipo === "direto" && form.destinatario_id) {
         await dispatchNotification({ professionalId: form.destinatario_id, tipo: 'troca', titulo: '🔄 Nova solicitação de troca', mensagem: 'Um colega solicitou uma troca de plantão com você.' });
       } else {
@@ -192,6 +202,14 @@ export default function MinhasTrocasPage() {
         acao: accept ? "Troca aceita pelo profissional" : "Troca recusada pelo profissional",
         usuario: "Profissional",
         user_id: (await supabase.auth.getUser()).data.user?.id,
+      });
+
+      await logAudit(accept ? 'Troca aceita pelo destinatário' : 'Troca recusada pelo destinatário', 'trocas', {
+        swap_id: swapId,
+        shift_id: selected.shift_id,
+        solicitante_id: selected.solicitante_id,
+        destinatario_id: professionalId,
+        novo_status: nextStatus,
       });
 
       await dispatchNotification({
