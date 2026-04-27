@@ -1159,16 +1159,146 @@ export default function EscalaPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <select value={filterSetor} onChange={e => setFilterSetor(e.target.value)} className="bg-card border border-input rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50 transition-colors">
-          <option value="">Todos os setores</option>
-          {sectors.map((s: any) => <option key={s.id} value={s.id}>{s.nome}</option>)}
-        </select>
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="bg-card border border-input rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50 transition-colors">
-          <option value="">Todos os status</option>
-          {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
+      {/* ===== Filtros da Escala ===== */}
+      <div className="bg-card border border-border/60 rounded-xl p-3 shadow-[var(--shadow-card)] space-y-3">
+        <div className="flex flex-wrap items-end gap-2">
+          {/* Unidade */}
+          <div className="flex flex-col">
+            <label className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Unidade</label>
+            <select value={filtros.unidadeId}
+              onChange={e => setFiltros(f => ({ ...f, unidadeId: e.target.value, setorId: '' }))}
+              className="bg-background border border-input rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50 min-w-[140px]">
+              <option value="">Todas</option>
+              {(units as any[]).map((u: any) => <option key={u.id} value={u.id}>{u.nome}</option>)}
+            </select>
+          </div>
+
+          {/* Setor (filtrado pela unidade) */}
+          <div className="flex flex-col">
+            <label className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Setor</label>
+            <select value={filtros.setorId}
+              onChange={e => setFiltros(f => ({ ...f, setorId: e.target.value }))}
+              className="bg-background border border-input rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50 min-w-[140px]">
+              <option value="">Todos</option>
+              {(sectors as any[])
+                .filter((s: any) => !filtros.unidadeId || s.unidade_id === filtros.unidadeId)
+                .map((s: any) => <option key={s.id} value={s.id}>{s.nome}</option>)}
+            </select>
+          </div>
+
+          {/* Profissão */}
+          <div className="flex flex-col">
+            <label className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Profissão</label>
+            <select value={filtros.profissao}
+              onChange={e => setFiltros(f => ({ ...f, profissao: e.target.value, profissionalId: '' }))}
+              className="bg-background border border-input rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50 min-w-[140px]">
+              <option value="">Todas</option>
+              {Object.entries(PROFISSAO_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
+          </div>
+
+          {/* Profissional (filtrado por profissão / unidade / setor) */}
+          <div className="flex flex-col">
+            <label className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Profissional</label>
+            <select value={filtros.profissionalId}
+              onChange={e => setFiltros(f => ({ ...f, profissionalId: e.target.value }))}
+              className="bg-background border border-input rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50 min-w-[180px]">
+              <option value="">Todos</option>
+              {(professionals as any[])
+                .filter((p: any) => !filtros.profissao || p.profissao === filtros.profissao)
+                .filter((p: any) => !filtros.unidadeId || !p.unidade_principal_id || p.unidade_principal_id === filtros.unidadeId)
+                .filter((p: any) => !filtros.setorId || !p.setor_principal_id || p.setor_principal_id === filtros.setorId)
+                .map((p: any) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+            </select>
+          </div>
+
+          {/* Tipo de plantão */}
+          <div className="flex flex-col">
+            <label className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Tipo</label>
+            <select value={filtros.tipoPlantao}
+              onChange={e => setFiltros(f => ({ ...f, tipoPlantao: e.target.value }))}
+              className="bg-background border border-input rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50 min-w-[140px]">
+              <option value="">Todos</option>
+              {TIPOS_PLANTAO.map(t => <option key={t.value} value={t.value}>{t.value}</option>)}
+            </select>
+          </div>
+
+          {/* Status */}
+          <div className="flex flex-col">
+            <label className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Status</label>
+            <select value={filtros.status}
+              onChange={e => setFiltros(f => ({ ...f, status: e.target.value }))}
+              className="bg-background border border-input rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50 min-w-[130px]">
+              <option value="">Todos</option>
+              {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
+
+          {/* Período (preset) */}
+          <div className="flex flex-col">
+            <label className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Período</label>
+            <div className="flex items-center gap-1">
+              {([
+                { v: '', l: 'Tudo' },
+                { v: 'semana', l: 'Semana' },
+                { v: 'mes', l: 'Mês' },
+                { v: 'personalizado', l: 'Custom' },
+              ] as const).map(o => (
+                <button key={o.v} type="button" onClick={() => aplicarPeriodoFiltro(o.v as any)}
+                  className={`px-2.5 py-1.5 rounded-md text-[11px] border transition ${filtros.periodo === o.v ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-muted'}`}>
+                  {o.l}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Datas (apenas se período definido) */}
+          {(filtros.periodo === 'personalizado' || filtros.dataIni || filtros.dataFim) && (
+            <>
+              <div className="flex flex-col">
+                <label className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">De</label>
+                <input type="date" value={filtros.dataIni}
+                  onChange={e => setFiltros(f => ({ ...f, dataIni: e.target.value, periodo: 'personalizado' }))}
+                  className="bg-background border border-input rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring/40" />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Até</label>
+                <input type="date" value={filtros.dataFim}
+                  onChange={e => setFiltros(f => ({ ...f, dataFim: e.target.value, periodo: 'personalizado' }))}
+                  className="bg-background border border-input rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring/40" />
+              </div>
+            </>
+          )}
+
+          {/* Limpar */}
+          <button type="button" onClick={limparFiltros} disabled={filtrosAtivos === 0}
+            className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-input bg-background hover:bg-muted text-xs font-medium disabled:opacity-50">
+            Limpar filtros{filtrosAtivos > 0 ? ` (${filtrosAtivos})` : ''}
+          </button>
+        </div>
+
+        {/* Toggles rápidos */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border/60">
+          {([
+            ['soConflitos', '⚠️ Somente conflitos'],
+            ['soDescobertos', '🚫 Setores descobertos'],
+            ['soPublicados', '📢 Publicados'],
+            ['soRascunhos', '📝 Rascunhos'],
+            ['soFolgas', '🌴 Folgas'],
+          ] as const).map(([k, l]) => {
+            const active = (filtros as any)[k] as boolean;
+            return (
+              <button key={k} type="button"
+                onClick={() => setFiltros(f => ({ ...f, [k]: !(f as any)[k] }))}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input text-foreground hover:bg-muted'}`}>
+                {l}
+              </button>
+            );
+          })}
+          <span className="ml-auto text-[11px] text-muted-foreground">{filtered.length} resultado(s)</span>
+        </div>
       </div>
+
 
       {isLoading ? (
         <div className="flex justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>
