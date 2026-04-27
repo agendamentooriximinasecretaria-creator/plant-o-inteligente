@@ -859,8 +859,42 @@ export default function EscalaPage() {
             <button onClick={() => setView('calendario')} className={`p-1.5 rounded-md transition-all ${view === 'calendario' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}><Calendar className="h-4 w-4" /></button>
             <button onClick={() => setView('grade')} className={`p-1.5 rounded-md transition-all ${view === 'grade' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`} title="Grade semanal"><LayoutGrid className="h-4 w-4" /></button>
           </div>
-          <button onClick={() => { setFolgaForm(emptyFolga); setFolgaModalOpen(true); }} className="flex items-center gap-1.5 border border-input bg-card px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-muted text-foreground transition-colors"><Palmtree className="h-3.5 w-3.5 text-amber-600" /> Folga</button>
-          <button onClick={() => { setForm(emptyForm); setEditingId(null); setModalOpen(true); }} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"><Plus className="h-3.5 w-3.5" /> Novo Plantão</button>
+          {!isProfessional && (
+            <button onClick={() => { setFolgaForm(emptyFolga); setFolgaModalOpen(true); }} className="flex items-center gap-1.5 border border-input bg-card px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-muted text-foreground transition-colors"><Palmtree className="h-3.5 w-3.5 text-amber-600" /> Folga</button>
+          )}
+          {!isProfessional && (
+            <button onClick={() => { setForm(emptyForm); setEditingId(null); setModalOpen(true); }} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"><Plus className="h-3.5 w-3.5" /> Novo Plantão</button>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-1.5 border border-input bg-card px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-muted text-foreground transition-colors" title="Mais ações">
+                <MoreHorizontal className="h-3.5 w-3.5" /> Mais ações
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60">
+              <DropdownMenuLabel>Documentos</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => setPrintOpen(true)}><Printer className="h-4 w-4 mr-2" /> Imprimir Escala</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportPDF}><FileText className="h-4 w-4 mr-2" /> Exportar PDF</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportExcel}><FileSpreadsheet className="h-4 w-4 mr-2" /> Exportar Excel</DropdownMenuItem>
+              {canManage && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>Gestão da escala</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => setCopySemanaOpen(true)}><CopyPlus className="h-4 w-4 mr-2" /> Copiar Semana</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setCopyMesOpen(true)}><CopyPlus className="h-4 w-4 mr-2" /> Copiar Mês</DropdownMenuItem>
+                  <DropdownMenuItem disabled={validatingAll} onClick={handleValidarConflitos}>
+                    {validatingAll ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
+                    {validatingAll ? 'Validando...' : 'Validar Conflitos'}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled={publishMutation.isPending} onClick={() => { if (!publishMutation.isPending) publishMutation.mutate(); }}>
+                    {publishMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Megaphone className="h-4 w-4 mr-2" />}
+                    {publishMutation.isPending ? 'Publicando...' : 'Publicar Escala'}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setEnviarOpen(true)}><Send className="h-4 w-4 mr-2" /> Enviar Escala</DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
