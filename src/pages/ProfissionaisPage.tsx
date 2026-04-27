@@ -160,17 +160,23 @@ export default function ProfissionaisPage() {
 
   const closeModal = () => { setModalOpen(false); setEditingId(null); setForm(emptyForm); };
 
-  const openEdit = (p: any) => {
+  const openEdit = async (p: any) => {
     setEditingId(p.id);
+    // Fetch sensitive fields on demand (not in listing)
+    const { data: sensitive } = await supabase
+      .from('professionals')
+      .select('cpf, observacoes, limite_trocas_plantao_mes, limite_trocas_paciente_mes')
+      .eq('id', p.id)
+      .maybeSingle();
     setForm({
       nome: p.nome, profissao: p.profissao, especialidade: p.especialidade || '', conselho: p.conselho || '',
-      registro: p.registro || '', cpf: p.cpf || '', telefone: p.telefone || '', email: p.email,
+      registro: p.registro || '', cpf: sensitive?.cpf || '', telefone: p.telefone || '', email: p.email,
       unidade_principal_id: p.unidade_principal_id || '', setor_principal_id: p.setor_principal_id || '',
-      status: p.status, observacoes: p.observacoes || '', vinculo: p.vinculo || '',
+      status: p.status, observacoes: sensitive?.observacoes || '', vinculo: p.vinculo || '',
       documento_conselho: p.documento_conselho || '', documento_numero: p.documento_numero || '', documento_validade: p.documento_validade || '',
       competencias: Array.isArray(p.competencias) ? p.competencias : [],
-      limite_trocas_plantao_mes: p.limite_trocas_plantao_mes ?? 3,
-      limite_trocas_paciente_mes: p.limite_trocas_paciente_mes ?? 5,
+      limite_trocas_plantao_mes: sensitive?.limite_trocas_plantao_mes ?? 3,
+      limite_trocas_paciente_mes: sensitive?.limite_trocas_paciente_mes ?? 5,
     });
     setModalOpen(true);
   };
