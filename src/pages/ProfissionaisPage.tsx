@@ -210,12 +210,37 @@ export default function ProfissionaisPage() {
     setModalOpen(true);
   };
 
+  // Document expiry helpers
+  const docInfo = (validade?: string | null) => {
+    if (!validade) return { vencido: false, vencendo: false, dias: null as number | null };
+    const today = new Date(); today.setHours(0,0,0,0);
+    const v = new Date(validade + 'T12:00:00');
+    const dias = Math.round((v.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return { vencido: dias < 0, vencendo: dias >= 0 && dias <= 30, dias };
+  };
+
   const filtered = (professionals as any[]).filter((p: any) => {
-    if (search && !p.nome.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search) {
+      const q = norm(search);
+      const haystack = norm([
+        p.nome, PROFISSAO_LABELS[p.profissao] || p.profissao, p.profissao,
+        p.especialidade, p.conselho, p.registro, p.documento_conselho, p.documento_numero,
+        p.email, p.telefone,
+        (p.units as any)?.nome, (p.sectors as any)?.nome,
+      ].filter(Boolean).join(' '));
+      if (!haystack.includes(q)) return false;
+    }
     if (filterProfissao && p.profissao !== filterProfissao) return false;
     if (filterUnidade && p.unidade_principal_id !== filterUnidade) return false;
     if (filterSetor && p.setor_principal_id !== filterSetor) return false;
+    if (filterStatus && p.status !== filterStatus) return false;
     if (filterDisponivel && (ocupadosHoje.has(p.id) || p.status !== 'ativo')) return false;
+    const di = docInfo(p.documento_validade);
+    if (filterDocVencido && !di.vencido) return false;
+    if (filterDocVencendo && !di.vencendo) return false;
+    const horasMes = horasPorProfissional[p.id] || 0;
+    if (filterSobrecarga && horasMes < LIMITE_HORAS_MENSAL * 0.9) return false;
+    if (filterSemPlantao && horasMes > 0) return false;
     return true;
   });
 
