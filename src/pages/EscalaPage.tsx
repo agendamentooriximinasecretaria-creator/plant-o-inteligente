@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 import { abrirVisualizacaoImpressao, gerarPdfEscala, diaSemanaPt, type PrintLinha, type PrintCabecalho, type PrintOptions } from "@/lib/printEscala";
 
@@ -69,6 +70,47 @@ const emptyForm = {
 
 const emptyFolga = { profissional_id: '', data_inicio: '', data_fim: '', motivo: 'folga', observacoes: '' };
 
+function ShiftHistoryView({ shiftId }: { shiftId: string }) {
+  const { data: logs = [], isLoading } = useQuery({
+    queryKey: ['shift-history', shiftId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('audit_logs')
+        .select('id, created_at, acao, usuario_nome, detalhes')
+        .order('created_at', { ascending: false })
+        .limit(200);
+      return (data || []).filter((l: any) => {
+        const d = l.detalhes || {};
+        return d.id === shiftId || d.shift_id === shiftId;
+      });
+    },
+  });
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /> Histórico do plantão</DialogTitle>
+        <DialogDescription>Eventos registrados na auditoria para este plantão.</DialogDescription>
+      </DialogHeader>
+      {isLoading ? (
+        <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+      ) : logs.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-6 text-center">Nenhum evento registrado.</p>
+      ) : (
+        <ul className="divide-y divide-border max-h-[55vh] overflow-y-auto">
+          {logs.map((l: any) => (
+            <li key={l.id} className="py-2">
+              <p className="text-sm font-medium text-foreground">{l.acao}</p>
+              <p className="text-xs text-muted-foreground">
+                {new Date(l.created_at).toLocaleString('pt-BR')} · {l.usuario_nome || 'Sistema'}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
 export default function EscalaPage() {
   const sb = supabase as any;
   const [view, setView] = useState<'lista' | 'calendario' | 'grade'>('lista');
@@ -106,6 +148,16 @@ export default function EscalaPage() {
   const [workloadAlerts, setWorkloadAlerts] = useState<string[]>([]);
   const [horasPorProfissional, setHorasPorProfissional] = useState<Record<string, number>>({});
   const [detailShift, setDetailShift] = useState<any>(null);
+  // Menu de ações na célula vazia (data + setor opcional)
+  const [emptyCell, setEmptyCell] = useState<{ data: string; setorId?: string; unidadeId?: string } | null>(null);
+  // Sub-modais a partir do menu de célula
+  const [availableProsCell, setAvailableProsCell] = useState<{ data: string; setorId?: string; unidadeId?: string } | null>(null);
+  const [coverageCell, setCoverageCell] = useState<{ data: string; setorId?: string } | null>(null);
+  const [conflictsDay, setConflictsDay] = useState<string | null>(null);
+  // Modais de ações sobre o plantão (a partir do detalhe)
+  const [notifyTarget, setNotifyTarget] = useState<any>(null);
+  const [notifyMsg, setNotifyMsg] = useState("");
+  const [historyTarget, setHistoryTarget] = useState<any>(null);
   const qc = useQueryClient();
 
   const { data: shifts = [], isLoading, refetch: refetchShifts } = useQuery({
@@ -561,6 +613,62 @@ export default function EscalaPage() {
     onError: (e: Error) => toast.error(`Não foi possível excluir: ${e.message}`),
   });
 
+  // ------ Cancelar plantão (sem excluir) ------
+  const cancelMutation = useMutation({
+    mutationFn: async (shift: any) => {
+      const { error } = await supabase.from('shifts')
+        .update({ status: 'cancelado' as any })
+        .eq('id', shift.id);
+      if (error) throw error;
+      await logAudit('Plantão cancelado', 'escala', {
+        id: shift.id, profissional_id: shift.profissional_id, data: shift.data,
+      });
+      await dispatchNotification({
+        professionalId: shift.profissional_id, tipo: 'plantao',
+        titulo: '⚠️ Plantão cancelado',
+        mensagem: `Seu plantão em ${new Date(shift.data + 'T12:00:00').toLocaleDateString('pt-BR')} (${shift.hora_inicio}-${shift.hora_fim}) foi cancelado pela gestão.`,
+      });
+    },
+    onSuccess: () => { toast.success('Plantão cancelado'); invalidateCrossShifts(qc); },
+    onError: (e: Error) => toast.error(`Não foi possível cancelar: ${e.message}`),
+  });
+
+  // ------ Envio de notificação manual ao profissional do plantão ------
+  const notifyMutation = useMutation({
+    mutationFn: async ({ shift, mensagem }: { shift: any; mensagem: string }) => {
+      await dispatchNotification({
+        professionalId: shift.profissional_id, tipo: 'plantao',
+        titulo: '🔔 Aviso sobre plantão',
+        mensagem: `${new Date(shift.data + 'T12:00:00').toLocaleDateString('pt-BR')} ${shift.hora_inicio}-${shift.hora_fim} — ${mensagem}`,
+      });
+      await logAudit('Notificação manual enviada', 'escala', { shift_id: shift.id, mensagem });
+    },
+    onSuccess: () => toast.success('Notificação enviada'),
+    onError: (e: Error) => toast.error(`Falha ao notificar: ${e.message}`),
+  });
+
+  // ------ Solicitar troca a partir de uma célula (gestor cria solicitação aberta) ------
+  const requestSwapMutation = useMutation({
+    mutationFn: async (shift: any) => {
+      const profissionalId = isProfessional ? null : shift.profissional_id;
+      const solicitanteId = isProfessional ? shift.profissional_id : shift.profissional_id;
+      const { error } = await supabase.from('shift_swaps').insert({
+        shift_id: shift.id,
+        solicitante_id: solicitanteId,
+        destinatario_id: null,
+        tipo: 'grupo',
+        motivo: 'Solicitação aberta pela escala',
+        status: 'solicitada' as any,
+      } as any);
+      if (error) throw error;
+      await logAudit('Troca solicitada via escala', 'trocas', { shift_id: shift.id });
+    },
+    onSuccess: () => { toast.success('Solicitação de troca aberta'); invalidateCrossShifts(qc); },
+    onError: (e: Error) => toast.error(`Falha ao solicitar troca: ${e.message}`),
+  });
+
+  const navigate = useNavigate();
+
   // ============================================================
   // Ações secundárias da Escala (Imprimir, Exportar, Copiar, Validar, Publicar, Enviar)
   // ============================================================
@@ -963,13 +1071,30 @@ export default function EscalaPage() {
     setModalOpen(true);
   };
 
-  const openCreateForCell = (date: string, sectorId?: string, unidadeId?: string) => {
+  const openCreateForCell = (date: string, sectorId?: string, unidadeId?: string, tipoSugerido?: string) => {
     setEditingId(null);
+    const tipoDefault = tipoSugerido
+      || filtros.tipoPlantao
+      || (TIPOS_PLANTAO[0]?.value ?? '');
+    const preset = TIPOS_PLANTAO.find(t => t.value === tipoDefault);
     setForm({
       ...emptyForm, data: date,
-      setor_id: sectorId || '', unidade_id: unidadeId || '',
+      setor_id: sectorId || filtros.setorId || '',
+      unidade_id: unidadeId || filtros.unidadeId || '',
+      tipo_plantao: tipoDefault || emptyForm.tipo_plantao,
+      hora_inicio: preset?.start ?? emptyForm.hora_inicio,
+      hora_fim: preset?.end ?? emptyForm.hora_fim,
     });
     setModalOpen(true);
+  };
+
+  // Abre o menu de ações da célula vazia (com data + setor/unidade do filtro)
+  const openEmptyCellMenu = (date: string, sectorId?: string, unidadeId?: string) => {
+    setEmptyCell({
+      data: date,
+      setorId: sectorId || filtros.setorId || undefined,
+      unidadeId: unidadeId || filtros.unidadeId || undefined,
+    });
   };
 
   // Aplica preset de tipo de plantão (preenche horários automaticamente)
@@ -1477,10 +1602,10 @@ export default function EscalaPage() {
                 const found = (shifts as any[]).find((s: any) => s.id === shift.id);
                 if (found) setDetailShift(found);
               } else {
-                openCreateForCell(dateStr);
+                openEmptyCellMenu(dateStr);
               }
             }}
-            onCreateClick={(dateStr) => openCreateForCell(dateStr)}
+            onCreateClick={(dateStr) => openEmptyCellMenu(dateStr)}
           />
         </motion.div>
       ) : (
@@ -1514,7 +1639,7 @@ export default function EscalaPage() {
                 const onlyFolgas = dayShifts.length > 0 && dayShifts.every(isFolga);
                 return (
                   <div key={i}
-                    onClick={() => isValid && dayShifts.length === 0 && openCreateForCell(dateStr)}
+                    onClick={() => isValid && dayShifts.length === 0 && openEmptyCellMenu(dateStr)}
                     className={`min-h-[110px] p-1.5 rounded-lg border transition-colors text-left ${
                       isValid ? 'border-border/50 hover:border-primary/40 cursor-pointer' : 'border-transparent'
                     } ${isToday ? 'ring-2 ring-primary/40' : ''} ${onlyFolgas ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800' : ''}`}>
@@ -1732,18 +1857,341 @@ export default function EscalaPage() {
                   <span className="status-badge bg-warning/10 text-warning ml-2"><ArrowLeftRight className="h-3 w-3 mr-1 inline" />Em troca</span>
                 )}
               </div>
-              <div className="flex gap-2 mt-4 pt-3 border-t border-border">
-                <button onClick={() => { openEdit(detailShift); setDetailShift(null); }}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
-                  <Edit className="h-3.5 w-3.5" /> Editar
-                </button>
-                <button onClick={() => setDetailShift(null)}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted">
-                  Fechar
-                </button>
-              </div>
+              {(() => {
+                const myProfId = (professionals as any[]).find((p: any) => p.user_id === user?.id)?.id;
+                const isOwn = !!myProfId && detailShift.profissional_id === myProfId;
+                const isAdministrativo = detailShift.tipo_plantao === 'administrativa' || detailShift.tipo_plantao === 'administrativo';
+                const canEdit = canManage && !(isProfessional && isAdministrativo);
+                const canCancel = canManage && detailShift.status !== 'cancelado';
+                const canDelete = isMaster;
+                const canSwap = isOwn || canManage;
+                const canNotify = canManage;
+                const canViewHistory = canManage;
+                const swapState = swapByShiftId[detailShift.id];
+                const hasOpenSwap = !!swapState && ['solicitada', 'aguardando_resposta', 'aceita', 'aguardando_aprovacao'].includes(swapState.status);
+
+                return (
+                  <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-border">
+                    {canEdit && (
+                      <button onClick={() => { openEdit(detailShift); setDetailShift(null); }}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
+                        <Edit className="h-3.5 w-3.5" /> Editar
+                      </button>
+                    )}
+                    {canSwap && !hasOpenSwap && (
+                      <button
+                        disabled={requestSwapMutation.isPending}
+                        onClick={() => { if (!confirm('Solicitar troca para este plantão?')) return; requestSwapMutation.mutate(detailShift, { onSuccess: () => setDetailShift(null) }); }}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted disabled:opacity-50">
+                        {requestSwapMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowLeftRight className="h-3.5 w-3.5" />} Solicitar troca
+                      </button>
+                    )}
+                    {canCancel && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button disabled={cancelMutation.isPending}
+                            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-warning/40 text-warning text-sm font-medium hover:bg-warning/10 disabled:opacity-50">
+                            {cancelMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <AlertTriangle className="h-3.5 w-3.5" />} Cancelar
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Cancelar plantão?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              O profissional será notificado. O registro permanece para histórico.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel disabled={cancelMutation.isPending}>Voltar</AlertDialogCancel>
+                            <AlertDialogAction disabled={cancelMutation.isPending}
+                              onClick={(e) => { e.preventDefault(); if (cancelMutation.isPending) return; cancelMutation.mutate(detailShift, { onSuccess: () => setDetailShift(null) }); }}
+                              className="bg-warning text-warning-foreground hover:bg-warning/90">
+                              {cancelMutation.isPending ? 'Cancelando...' : 'Confirmar cancelamento'}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                    {canDelete && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button disabled={deleteMutation.isPending}
+                            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-destructive/40 text-destructive text-sm font-medium hover:bg-destructive/10 disabled:opacity-50">
+                            {deleteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />} Excluir
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir plantão?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Esta ação não pode ser desfeita. {hasOpenSwap && 'A solicitação de troca em aberto será cancelada.'}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel disabled={deleteMutation.isPending}>Voltar</AlertDialogCancel>
+                            <AlertDialogAction disabled={deleteMutation.isPending}
+                              onClick={(e) => { e.preventDefault(); if (deleteMutation.isPending) return; deleteMutation.mutate(detailShift, { onSuccess: () => setDetailShift(null) } as any); }}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                              {deleteMutation.isPending ? 'Excluindo...' : 'Excluir'}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                    <button
+                      onClick={() => {
+                        const s = detailShift;
+                        const html = `<!doctype html><html><head><meta charset="utf-8"><title>Comprovante de Plantão</title>
+                          <style>body{font-family:Inter,Arial,sans-serif;padding:32px;color:#111}h1{font-size:18px;margin:0 0 8px}h2{font-size:13px;margin:24px 0 4px;color:#555;text-transform:uppercase;letter-spacing:.05em}p{margin:4px 0;font-size:13px}.box{border:1px solid #ddd;border-radius:8px;padding:16px;margin-top:12px}.row{display:flex;justify-content:space-between;gap:24px}.sig{margin-top:64px;border-top:1px solid #333;width:60%;text-align:center;font-size:11px;padding-top:6px;color:#555}</style>
+                          </head><body>
+                          <h1>GestorPlantão · SMS Oriximiná</h1>
+                          <p style="font-size:11px;color:#555">CNPJ 05.131.081/0001-82 · Comprovante de Plantão</p>
+                          <div class="box">
+                            <div class="row"><p><b>Profissional:</b> ${(s.professionals as any)?.nome || ''}</p><p><b>Profissão:</b> ${PROFISSAO_LABELS[(s.professionals as any)?.profissao] || ''}</p></div>
+                            <div class="row"><p><b>Data:</b> ${new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR')}</p><p><b>Horário:</b> ${s.hora_inicio} às ${s.hora_fim} (${s.carga_horaria}h)</p></div>
+                            <div class="row"><p><b>Unidade:</b> ${(s.units as any)?.nome || ''}</p><p><b>Setor:</b> ${(s.sectors as any)?.nome || ''}</p></div>
+                            <div class="row"><p><b>Tipo:</b> ${s.tipo_plantao || ''}</p><p><b>Status:</b> ${STATUS_LABELS[s.status] || s.status}</p></div>
+                            ${s.observacoes ? `<p style="margin-top:12px"><b>Observações:</b> ${s.observacoes}</p>` : ''}
+                          </div>
+                          <div class="sig">Assinatura do Gestor</div>
+                          <p style="font-size:10px;color:#777;margin-top:24px">Documento emitido pelo GestorPlantão SMS Oriximiná em ${new Date().toLocaleString('pt-BR')}</p>
+                          <script>window.onload=()=>{window.print()}</script>
+                          </body></html>`;
+                        const w = window.open('', '_blank', 'width=900,height=700');
+                        if (!w) { toast.error('Bloqueador de pop-up impediu a impressão'); return; }
+                        w.document.write(html); w.document.close();
+                        logAudit('Comprovante de plantão impresso', 'escala', { shift_id: s.id });
+                      }}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted">
+                      <Printer className="h-3.5 w-3.5" /> Comprovante
+                    </button>
+                    {canNotify && (
+                      <button onClick={() => { setNotifyMsg(''); setNotifyTarget(detailShift); }}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted">
+                        <Megaphone className="h-3.5 w-3.5" /> Notificar
+                      </button>
+                    )}
+                    {canViewHistory && (
+                      <button onClick={() => setHistoryTarget(detailShift)}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted">
+                        <FileText className="h-3.5 w-3.5" /> Histórico
+                      </button>
+                    )}
+                    <button onClick={() => setDetailShift(null)}
+                      className="col-span-2 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:bg-muted">
+                      Fechar
+                    </button>
+                  </div>
+                );
+              })()}
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: Ações da célula vazia */}
+      <Dialog open={!!emptyCell} onOpenChange={(o) => !o && setEmptyCell(null)}>
+        <DialogContent className="max-w-md">
+          {emptyCell && (() => {
+            const dataBR = new Date(emptyCell.data + 'T12:00:00').toLocaleDateString('pt-BR');
+            const setorNome = emptyCell.setorId ? (sectors as any[]).find(s => s.id === emptyCell.setorId)?.nome : null;
+            const unidadeNome = emptyCell.unidadeId ? (units as any[]).find(u => u.id === emptyCell.unidadeId)?.nome : null;
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2"><Calendar className="h-5 w-5 text-primary" /> Ações para {dataBR}</DialogTitle>
+                  <DialogDescription>
+                    {setorNome ? `Setor: ${setorNome}` : 'Sem setor selecionado'}{unidadeNome ? ` · ${unidadeNome}` : ''}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-1 gap-2 mt-2">
+                  {canManage && (
+                    <button onClick={() => { openCreateForCell(emptyCell.data, emptyCell.setorId, emptyCell.unidadeId); setEmptyCell(null); }}
+                      className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
+                      <Plus className="h-4 w-4" /> Criar plantão neste dia
+                    </button>
+                  )}
+                  {canManage && (
+                    <button onClick={() => { openCreateForCell(emptyCell.data, emptyCell.setorId, emptyCell.unidadeId, 'folga'); setEmptyCell(null); }}
+                      className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-amber-400/40 text-amber-700 dark:text-amber-300 text-sm font-medium hover:bg-amber-50 dark:hover:bg-amber-950/30">
+                      <Palmtree className="h-4 w-4" /> Criar folga
+                    </button>
+                  )}
+                  <button onClick={() => { setAvailableProsCell(emptyCell); setEmptyCell(null); }}
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-border text-sm font-medium hover:bg-muted">
+                    <UsersIcon className="h-4 w-4" /> Ver profissionais disponíveis
+                  </button>
+                  <button onClick={() => { setCoverageCell({ data: emptyCell.data, setorId: emptyCell.setorId }); setEmptyCell(null); }}
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-border text-sm font-medium hover:bg-muted">
+                    <ShieldCheck className="h-4 w-4" /> Ver cobertura do setor
+                  </button>
+                  <button onClick={() => { setConflictsDay(emptyCell.data); setEmptyCell(null); }}
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-border text-sm font-medium hover:bg-muted">
+                    <AlertTriangle className="h-4 w-4" /> Ver conflitos do dia
+                  </button>
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: Profissionais disponíveis no dia */}
+      <Dialog open={!!availableProsCell} onOpenChange={(o) => !o && setAvailableProsCell(null)}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          {availableProsCell && (() => {
+            const dataBR = new Date(availableProsCell.data + 'T12:00:00').toLocaleDateString('pt-BR');
+            const dayShifts = (shifts as any[]).filter((s: any) => s.data === availableProsCell.data && !isFolgaShift(s) && s.status !== 'cancelado');
+            const ocupados = new Set(dayShifts.map((s: any) => s.profissional_id));
+            const lista = (professionals as any[])
+              .filter((p: any) => p.status === 'ativo')
+              .filter((p: any) => !availableProsCell.setorId || !p.setor_principal_id || p.setor_principal_id === availableProsCell.setorId)
+              .filter((p: any) => !availableProsCell.unidadeId || !p.unidade_principal_id || p.unidade_principal_id === availableProsCell.unidadeId)
+              .filter((p: any) => !ocupados.has(p.id));
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2"><UsersIcon className="h-5 w-5 text-primary" /> Disponíveis em {dataBR}</DialogTitle>
+                  <DialogDescription>{lista.length} profissional(is) sem plantão atribuído neste dia.</DialogDescription>
+                </DialogHeader>
+                <div className="divide-y divide-border max-h-[55vh] overflow-y-auto">
+                  {lista.length === 0 && <p className="text-sm text-muted-foreground py-6 text-center">Nenhum profissional disponível.</p>}
+                  {lista.map((p: any) => (
+                    <div key={p.id} className="flex items-center justify-between py-2">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{p.nome}</p>
+                        <p className="text-xs text-muted-foreground">{PROFISSAO_LABELS[p.profissao] || p.profissao}</p>
+                      </div>
+                      {canManage && (
+                        <button
+                          onClick={() => {
+                            const cell = availableProsCell;
+                            setAvailableProsCell(null);
+                            openCreateForCell(cell.data, cell.setorId, cell.unidadeId);
+                            setForm(f => ({ ...f, profissional_ids: [p.id], profissao: p.profissao }));
+                          }}
+                          className="text-xs px-2 py-1 rounded-md bg-primary text-primary-foreground hover:opacity-90">
+                          Escalar
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: Cobertura do setor no dia */}
+      <Dialog open={!!coverageCell} onOpenChange={(o) => !o && setCoverageCell(null)}>
+        <DialogContent className="max-w-lg">
+          {coverageCell && (() => {
+            const dataBR = new Date(coverageCell.data + 'T12:00:00').toLocaleDateString('pt-BR');
+            const setoresAlvo = coverageCell.setorId
+              ? (sectors as any[]).filter(s => s.id === coverageCell.setorId)
+              : (sectors as any[]);
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" /> Cobertura — {dataBR}</DialogTitle>
+                  <DialogDescription>{setoresAlvo.length} setor(es). Comparativo entre escalados e mínimo configurado.</DialogDescription>
+                </DialogHeader>
+                <div className="divide-y divide-border max-h-[55vh] overflow-y-auto">
+                  {setoresAlvo.map((sec: any) => {
+                    const dia = new Date(coverageCell.data + 'T12:00:00').getDay();
+                    const isFds = dia === 0 || dia === 6;
+                    const minimo = isFds ? (sec.min_profissionais_fds ?? 1) : (sec.min_profissionais_diurno ?? 1);
+                    const escalados = (shifts as any[]).filter((s: any) => s.setor_id === sec.id && s.data === coverageCell.data && !isFolgaShift(s) && s.status !== 'cancelado').length;
+                    const ok = escalados >= minimo;
+                    return (
+                      <div key={sec.id} className="flex items-center justify-between py-2">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{sec.nome}</p>
+                          <p className="text-xs text-muted-foreground">Mínimo: {minimo} · Escalados: {escalados}</p>
+                        </div>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ok ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
+                          {ok ? 'OK' : 'Descoberto'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: Conflitos do dia */}
+      <Dialog open={!!conflictsDay} onOpenChange={(o) => !o && setConflictsDay(null)}>
+        <DialogContent className="max-w-lg">
+          {conflictsDay && (() => {
+            const dataBR = new Date(conflictsDay + 'T12:00:00').toLocaleDateString('pt-BR');
+            const dayConflicts = (shifts as any[]).filter((s: any) => s.data === conflictsDay && conflictIds.has(s.id));
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-warning" /> Conflitos em {dataBR}</DialogTitle>
+                  <DialogDescription>{dayConflicts.length} plantão(ões) com sobreposição de horário.</DialogDescription>
+                </DialogHeader>
+                <div className="divide-y divide-border max-h-[55vh] overflow-y-auto">
+                  {dayConflicts.length === 0 && <p className="text-sm text-muted-foreground py-6 text-center">Nenhum conflito detectado neste dia.</p>}
+                  {dayConflicts.map((s: any) => (
+                    <button key={s.id} onClick={() => { setConflictsDay(null); setDetailShift(s); }}
+                      className="w-full text-left py-2 hover:bg-muted/40 rounded px-2">
+                      <p className="text-sm font-medium text-foreground">{(s.professionals as any)?.nome}</p>
+                      <p className="text-xs text-muted-foreground">{(s.sectors as any)?.nome} · {s.hora_inicio}-{s.hora_fim} · {s.tipo_plantao}</p>
+                    </button>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: Notificar profissional */}
+      <Dialog open={!!notifyTarget} onOpenChange={(o) => { if (!notifyMutation.isPending && !o) setNotifyTarget(null); }}>
+        <DialogContent className="max-w-md">
+          {notifyTarget && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2"><Megaphone className="h-5 w-5 text-primary" /> Enviar notificação</DialogTitle>
+                <DialogDescription>
+                  Para {(notifyTarget.professionals as any)?.nome} sobre o plantão de {new Date(notifyTarget.data + 'T12:00:00').toLocaleDateString('pt-BR')}.
+                </DialogDescription>
+              </DialogHeader>
+              <textarea
+                value={notifyMsg} onChange={e => setNotifyMsg(e.target.value)}
+                placeholder="Digite a mensagem..." rows={4}
+                className="w-full bg-background border border-input rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/40"
+              />
+              <DialogFooter>
+                <button onClick={() => setNotifyTarget(null)} disabled={notifyMutation.isPending}
+                  className="px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted disabled:opacity-50">
+                  Cancelar
+                </button>
+                <button
+                  disabled={notifyMutation.isPending || !notifyMsg.trim()}
+                  onClick={() => notifyMutation.mutate(
+                    { shift: notifyTarget, mensagem: notifyMsg.trim() },
+                    { onSuccess: () => { setNotifyTarget(null); setDetailShift(null); } }
+                  )}
+                  className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5">
+                  {notifyMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                  {notifyMutation.isPending ? 'Enviando...' : 'Enviar'}
+                </button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: Histórico/Auditoria do plantão */}
+      <Dialog open={!!historyTarget} onOpenChange={(o) => !o && setHistoryTarget(null)}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          {historyTarget && <ShiftHistoryView shiftId={historyTarget.id} />}
         </DialogContent>
       </Dialog>
 
