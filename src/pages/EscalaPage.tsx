@@ -70,6 +70,47 @@ const emptyForm = {
 
 const emptyFolga = { profissional_id: '', data_inicio: '', data_fim: '', motivo: 'folga', observacoes: '' };
 
+function ShiftHistoryView({ shiftId }: { shiftId: string }) {
+  const { data: logs = [], isLoading } = useQuery({
+    queryKey: ['shift-history', shiftId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('audit_logs')
+        .select('id, created_at, acao, usuario_nome, detalhes')
+        .order('created_at', { ascending: false })
+        .limit(200);
+      return (data || []).filter((l: any) => {
+        const d = l.detalhes || {};
+        return d.id === shiftId || d.shift_id === shiftId;
+      });
+    },
+  });
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /> Histórico do plantão</DialogTitle>
+        <DialogDescription>Eventos registrados na auditoria para este plantão.</DialogDescription>
+      </DialogHeader>
+      {isLoading ? (
+        <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+      ) : logs.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-6 text-center">Nenhum evento registrado.</p>
+      ) : (
+        <ul className="divide-y divide-border max-h-[55vh] overflow-y-auto">
+          {logs.map((l: any) => (
+            <li key={l.id} className="py-2">
+              <p className="text-sm font-medium text-foreground">{l.acao}</p>
+              <p className="text-xs text-muted-foreground">
+                {new Date(l.created_at).toLocaleString('pt-BR')} · {l.usuario_nome || 'Sistema'}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
 export default function EscalaPage() {
   const sb = supabase as any;
   const [view, setView] = useState<'lista' | 'calendario' | 'grade'>('lista');
