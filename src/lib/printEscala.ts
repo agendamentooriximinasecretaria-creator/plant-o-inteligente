@@ -157,6 +157,7 @@ function buildHtml(
       ${cab.emitidoPor ? `<div><b>Emitido por:</b> ${escapeHtml(cab.emitidoPor)}</div>` : ""}
       <div><b>Sistema:</b> ${escapeHtml(sistema)}</div>
     </div>
+    </div>
   </div>
 
   <table>
