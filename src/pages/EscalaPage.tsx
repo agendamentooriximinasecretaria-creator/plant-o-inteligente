@@ -1177,6 +1177,20 @@ export default function EscalaPage() {
     setModalOpen(true);
   };
 
+  // Filtro inicial vindo de outras telas (ex.: SetoresPage → "Ver escala do setor/unidade")
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('escala:filtroInicial');
+      if (!raw) return;
+      sessionStorage.removeItem('escala:filtroInicial');
+      const f = JSON.parse(raw) as { unidadeId?: string; setorId?: string };
+      if (f && (f.unidadeId || f.setorId)) {
+        setFiltros(prev => ({ ...prev, unidadeId: f.unidadeId || '', setorId: f.setorId || '' }));
+      }
+    } catch { /* noop */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Recebe instruções vindas de outras telas (ex.: SetoresPage → "Criar plantão para setor")
   // Estrutura no sessionStorage: { unidadeId, setorId, data?, tipo? }
   useEffect(() => {
