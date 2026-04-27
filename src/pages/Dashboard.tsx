@@ -93,7 +93,7 @@ export default function Dashboard() {
       const firstDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
       const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
       const lastStr = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, "0")}-${String(lastDay.getDate()).padStart(2, "0")}`;
-      const { data } = await supabase.from("shifts").select("*, professionals:profissional_id(nome, profissao), sectors:setor_id(nome)").gte("data", firstDay).lte("data", lastStr);
+      const { data } = await supabase.from("shifts").select("id, data, status, hora_inicio, hora_fim, carga_horaria, tipo_plantao, profissional_id, setor_id, professionals:profissional_id(nome, profissao), sectors:setor_id(nome)").gte("data", firstDay).lte("data", lastStr);
       return data || [];
     },
   });
@@ -101,7 +101,7 @@ export default function Dashboard() {
   const { data: swaps = [] } = useQuery({
     queryKey: ["dashboard-swaps"],
     queryFn: async () => {
-      const { data } = await supabase.from("shift_swaps").select("*, solicitante:solicitante_id(nome), destinatario:destinatario_id(nome)").order("created_at", { ascending: false }).limit(10);
+      const { data } = await supabase.from("shift_swaps").select("id, status, tipo, created_at, solicitante_id, destinatario_id, solicitante:solicitante_id(nome), destinatario:destinatario_id(nome)").order("created_at", { ascending: false }).limit(10);
       return data || [];
     },
   });
@@ -113,7 +113,7 @@ export default function Dashboard() {
 
   const { data: recentLogs = [] } = useQuery({
     queryKey: ["dashboard-recent-logs"],
-    queryFn: async () => { const { data } = await supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(8); return data || []; },
+    queryFn: async () => { const { data } = await supabase.from("audit_logs").select("id, modulo, acao, usuario_nome, status, created_at").order("created_at", { ascending: false }).limit(8); return data || []; },
   });
 
   const { data: sectors = [] } = useQuery({
@@ -123,7 +123,7 @@ export default function Dashboard() {
 
   const { data: todayShifts = [] } = useQuery({
     queryKey: ["dashboard-today-shifts", todayStr],
-    queryFn: async () => { const { data } = await supabase.from("shifts").select("*, professionals:profissional_id(id, nome, profissao, setor_principal_id), sectors:setor_id(nome)").eq("data", todayStr).neq("status", "cancelado"); return data || []; },
+    queryFn: async () => { const { data } = await supabase.from("shifts").select("id, data, status, hora_inicio, hora_fim, carga_horaria, tipo_plantao, profissional_id, setor_id, professionals:profissional_id(id, nome, profissao, setor_principal_id), sectors:setor_id(nome)").eq("data", todayStr).neq("status", "cancelado"); return data || []; },
   });
 
   const { data: allProfessionals = [] } = useQuery({
@@ -143,7 +143,7 @@ export default function Dashboard() {
 
   const { data: ocupacoes = [] } = useQuery({
     queryKey: ["dashboard-ocupacoes"],
-    queryFn: async () => { const { data } = await supabase.from("setor_ocupacao").select("*, sectors(nome)"); return data || []; },
+    queryFn: async () => { const { data } = await supabase.from("setor_ocupacao").select("id, setor_id, pacientes_atual, capacidade_maxima, nivel, updated_at, sectors(nome)"); return data || []; },
   });
 
   const { data: historicalShifts = [] } = useQuery({
