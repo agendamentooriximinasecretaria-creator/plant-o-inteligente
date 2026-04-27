@@ -1948,6 +1948,212 @@ export default function EscalaPage() {
         </DialogContent>
       </Dialog>
 
+      {/* MODAL: Ações da célula vazia */}
+      <Dialog open={!!emptyCell} onOpenChange={(o) => !o && setEmptyCell(null)}>
+        <DialogContent className="max-w-md">
+          {emptyCell && (() => {
+            const dataBR = new Date(emptyCell.data + 'T12:00:00').toLocaleDateString('pt-BR');
+            const setorNome = emptyCell.setorId ? (sectors as any[]).find(s => s.id === emptyCell.setorId)?.nome : null;
+            const unidadeNome = emptyCell.unidadeId ? (units as any[]).find(u => u.id === emptyCell.unidadeId)?.nome : null;
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2"><Calendar className="h-5 w-5 text-primary" /> Ações para {dataBR}</DialogTitle>
+                  <DialogDescription>
+                    {setorNome ? `Setor: ${setorNome}` : 'Sem setor selecionado'}{unidadeNome ? ` · ${unidadeNome}` : ''}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-1 gap-2 mt-2">
+                  {canManage && (
+                    <button onClick={() => { openCreateForCell(emptyCell.data, emptyCell.setorId, emptyCell.unidadeId); setEmptyCell(null); }}
+                      className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
+                      <Plus className="h-4 w-4" /> Criar plantão neste dia
+                    </button>
+                  )}
+                  {canManage && (
+                    <button onClick={() => { openCreateForCell(emptyCell.data, emptyCell.setorId, emptyCell.unidadeId, 'folga'); setEmptyCell(null); }}
+                      className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-amber-400/40 text-amber-700 dark:text-amber-300 text-sm font-medium hover:bg-amber-50 dark:hover:bg-amber-950/30">
+                      <Palmtree className="h-4 w-4" /> Criar folga
+                    </button>
+                  )}
+                  <button onClick={() => { setAvailableProsCell(emptyCell); setEmptyCell(null); }}
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-border text-sm font-medium hover:bg-muted">
+                    <UsersIcon className="h-4 w-4" /> Ver profissionais disponíveis
+                  </button>
+                  <button onClick={() => { setCoverageCell({ data: emptyCell.data, setorId: emptyCell.setorId }); setEmptyCell(null); }}
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-border text-sm font-medium hover:bg-muted">
+                    <ShieldCheck className="h-4 w-4" /> Ver cobertura do setor
+                  </button>
+                  <button onClick={() => { setConflictsDay(emptyCell.data); setEmptyCell(null); }}
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-border text-sm font-medium hover:bg-muted">
+                    <AlertTriangle className="h-4 w-4" /> Ver conflitos do dia
+                  </button>
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: Profissionais disponíveis no dia */}
+      <Dialog open={!!availableProsCell} onOpenChange={(o) => !o && setAvailableProsCell(null)}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          {availableProsCell && (() => {
+            const dataBR = new Date(availableProsCell.data + 'T12:00:00').toLocaleDateString('pt-BR');
+            const dayShifts = (shifts as any[]).filter((s: any) => s.data === availableProsCell.data && !isFolgaShift(s) && s.status !== 'cancelado');
+            const ocupados = new Set(dayShifts.map((s: any) => s.profissional_id));
+            const lista = (professionals as any[])
+              .filter((p: any) => p.status === 'ativo')
+              .filter((p: any) => !availableProsCell.setorId || !p.setor_principal_id || p.setor_principal_id === availableProsCell.setorId)
+              .filter((p: any) => !availableProsCell.unidadeId || !p.unidade_principal_id || p.unidade_principal_id === availableProsCell.unidadeId)
+              .filter((p: any) => !ocupados.has(p.id));
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2"><UsersIcon className="h-5 w-5 text-primary" /> Disponíveis em {dataBR}</DialogTitle>
+                  <DialogDescription>{lista.length} profissional(is) sem plantão atribuído neste dia.</DialogDescription>
+                </DialogHeader>
+                <div className="divide-y divide-border max-h-[55vh] overflow-y-auto">
+                  {lista.length === 0 && <p className="text-sm text-muted-foreground py-6 text-center">Nenhum profissional disponível.</p>}
+                  {lista.map((p: any) => (
+                    <div key={p.id} className="flex items-center justify-between py-2">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{p.nome}</p>
+                        <p className="text-xs text-muted-foreground">{PROFISSAO_LABELS[p.profissao] || p.profissao}</p>
+                      </div>
+                      {canManage && (
+                        <button
+                          onClick={() => {
+                            const cell = availableProsCell;
+                            setAvailableProsCell(null);
+                            openCreateForCell(cell.data, cell.setorId, cell.unidadeId);
+                            setForm(f => ({ ...f, profissional_ids: [p.id], profissao: p.profissao }));
+                          }}
+                          className="text-xs px-2 py-1 rounded-md bg-primary text-primary-foreground hover:opacity-90">
+                          Escalar
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: Cobertura do setor no dia */}
+      <Dialog open={!!coverageCell} onOpenChange={(o) => !o && setCoverageCell(null)}>
+        <DialogContent className="max-w-lg">
+          {coverageCell && (() => {
+            const dataBR = new Date(coverageCell.data + 'T12:00:00').toLocaleDateString('pt-BR');
+            const setoresAlvo = coverageCell.setorId
+              ? (sectors as any[]).filter(s => s.id === coverageCell.setorId)
+              : (sectors as any[]);
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" /> Cobertura — {dataBR}</DialogTitle>
+                  <DialogDescription>{setoresAlvo.length} setor(es). Comparativo entre escalados e mínimo configurado.</DialogDescription>
+                </DialogHeader>
+                <div className="divide-y divide-border max-h-[55vh] overflow-y-auto">
+                  {setoresAlvo.map((sec: any) => {
+                    const dia = new Date(coverageCell.data + 'T12:00:00').getDay();
+                    const isFds = dia === 0 || dia === 6;
+                    const minimo = isFds ? (sec.min_profissionais_fds ?? 1) : (sec.min_profissionais_diurno ?? 1);
+                    const escalados = (shifts as any[]).filter((s: any) => s.setor_id === sec.id && s.data === coverageCell.data && !isFolgaShift(s) && s.status !== 'cancelado').length;
+                    const ok = escalados >= minimo;
+                    return (
+                      <div key={sec.id} className="flex items-center justify-between py-2">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{sec.nome}</p>
+                          <p className="text-xs text-muted-foreground">Mínimo: {minimo} · Escalados: {escalados}</p>
+                        </div>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ok ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
+                          {ok ? 'OK' : 'Descoberto'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: Conflitos do dia */}
+      <Dialog open={!!conflictsDay} onOpenChange={(o) => !o && setConflictsDay(null)}>
+        <DialogContent className="max-w-lg">
+          {conflictsDay && (() => {
+            const dataBR = new Date(conflictsDay + 'T12:00:00').toLocaleDateString('pt-BR');
+            const dayConflicts = (shifts as any[]).filter((s: any) => s.data === conflictsDay && conflictIds.has(s.id));
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-warning" /> Conflitos em {dataBR}</DialogTitle>
+                  <DialogDescription>{dayConflicts.length} plantão(ões) com sobreposição de horário.</DialogDescription>
+                </DialogHeader>
+                <div className="divide-y divide-border max-h-[55vh] overflow-y-auto">
+                  {dayConflicts.length === 0 && <p className="text-sm text-muted-foreground py-6 text-center">Nenhum conflito detectado neste dia.</p>}
+                  {dayConflicts.map((s: any) => (
+                    <button key={s.id} onClick={() => { setConflictsDay(null); setDetailShift(s); }}
+                      className="w-full text-left py-2 hover:bg-muted/40 rounded px-2">
+                      <p className="text-sm font-medium text-foreground">{(s.professionals as any)?.nome}</p>
+                      <p className="text-xs text-muted-foreground">{(s.sectors as any)?.nome} · {s.hora_inicio}-{s.hora_fim} · {s.tipo_plantao}</p>
+                    </button>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: Notificar profissional */}
+      <Dialog open={!!notifyTarget} onOpenChange={(o) => { if (!notifyMutation.isPending && !o) setNotifyTarget(null); }}>
+        <DialogContent className="max-w-md">
+          {notifyTarget && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2"><Megaphone className="h-5 w-5 text-primary" /> Enviar notificação</DialogTitle>
+                <DialogDescription>
+                  Para {(notifyTarget.professionals as any)?.nome} sobre o plantão de {new Date(notifyTarget.data + 'T12:00:00').toLocaleDateString('pt-BR')}.
+                </DialogDescription>
+              </DialogHeader>
+              <textarea
+                value={notifyMsg} onChange={e => setNotifyMsg(e.target.value)}
+                placeholder="Digite a mensagem..." rows={4}
+                className="w-full bg-background border border-input rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/40"
+              />
+              <DialogFooter>
+                <button onClick={() => setNotifyTarget(null)} disabled={notifyMutation.isPending}
+                  className="px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted disabled:opacity-50">
+                  Cancelar
+                </button>
+                <button
+                  disabled={notifyMutation.isPending || !notifyMsg.trim()}
+                  onClick={() => notifyMutation.mutate(
+                    { shift: notifyTarget, mensagem: notifyMsg.trim() },
+                    { onSuccess: () => { setNotifyTarget(null); setDetailShift(null); } }
+                  )}
+                  className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5">
+                  {notifyMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                  {notifyMutation.isPending ? 'Enviando...' : 'Enviar'}
+                </button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: Histórico/Auditoria do plantão */}
+      <Dialog open={!!historyTarget} onOpenChange={(o) => !o && setHistoryTarget(null)}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          {historyTarget && <ShiftHistoryView shiftId={historyTarget.id} />}
+        </DialogContent>
+      </Dialog>
+
       {/* MODAL: Imprimir Escala */}
       <Dialog open={printOpen} onOpenChange={(o) => { if (!printBusy) setPrintOpen(o); }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
