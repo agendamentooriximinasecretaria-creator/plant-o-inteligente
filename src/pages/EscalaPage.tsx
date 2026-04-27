@@ -5,14 +5,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { invalidateCrossShifts } from "@/lib/queryInvalidation";
 import { logAudit } from "@/lib/auditLog";
 import { dispatchNotification } from "@/lib/notifyHelper";
-import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info, Users as UsersIcon, Palmtree, AlertTriangle, LayoutGrid } from "lucide-react";
+import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info, Users as UsersIcon, Palmtree, AlertTriangle, LayoutGrid, MoreHorizontal, Printer, FileText, FileSpreadsheet, CopyPlus, ShieldCheck, Send, Megaphone, Loader2 } from "lucide-react";
 import { WeeklyGrid, type ProfRow, type GridShift } from "@/components/schedule/WeeklyGrid";
 import { ContactActionButton } from "@/components/ContactActionButton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/hooks/useAuth";
+import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 
 const STATUS_LABELS: Record<string, string> = {
   agendado: 'Agendado', confirmado: 'Confirmado', pendente: 'Pendente',
