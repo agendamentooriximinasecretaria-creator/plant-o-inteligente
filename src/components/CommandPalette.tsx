@@ -329,15 +329,34 @@ export function CommandPalette() {
             </>
           )}
 
-          {favoriteCommands.length > 0 && (
+          {favoriteCommands.filter(c => matchesQuery(c.label)).length > 0 && (
             <>
               <CommandGroup heading="Favoritos">
-                {favoriteCommands.map((cmd) => (
-                  <CommandItem key={`fav-${cmd.id}`} onSelect={() => run(() => navigate(cmd.path))}>
+                {favoriteCommands.filter(c => matchesQuery(c.label)).map((cmd) => (
+                  <CommandItem key={`fav-${cmd.id}`} value={`fav-${cmd.id}`} onSelect={() => run(() => navigate(cmd.path))}>
                     <Star className="h-4 w-4 mr-2 fill-warning text-warning" />
                     {cmd.label}
                   </CommandItem>
                 ))}
+              </CommandGroup>
+              <CommandSeparator />
+            </>
+          )}
+
+          {(isMaster || isCoordinator) && matchesQuery("novo plantão novo profissional ações rápidas") && (
+            <>
+              <CommandGroup heading="Ações rápidas">
+                {matchesQuery("novo plantão") && (
+                  <CommandItem value="qa-novo-plantao" onSelect={() => run(() => navigate("/escala?new=1"))}>
+                    <Plus className="h-4 w-4 mr-2" /> Novo plantão
+                    <CommandShortcut>N</CommandShortcut>
+                  </CommandItem>
+                )}
+                {matchesQuery("novo profissional") && (
+                  <CommandItem value="qa-novo-prof" onSelect={() => run(() => navigate("/profissionais?new=1"))}>
+                    <Plus className="h-4 w-4 mr-2" /> Novo profissional
+                  </CommandItem>
+                )}
               </CommandGroup>
               <CommandSeparator />
             </>
