@@ -542,7 +542,7 @@ export default function EscalaPage() {
   // ============================================================
   // Ações secundárias da Escala (Imprimir, Exportar, Copiar, Validar, Publicar, Enviar)
   // ============================================================
-  const { isMaster, isCoordinator, isProfessional } = useAuth();
+  const { isMaster, isCoordinator, isProfessional, profileName, user } = useAuth();
   const canManage = isMaster || isCoordinator;
 
   const [copySemanaOpen, setCopySemanaOpen] = useState(false);
@@ -563,31 +563,192 @@ export default function EscalaPage() {
 
   const EXPORT_COLS = ['Profissional', 'Profissão', 'Unidade', 'Setor', 'Data', 'Horário', 'Carga', 'Tipo', 'Status'];
 
-  // Imprimir Escala
-  const doPrint = () => {
-    const w = window.open('', '_blank', 'width=1024,height=720');
-    if (!w) { toast.error('Bloqueador de popups impediu a impressão.'); return; }
-    const rows = (filteredRef.current || []).map((s: any) => `
-      <tr>
-        <td>${(s.professionals as any)?.nome || ''}</td>
-        <td>${(s.units as any)?.nome || ''} / ${(s.sectors as any)?.nome || ''}</td>
-        <td>${new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
-        <td>${(s.hora_inicio || '').slice(0,5)} - ${(s.hora_fim || '').slice(0,5)}</td>
-        <td>${s.tipo_plantao || ''}</td>
-        <td>${STATUS_LABELS[s.status] || s.status}</td>
-      </tr>`).join('');
-    w.document.write(`<!doctype html><html><head><title>Escala de Plantões</title>
-      <style>body{font-family:Arial,sans-serif;margin:24px;color:#111}h1{font-size:18px;margin:0 0 4px}small{color:#555}
-      table{width:100%;border-collapse:collapse;margin-top:16px;font-size:12px}
-      th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}th{background:#f3f4f6}</style></head>
-      <body><h1>HOSPITAL MUNICIPAL DE ORIXIMINÁ — Escala de Plantões</h1>
-      <small>Emitido em ${new Date().toLocaleString('pt-BR')} · ${(filteredRef.current||[]).length} plantões</small>
-      <table><thead><tr><th>Profissional</th><th>Unidade/Setor</th><th>Data</th><th>Horário</th><th>Tipo</th><th>Status</th></tr></thead>
-      <tbody>${rows}</tbody></table>
-      <script>window.onload=()=>{setTimeout(()=>window.print(),200)}</script>
-      </body></html>`);
-    w.document.close();
-    setPrintOpen(false);
+  // ==========================================================
+  // Imprimir Escala — modal completo, dados reais e seguros
+  // (NÃO expõe CPF, banco, endereço residencial ou observações privadas do profissional)
+  // ==========================================================
+  type PrintForm = {
+    periodo: 'semana' | 'mes' | 'personalizado';
+    dataIni: string;
+    dataFim: string;
+    unidadeId: string;
+    setorId: string;
+    profissionalId: string;
+    profissao: string;
+    tipoPlantao: string;
+    status: string;
+    somentePublicada: boolean;
+    incluirFolgas: boolean;
+    incluirObservacoes: boolean;
+    incluirTotalHoras: boolean;
+    incluirAssinatura: boolean;
+    incluirConselho: boolean;
+  };
+
+  const _hojeRef = new Date();
+  const _semIni = startOfWeek(_hojeRef);
+  const [printForm, setPrintForm] = useState<PrintForm>({
+    periodo: 'semana',
+    dataIni: ymd(_semIni),
+    dataFim: ymd(addDays(_semIni, 6)),
+    unidadeId: '', setorId: '', profissionalId: '', profissao: '',
+    tipoPlantao: '', status: '',
+    somentePublicada: false,
+    incluirFolgas: false,
+    incluirObservacoes: true,
+    incluirTotalHoras: true,
+    incluirAssinatura: true,
+    incluirConselho: true,
+  });
+  const [printBusy, setPrintBusy] = useState<null | 'view' | 'print' | 'pdf-open' | 'pdf-save'>(null);
+
+  // Dados da instituição (system_settings.hospital)
+  const { data: instituicaoCfg } = useQuery({
+    queryKey: ['settings', 'hospital'],
+    queryFn: async () => {
+      const { data } = await sb.from('system_settings').select('value').eq('key', 'hospital').maybeSingle();
+      return (data?.value as { nome?: string; cnpj?: string; endereco?: string }) || {};
+    },
+  });
+
+  const aplicarPeriodo = (p: PrintForm['periodo']) => {
+    const today = new Date();
+    if (p === 'semana') {
+      const s = startOfWeek(today);
+      setPrintForm(f => ({ ...f, periodo: p, dataIni: ymd(s), dataFim: ymd(addDays(s, 6)) }));
+    } else if (p === 'mes') {
+      setPrintForm(f => ({
+        ...f, periodo: p,
+        dataIni: ymd(startOfMonth(today.getFullYear(), today.getMonth())),
+        dataFim: ymd(endOfMonth(today.getFullYear(), today.getMonth())),
+      }));
+    } else {
+      setPrintForm(f => ({ ...f, periodo: p }));
+    }
+  };
+
+  const buildPrintLinhas = async (): Promise<{ linhas: PrintLinha[]; cab: PrintCabecalho } | null> => {
+    if (!printForm.dataIni || !printForm.dataFim) {
+      toast.error('Selecione o período.'); return null;
+    }
+    if (printForm.dataFim < printForm.dataIni) {
+      toast.error('Período inválido: data final é anterior à inicial.'); return null;
+    }
+
+    // Busca real do banco respeitando RLS, sem expor PII (sem CPF/banco/endereço)
+    let q = sb.from('shifts')
+      .select('id, data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, status, observacoes, profissional_id, professionals:profissional_id(nome, profissao, conselho, registro), units:unidade_id(nome), sectors:setor_id(nome), unidade_id, setor_id, profissao')
+      .gte('data', printForm.dataIni)
+      .lte('data', printForm.dataFim)
+      .order('data', { ascending: true })
+      .order('hora_inicio', { ascending: true });
+
+    if (printForm.unidadeId) q = q.eq('unidade_id', printForm.unidadeId);
+    if (printForm.setorId) q = q.eq('setor_id', printForm.setorId);
+    if (printForm.profissionalId) q = q.eq('profissional_id', printForm.profissionalId);
+    if (printForm.profissao) q = q.eq('profissao', printForm.profissao);
+    if (printForm.tipoPlantao) q = q.eq('tipo_plantao', printForm.tipoPlantao);
+    if (printForm.status) q = q.eq('status', printForm.status);
+    if (printForm.somentePublicada) q = q.in('status', ['confirmado', 'concluido', 'agendado']);
+
+    const { data, error } = await q;
+    if (error) { toast.error('Falha ao carregar plantões: ' + error.message); return null; }
+
+    let rows = (data as any[]) || [];
+    if (!printForm.incluirFolgas) {
+      rows = rows.filter((r) => !['folga', 'indisponibilidade'].includes(String(r.tipo_plantao || '').toLowerCase()));
+    }
+
+    const linhas: PrintLinha[] = rows.map((s: any) => {
+      const prof = s.professionals || {};
+      const conselho = (prof.conselho || prof.registro)
+        ? `${prof.conselho || ''}${prof.registro ? ' ' + prof.registro : ''}`.trim()
+        : '';
+      return {
+        profissional: prof.nome || '—',
+        profissao: PROFISSAO_LABELS[prof.profissao] || prof.profissao || '',
+        conselho,
+        unidade: s.units?.nome || '',
+        setor: s.sectors?.nome || '',
+        data: new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR'),
+        diaSemana: diaSemanaPt(s.data),
+        tipo: s.tipo_plantao || '',
+        horario: `${(s.hora_inicio || '').slice(0, 5)} - ${(s.hora_fim || '').slice(0, 5)}`,
+        status: STATUS_LABELS[s.status] || s.status,
+        cargaHoras: Number(s.carga_horaria) || 0,
+        observacoes: printForm.incluirObservacoes ? (s.observacoes || '') : '',
+      };
+    });
+
+    const periodoLabel = `${new Date(printForm.dataIni + 'T12:00:00').toLocaleDateString('pt-BR')} a ${new Date(printForm.dataFim + 'T12:00:00').toLocaleDateString('pt-BR')}`;
+    const unidadeNome = printForm.unidadeId
+      ? ((units as any[]).find((u: any) => u.id === printForm.unidadeId)?.nome || '')
+      : 'Todas';
+    const setorNome = printForm.setorId
+      ? ((sectors as any[]).find((x: any) => x.id === printForm.setorId)?.nome || '')
+      : 'Todos';
+
+    const cab: PrintCabecalho = {
+      instituicao: {
+        nome: instituicaoCfg?.nome || 'HOSPITAL MUNICIPAL DE ORIXIMINÁ',
+        cnpj: instituicaoCfg?.cnpj,
+        endereco: instituicaoCfg?.endereco,
+      },
+      unidade: unidadeNome,
+      setor: setorNome,
+      periodoLabel,
+      emitidoPor: profileName || user?.email || '—',
+      sistema: 'GestorPlantão SMS Oriximiná',
+    };
+
+    return { linhas, cab };
+  };
+
+  const printOpts = (): PrintOptions => ({
+    incluirObservacoes: printForm.incluirObservacoes,
+    incluirAssinatura: printForm.incluirAssinatura,
+    incluirTotalHoras: printForm.incluirTotalHoras,
+    incluirConselho: printForm.incluirConselho,
+  });
+
+  const handlePrintAction = async (acao: 'view' | 'print' | 'pdf-open' | 'pdf-save') => {
+    if (printBusy) return;
+    setPrintBusy(acao);
+    try {
+      const built = await buildPrintLinhas();
+      if (!built) return;
+      const { linhas, cab } = built;
+      if (!linhas.length) {
+        toast.warning('Nenhum plantão encontrado para os filtros selecionados.');
+        return;
+      }
+      const filename = `escala_${printForm.dataIni}_a_${printForm.dataFim}`;
+      if (acao === 'view') {
+        const ok = abrirVisualizacaoImpressao(cab, linhas, printOpts(), false);
+        if (!ok) toast.error('Bloqueador de popups impediu a visualização.');
+      } else if (acao === 'print') {
+        const ok = abrirVisualizacaoImpressao(cab, linhas, printOpts(), true);
+        if (!ok) toast.error('Bloqueador de popups impediu a impressão.');
+      } else if (acao === 'pdf-open') {
+        gerarPdfEscala(cab, linhas, printOpts(), filename, 'open');
+      } else if (acao === 'pdf-save') {
+        gerarPdfEscala(cab, linhas, printOpts(), filename, 'save');
+      }
+      logAudit('Escala impressa/PDF', 'escala', {
+        acao, total: linhas.length,
+        periodo: `${printForm.dataIni}..${printForm.dataFim}`,
+        filtros: {
+          unidade: printForm.unidadeId || null, setor: printForm.setorId || null,
+          profissional: printForm.profissionalId || null, profissao: printForm.profissao || null,
+          tipo: printForm.tipoPlantao || null, status: printForm.status || null,
+          publicada: printForm.somentePublicada,
+        },
+      });
+    } catch (e: any) {
+      toast.error('Falha: ' + (e?.message || e));
+    } finally {
+      setPrintBusy(null);
+    }
   };
 
   // Ref para acessar a lista filtrada nas mutations sem reordenar o código
