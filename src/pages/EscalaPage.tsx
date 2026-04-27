@@ -1598,7 +1598,7 @@ export default function EscalaPage() {
                 const onlyFolgas = dayShifts.length > 0 && dayShifts.every(isFolga);
                 return (
                   <div key={i}
-                    onClick={() => isValid && dayShifts.length === 0 && openCreateForCell(dateStr)}
+                    onClick={() => isValid && dayShifts.length === 0 && openEmptyCellMenu(dateStr)}
                     className={`min-h-[110px] p-1.5 rounded-lg border transition-colors text-left ${
                       isValid ? 'border-border/50 hover:border-primary/40 cursor-pointer' : 'border-transparent'
                     } ${isToday ? 'ring-2 ring-primary/40' : ''} ${onlyFolgas ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800' : ''}`}>
