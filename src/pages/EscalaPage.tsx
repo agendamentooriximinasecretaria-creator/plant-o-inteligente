@@ -192,6 +192,25 @@ export default function EscalaPage() {
 
   const tipoToSigla = (tipo?: string) => TIPOS_PLANTAO.find(t => t.value === tipo)?.sigla ?? (tipo?.[0]?.toUpperCase() ?? '?');
 
+  // Classificação automática diurno/noturno/24h/folga/sobreaviso a partir do tipo + horários
+  const classificarTurno = (tipo: string, ini?: string, fim?: string): { label: string; cls: string } => {
+    const t = (tipo || '').toLowerCase();
+    if (t.includes('folga') || t.includes('indispon')) return { label: 'Folga', cls: 'bg-amber-500/15 text-amber-700 dark:text-amber-300' };
+    if (t.includes('sobreaviso')) return { label: 'Sobreaviso', cls: 'bg-purple-500/15 text-purple-700 dark:text-purple-300' };
+    const carga = ini && fim ? calcHoursSafe(ini, fim) : 0;
+    if (carga >= 20) return { label: '24h', cls: 'bg-primary/15 text-primary' };
+    const hi = parseInt((ini || '07').slice(0, 2), 10);
+    if (hi >= 18 || hi < 6) return { label: 'Noturno', cls: 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300' };
+    return { label: 'Diurno', cls: 'bg-info/15 text-info' };
+  };
+  function calcHoursSafe(start: string, end: string) {
+    const [sh, sm] = start.split(':').map(Number);
+    const [eh, em] = end.split(':').map(Number);
+    let diff = (eh * 60 + em) - (sh * 60 + sm);
+    if (diff <= 0) diff += 24 * 60;
+    return diff / 60;
+  }
+
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
     let pending = 0;
