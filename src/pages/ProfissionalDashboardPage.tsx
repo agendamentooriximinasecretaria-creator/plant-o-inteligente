@@ -80,15 +80,16 @@ export default function ProfissionalDashboardPage() {
   });
 
   const metrics = useMemo(() => {
-    const upcoming = shifts.filter((s: any) => s.data >= today && s.status !== "cancelado" && !["folga", "indisponibilidade"].includes(s.tipo_plantao));
+    const upcoming = shifts.filter((s: any) => s.data >= today && isPlantaoContabilizavel(s));
     const pendingSwaps = swaps.filter((s: any) => ["solicitada", "aguardando_resposta", "aguardando_aprovacao"].includes(s.status));
-    const monthShifts = shifts.filter((s: any) => s.data.startsWith(monthPrefix) && s.status !== "cancelado" && !["folga", "indisponibilidade"].includes(s.tipo_plantao));
+    const monthShifts = shifts.filter((s: any) => s.data.startsWith(monthPrefix) && isPlantaoContabilizavel(s));
 
-    // Realizado (passado/hoje) vs Previsto (agendado)
-    const realizado = monthShifts.filter((s: any) => s.data <= today).reduce((sum: number, s: any) => sum + Number(s.carga_horaria || 0), 0);
-    const previsto = monthShifts.reduce((sum: number, s: any) => sum + Number(s.carga_horaria || 0), 0);
-    const saldoBanco = realizado - CLT_LIMIT; // CLT 220h: positivo = horas extras; negativo = a cumprir
-    const pctCLT = Math.min(100, (previsto / CLT_LIMIT) * 100);
+    // Fonte única: calcularHorasRealizadas / Previstas (totais do mês)
+    const realizado = calcularHorasRealizadas(shifts as any[], undefined, monthPrefix);
+    const previstoFuturo = calcularHorasPrevistas(shifts as any[], undefined, monthPrefix);
+    const previsto = realizado + previstoFuturo; // total do mês (realizado + agendado futuro)
+    const saldoBanco = realizado - CLT_LIMIT;
+    const pctCLT = calcularCargaPercentual(previsto, CLT_LIMIT);
 
     const naoConfirmados = upcoming.filter((s: any) => !s.confirmado_pelo_profissional).length;
 
