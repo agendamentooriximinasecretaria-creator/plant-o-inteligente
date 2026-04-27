@@ -53,12 +53,12 @@ export default function SetoresPage() {
   // Modal: profissionais vinculados ao setor
   const [profsModal, setProfsModal] = useState<{ open: boolean; sector?: SectorRow }>({ open: false });
 
-  const { data: units = [], isLoading: loadingUnits } = useQuery({
+  const { data: units = [], isLoading: loadingUnits, isError: errUnits, refetch: refetchUnits, isRefetching: refUnits } = useQuery({
     queryKey: ['units'],
     queryFn: async () => { const { data, error } = await supabase.from('units').select('*').order('nome'); if (error) throw error; return data; },
   });
 
-  const { data: sectors = [], isLoading: loadingSectors } = useQuery({
+  const { data: sectors = [], isLoading: loadingSectors, isError: errSectors, refetch: refetchSectors, isRefetching: refSectors } = useQuery({
     queryKey: ['sectors'],
     queryFn: async () => { const { data, error } = await supabase.from('sectors').select('*, units:unidade_id(nome)').order('nome'); if (error) throw error; return data as SectorRow[]; },
   });
