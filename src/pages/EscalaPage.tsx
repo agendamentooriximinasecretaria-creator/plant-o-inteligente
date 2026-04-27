@@ -89,6 +89,8 @@ export default function EscalaPage() {
     soPublicados: false, soRascunhos: false, soFolgas: false,
   };
   const [filtros, setFiltros] = useState<FiltrosEscala>(filtrosVazios);
+  const [busca, setBusca] = useState("");
+  const buscaDebounced = useDebounce(busca, 300);
   // Aliases para compatibilidade com código existente que ainda lê filterSetor/filterStatus
   const filterSetor = filtros.setorId;
   const filterStatus = filtros.status;
