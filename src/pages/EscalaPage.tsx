@@ -393,26 +393,26 @@ export default function EscalaPage() {
       await revalidateServerSide(finalData);
       const hours = calcHours(finalData.hora_inicio, finalData.hora_fim);
       const basePayload = {
-        unidade_id: data.unidade_id, setor_id: data.setor_id, profissao: data.profissao as any,
-        data: data.data, hora_inicio: data.hora_inicio, hora_fim: data.hora_fim,
-        carga_horaria: hours, tipo_plantao: data.tipo_plantao,
-        observacoes: data.observacoes || null, status: data.status as any,
+        unidade_id: finalData.unidade_id, setor_id: finalData.setor_id, profissao: finalData.profissao as any,
+        data: finalData.data, hora_inicio: finalData.hora_inicio, hora_fim: finalData.hora_fim,
+        carga_horaria: hours, tipo_plantao: finalData.tipo_plantao,
+        observacoes: finalData.observacoes || null, status: finalData.status as any,
       };
 
       if (editingId) {
-        const pid = data.profissional_ids[0];
+        const pid = finalData.profissional_ids[0];
         const { error } = await supabase.from('shifts').update({ ...basePayload, profissional_id: pid }).eq('id', editingId);
         if (error) throw error;
         await logAudit('Plantão editado', 'escala', { id: editingId });
       } else {
-        const payloads = data.profissional_ids.map(pid => ({ ...basePayload, profissional_id: pid }));
+        const payloads = finalData.profissional_ids.map(pid => ({ ...basePayload, profissional_id: pid }));
         const { error } = await supabase.from('shifts').insert(payloads);
         if (error) throw error;
-        await logAudit('Plantões criados (múltiplos profissionais)', 'escala', { count: payloads.length, data: data.data });
-        for (const pid of data.profissional_ids) {
+        await logAudit('Plantões criados (múltiplos profissionais)', 'escala', { count: payloads.length, data: finalData.data });
+        for (const pid of finalData.profissional_ids) {
           await dispatchNotification({
             professionalId: pid, tipo: 'plantao', titulo: 'Novo plantão agendado',
-            mensagem: `Você foi escalado para plantão em ${new Date(data.data + 'T12:00:00').toLocaleDateString('pt-BR')} das ${data.hora_inicio} às ${data.hora_fim}.`,
+            mensagem: `Você foi escalado para plantão em ${new Date(finalData.data + 'T12:00:00').toLocaleDateString('pt-BR')} das ${finalData.hora_inicio} às ${finalData.hora_fim}.`,
           });
         }
       }
