@@ -8,6 +8,7 @@ import { dispatchNotification } from "@/lib/notifyHelper";
 import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info, Users as UsersIcon, Palmtree, AlertTriangle, LayoutGrid, MoreHorizontal, Printer, FileText, FileSpreadsheet, CopyPlus, ShieldCheck, Send, Megaphone, Loader2, Search, X } from "lucide-react";
 import { WeeklyGrid, type ProfRow, type GridShift } from "@/components/schedule/WeeklyGrid";
 import { ContactActionButton } from "@/components/ContactActionButton";
+import { MoreActionsMenu } from "@/components/MoreActionsMenu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -1432,50 +1433,44 @@ export default function EscalaPage() {
           {!isProfessional && (
             <button onClick={() => { setForm(emptyForm); setEditingId(null); setModalOpen(true); }} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"><Plus className="h-3.5 w-3.5" /> Novo Plantão</button>
           )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-1.5 border border-input bg-card px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-muted text-foreground transition-colors" title="Mais ações">
-                <MoreHorizontal className="h-3.5 w-3.5" /> Mais ações
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-60">
-              <DropdownMenuLabel>Documentos</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => {
-                // Pré-popula o modal com os filtros ativos da Escala
-                setPrintForm(pf => ({
-                  ...pf,
-                  unidadeId: filtros.unidadeId, setorId: filtros.setorId,
-                  profissionalId: filtros.profissionalId, profissao: filtros.profissao,
-                  tipoPlantao: filtros.tipoPlantao, status: filtros.status,
-                  somentePublicada: filtros.soPublicados,
-                  incluirFolgas: filtros.soFolgas ? true : pf.incluirFolgas,
-                  ...(filtros.dataIni && filtros.dataFim
-                    ? { periodo: 'personalizado' as const, dataIni: filtros.dataIni, dataFim: filtros.dataFim }
-                    : {}),
-                }));
-                setPrintOpen(true);
-              }}><Printer className="h-4 w-4 mr-2" /> Imprimir Escala</DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportPDF}><FileText className="h-4 w-4 mr-2" /> Exportar PDF</DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportExcel}><FileSpreadsheet className="h-4 w-4 mr-2" /> Exportar Excel</DropdownMenuItem>
-              {canManage && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel>Gestão da escala</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => setCopySemanaOpen(true)}><CopyPlus className="h-4 w-4 mr-2" /> Copiar Semana</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setCopyMesOpen(true)}><CopyPlus className="h-4 w-4 mr-2" /> Copiar Mês</DropdownMenuItem>
-                  <DropdownMenuItem disabled={validatingAll} onClick={handleValidarConflitos}>
-                    {validatingAll ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
-                    {validatingAll ? 'Validando...' : 'Validar Conflitos'}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem disabled={publishMutation.isPending} onClick={() => { if (!publishMutation.isPending) publishMutation.mutate(); }}>
-                    {publishMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Megaphone className="h-4 w-4 mr-2" />}
-                    {publishMutation.isPending ? 'Publicando...' : 'Publicar Escala'}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setEnviarOpen(true)}><Send className="h-4 w-4 mr-2" /> Enviar Escala</DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <button
+            onClick={() => {
+              setPrintForm(pf => ({
+                ...pf,
+                unidadeId: filtros.unidadeId, setorId: filtros.setorId,
+                profissionalId: filtros.profissionalId, profissao: filtros.profissao,
+                tipoPlantao: filtros.tipoPlantao, status: filtros.status,
+                somentePublicada: filtros.soPublicados,
+                incluirFolgas: filtros.soFolgas ? true : pf.incluirFolgas,
+                ...(filtros.dataIni && filtros.dataFim
+                  ? { periodo: 'personalizado' as const, dataIni: filtros.dataIni, dataFim: filtros.dataFim }
+                  : {}),
+              }));
+              setPrintOpen(true);
+            }}
+            className="flex items-center gap-1.5 border border-input bg-card px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-muted text-foreground transition-colors"
+            title="Imprimir Escala"
+          >
+            <Printer className="h-3.5 w-3.5" /> Imprimir Escala
+          </button>
+          <button
+            onClick={handleExportPDF}
+            className="flex items-center gap-1.5 border border-input bg-card px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-muted text-foreground transition-colors"
+            title="Exportar PDF"
+          >
+            <FileText className="h-3.5 w-3.5" /> Exportar PDF
+          </button>
+          <MoreActionsMenu
+            items={[
+              { id: 'exp-excel', label: 'Exportar Excel', icon: <FileSpreadsheet />, onClick: handleExportExcel, group: 'Documentos' },
+              { id: 'copy-semana', label: 'Copiar Semana', icon: <CopyPlus />, onClick: () => setCopySemanaOpen(true), hidden: !canManage, group: 'Gestão da escala' },
+              { id: 'copy-mes', label: 'Copiar Mês', icon: <CopyPlus />, onClick: () => setCopyMesOpen(true), hidden: !canManage, group: 'Gestão da escala' },
+              { id: 'validar', label: validatingAll ? 'Validando...' : 'Validar Conflitos', icon: <ShieldCheck />, onClick: handleValidarConflitos, loading: validatingAll, hidden: !canManage, group: 'Gestão da escala' },
+              { id: 'publicar', label: publishMutation.isPending ? 'Publicando...' : 'Publicar Escala', icon: <Megaphone />, onClick: () => publishMutation.mutate(), loading: publishMutation.isPending, hidden: !canManage, group: 'Gestão da escala' },
+              { id: 'enviar', label: 'Enviar Escala', icon: <Send />, onClick: () => setEnviarOpen(true), hidden: !canManage, group: 'Gestão da escala' },
+            ]}
+          />
+
         </div>
       </div>
 

@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import ComprovanteTroca from "@/components/ComprovanteTroca";
 import { printSolicitacaoTroca } from "@/lib/printSolicitacaoTroca";
 import { calcularHorasMes } from "@/lib/horas";
+import { MoreActionsMenu } from "@/components/MoreActionsMenu";
 
 const statusStyles: Record<SwapStatus, { class: string; icon: typeof Clock; ring: string }> = {
   solicitada: { class: 'bg-info/10 text-info border-info/20', icon: Clock, ring: 'ring-info/30' },
@@ -517,15 +518,17 @@ export default function TrocasPage() {
           <p className="text-muted-foreground text-sm mt-1">{filteredSwaps.length} de {swaps.length} trocas exibidas</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button onClick={exportCSV}
-            className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted transition-colors">
-            <Download className="h-4 w-4" /> Exportar
-          </button>
           {isMaster && (
             <button onClick={() => setAdminModalOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity">
               <Plus className="h-4 w-4" /> Nova Troca Administrativa
             </button>
           )}
+          <MoreActionsMenu
+            triggerClassName="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted transition-colors"
+            items={[
+              { id: 'export-csv', label: 'Exportar CSV', icon: <Download />, onClick: exportCSV, group: 'Documentos' },
+            ]}
+          />
         </div>
       </div>
 

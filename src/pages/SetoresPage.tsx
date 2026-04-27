@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { abrirVisualizacaoImpressao, diaSemanaPt, type PrintLinha, type PrintCabecalho, type PrintOptions } from "@/lib/printEscala";
+import { MoreActionsMenu } from "@/components/MoreActionsMenu";
 
 type SectorRow = { id: string; nome: string; unidade_id: string; min_profissionais_diurno: number | null; min_profissionais_noturno: number | null; min_profissionais_fds: number | null; units?: { nome?: string } };
 type ShiftToday = { setor_id: string; status: string; tipo_plantao: string };
@@ -396,11 +397,20 @@ export default function SetoresPage() {
 
       {/* Units */}
       <div>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
           <h2 className="font-display font-semibold text-foreground text-lg flex items-center gap-2"><Building2 className="h-5 w-5 text-primary" /> Unidades de Saúde</h2>
-          {canManage && (
-            <button onClick={() => { setUnitForm({ nome: '', tipo: 'hospital', endereco: '', telefone: '' }); setEditingUnitId(null); setUnitModal(true); }} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90"><Plus className="h-4 w-4" /> Nova Unidade</button>
-          )}
+          <div className="flex items-center gap-2">
+            {canManage && (
+              <button onClick={() => { setUnitForm({ nome: '', tipo: 'hospital', endereco: '', telefone: '' }); setEditingUnitId(null); setUnitModal(true); }} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90"><Plus className="h-4 w-4" /> Nova Unidade</button>
+            )}
+            <MoreActionsMenu
+              triggerClassName="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted transition-colors"
+              items={[
+                { id: 'ver-descobertos', label: 'Ver setores descobertos', icon: <AlertTriangle />, onClick: () => setFiltroStatus(filtroStatus === 'descoberto' ? '' : 'descoberto'), group: 'Cobertura' },
+                { id: 'imprimir-geral', label: 'Imprimir cobertura de hoje', icon: <Printer />, onClick: () => acaoImprimirEscala.mutate({ tituloEscopo: 'Todas as unidades' }), loading: acaoImprimirEscala.isPending, group: 'Documentos' },
+              ]}
+            />
+          </div>
         </div>
         {loadingUnits || loadingSectors ? <div className="flex justify-center py-8"><div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full" /></div> : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
