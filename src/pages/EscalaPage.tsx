@@ -617,7 +617,14 @@ export default function EscalaPage() {
     onSuccess: () => {
       invalidateCrossShifts(qc);
       toast.success(editingId ? 'Plantão atualizado!' : `${form.profissional_ids.length} plantão(ões) criado(s)!`);
-      closeModal();
+      if (keepOpenAfterSaveRef.current && !editingId) {
+        // Mantém unidade/setor/profissão/data/tipo/horário; limpa apenas profissionais e observações
+        setForm(f => ({ ...f, profissional_ids: [], observacoes: '' }));
+        setConflictWarnings([]); setRestWarnings([]); setWorkloadAlerts([]);
+        keepOpenAfterSaveRef.current = false;
+      } else {
+        closeModal();
+      }
     },
     onError: (e: Error) => {
       const [titulo, ...resto] = e.message.split('\n');
