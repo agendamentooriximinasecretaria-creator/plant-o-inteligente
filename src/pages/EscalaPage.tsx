@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useDebounce } from "@/hooks/useDebounce";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { invalidateCrossShifts } from "@/lib/queryInvalidation";
@@ -230,7 +231,10 @@ export default function EscalaPage() {
     return () => { cancelled = true; };
   }, [modalOpen, profissionaisFiltrados, sb, horasPorProfissional]);
 
-  const checkConflicts = async () => {
+  // Token de geração para descartar respostas obsoletas (race condition)
+  const validationGenRef = useRef(0);
+
+  const checkConflicts = async (gen?: number) => {
     if (!form.profissional_ids.length || !form.data || !form.hora_inicio || !form.hora_fim) {
       setConflictWarnings([]);
       setRestWarnings([]);
@@ -264,11 +268,13 @@ export default function EscalaPage() {
         restWarn.push(`🛌 ${prof?.nome}: descanso de ${gap}h entre plantões (mínimo configurado: ${descansoMinimo}h).`);
       }
     }
+    // Descartar resultado se outra validação foi disparada nesse meio tempo
+    if (gen !== undefined && gen !== validationGenRef.current) return;
     setConflictWarnings(warnings);
     setRestWarnings(restWarn);
   };
 
-  const checkWorkload = async () => {
+  const checkWorkload = async (gen?: number) => {
     if (form.profissional_ids.length !== 1 || !form.data) { setWorkloadAlerts([]); return; }
     const pid = form.profissional_ids[0];
     const alerts: string[] = [];
@@ -278,8 +284,24 @@ export default function EscalaPage() {
     const { data: recent } = await supabase.from('shifts').select('carga_horaria, hora_fim').eq('profissional_id', pid).in('data', [form.data, yStr]).neq('status', 'cancelado');
     const recentHours = (recent || []).reduce((s: number, r: any) => s + Number(r.carga_horaria), 0);
     if (recentHours >= 24) alerts.push('🟡 Profissional já tem 24h nas últimas 24h');
+    if (gen !== undefined && gen !== validationGenRef.current) return;
     setWorkloadAlerts(alerts);
   };
+
+  // Debounce dos campos relevantes para checagem de conflitos.
+  // Sempre que o formulário mudar (profissionais, data, horas, setor, unidade, tipo),
+  // dispara uma nova validação após 250ms de inatividade, descartando respostas antigas.
+  const debouncedFormKey = useDebounce(
+    `${form.profissional_ids.join(',')}|${form.data}|${form.hora_inicio}|${form.hora_fim}|${form.setor_id}|${form.unidade_id}|${form.tipo_plantao}`,
+    250,
+  );
+  useEffect(() => {
+    if (!modalOpen) return;
+    const gen = ++validationGenRef.current;
+    checkConflicts(gen);
+    checkWorkload(gen);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedFormKey, modalOpen]);
 
   // Revalidação server-side imediatamente antes do mutate.
   // Valida TODOS os profissionais selecionados (não para no primeiro) e retorna lista agregada de conflitos.
@@ -533,7 +555,7 @@ export default function EscalaPage() {
       hora_inicio: preset?.start ?? f.hora_inicio,
       hora_fim: preset?.end ?? f.hora_fim,
     }));
-    setTimeout(() => { checkConflicts(); checkWorkload(); }, 100);
+    // Validação acontece via useEffect debouncado quando o form mudar.
   };
 
   const filtered = (shifts as any[]).filter((s: any) => {
@@ -549,7 +571,7 @@ export default function EscalaPage() {
       const has = f.profissional_ids.includes(pid);
       return { ...f, profissional_ids: has ? f.profissional_ids.filter(x => x !== pid) : [...f.profissional_ids, pid] };
     });
-    setTimeout(() => { checkConflicts(); checkWorkload(); }, 100);
+    // Validação acontece via useEffect debouncado quando o form mudar.
   };
 
   const initials = (nome?: string) => (nome || '').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
@@ -788,15 +810,15 @@ export default function EscalaPage() {
                 <select required value={form.profissao} onChange={e => setForm(f => ({ ...f, profissao: e.target.value, profissional_ids: [] }))} className={inputClass}>
                   {Object.entries(PROFISSAO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select></div>
-              <div><label className="text-sm font-medium text-foreground">Data *</label><input required type="date" value={form.data} onChange={e => { setForm(f => ({ ...f, data: e.target.value })); setTimeout(() => { checkConflicts(); checkWorkload(); }, 100); }} className={inputClass} /></div>
+              <div><label className="text-sm font-medium text-foreground">Data *</label><input required type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} className={inputClass} /></div>
               <div className="col-span-2"><label className="text-sm font-medium text-foreground">Tipo de plantão *</label>
                 <select value={form.tipo_plantao} onChange={e => applyTipoPreset(e.target.value)} className={inputClass}>
                   {TIPOS_PLANTAO.map(t => <option key={t.value} value={t.value}>{t.value} ({t.start}–{t.end})</option>)}
                 </select>
                 <p className="text-[11px] text-muted-foreground mt-1">Selecionar o tipo preenche os horários automaticamente. Você pode ajustar abaixo.</p>
               </div>
-              <div><label className="text-sm font-medium text-foreground">Hora início *</label><input required type="time" value={form.hora_inicio} onChange={e => { setForm(f => ({ ...f, hora_inicio: e.target.value })); setTimeout(checkConflicts, 100); }} className={inputClass} /></div>
-              <div><label className="text-sm font-medium text-foreground">Hora fim *</label><input required type="time" value={form.hora_fim} onChange={e => { setForm(f => ({ ...f, hora_fim: e.target.value })); setTimeout(checkConflicts, 100); }} className={inputClass} /></div>
+              <div><label className="text-sm font-medium text-foreground">Hora início *</label><input required type="time" value={form.hora_inicio} onChange={e => setForm(f => ({ ...f, hora_inicio: e.target.value }))} className={inputClass} /></div>
+              <div><label className="text-sm font-medium text-foreground">Hora fim *</label><input required type="time" value={form.hora_fim} onChange={e => setForm(f => ({ ...f, hora_fim: e.target.value }))} className={inputClass} /></div>
               <div className="col-span-2"><label className="text-sm font-medium text-foreground">Status</label>
                 <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={inputClass}>
                   {Object.entries(STATUS_LABELS).filter(([k]) => k !== 'trocando').map(([k, v]) => <option key={k} value={k}>{v}</option>)}
