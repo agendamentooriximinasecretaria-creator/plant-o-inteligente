@@ -817,8 +817,8 @@ export default function EscalaPage() {
                 </select>
                 <p className="text-[11px] text-muted-foreground mt-1">Selecionar o tipo preenche os horários automaticamente. Você pode ajustar abaixo.</p>
               </div>
-              <div><label className="text-sm font-medium text-foreground">Hora início *</label><input required type="time" value={form.hora_inicio} onChange={e => { setForm(f => ({ ...f, hora_inicio: e.target.value })); setTimeout(checkConflicts, 100); }} className={inputClass} /></div>
-              <div><label className="text-sm font-medium text-foreground">Hora fim *</label><input required type="time" value={form.hora_fim} onChange={e => { setForm(f => ({ ...f, hora_fim: e.target.value })); setTimeout(checkConflicts, 100); }} className={inputClass} /></div>
+              <div><label className="text-sm font-medium text-foreground">Hora início *</label><input required type="time" value={form.hora_inicio} onChange={e => setForm(f => ({ ...f, hora_inicio: e.target.value }))} className={inputClass} /></div>
+              <div><label className="text-sm font-medium text-foreground">Hora fim *</label><input required type="time" value={form.hora_fim} onChange={e => setForm(f => ({ ...f, hora_fim: e.target.value }))} className={inputClass} /></div>
               <div className="col-span-2"><label className="text-sm font-medium text-foreground">Status</label>
                 <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={inputClass}>
                   {Object.entries(STATUS_LABELS).filter(([k]) => k !== 'trocando').map(([k, v]) => <option key={k} value={k}>{v}</option>)}
