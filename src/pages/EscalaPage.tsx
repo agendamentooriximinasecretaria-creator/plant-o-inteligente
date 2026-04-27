@@ -1310,6 +1310,14 @@ export default function EscalaPage() {
                 <th className="text-left p-3">Profissional</th><th className="text-left p-3">Setor</th><th className="text-left p-3">Data</th><th className="text-left p-3">Horário</th><th className="text-left p-3">Tipo</th><th className="text-left p-3">Status</th><th className="text-left p-3">Ações</th>
               </tr></thead>
               <tbody>
+                {filtered.length === 0 && (
+                  <tr><td colSpan={7} className="p-10 text-center text-sm text-muted-foreground">
+                    Nenhum plantão encontrado para os filtros selecionados.
+                    {filtrosAtivos > 0 && (
+                      <button onClick={limparFiltros} className="block mx-auto mt-2 text-primary hover:underline text-xs font-medium">Limpar filtros</button>
+                    )}
+                  </td></tr>
+                )}
                 {filtered.map((s: any) => (
                   <tr key={s.id} className={`border-t border-border hover:bg-muted/30 transition-colors ${isFolga(s) ? 'bg-amber-50/40 dark:bg-amber-950/10' : ''}`}>
                     <td className="p-3">
