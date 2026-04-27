@@ -123,7 +123,13 @@ export default function TrocasPage() {
       usuario: user?.email || 'Sistema',
       user_id: user?.id,
     });
-    await logAudit('Troca efetivada', 'trocas', { swap_id: trocaId });
+    await logAudit('Troca efetivada na escala', 'trocas', {
+      swap_id: trocaId,
+      shift_id: troca.shift_id,
+      shift_id_destino: troca.shift_id_destino,
+      solicitante_id: troca.solicitante_id,
+      destinatario_id: troca.destinatario_id,
+    });
   };
 
   const updateSwap = useMutation({
