@@ -87,13 +87,10 @@ export default function ProfissionaisPage() {
     },
   });
 
-  const horasPorProfissional = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const s of monthShifts as any[]) {
-      map[s.profissional_id] = (map[s.profissional_id] || 0) + Number(s.carga_horaria);
-    }
-    return map;
-  }, [monthShifts]);
+  const horasPorProfissional = useMemo(
+    () => calcularHorasPorProfissional(monthShifts as any[]),
+    [monthShifts]
+  );
 
   // Últimos 3 plantões e disponibilidade hoje
   const ultimosPorProf = useMemo(() => {
