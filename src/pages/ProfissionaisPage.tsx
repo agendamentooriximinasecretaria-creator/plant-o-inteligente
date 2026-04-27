@@ -68,15 +68,23 @@ const emptyForm = {
 };
 
 export default function ProfissionaisPage() {
-  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const search = useDebounced(searchInput, 300);
   const [filterProfissao, setFilterProfissao] = useState('');
   const [filterUnidade, setFilterUnidade] = useState('');
   const [filterSetor, setFilterSetor] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'' | 'ativo' | 'inativo'>('');
   const [filterDisponivel, setFilterDisponivel] = useState(false);
+  const [filterDocVencido, setFilterDocVencido] = useState(false);
+  const [filterDocVencendo, setFilterDocVencendo] = useState(false);
+  const [filterSobrecarga, setFilterSobrecarga] = useState(false);
+  const [filterSemPlantao, setFilterSemPlantao] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const qc = useQueryClient();
+  const navigate = useNavigate();
 
   useRealtimeInvalidation({
     tables: ["shifts", "shift_swaps", "professionals"],
