@@ -62,6 +62,12 @@ export default function ProfissionaisPage() {
   const [form, setForm] = useState(emptyForm);
   const qc = useQueryClient();
 
+  useRealtimeInvalidation({
+    tables: ["shifts", "shift_swaps", "professionals"],
+    invalidate: [["professionals"], ["professionals-month-shifts"]],
+    channelId: "profissionais-realtime",
+  });
+
   const { data: professionals = [], isLoading } = useQuery({
     queryKey: ['professionals'],
     queryFn: async () => {
