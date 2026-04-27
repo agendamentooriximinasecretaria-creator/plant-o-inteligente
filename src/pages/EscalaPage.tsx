@@ -494,7 +494,7 @@ export default function EscalaPage() {
         mensagem: `Seu plantão em ${new Date(shift.data + 'T12:00:00').toLocaleDateString('pt-BR')} foi cancelado.`,
       });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['shifts'] }),
+    onSuccess: () => invalidateCrossShifts(qc),
     onError: (e: Error) => toast.error(`Não foi possível excluir: ${e.message}`),
   });
 
