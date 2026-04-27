@@ -258,7 +258,7 @@ function ModalAcionarReforco({ setorLotado, onClose, userId, qc }: { setorLotado
   const { data: deFolga = [] } = useQuery({
     queryKey: ["reforco-de-folga", setorLotado.setor_id],
     queryFn: async () => {
-      const { data: todos } = await supabase.from("professionals").select("id, nome, profissao, telefone, user_id").eq("status", "ativo");
+      const { data: todos } = await supabase.from("professionals_safe").select("id, nome, profissao, telefone, user_id").eq("status", "ativo");
       const { data: hojeShifts } = await supabase.from("shifts").select("profissional_id").eq("data", hoje).neq("status", "cancelado");
       const idsEmPlantao = new Set((hojeShifts || []).map((s: any) => s.profissional_id));
       return (todos || []).filter((p: any) => !idsEmPlantao.has(p.id)).map((p: any) => ({ ...p, situacao: "folga", setor_atual: "Folga" }));
