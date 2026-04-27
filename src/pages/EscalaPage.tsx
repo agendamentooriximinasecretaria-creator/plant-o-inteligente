@@ -231,7 +231,10 @@ export default function EscalaPage() {
     return () => { cancelled = true; };
   }, [modalOpen, profissionaisFiltrados, sb, horasPorProfissional]);
 
-  const checkConflicts = async () => {
+  // Token de geração para descartar respostas obsoletas (race condition)
+  const validationGenRef = useRef(0);
+
+  const checkConflicts = async (gen?: number) => {
     if (!form.profissional_ids.length || !form.data || !form.hora_inicio || !form.hora_fim) {
       setConflictWarnings([]);
       setRestWarnings([]);
@@ -265,11 +268,13 @@ export default function EscalaPage() {
         restWarn.push(`🛌 ${prof?.nome}: descanso de ${gap}h entre plantões (mínimo configurado: ${descansoMinimo}h).`);
       }
     }
+    // Descartar resultado se outra validação foi disparada nesse meio tempo
+    if (gen !== undefined && gen !== validationGenRef.current) return;
     setConflictWarnings(warnings);
     setRestWarnings(restWarn);
   };
 
-  const checkWorkload = async () => {
+  const checkWorkload = async (gen?: number) => {
     if (form.profissional_ids.length !== 1 || !form.data) { setWorkloadAlerts([]); return; }
     const pid = form.profissional_ids[0];
     const alerts: string[] = [];
@@ -279,8 +284,24 @@ export default function EscalaPage() {
     const { data: recent } = await supabase.from('shifts').select('carga_horaria, hora_fim').eq('profissional_id', pid).in('data', [form.data, yStr]).neq('status', 'cancelado');
     const recentHours = (recent || []).reduce((s: number, r: any) => s + Number(r.carga_horaria), 0);
     if (recentHours >= 24) alerts.push('🟡 Profissional já tem 24h nas últimas 24h');
+    if (gen !== undefined && gen !== validationGenRef.current) return;
     setWorkloadAlerts(alerts);
   };
+
+  // Debounce dos campos relevantes para checagem de conflitos.
+  // Sempre que o formulário mudar (profissionais, data, horas, setor, unidade, tipo),
+  // dispara uma nova validação após 250ms de inatividade, descartando respostas antigas.
+  const debouncedFormKey = useDebounce(
+    `${form.profissional_ids.join(',')}|${form.data}|${form.hora_inicio}|${form.hora_fim}|${form.setor_id}|${form.unidade_id}|${form.tipo_plantao}`,
+    250,
+  );
+  useEffect(() => {
+    if (!modalOpen) return;
+    const gen = ++validationGenRef.current;
+    checkConflicts(gen);
+    checkWorkload(gen);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedFormKey, modalOpen]);
 
   // Revalidação server-side imediatamente antes do mutate.
   // Valida TODOS os profissionais selecionados (não para no primeiro) e retorna lista agregada de conflitos.
