@@ -124,7 +124,7 @@ export default function Dashboard() {
 
   const { data: docAlerts = [] } = useQuery({
     queryKey: ["dashboard-doc-alerts"],
-    queryFn: async () => { const { data } = await supabase.from("professionals").select("id, nome, documento_conselho, documento_numero, documento_validade").not("documento_validade", "is", null).eq("status", "ativo"); return data || []; },
+    queryFn: async () => { const { data } = await supabase.from("professionals_safe").select("id, nome, documento_conselho, documento_numero, documento_validade").not("documento_validade", "is", null).eq("status", "ativo"); return data || []; },
   });
 
   const { data: censoHoje = [] } = useQuery({
