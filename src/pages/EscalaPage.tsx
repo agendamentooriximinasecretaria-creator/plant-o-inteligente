@@ -2104,10 +2104,15 @@ export default function EscalaPage() {
                       onClick={() => {
                         const s = detailShift;
                         const html = `<!doctype html><html><head><meta charset="utf-8"><title>Comprovante de Plantão</title>
-                          <style>body{font-family:Inter,Arial,sans-serif;padding:32px;color:#111}h1{font-size:18px;margin:0 0 8px}h2{font-size:13px;margin:24px 0 4px;color:#555;text-transform:uppercase;letter-spacing:.05em}p{margin:4px 0;font-size:13px}.box{border:1px solid #ddd;border-radius:8px;padding:16px;margin-top:12px}.row{display:flex;justify-content:space-between;gap:24px}.sig{margin-top:64px;border-top:1px solid #333;width:60%;text-align:center;font-size:11px;padding-top:6px;color:#555}</style>
+                          <style>body{font-family:Inter,Arial,sans-serif;padding:32px;color:#111}.brand{display:flex;align-items:center;gap:14px;border-bottom:2px solid #0e7490;padding-bottom:10px;margin-bottom:14px}.brand img{width:64px;height:64px;border-radius:50%;object-fit:cover;border:1px solid #e5e7eb;background:#fff}h1{font-size:18px;margin:0 0 4px;color:#0e7490}h2{font-size:13px;margin:24px 0 4px;color:#555;text-transform:uppercase;letter-spacing:.05em}p{margin:4px 0;font-size:13px}.box{border:1px solid #ddd;border-radius:8px;padding:16px;margin-top:12px}.row{display:flex;justify-content:space-between;gap:24px}.sig{margin-top:64px;border-top:1px solid #333;width:60%;text-align:center;font-size:11px;padding-top:6px;color:#555}</style>
                           </head><body>
-                          <h1>GestorPlantão · SMS Oriximiná</h1>
-                          <p style="font-size:11px;color:#555">CNPJ 05.131.081/0001-82 · Comprovante de Plantão</p>
+                          <div class="brand">
+                            <img src="/logo-sms-oriximina.jpg" alt="SMS Oriximiná" />
+                            <div>
+                              <h1>GestorPlantão · SMS Oriximiná</h1>
+                              <p style="font-size:11px;color:#555;margin:0">CNPJ 05.131.081/0001-82 · Comprovante de Plantão</p>
+                            </div>
+                          </div>
                           <div class="box">
                             <div class="row"><p><b>Profissional:</b> ${(s.professionals as any)?.nome || ''}</p><p><b>Profissão:</b> ${PROFISSAO_LABELS[(s.professionals as any)?.profissao] || ''}</p></div>
                             <div class="row"><p><b>Data:</b> ${new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR')}</p><p><b>Horário:</b> ${s.hora_inicio} às ${s.hora_fim} (${s.carga_horaria}h)</p></div>
