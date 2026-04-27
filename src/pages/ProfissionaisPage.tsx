@@ -6,7 +6,9 @@ import { logAudit } from "@/lib/auditLog";
 import {
   Search, Plus, User2, Edit, Calendar as CalIcon, X, MoreHorizontal,
   Printer, MessageSquare, FileCheck2, History, AlertTriangle, Filter,
+  Upload, Download,
 } from "lucide-react";
+import { MoreActionsMenu } from "@/components/MoreActionsMenu";
 import { ContactActionButton } from "@/components/ContactActionButton";
 import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
