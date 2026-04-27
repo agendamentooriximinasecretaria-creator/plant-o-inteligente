@@ -333,32 +333,67 @@ export default function ProfissionaisPage() {
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-2 items-center">
-        <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-3 py-2">
-          <Search className="h-4 w-4 text-muted-foreground" />
-          <input type="text" placeholder="Buscar por nome..." value={search} onChange={e => setSearch(e.target.value)} className="bg-transparent text-sm outline-none w-44 placeholder:text-muted-foreground" />
-        </div>
-        <select value={filterProfissao} onChange={e => setFilterProfissao(e.target.value)} className="bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
-          <option value="">Todas profissões</option>
-          {PROFISSAO_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-        </select>
-        <select value={filterUnidade} onChange={e => { setFilterUnidade(e.target.value); setFilterSetor(''); }} className="bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
-          <option value="">Todas unidades</option>
-          {(units as any[]).map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
-        </select>
-        <select value={filterSetor} onChange={e => setFilterSetor(e.target.value)} className="bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
-          <option value="">Todos setores</option>
-          {(sectors as any[]).filter((s: any) => !filterUnidade || s.unidade_id === filterUnidade).map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
-        </select>
-        <button onClick={() => setFilterDisponivel(!filterDisponivel)}
-          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium border transition-all ${filterDisponivel ? 'bg-success text-success-foreground border-success' : 'bg-card text-muted-foreground border-border hover:border-success/50'}`}>
-          <CalIcon className="h-4 w-4" /> Disponível hoje
-        </button>
-        {hasFilters && (
-          <button onClick={() => { setSearch(''); setFilterProfissao(''); setFilterUnidade(''); setFilterSetor(''); setFilterDisponivel(false); }}
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors px-2 py-1">
-            <X className="h-3 w-3" /> Limpar
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-2 items-center">
+          <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-3 py-2 flex-1 min-w-[240px]">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <input type="text"
+              placeholder="Buscar por nome, profissão, conselho, registro, e-mail, telefone, unidade, setor..."
+              value={searchInput} onChange={e => setSearchInput(e.target.value)}
+              className="bg-transparent text-sm outline-none flex-1 placeholder:text-muted-foreground" />
+            {searchInput && (
+              <button onClick={() => setSearchInput('')} aria-label="Limpar busca" className="p-0.5 rounded hover:bg-muted text-muted-foreground">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          <select value={filterProfissao} onChange={e => setFilterProfissao(e.target.value)} className="bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
+            <option value="">Todas profissões</option>
+            {PROFISSAO_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+          </select>
+          <select value={filterUnidade} onChange={e => { setFilterUnidade(e.target.value); setFilterSetor(''); }} className="bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
+            <option value="">Todas unidades</option>
+            {(units as any[]).map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+          </select>
+          <select value={filterSetor} onChange={e => setFilterSetor(e.target.value)} className="bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
+            <option value="">Todos setores</option>
+            {(sectors as any[]).filter((s: any) => !filterUnidade || s.unidade_id === filterUnidade).map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+          </select>
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)} className="bg-card border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring">
+            <option value="">Todos status</option>
+            <option value="ativo">Ativos</option>
+            <option value="inativo">Inativos</option>
+          </select>
+          <button onClick={() => setShowAdvanced(v => !v)}
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium border bg-card text-foreground border-border hover:bg-muted">
+            <Filter className="h-4 w-4" /> Mais filtros
           </button>
+          {hasFilters && (
+            <button onClick={limparFiltros}
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors px-2 py-1">
+              <X className="h-3 w-3" /> Limpar
+            </button>
+          )}
+        </div>
+
+        {showAdvanced && (
+          <div className="flex flex-wrap gap-2 items-center pt-1">
+            {([
+              { state: filterDisponivel, set: setFilterDisponivel, label: 'Disponível hoje', icon: CalIcon, on: 'bg-success text-success-foreground border-success', off: 'hover:border-success/50' },
+              { state: filterDocVencido, set: setFilterDocVencido, label: 'Documento vencido', icon: AlertTriangle, on: 'bg-destructive text-destructive-foreground border-destructive', off: 'hover:border-destructive/50' },
+              { state: filterDocVencendo, set: setFilterDocVencendo, label: 'Documento vencendo (30d)', icon: AlertTriangle, on: 'bg-warning text-warning-foreground border-warning', off: 'hover:border-warning/50' },
+              { state: filterSobrecarga, set: setFilterSobrecarga, label: 'Sobrecarga (≥90%)', icon: AlertTriangle, on: 'bg-destructive text-destructive-foreground border-destructive', off: 'hover:border-destructive/50' },
+              { state: filterSemPlantao, set: setFilterSemPlantao, label: 'Sem plantão no mês', icon: CalIcon, on: 'bg-primary text-primary-foreground border-primary', off: 'hover:border-primary/50' },
+            ] as const).map((f, idx) => {
+              const Icon = f.icon;
+              return (
+                <button key={idx} onClick={() => f.set(!f.state as any)}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium border transition-all ${f.state ? f.on : `bg-card text-muted-foreground border-border ${f.off}`}`}>
+                  <Icon className="h-3.5 w-3.5" /> {f.label}
+                </button>
+              );
+            })}
+          </div>
         )}
       </div>
 
