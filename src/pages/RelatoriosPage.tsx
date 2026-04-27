@@ -7,6 +7,7 @@ import { Download, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { isPlantaoContabilizavel } from "@/lib/horas";
 
 const PROFISSAO_LABELS: Record<string, string> = { medico: 'Médico(a)', enfermeiro: 'Enfermeiro(a)', fisioterapeuta: 'Fisioterapeuta', tecnico_enfermagem: 'Téc. Enfermagem', biomedico: 'Biomédico(a)', psicologo: 'Psicólogo(a)', terapeuta_ocupacional: 'Terapeuta Ocupacional', nutricionista: 'Nutricionista', fonoaudiologo: 'Fonoaudiólogo(a)', farmaceutico: 'Farmacêutico(a)', outro: 'Outro' };
 
@@ -36,7 +37,7 @@ export default function RelatoriosPage() {
   const horasChartData = useMemo(() => {
     const byProf: Record<string, { nome: string; horas: number }> = {};
     shifts.forEach((s: any) => {
-      if (s.status === 'cancelado') return;
+      if (!isPlantaoContabilizavel(s)) return;
       const nome = (s.professionals as any)?.nome || 'Desc.';
       if (!byProf[s.profissional_id]) byProf[s.profissional_id] = { nome, horas: 0 };
       byProf[s.profissional_id].horas += Number(s.carga_horaria || 0);
@@ -76,7 +77,7 @@ export default function RelatoriosPage() {
       case 'horas_profissional': {
         const byProf: Record<string, { nome: string; hours: number; count: number }> = {};
         shifts.forEach((s: any) => {
-          if (s.status === 'cancelado') return;
+          if (!isPlantaoContabilizavel(s)) return;
           const nome = (s.professionals as any)?.nome || 'Desconhecido';
           if (!byProf[s.profissional_id]) byProf[s.profissional_id] = { nome, hours: 0, count: 0 };
           byProf[s.profissional_id].hours += Number(s.carga_horaria || 0);
@@ -94,7 +95,7 @@ export default function RelatoriosPage() {
           const nome = (s.sectors as any)?.nome || 'Desconhecido';
           if (!bySetor[s.setor_id]) bySetor[s.setor_id] = { nome, count: 0, horas: 0 };
           bySetor[s.setor_id].count++;
-          if (s.status !== 'cancelado') bySetor[s.setor_id].horas += Number(s.carga_horaria || 0);
+          if (isPlantaoContabilizavel(s)) bySetor[s.setor_id].horas += Number(s.carga_horaria || 0);
         });
         return { columns: ['Setor', 'Qtd. Plantões', 'Horas Totais'], rows: Object.values(bySetor).map(s => [s.nome, String(s.count), `${s.horas.toFixed(1)}h`]) };
       }

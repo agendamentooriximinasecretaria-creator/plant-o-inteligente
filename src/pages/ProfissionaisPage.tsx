@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { calcularHorasPorProfissional, calcularCargaPercentual, CLT_LIMITE_MENSAL } from "@/lib/horas";
 
 const PROFISSAO_OPTIONS = [
   { value: 'medico', label: 'Médico(a)' },
@@ -36,7 +37,7 @@ const COMPETENCIAS_POR_PROFISSAO: Record<string, string[]> = {
   farmaceutico: ['Hospitalar', 'Clínica', 'Manipulação', 'Oncologia'],
 };
 
-const LIMITE_HORAS_MENSAL = 220;
+const LIMITE_HORAS_MENSAL = CLT_LIMITE_MENSAL;
 
 const emptyForm = {
   nome: '', profissao: 'medico' as ProfissaoValue, especialidade: '', conselho: '', registro: '',
@@ -81,18 +82,15 @@ export default function ProfissionaisPage() {
       const firstDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
       const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
       const lastStr = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
-      const { data } = await supabase.from('shifts').select('profissional_id, carga_horaria, data, hora_inicio, hora_fim, sectors:setor_id(nome)').gte('data', firstDay).lte('data', lastStr).neq('status', 'cancelado').order('data', { ascending: false });
+      const { data } = await supabase.from('shifts').select('profissional_id, carga_horaria, data, hora_inicio, hora_fim, status, tipo_plantao, sectors:setor_id(nome)').gte('data', firstDay).lte('data', lastStr).neq('status', 'cancelado').order('data', { ascending: false });
       return data || [];
     },
   });
 
-  const horasPorProfissional = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const s of monthShifts as any[]) {
-      map[s.profissional_id] = (map[s.profissional_id] || 0) + Number(s.carga_horaria);
-    }
-    return map;
-  }, [monthShifts]);
+  const horasPorProfissional = useMemo(
+    () => calcularHorasPorProfissional(monthShifts as any[]),
+    [monthShifts]
+  );
 
   // Últimos 3 plantões e disponibilidade hoje
   const ultimosPorProf = useMemo(() => {
@@ -249,7 +247,7 @@ export default function ProfissionaisPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((p: any, i: number) => {
             const horasMes = horasPorProfissional[p.id] || 0;
-            const percentHoras = Math.min(100, (horasMes / LIMITE_HORAS_MENSAL) * 100);
+            const percentHoras = calcularCargaPercentual(horasMes, LIMITE_HORAS_MENSAL);
             const horasColor = percentHoras >= 90 ? 'text-destructive' : percentHoras >= 70 ? 'text-warning' : 'text-success';
             const ultimos = ultimosPorProf[p.id] || [];
             const ocupadoHoje = ocupadosHoje.has(p.id);
