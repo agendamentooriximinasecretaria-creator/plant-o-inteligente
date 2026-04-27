@@ -247,7 +247,7 @@ export default function ProfissionaisPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((p: any, i: number) => {
             const horasMes = horasPorProfissional[p.id] || 0;
-            const percentHoras = Math.min(100, (horasMes / LIMITE_HORAS_MENSAL) * 100);
+            const percentHoras = calcularCargaPercentual(horasMes, LIMITE_HORAS_MENSAL);
             const horasColor = percentHoras >= 90 ? 'text-destructive' : percentHoras >= 70 ? 'text-warning' : 'text-success';
             const ultimos = ultimosPorProf[p.id] || [];
             const ocupadoHoje = ocupadosHoje.has(p.id);
