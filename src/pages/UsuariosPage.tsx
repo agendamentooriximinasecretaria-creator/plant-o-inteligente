@@ -148,6 +148,47 @@ export default function UsuariosPage() {
 
   const availableProfessionals = professionals.filter((p: any) => !p.user_id || p.id === form.professional_id);
 
+  const exportarUsuariosCSV = () => {
+    if (!users.length) { toast.info('Nenhum usuário para exportar.'); return; }
+    const headers = ['Nome', 'E-mail', 'Perfil', 'Status'];
+    const rows = (users as any[]).map((u) => [
+      u.nome || '', u.email || '', roleLabels[u.role] || u.role || '',
+      u.ativo === false ? 'Inativo' : 'Ativo',
+    ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','));
+    const csv = '\ufeff' + [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `usuarios_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    toast.success(`${users.length} usuários exportados.`);
+    logAudit('Usuários exportados (CSV)', 'usuarios', { total: users.length });
+  };
+
+  const imprimirListaUsuarios = () => {
+    if (!users.length) { toast.info('Nenhum usuário para imprimir.'); return; }
+    const w = window.open('', '_blank');
+    if (!w) { toast.error('Bloqueio de pop-up. Permita janelas para imprimir.'); return; }
+    const linhas = (users as any[]).map((u) => `
+      <tr><td>${u.nome || ''}</td><td>${u.email || ''}</td>
+      <td>${roleLabels[u.role] || u.role || ''}</td>
+      <td>${u.ativo === false ? 'Inativo' : 'Ativo'}</td></tr>`).join('');
+    w.document.write(`<html><head><title>Usuários</title>
+      <style>body{font-family:Inter,Arial,sans-serif;padding:24px;color:#0f172a}
+      h1{font-size:18px;margin:0 0 4px}p{font-size:12px;color:#64748b;margin:0 0 16px}
+      table{width:100%;border-collapse:collapse;font-size:12px}
+      th,td{border:1px solid #e2e8f0;padding:6px 8px;text-align:left}
+      th{background:#f1f5f9}</style></head><body>
+      <h1>Usuários do sistema</h1>
+      <p>Total: ${users.length} · Emitido em ${new Date().toLocaleString('pt-BR')}</p>
+      <table><thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Status</th></tr></thead>
+      <tbody>${linhas}</tbody></table>
+      <script>window.onload=()=>{setTimeout(()=>window.print(),250)}</script>
+      </body></html>`);
+    w.document.close();
+    logAudit('Lista de usuários impressa', 'usuarios', { total: users.length });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -155,12 +196,21 @@ export default function UsuariosPage() {
           <h1 className="module-title">Controle de Usuários</h1>
           <p className="text-sm text-muted-foreground mt-1">Somente Gestor Master pode criar contas e redefinir senhas.</p>
         </div>
-        <button
-          onClick={() => setOpen(true)}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
-          <UserPlus className="h-4 w-4" /> Novo Usuário
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setOpen(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+          >
+            <UserPlus className="h-4 w-4" /> Novo Usuário
+          </button>
+          <MoreActionsMenu
+            triggerClassName="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted transition-colors"
+            items={[
+              { id: 'exp', label: 'Exportar CSV', icon: <Download />, onClick: exportarUsuariosCSV, group: 'Documentos' },
+              { id: 'print', label: 'Imprimir lista', icon: <Printer />, onClick: imprimirListaUsuarios, group: 'Documentos' },
+            ]}
+          />
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-lg border border-border bg-card shadow-[var(--shadow-card)]">
