@@ -415,7 +415,14 @@ export default function SetoresPage() {
             />
           </div>
         </div>
-        {loadingUnits || loadingSectors ? <div className="flex justify-center py-8"><div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full" /></div> : (
+        {(errUnits || errSectors) ? (
+          <ErrorState
+            title="Não foi possível carregar unidades e setores"
+            description="Erro ao consultar a estrutura hospitalar. Tente novamente."
+            onRetry={() => { if (errUnits) refetchUnits(); if (errSectors) refetchSectors(); }}
+            retryLoading={refUnits || refSectors}
+          />
+        ) : loadingUnits || loadingSectors ? <CardListSkeleton count={4} /> : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {unitsFiltered.map((u: any, i: number) => {
               const allUnitSectors = (sectors as SectorRow[]).filter(s => s.unidade_id === u.id);
