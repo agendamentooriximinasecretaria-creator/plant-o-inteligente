@@ -286,12 +286,13 @@ export default function EscalaPage() {
     const limiteSemana = Number(conflictRules?.limite_horas_semana ?? 60);
     const novaCarga = calcHours(data.hora_inicio, data.hora_fim);
 
-    // 1. Tipo de plantão ativo
-    if (data.tipo_plantao && data.tipo_plantao !== 'regular') {
-      const tipoOk = (shiftTypes as any[]).some((t: any) => (t.sigla === data.tipo_plantao || t.nome === data.tipo_plantao) && t.ativo);
-      // se não consta na lista (pode ser texto livre), apenas seguimos; se consta inativo bloqueia
-      const tipoExisteInativo = (shiftTypes as any[]).some((t: any) => (t.sigla === data.tipo_plantao || t.nome === data.tipo_plantao) && !t.ativo);
-      if (tipoExisteInativo && !tipoOk) {
+    // 1. Tipo de plantão ativo (consulta direta para detectar inativos)
+    if (data.tipo_plantao && data.tipo_plantao !== 'regular' && data.tipo_plantao !== 'folga' && data.tipo_plantao !== 'indisponibilidade') {
+      const { data: tipoRow } = await sb.from('shift_types')
+        .select('ativo')
+        .or(`sigla.eq.${data.tipo_plantao},nome.eq.${data.tipo_plantao}`)
+        .maybeSingle();
+      if (tipoRow && (tipoRow as any).ativo === false) {
         throw new Error(`Tipo de plantão "${data.tipo_plantao}" está inativo.`);
       }
     }
