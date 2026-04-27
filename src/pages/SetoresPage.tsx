@@ -422,7 +422,14 @@ export default function SetoresPage() {
             onRetry={() => { if (errUnits) refetchUnits(); if (errSectors) refetchSectors(); }}
             retryLoading={refUnits || refSectors}
           />
-        ) : loadingUnits || loadingSectors ? <CardListSkeleton count={4} /> : (
+        ) : loadingUnits || loadingSectors ? <CardListSkeleton count={4} /> : unitsFiltered.length === 0 ? (
+          <EmptyState
+            icon={Building2}
+            title={hasFilters ? 'Nenhuma unidade encontrada' : 'Nenhuma unidade cadastrada'}
+            description={hasFilters ? 'Ajuste a busca ou os filtros para localizar unidades.' : 'Comece cadastrando a primeira unidade de saúde.'}
+            action={hasFilters ? { label: 'Limpar filtros', onClick: limparFiltros } : undefined}
+          />
+        ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {unitsFiltered.map((u: any, i: number) => {
               const allUnitSectors = (sectors as SectorRow[]).filter(s => s.unidade_id === u.id);
