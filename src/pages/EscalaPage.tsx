@@ -1019,6 +1019,20 @@ export default function EscalaPage() {
     return out;
   }, [shifts]);
 
+  const lookupMaps = useMemo(() => {
+    const u: Record<string, string> = {};
+    (units as any[]).forEach(x => { u[x.id] = x.nome || ''; });
+    const s: Record<string, string> = {};
+    (sectors as any[]).forEach(x => { s[x.id] = x.nome || ''; });
+    const p: Record<string, { nome: string; profissao: string }> = {};
+    (professionals as any[]).forEach(x => { p[x.id] = { nome: x.nome || '', profissao: x.profissao || '' }; });
+    return { u, s, p };
+  }, [units, sectors, professionals]);
+
+  const buscaTokens = useMemo(() => {
+    return buscaDebounced.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  }, [buscaDebounced]);
+
   const filtered = useMemo(() => (shifts as any[]).filter((s: any) => {
     const f = filtros;
     if (f.unidadeId && s.unidade_id !== f.unidadeId) return false;
@@ -1034,8 +1048,26 @@ export default function EscalaPage() {
     if (f.soFolgas && !isFolgaShift(s)) return false;
     if (f.soConflitos && !conflictIds.has(s.id)) return false;
     if (f.soDescobertos && !setoresDescobertosIds.has(s.setor_id)) return false;
+    if (buscaTokens.length > 0) {
+      const prof = lookupMaps.p[s.profissional_id];
+      const profNome = (prof?.nome || (s.professionals as any)?.nome || '').toLowerCase();
+      const profissaoKey = (prof?.profissao || s.profissao || '').toLowerCase();
+      const profissaoLabel = (PROFISSAO_LABELS[prof?.profissao || s.profissao] || '').toLowerCase();
+      const unidade = (lookupMaps.u[s.unidade_id] || '').toLowerCase();
+      const setor = (lookupMaps.s[s.setor_id] || '').toLowerCase();
+      const tipo = (s.tipo_plantao || '').toLowerCase();
+      const horario = `${s.hora_inicio || ''} ${s.hora_fim || ''} ${s.hora_inicio || ''}-${s.hora_fim || ''}`.toLowerCase();
+      const data = (s.data || '').toLowerCase();
+      let dataBR = '';
+      if (s.data) { const [y,m,d] = String(s.data).split('-'); dataBR = `${d}/${m}/${y}`; }
+      const statusKey = (s.status || '').toLowerCase();
+      const statusLabel = (STATUS_LABELS[s.status] || '').toLowerCase();
+      const obs = (s.observacoes || '').toLowerCase();
+      const haystack = [profNome, profissaoKey, profissaoLabel, unidade, setor, tipo, horario, data, dataBR, statusKey, statusLabel, obs].join(' | ');
+      for (const t of buscaTokens) { if (!haystack.includes(t)) return false; }
+    }
     return true;
-  }), [shifts, filtros, conflictIds, setoresDescobertosIds]);
+  }), [shifts, filtros, conflictIds, setoresDescobertosIds, buscaTokens, lookupMaps]);
   filteredRef.current = filtered;
 
   const filtrosAtivos = useMemo(() => {
