@@ -156,7 +156,19 @@ export default function TrocasPage() {
         user_id: user?.id,
         detalhes: motivo || null,
       });
-      await logAudit(`Troca ${status}`, 'trocas', { swap_id: id, novo_status: status, motivo });
+      const swapCtx = swaps.find((s: any) => s.id === id);
+      await logAudit(
+        status === 'aprovada' ? 'Troca aprovada pelo gestor' : status === 'rejeitada' ? 'Troca recusada pelo gestor' : `Troca status alterado: ${status}`,
+        'trocas',
+        {
+          swap_id: id,
+          novo_status: status,
+          motivo,
+          shift_id: swapCtx?.shift_id,
+          solicitante_id: swapCtx?.solicitante_id,
+          destinatario_id: swapCtx?.destinatario_id,
+        },
+      );
       const swap = swaps.find((s: any) => s.id === id);
       if (swap) {
         const titulo = status === 'aprovada' ? '✅ Troca aprovada e efetivada' : '❌ Troca recusada';
