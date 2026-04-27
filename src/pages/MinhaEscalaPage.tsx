@@ -37,9 +37,7 @@ export default function MinhaEscalaPage() {
   });
 
   const monthHours = useMemo(() => {
-    const month = today.substring(0, 7);
-    return shifts.filter((s: any) => s.data.startsWith(month) && s.status !== 'cancelado')
-      .reduce((sum: number, s: any) => sum + Number(s.carga_horaria || 0), 0);
+    return calcularHorasMes(shifts as any[], undefined, today.substring(0, 7));
   }, [shifts, today]);
 
   // Calendar data
