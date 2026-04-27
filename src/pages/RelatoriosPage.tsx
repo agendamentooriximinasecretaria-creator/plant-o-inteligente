@@ -37,7 +37,7 @@ export default function RelatoriosPage() {
   const horasChartData = useMemo(() => {
     const byProf: Record<string, { nome: string; horas: number }> = {};
     shifts.forEach((s: any) => {
-      if (s.status === 'cancelado') return;
+      if (!isPlantaoContabilizavel(s)) return;
       const nome = (s.professionals as any)?.nome || 'Desc.';
       if (!byProf[s.profissional_id]) byProf[s.profissional_id] = { nome, horas: 0 };
       byProf[s.profissional_id].horas += Number(s.carga_horaria || 0);
