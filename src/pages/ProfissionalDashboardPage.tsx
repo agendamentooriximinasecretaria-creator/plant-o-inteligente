@@ -7,8 +7,9 @@ import { motion } from "framer-motion";
 import { AlertaReforco } from "@/components/AlertaReforco";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { calcularHorasRealizadas, calcularHorasPrevistas, calcularCargaPercentual, CLT_LIMITE_MENSAL, isPlantaoContabilizavel } from "@/lib/horas";
 
-const CLT_LIMIT = 220; // horas/mês
+const CLT_LIMIT = CLT_LIMITE_MENSAL; // horas/mês
 
 export default function ProfissionalDashboardPage() {
   const navigate = useNavigate();
