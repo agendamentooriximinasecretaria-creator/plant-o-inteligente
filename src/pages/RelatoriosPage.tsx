@@ -30,6 +30,12 @@ export default function RelatoriosPage() {
   const [exporting, setExporting] = useState('');
   const [chartReport, setChartReport] = useState<string | null>(null);
 
+  useRealtimeInvalidation({
+    tables: ["shifts", "shift_swaps", "professionals", "sectors", "units"],
+    invalidate: [["professionals"], ["shifts-report"], ["swaps-report"], ["units"], ["sectors"]],
+    channelId: "relatorios-realtime",
+  });
+
   const { data: professionals = [] } = useQuery({ queryKey: ['professionals'], queryFn: async () => { const { data } = await supabase.from('professionals_safe').select('id, nome, profissao, especialidade, telefone, email, status, setor_principal_id, unidade_principal_id').order('nome'); return data || []; } });
   const { data: shifts = [] } = useQuery({ queryKey: ['shifts-report'], queryFn: async () => { const { data } = await supabase.from('shifts').select('*, professionals:profissional_id(nome, profissao), sectors:setor_id(nome), units:unidade_id(nome)').order('data', { ascending: false }); return data || []; } });
   const { data: swaps = [] } = useQuery({ queryKey: ['swaps-report'], queryFn: async () => { const { data } = await supabase.from('shift_swaps').select('*, solicitante:solicitante_id(nome), destinatario:destinatario_id(nome)').order('created_at', { ascending: false }); return data || []; } });
