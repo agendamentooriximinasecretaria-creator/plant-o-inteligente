@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { invalidateCrossShifts } from "@/lib/queryInvalidation";
 import { logAudit } from "@/lib/auditLog";
 import { dispatchNotification } from "@/lib/notifyHelper";
-import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info, Users as UsersIcon, Palmtree, AlertTriangle, LayoutGrid, MoreHorizontal, Printer, FileText, FileSpreadsheet, CopyPlus, ShieldCheck, Send, Megaphone, Loader2 } from "lucide-react";
+import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info, Users as UsersIcon, Palmtree, AlertTriangle, LayoutGrid, MoreHorizontal, Printer, FileText, FileSpreadsheet, CopyPlus, ShieldCheck, Send, Megaphone, Loader2, Search, X } from "lucide-react";
 import { WeeklyGrid, type ProfRow, type GridShift } from "@/components/schedule/WeeklyGrid";
 import { ContactActionButton } from "@/components/ContactActionButton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -89,6 +89,8 @@ export default function EscalaPage() {
     soPublicados: false, soRascunhos: false, soFolgas: false,
   };
   const [filtros, setFiltros] = useState<FiltrosEscala>(filtrosVazios);
+  const [busca, setBusca] = useState("");
+  const buscaDebounced = useDebounce(busca, 300);
   // Aliases para compatibilidade com código existente que ainda lê filterSetor/filterStatus
   const filterSetor = filtros.setorId;
   const filterStatus = filtros.status;
@@ -1017,6 +1019,20 @@ export default function EscalaPage() {
     return out;
   }, [shifts]);
 
+  const lookupMaps = useMemo(() => {
+    const u: Record<string, string> = {};
+    (units as any[]).forEach(x => { u[x.id] = x.nome || ''; });
+    const s: Record<string, string> = {};
+    (sectors as any[]).forEach(x => { s[x.id] = x.nome || ''; });
+    const p: Record<string, { nome: string; profissao: string }> = {};
+    (professionals as any[]).forEach(x => { p[x.id] = { nome: x.nome || '', profissao: x.profissao || '' }; });
+    return { u, s, p };
+  }, [units, sectors, professionals]);
+
+  const buscaTokens = useMemo(() => {
+    return buscaDebounced.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  }, [buscaDebounced]);
+
   const filtered = useMemo(() => (shifts as any[]).filter((s: any) => {
     const f = filtros;
     if (f.unidadeId && s.unidade_id !== f.unidadeId) return false;
@@ -1032,8 +1048,26 @@ export default function EscalaPage() {
     if (f.soFolgas && !isFolgaShift(s)) return false;
     if (f.soConflitos && !conflictIds.has(s.id)) return false;
     if (f.soDescobertos && !setoresDescobertosIds.has(s.setor_id)) return false;
+    if (buscaTokens.length > 0) {
+      const prof = lookupMaps.p[s.profissional_id];
+      const profNome = (prof?.nome || (s.professionals as any)?.nome || '').toLowerCase();
+      const profissaoKey = (prof?.profissao || s.profissao || '').toLowerCase();
+      const profissaoLabel = (PROFISSAO_LABELS[prof?.profissao || s.profissao] || '').toLowerCase();
+      const unidade = (lookupMaps.u[s.unidade_id] || '').toLowerCase();
+      const setor = (lookupMaps.s[s.setor_id] || '').toLowerCase();
+      const tipo = (s.tipo_plantao || '').toLowerCase();
+      const horario = `${s.hora_inicio || ''} ${s.hora_fim || ''} ${s.hora_inicio || ''}-${s.hora_fim || ''}`.toLowerCase();
+      const data = (s.data || '').toLowerCase();
+      let dataBR = '';
+      if (s.data) { const [y,m,d] = String(s.data).split('-'); dataBR = `${d}/${m}/${y}`; }
+      const statusKey = (s.status || '').toLowerCase();
+      const statusLabel = (STATUS_LABELS[s.status] || '').toLowerCase();
+      const obs = (s.observacoes || '').toLowerCase();
+      const haystack = [profNome, profissaoKey, profissaoLabel, unidade, setor, tipo, horario, data, dataBR, statusKey, statusLabel, obs].join(' | ');
+      for (const t of buscaTokens) { if (!haystack.includes(t)) return false; }
+    }
     return true;
-  }), [shifts, filtros, conflictIds, setoresDescobertosIds]);
+  }), [shifts, filtros, conflictIds, setoresDescobertosIds, buscaTokens, lookupMaps]);
   filteredRef.current = filtered;
 
   const filtrosAtivos = useMemo(() => {
@@ -1175,6 +1209,36 @@ export default function EscalaPage() {
 
       {/* ===== Filtros da Escala ===== */}
       <div className="bg-card border border-border/60 rounded-xl p-3 shadow-[var(--shadow-card)] space-y-3">
+        {/* Busca global */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 max-w-xl">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <input
+              type="text"
+              value={busca}
+              onChange={e => setBusca(e.target.value)}
+              placeholder="Buscar por profissional, profissão, unidade, setor, tipo, horário, data, status ou observação..."
+              className="w-full bg-background border border-input rounded-lg pl-9 pr-9 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/50"
+              aria-label="Buscar na escala"
+            />
+            {busca && (
+              <button
+                type="button"
+                onClick={() => setBusca("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted text-muted-foreground"
+                aria-label="Limpar busca"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          {buscaDebounced && (
+            <span className="text-[11px] text-muted-foreground">
+              {filtered.length} resultado{filtered.length === 1 ? '' : 's'} para "{buscaDebounced}"
+            </span>
+          )}
+        </div>
+
         <div className="flex flex-wrap items-end gap-2">
           {/* Unidade */}
           <div className="flex flex-col">
@@ -1326,10 +1390,17 @@ export default function EscalaPage() {
               <tbody>
                 {filtered.length === 0 && (
                   <tr><td colSpan={7} className="p-10 text-center text-sm text-muted-foreground">
-                    Nenhum plantão encontrado para os filtros selecionados.
-                    {filtrosAtivos > 0 && (
-                      <button onClick={limparFiltros} className="block mx-auto mt-2 text-primary hover:underline text-xs font-medium">Limpar filtros</button>
-                    )}
+                    {buscaDebounced
+                      ? 'Nenhum resultado encontrado para sua busca.'
+                      : 'Nenhum plantão encontrado para os filtros selecionados.'}
+                    <div className="mt-2 flex items-center justify-center gap-3">
+                      {buscaDebounced && (
+                        <button onClick={() => setBusca("")} className="text-primary hover:underline text-xs font-medium">Limpar busca</button>
+                      )}
+                      {filtrosAtivos > 0 && (
+                        <button onClick={limparFiltros} className="text-primary hover:underline text-xs font-medium">Limpar filtros</button>
+                      )}
+                    </div>
                   </td></tr>
                 )}
                 {filtered.map((s: any) => (
