@@ -72,8 +72,28 @@ const emptyFolga = { profissional_id: '', data_inicio: '', data_fim: '', motivo:
 export default function EscalaPage() {
   const sb = supabase as any;
   const [view, setView] = useState<'lista' | 'calendario' | 'grade'>('lista');
-  const [filterSetor, setFilterSetor] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  // ---- Filtros da Escala ----
+  type FiltrosEscala = {
+    unidadeId: string; setorId: string; profissao: string; profissionalId: string;
+    tipoPlantao: string; status: string;
+    periodo: '' | 'semana' | 'mes' | 'personalizado';
+    dataIni: string; dataFim: string;
+    soConflitos: boolean; soDescobertos: boolean;
+    soPublicados: boolean; soRascunhos: boolean; soFolgas: boolean;
+  };
+  const filtrosVazios: FiltrosEscala = {
+    unidadeId: '', setorId: '', profissao: '', profissionalId: '',
+    tipoPlantao: '', status: '',
+    periodo: '', dataIni: '', dataFim: '',
+    soConflitos: false, soDescobertos: false,
+    soPublicados: false, soRascunhos: false, soFolgas: false,
+  };
+  const [filtros, setFiltros] = useState<FiltrosEscala>(filtrosVazios);
+  // Aliases para compatibilidade com código existente que ainda lê filterSetor/filterStatus
+  const filterSetor = filtros.setorId;
+  const filterStatus = filtros.status;
+  const setFilterSetor = (v: string) => setFiltros(f => ({ ...f, setorId: v }));
+  const setFilterStatus = (v: string) => setFiltros(f => ({ ...f, status: v }));
   const [modalOpen, setModalOpen] = useState(false);
   const [folgaModalOpen, setFolgaModalOpen] = useState(false);
   const [folgaForm, setFolgaForm] = useState(emptyFolga);
