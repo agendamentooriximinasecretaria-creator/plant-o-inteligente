@@ -93,8 +93,8 @@ export default function NotificacoesPage() {
           <h1 className="module-title">Notificações</h1>
           <p className="text-muted-foreground text-sm mt-1">{unreadCount} não lidas · {notifications.length} total</p>
         </div>
-        <button onClick={() => markAllRead.mutate()} disabled={unreadCount === 0} className="text-sm text-primary hover:underline font-medium disabled:opacity-50">
-          Marcar todas como lidas
+        <button onClick={() => { if (!markAllRead.isPending && unreadCount > 0) markAllRead.mutate(); }} disabled={unreadCount === 0 || markAllRead.isPending} className="text-sm text-primary hover:underline font-medium disabled:opacity-50">
+          {markAllRead.isPending ? 'Marcando...' : 'Marcar todas como lidas'}
         </button>
       </div>
 
