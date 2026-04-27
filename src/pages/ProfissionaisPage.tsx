@@ -82,7 +82,7 @@ export default function ProfissionaisPage() {
       const firstDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
       const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
       const lastStr = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
-      const { data } = await supabase.from('shifts').select('profissional_id, carga_horaria, data, hora_inicio, hora_fim, sectors:setor_id(nome)').gte('data', firstDay).lte('data', lastStr).neq('status', 'cancelado').order('data', { ascending: false });
+      const { data } = await supabase.from('shifts').select('profissional_id, carga_horaria, data, hora_inicio, hora_fim, status, tipo_plantao, sectors:setor_id(nome)').gte('data', firstDay).lte('data', lastStr).neq('status', 'cancelado').order('data', { ascending: false });
       return data || [];
     },
   });
