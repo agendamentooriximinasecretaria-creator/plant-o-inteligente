@@ -1390,10 +1390,17 @@ export default function EscalaPage() {
               <tbody>
                 {filtered.length === 0 && (
                   <tr><td colSpan={7} className="p-10 text-center text-sm text-muted-foreground">
-                    Nenhum plantão encontrado para os filtros selecionados.
-                    {filtrosAtivos > 0 && (
-                      <button onClick={limparFiltros} className="block mx-auto mt-2 text-primary hover:underline text-xs font-medium">Limpar filtros</button>
-                    )}
+                    {buscaDebounced
+                      ? 'Nenhum resultado encontrado para sua busca.'
+                      : 'Nenhum plantão encontrado para os filtros selecionados.'}
+                    <div className="mt-2 flex items-center justify-center gap-3">
+                      {buscaDebounced && (
+                        <button onClick={() => setBusca("")} className="text-primary hover:underline text-xs font-medium">Limpar busca</button>
+                      )}
+                      {filtrosAtivos > 0 && (
+                        <button onClick={limparFiltros} className="text-primary hover:underline text-xs font-medium">Limpar filtros</button>
+                      )}
+                    </div>
                   </td></tr>
                 )}
                 {filtered.map((s: any) => (
