@@ -419,7 +419,7 @@ export default function EscalaPage() {
       }
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['shifts'] });
+      invalidateCrossShifts(qc);
       toast.success(editingId ? 'Plantão atualizado!' : `${form.profissional_ids.length} plantão(ões) criado(s)!`);
       closeModal();
     },
