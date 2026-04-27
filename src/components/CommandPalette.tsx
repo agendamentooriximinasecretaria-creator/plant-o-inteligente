@@ -181,6 +181,15 @@ export function CommandPalette() {
 
   const favoriteCommands = allCommands.filter((c) => favorites.includes(c.path));
 
+  // Filtro local para itens estáticos (cmdk com shouldFilter=false)
+  const norm = (s: string) =>
+    (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const matchesQuery = (text: string) => {
+    const q = norm(debouncedQuery.trim());
+    if (!q) return true;
+    return norm(text).includes(q);
+  };
+
   const run = (fn: () => void) => {
     setOpen(false);
     setTimeout(fn, 50);
