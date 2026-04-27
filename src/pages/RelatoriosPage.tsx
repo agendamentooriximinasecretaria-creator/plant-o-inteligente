@@ -77,7 +77,7 @@ export default function RelatoriosPage() {
       case 'horas_profissional': {
         const byProf: Record<string, { nome: string; hours: number; count: number }> = {};
         shifts.forEach((s: any) => {
-          if (s.status === 'cancelado') return;
+          if (!isPlantaoContabilizavel(s)) return;
           const nome = (s.professionals as any)?.nome || 'Desconhecido';
           if (!byProf[s.profissional_id]) byProf[s.profissional_id] = { nome, hours: 0, count: 0 };
           byProf[s.profissional_id].hours += Number(s.carga_horaria || 0);
