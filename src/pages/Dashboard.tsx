@@ -454,7 +454,7 @@ export default function Dashboard() {
             </button>
           </div>
           <div className="space-y-1.5 max-h-[320px] overflow-y-auto">
-            {swaps.length === 0 && <p className="text-xs text-muted-foreground text-center py-8">Nenhuma troca.</p>}
+            {swaps.length === 0 && <p className="text-xs text-muted-foreground text-center py-8">Nenhuma troca de plantão registrada.</p>}
             {(swaps as any[]).slice(0, 8).map((sw: any) => {
               const solName = sw.solicitante?.nome || "—";
               const destName = sw.destinatario?.nome || "Grupo";
@@ -545,7 +545,7 @@ export default function Dashboard() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          ) : <p className="text-xs text-muted-foreground text-center py-8">Sem dados.</p>}
+          ) : <p className="text-xs text-muted-foreground text-center py-8">Sem dados de profissões para exibir.</p>}
         </motion.div>
 
         <motion.div variants={fadeIn} initial="hidden" animate="show" className="bg-card rounded-xl border border-border/60 shadow-[var(--shadow-card)] p-5">
@@ -553,7 +553,7 @@ export default function Dashboard() {
             <Activity className="h-4 w-4 text-primary" /> Atividades Recentes
           </h3>
           <div className="space-y-1 max-h-[220px] overflow-y-auto">
-            {recentLogs.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">Nenhuma atividade.</p>}
+            {recentLogs.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">Nenhuma atividade recente registrada.</p>}
             {recentLogs.map((a: any) => {
               const FeedIcon = feedIconMap[a.modulo] || Activity;
               return (
