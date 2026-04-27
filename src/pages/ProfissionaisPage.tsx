@@ -323,6 +323,70 @@ export default function ProfissionaisPage() {
     toast.success(`Documento válido${di.dias !== null ? ` por ${di.dias} dias` : ''}.`);
   };
 
+  // ===== Ações do menu "Mais ações" (operam sobre lista filtrada) =====
+  const exportarListaCSV = () => {
+    if (filtered.length === 0) { toast.info('Nada para exportar com os filtros atuais.'); return; }
+    const headers = ['Nome', 'Profissão', 'Conselho', 'Registro', 'E-mail', 'Telefone', 'Status', 'Vínculo'];
+    const rows = filtered.map((p: any) => [
+      p.nome || '', p.profissao || '', p.documento_conselho || p.conselho || '',
+      p.documento_numero || p.registro || '', p.email || '', p.telefone || '',
+      p.status || '', p.vinculo || '',
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+    const csv = '\ufeff' + [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `profissionais_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    toast.success(`${filtered.length} profissionais exportados.`);
+    logAudit('Profissionais exportados (CSV)', 'profissionais', { total: filtered.length });
+  };
+
+  const imprimirLista = () => {
+    if (filtered.length === 0) { toast.info('Nada para imprimir com os filtros atuais.'); return; }
+    const w = window.open('', '_blank');
+    if (!w) { toast.error('Bloqueio de pop-up. Permita janelas para imprimir.'); return; }
+    const linhas = filtered.map((p: any) => `
+      <tr>
+        <td>${p.nome || ''}</td>
+        <td>${(p.profissao || '').replace(/_/g, ' ')}</td>
+        <td>${p.documento_conselho || p.conselho || ''} ${p.documento_numero || p.registro || ''}</td>
+        <td>${p.email || ''}</td>
+        <td>${p.telefone || ''}</td>
+        <td>${p.status || ''}</td>
+      </tr>`).join('');
+    w.document.write(`<html><head><title>Profissionais</title>
+      <style>body{font-family:Inter,Arial,sans-serif;padding:24px;color:#0f172a}
+      h1{font-size:18px;margin:0 0 4px}p{font-size:12px;color:#64748b;margin:0 0 16px}
+      table{width:100%;border-collapse:collapse;font-size:12px}
+      th,td{border:1px solid #e2e8f0;padding:6px 8px;text-align:left}
+      th{background:#f1f5f9}</style></head><body>
+      <h1>Profissionais</h1>
+      <p>Total: ${filtered.length} · Emitido em ${new Date().toLocaleString('pt-BR')}</p>
+      <table><thead><tr><th>Nome</th><th>Profissão</th><th>Conselho/Registro</th><th>E-mail</th><th>Telefone</th><th>Status</th></tr></thead>
+      <tbody>${linhas}</tbody></table>
+      <script>window.onload=()=>{setTimeout(()=>window.print(),250)}</script>
+      </body></html>`);
+    w.document.close();
+    logAudit('Lista de profissionais impressa', 'profissionais', { total: filtered.length });
+  };
+
+  const validarTodosDocumentos = () => {
+    if (filtered.length === 0) { toast.info('Sem profissionais para validar.'); return; }
+    let vencidos = 0, vencendo = 0, semDoc = 0, ok = 0;
+    filtered.forEach((p: any) => {
+      const di = docInfo(p.documento_validade);
+      if (!p.documento_conselho && !p.documento_numero && !p.documento_validade) semDoc++;
+      else if (di.vencido) vencidos++;
+      else if (di.vencendo) vencendo++;
+      else ok++;
+    });
+    if (vencidos > 0) toast.error(`${vencidos} documento(s) VENCIDO(s).`);
+    if (vencendo > 0) toast.warning(`${vencendo} vencendo em até 30 dias.`);
+    if (semDoc > 0) toast.info(`${semDoc} sem documento cadastrado.`);
+    if (ok > 0) toast.success(`${ok} documento(s) regular(es).`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -330,9 +394,20 @@ export default function ProfissionaisPage() {
           <h1 className="module-title">Profissionais</h1>
           <p className="text-muted-foreground text-sm mt-1">{filtered.length} de {professionals.length} profissionais</p>
         </div>
-        <button onClick={() => { setForm(emptyForm); setEditingId(null); setModalOpen(true); }} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity self-start">
-          <Plus className="h-4 w-4" /> Novo Profissional
-        </button>
+        <div className="flex flex-wrap items-center gap-2 self-start">
+          <button onClick={() => { setForm(emptyForm); setEditingId(null); setModalOpen(true); }} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">
+            <Plus className="h-4 w-4" /> Novo Profissional
+          </button>
+          <MoreActionsMenu
+            triggerClassName="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted transition-colors"
+            items={[
+              { id: 'importar', label: 'Importar', icon: <Upload />, onClick: () => toast.info('Importação por CSV em breve. Use a Edge Function user-admin para criar acessos.'), group: 'Documentos' },
+              { id: 'exportar', label: 'Exportar CSV', icon: <Download />, onClick: exportarListaCSV, group: 'Documentos' },
+              { id: 'imprimir', label: 'Imprimir lista', icon: <Printer />, onClick: imprimirLista, group: 'Documentos' },
+              { id: 'validar', label: 'Validar documentos', icon: <FileCheck2 />, onClick: validarTodosDocumentos, group: 'Gestão' },
+            ]}
+          />
+        </div>
       </div>
 
       <div className="space-y-2">
