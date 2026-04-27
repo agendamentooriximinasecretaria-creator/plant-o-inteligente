@@ -13,11 +13,13 @@ import {
 import {
   LayoutDashboard, Calendar, ArrowLeftRight, Users, Building2,
   FileText, Bell, Settings, Shield, UserCog, UserCircle, Ban,
-  FolderLock, Star, Moon, Sun, Plus, Search,
+  FolderLock, Star, Moon, Sun, Plus, Search, Loader2, Stethoscope, MapPin,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useTheme } from "@/hooks/useTheme";
+import { useDebounce } from "@/hooks/useDebounce";
+import { supabase } from "@/integrations/supabase/client";
 
 interface NavCommand {
   id: string;
