@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 import { abrirVisualizacaoImpressao, gerarPdfEscala, diaSemanaPt, type PrintLinha, type PrintCabecalho, type PrintOptions } from "@/lib/printEscala";
+import { imprimirComprovantePlantao, type ComprovantePlantaoData } from "@/lib/printComprovantePlantao";
 
 const STATUS_LABELS: Record<string, string> = {
   agendado: 'Agendado', confirmado: 'Confirmado', pendente: 'Pendente',
@@ -1185,6 +1186,34 @@ export default function EscalaPage() {
     });
   };
 
+  // Imprime comprovante individual de plantão (sem expor dados sensíveis).
+  const printShiftReceipt = (s: any) => {
+    if (!s) return;
+    const prof = (s.professionals as any) || (professionals as any[]).find((p: any) => p.id === s.profissional_id) || {};
+    const unidadeNome = (s.units as any)?.nome || (units as any[]).find((u: any) => u.id === s.unidade_id)?.nome || '';
+    const setorNome = (s.sectors as any)?.nome || (sectors as any[]).find((sec: any) => sec.id === s.setor_id)?.nome || '';
+    const conselho = prof.conselho && prof.registro ? `${prof.conselho} ${prof.registro}` : (prof.registro || prof.conselho || '');
+    const data: ComprovantePlantaoData = {
+      shiftId: s.id,
+      data: s.data,
+      horaInicio: s.hora_inicio,
+      horaFim: s.hora_fim,
+      cargaHoraria: s.carga_horaria,
+      tipoPlantao: s.tipo_plantao || '',
+      status: STATUS_LABELS[s.status] || s.status || '',
+      observacoes: s.observacoes || '',
+      profissionalNome: prof.nome || '—',
+      profissaoLabel: PROFISSAO_LABELS[prof.profissao || s.profissao] || prof.profissao || s.profissao || '',
+      conselho,
+      unidadeNome,
+      setorNome,
+      emitidoPor: profileName || user?.email || '—',
+    };
+    const ok = imprimirComprovantePlantao(data);
+    if (!ok) { toast.error('Bloqueador de pop-up impediu a impressão'); return; }
+    logAudit('Comprovante de plantão impresso', 'escala', { shift_id: s.id });
+  };
+
   // Aplica preset de tipo de plantão (preenche horários automaticamente)
   const applyTipoPreset = (tipo: string) => {
     const preset = TIPOS_PLANTAO.find(t => t.value === tipo);
@@ -1659,7 +1688,8 @@ export default function EscalaPage() {
                           profissional={{ nome: (s.professionals as any)?.nome || '', telefone: (professionals as any[]).find((p: any) => p.id === s.profissional_id)?.telefone }}
                           contexto={{ tipo: 'plantao', data: new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR'), horario: `${s.hora_inicio} às ${s.hora_fim}`, setor: (s.sectors as any)?.nome, unidade: (s.units as any)?.nome }}
                         />
-                        <button onClick={() => openEdit(s)} className="p-1 rounded hover:bg-muted"><Edit className="h-4 w-4 text-muted-foreground" /></button>
+                        <button onClick={() => openEdit(s)} title="Editar plantão" className="p-1 rounded hover:bg-muted"><Edit className="h-4 w-4 text-muted-foreground" /></button>
+                        <button onClick={() => printShiftReceipt(s)} title="Imprimir comprovante" className="p-1 rounded hover:bg-muted"><Printer className="h-4 w-4 text-muted-foreground" /></button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild><button className="p-1 rounded hover:bg-destructive/10" disabled={deleteMutation.isPending}><Trash2 className="h-4 w-4 text-destructive" /></button></AlertDialogTrigger>
                           <AlertDialogContent>
@@ -2101,36 +2131,9 @@ export default function EscalaPage() {
                       </AlertDialog>
                     )}
                     <button
-                      onClick={() => {
-                        const s = detailShift;
-                        const html = `<!doctype html><html><head><meta charset="utf-8"><title>Comprovante de Plantão</title>
-                          <style>body{font-family:Inter,Arial,sans-serif;padding:32px;color:#111}.brand{display:flex;align-items:center;gap:14px;border-bottom:2px solid #0e7490;padding-bottom:10px;margin-bottom:14px}.brand img{width:64px;height:64px;border-radius:50%;object-fit:cover;border:1px solid #e5e7eb;background:#fff}h1{font-size:18px;margin:0 0 4px;color:#0e7490}h2{font-size:13px;margin:24px 0 4px;color:#555;text-transform:uppercase;letter-spacing:.05em}p{margin:4px 0;font-size:13px}.box{border:1px solid #ddd;border-radius:8px;padding:16px;margin-top:12px}.row{display:flex;justify-content:space-between;gap:24px}.sig{margin-top:64px;border-top:1px solid #333;width:60%;text-align:center;font-size:11px;padding-top:6px;color:#555}</style>
-                          </head><body>
-                          <div class="brand">
-                            <img src="/logo-sms-oriximina.jpg" alt="SMS Oriximiná" />
-                            <div>
-                              <h1>GestorPlantão · SMS Oriximiná</h1>
-                              <p style="font-size:11px;color:#555;margin:0">CNPJ 05.131.081/0001-82 · Comprovante de Plantão</p>
-                            </div>
-                          </div>
-                          <div class="box">
-                            <div class="row"><p><b>Profissional:</b> ${(s.professionals as any)?.nome || ''}</p><p><b>Profissão:</b> ${PROFISSAO_LABELS[(s.professionals as any)?.profissao] || ''}</p></div>
-                            <div class="row"><p><b>Data:</b> ${new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR')}</p><p><b>Horário:</b> ${s.hora_inicio} às ${s.hora_fim} (${s.carga_horaria}h)</p></div>
-                            <div class="row"><p><b>Unidade:</b> ${(s.units as any)?.nome || ''}</p><p><b>Setor:</b> ${(s.sectors as any)?.nome || ''}</p></div>
-                            <div class="row"><p><b>Tipo:</b> ${s.tipo_plantao || ''}</p><p><b>Status:</b> ${STATUS_LABELS[s.status] || s.status}</p></div>
-                            ${s.observacoes ? `<p style="margin-top:12px"><b>Observações:</b> ${s.observacoes}</p>` : ''}
-                          </div>
-                          <div class="sig">Assinatura do Gestor</div>
-                          <p style="font-size:10px;color:#777;margin-top:24px">Documento emitido pelo GestorPlantão SMS Oriximiná em ${new Date().toLocaleString('pt-BR')}</p>
-                          <script>window.onload=()=>{window.print()}</script>
-                          </body></html>`;
-                        const w = window.open('', '_blank', 'width=900,height=700');
-                        if (!w) { toast.error('Bloqueador de pop-up impediu a impressão'); return; }
-                        w.document.write(html); w.document.close();
-                        logAudit('Comprovante de plantão impresso', 'escala', { shift_id: s.id });
-                      }}
+                      onClick={() => printShiftReceipt(detailShift)}
                       className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted">
-                      <Printer className="h-3.5 w-3.5" /> Comprovante
+                      <Printer className="h-3.5 w-3.5" /> Imprimir comprovante
                     </button>
                     {canNotify && (
                       <button onClick={() => { setNotifyMsg(''); setNotifyTarget(detailShift); }}
