@@ -216,7 +216,12 @@ export default function ComprovanteTroca({ trocaId, onClose }: Props) {
       {/* Printable area */}
       <div ref={printRef} className="bg-card border border-border rounded-lg p-6 print:border-2 print:border-black print:shadow-none print:rounded-none">
         {/* Header */}
-        <div className="text-center border-b border-border pb-4 mb-4">
+        <div className="flex flex-col items-center text-center border-b border-border pb-4 mb-4">
+          <img
+            src={LOGO_SMS_PATH}
+            alt="SMS Oriximiná"
+            className="h-16 w-16 rounded-full object-cover border border-border bg-background mb-2"
+          />
           <h2 className="text-lg font-bold text-primary">GestorPlantão · SMS Oriximiná</h2>
           <h3 className="text-base font-bold text-foreground mt-1">COMPROVANTE DE TROCA DE PLANTÃO</h3>
         </div>
