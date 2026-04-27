@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { PainelOcupacao } from "@/components/PainelOcupacao";
 import { AcionamentosTracker } from "@/components/AcionamentosTracker";
 import { PROFISSAO_LABELS } from "@/types/hospital";
+import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 
 const fadeIn = { hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0, transition: { duration: 0.25 } } };
 const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.04 } } };
