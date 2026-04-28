@@ -398,11 +398,16 @@ export default function MinhasTrocasPage() {
                     <p className="text-xs text-muted-foreground mt-1">Status: {swap.status}</p>
                     {swap.observacao_gestor && <p className="text-xs text-muted-foreground mt-1">Obs. gestor: {swap.observacao_gestor}</p>}
                   </div>
-                  {['aprovada', 'concluida'].includes(swap.status) && (
-                    <button onClick={() => setComprovanteId(swap.id)} className="px-2.5 py-1 rounded-lg border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors inline-flex items-center gap-1 shrink-0">
-                      <FileText className="h-3 w-3" /> Comprovante
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => setViewAttachmentsId(swap.id)} className="px-2.5 py-1 rounded-lg border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors inline-flex items-center gap-1">
+                      <FileText className="h-3 w-3" /> Anexos
                     </button>
-                  )}
+                    {['aprovada', 'concluida'].includes(swap.status) && (
+                      <button onClick={() => setComprovanteId(swap.id)} className="px-2.5 py-1 rounded-lg border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors inline-flex items-center gap-1">
+                        <FileText className="h-3 w-3" /> Comprovante
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))
@@ -413,6 +418,26 @@ export default function MinhasTrocasPage() {
       <Dialog open={!!comprovanteId} onOpenChange={(open) => !open && setComprovanteId(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto print:max-w-none print:shadow-none">
           {comprovanteId && <ComprovanteTroca trocaId={comprovanteId} onClose={() => setComprovanteId(null)} />}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!viewAttachmentsId} onOpenChange={(open) => !open && setViewAttachmentsId(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <h2 className="text-lg font-semibold text-foreground mb-3">Anexos da troca</h2>
+          {viewAttachmentsId && (() => {
+            const sw: any = swaps.find((s: any) => s.id === viewAttachmentsId);
+            const isOwner = sw?.solicitante_id === professionalId;
+            const isReceiver = sw?.destinatario_id === professionalId;
+            return (
+              <SwapAttachmentsSection
+                trocaId={viewAttachmentsId}
+                canUpload={isOwner}
+                professionalId={professionalId}
+                swapStatus={sw?.status}
+                isManager={false}
+              />
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>
