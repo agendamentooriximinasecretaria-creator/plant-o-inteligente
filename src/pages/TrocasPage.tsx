@@ -1011,6 +1011,23 @@ export default function TrocasPage() {
           {comprovanteId && <ComprovanteTroca trocaId={comprovanteId} onClose={() => setComprovanteId(null)} />}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!attachmentsSwapId} onOpenChange={(open) => !open && setAttachmentsSwapId(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Anexos justificativos da troca</DialogTitle>
+            <DialogDescription>Documentos enviados pelo solicitante. Como gestor você pode rejeitar ou remover anexos.</DialogDescription>
+          </DialogHeader>
+          {attachmentsSwapId && (
+            <SwapAttachmentsSection
+              trocaId={attachmentsSwapId}
+              canUpload={false}
+              isManager
+              professionalId={null}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
