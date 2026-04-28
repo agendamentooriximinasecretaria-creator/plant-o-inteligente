@@ -1,0 +1,2 @@
+ALTER TABLE public.swap_history DROP CONSTRAINT IF EXISTS swap_history_user_id_fkey;
+ALTER TABLE public.swap_history ADD CONSTRAINT swap_history_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
