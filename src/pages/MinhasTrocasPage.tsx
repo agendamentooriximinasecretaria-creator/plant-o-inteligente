@@ -33,6 +33,8 @@ export default function MinhasTrocasPage() {
     motivo: "",
   });
   const [comprovanteId, setComprovanteId] = useState<string | null>(null);
+  const [pendingAttachments, setPendingAttachments] = useState<PendingFile[]>([]);
+  const [viewAttachmentsId, setViewAttachmentsId] = useState<string | null>(null);
 
   const { data: settings = {} } = useQuery({
     queryKey: ["professional-swap-settings"],
