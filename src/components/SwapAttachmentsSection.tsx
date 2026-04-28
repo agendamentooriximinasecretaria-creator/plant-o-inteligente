@@ -160,11 +160,47 @@ export default function SwapAttachmentsSection({
 
   const handleDownload = async (a: SwapAttachment) => {
     try {
-      const url = await getSignedAttachmentUrl(a.storage_path);
-      window.open(url, "_blank", "noopener,noreferrer");
+      const url = await getSignedAttachmentUrl(a.storage_path, {
+        audit: { attachmentId: a.id, trocaId: a.troca_id, action: 'baixar', nome: a.nome_original },
+      });
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = a.nome_original;
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
     } catch (e: any) {
       toast.error(e.message || "Erro ao gerar link de download.");
     }
+  };
+
+  const handlePreview = async (a: SwapAttachment) => {
+    const kind = isPreviewable(a.mime_type, a.nome_original);
+    if (!kind) {
+      toast.message("Pré-visualização não suportada para este tipo. Faça o download.");
+      return;
+    }
+    try {
+      const url = await getSignedAttachmentUrl(a.storage_path, {
+        audit: { attachmentId: a.id, trocaId: a.troca_id, action: 'visualizar', nome: a.nome_original },
+      });
+      setPreview({ a, url, kind });
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao abrir anexo.");
+    }
+  };
+
+  const handleMarkAnalyzed = async (a: SwapAttachment) => {
+    setBusy(true);
+    try {
+      await markAttachmentAnalyzed(a.id);
+      toast.success("Anexo marcado como analisado.");
+      await reload();
+      onChanged?.();
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao marcar anexo.");
+    } finally { setBusy(false); }
   };
 
   const handleReject = async (a: SwapAttachment) => {
@@ -180,6 +216,15 @@ export default function SwapAttachmentsSection({
     } catch (e: any) {
       toast.error(e.message || "Erro ao rejeitar anexo.");
     } finally { setBusy(false); }
+  };
+
+  const renderFileIcon = (a: SwapAttachment) => {
+    const t = getFileIconType(a.mime_type, a.nome_original);
+    const cls = "h-4 w-4 shrink-0";
+    if (t === 'pdf') return <FileType2 className={`${cls} text-red-500`} />;
+    if (t === 'image') return <FileImage className={`${cls} text-blue-500`} />;
+    if (t === 'doc') return <FileText className={`${cls} text-sky-600`} />;
+    return <FileIcon className={`${cls} text-muted-foreground`} />;
   };
 
   return (
