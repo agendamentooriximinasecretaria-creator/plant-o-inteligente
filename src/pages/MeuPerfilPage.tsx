@@ -3,20 +3,53 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { KeyRound } from "lucide-react";
+import { KeyRound, Stamp, ShieldCheck } from "lucide-react";
 import CarimboAssinaturaProfissional from "@/components/CarimboAssinaturaProfissional";
+import { logAudit } from "@/lib/auditLog";
 
 export default function MeuPerfilPage() {
   const sb = supabase as any;
   const qc = useQueryClient();
-  const { user, isMaster } = useAuth();
+  const { user, isMaster, isCoordinator, role, profileName } = useAuth();
+  const isManagerRole = isMaster || isCoordinator;
 
-  const { data: myProfId } = useQuery({
-    queryKey: ["my-prof-id"],
+  const { data: myProfId, refetch: refetchProfId } = useQuery({
+    queryKey: ["my-prof-id", user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from('professionals').select('id').maybeSingle();
+      const { data } = await supabase.from('professionals').select('id').eq('user_id', user?.id || '').maybeSingle();
       return (data as any)?.id || null;
     },
+    enabled: !!user?.id,
+  });
+
+  // Cria uma "área institucional" (registro em professionals) para Gestor/Coordenador
+  // que ainda não tem cadastro profissional, permitindo configurar carimbo/assinatura.
+  const createInstitutional = useMutation({
+    mutationFn: async () => {
+      if (!user?.id || !user?.email) throw new Error("Sessão inválida.");
+      const cargoFunc = isMaster ? "Gestor Master" : "Coordenador(a)";
+      const payload: any = {
+        user_id: user.id,
+        nome: profileName || user.email.split("@")[0],
+        email: user.email,
+        profissao: "outro",
+        status: "ativo",
+        vinculo: "gestor_administrativo",
+        observacoes: `Área institucional criada automaticamente para assinaturas (${cargoFunc}).`,
+      };
+      const { data, error } = await sb.from("professionals").insert(payload).select("id").single();
+      if (error) throw error;
+      // Vincula ao profile do usuário
+      await sb.from("profiles").update({ profissional_id: data.id }).eq("user_id", user.id);
+      await logAudit("criou_area_assinatura_institucional", "carimbo_digital", { professional_id: data.id, role });
+      return data.id as string;
+    },
+    onSuccess: () => {
+      toast.success("Área de assinatura institucional criada.");
+      refetchProfId();
+      qc.invalidateQueries({ queryKey: ["my-prof-id"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Falha ao criar área institucional."),
   });
 
   const [telefone, setTelefone] = useState("");
@@ -89,7 +122,11 @@ export default function MeuPerfilPage() {
         {isLoading ? (
           <div className="flex justify-center py-8"><div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full" /></div>
         ) : !professional ? (
-          <p className="text-sm text-muted-foreground">Seu usuário ainda não está vinculado a um cadastro profissional.</p>
+          <p className="text-sm text-muted-foreground">
+            {isManagerRole
+              ? "Sua conta é de gestão (não clínica). Use a área de Assinatura Institucional abaixo para configurar carimbo, cargo, registro e dados institucionais."
+              : "Seu usuário ainda não está vinculado a um cadastro profissional."}
+          </p>
         ) : (
           <>
             <h2 className="text-base font-semibold text-foreground">Dados Profissionais</h2>
@@ -148,7 +185,37 @@ export default function MeuPerfilPage() {
       </div>
 
       {/* Carimbo e Assinatura Profissional */}
-      {myProfId && <CarimboAssinaturaProfissional profissionalId={myProfId} isMaster={isMaster} />}
+      {myProfId ? (
+        <CarimboAssinaturaProfissional profissionalId={myProfId} isMaster={isMaster} />
+      ) : isManagerRole ? (
+        <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/5 via-card to-accent/5 p-6 shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-xl bg-primary/10 text-primary border border-primary/20">
+              <Stamp className="h-6 w-6" />
+            </div>
+            <div className="flex-1">
+              <h2 className="font-display text-lg font-semibold text-foreground">Área de Assinatura Institucional</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Como <strong>{isMaster ? "Gestor Master" : "Coordenador(a)"}</strong>, você precisa de uma área própria para configurar carimbo, assinatura, cargo, função e dados institucionais — necessária para assinar aprovações de troca, escalas oficiais e demais documentos.
+              </p>
+              <div className="mt-3 flex items-start gap-2 rounded-lg border border-border/60 bg-background/60 p-3 text-xs text-muted-foreground">
+                <ShieldCheck className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+                <span>
+                  Será criado um cadastro institucional vinculado ao seu usuário (não é registro clínico). Você poderá editar nome, cargo, conselho, registro, CBO, unidade, setor, assinatura e carimbo nas abas do módulo.
+                </span>
+              </div>
+              <button
+                onClick={() => createInstitutional.mutate()}
+                disabled={createInstitutional.isPending}
+                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 shadow-sm"
+              >
+                <Stamp className="h-4 w-4" />
+                {createInstitutional.isPending ? "Criando..." : "Criar minha área de assinatura institucional"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
