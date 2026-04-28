@@ -1999,6 +1999,16 @@ export default function EscalaPage() {
                   </tr>
                 ))}
               </tbody>
+              {filtered.length > 0 && (
+                <tfoot>
+                  <tr className="border-t border-border bg-muted/30">
+                    <td colSpan={8} className="px-3 py-2 text-xs text-muted-foreground">
+                      Total: <strong className="text-foreground">{filtered.length}</strong> plantão(ões) listado(s)
+                      {filtrosAtivos > 0 && <span className="ml-2">· {filtrosAtivos} filtro(s) aplicado(s)</span>}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </motion.div>
