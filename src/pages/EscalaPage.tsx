@@ -2628,37 +2628,71 @@ export default function EscalaPage() {
           </DialogHeader>
 
           <div className="space-y-5">
-            {/* PERÍODO */}
+            {/* MODELO */}
             <section>
-              <h4 className="text-sm font-semibold mb-2">Período</h4>
-              <div className="flex flex-wrap gap-2 mb-2">
+              <h4 className="text-sm font-semibold mb-2">Modelo de impressão</h4>
+              <div className="flex flex-wrap gap-2">
                 {([
-                  { v: 'semana', l: 'Semana atual' },
-                  { v: 'mes', l: 'Mês atual' },
-                  { v: 'personalizado', l: 'Personalizado' },
+                  { v: 'detalhado', l: 'Detalhado (linhas)' },
+                  { v: 'mensal_oficial', l: 'Escala Mensal Oficial' },
                 ] as const).map(o => (
                   <button key={o.v} type="button"
-                    onClick={() => aplicarPeriodo(o.v)}
-                    className={`px-3 py-1.5 rounded-lg text-xs border transition ${printForm.periodo === o.v ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border hover:bg-muted'}`}>
+                    onClick={() => setPrintForm(f => ({ ...f, modelo: o.v }))}
+                    className={`px-3 py-1.5 rounded-lg text-xs border transition ${printForm.modelo === o.v ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border hover:bg-muted'}`}>
                     {o.l}
                   </button>
                 ))}
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground">Data inicial</label>
-                  <input type="date" value={printForm.dataIni}
-                    onChange={e => setPrintForm(f => ({ ...f, dataIni: e.target.value, periodo: 'personalizado' }))}
-                    className={inputClass} />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground">Data final</label>
-                  <input type="date" value={printForm.dataFim}
-                    onChange={e => setPrintForm(f => ({ ...f, dataFim: e.target.value, periodo: 'personalizado' }))}
-                    className={inputClass} />
-                </div>
-              </div>
+              {printForm.modelo === 'mensal_oficial' && (
+                <p className="text-[11px] text-muted-foreground mt-2">
+                  Layout em grade tipo escala em papel hospitalar (Profissional × dias do mês), A4 paisagem, com legenda e assinatura.
+                </p>
+              )}
             </section>
+
+            {/* PERÍODO (modelo detalhado) */}
+            {printForm.modelo === 'detalhado' && (
+              <section>
+                <h4 className="text-sm font-semibold mb-2">Período</h4>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {([
+                    { v: 'semana', l: 'Semana atual' },
+                    { v: 'mes', l: 'Mês atual' },
+                    { v: 'personalizado', l: 'Personalizado' },
+                  ] as const).map(o => (
+                    <button key={o.v} type="button"
+                      onClick={() => aplicarPeriodo(o.v)}
+                      className={`px-3 py-1.5 rounded-lg text-xs border transition ${printForm.periodo === o.v ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border hover:bg-muted'}`}>
+                      {o.l}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Data inicial</label>
+                    <input type="date" value={printForm.dataIni}
+                      onChange={e => setPrintForm(f => ({ ...f, dataIni: e.target.value, periodo: 'personalizado' }))}
+                      className={inputClass} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Data final</label>
+                    <input type="date" value={printForm.dataFim}
+                      onChange={e => setPrintForm(f => ({ ...f, dataFim: e.target.value, periodo: 'personalizado' }))}
+                      className={inputClass} />
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* MÊS (modelo mensal_oficial) */}
+            {printForm.modelo === 'mensal_oficial' && (
+              <section>
+                <h4 className="text-sm font-semibold mb-2">Mês de referência</h4>
+                <input type="month" value={printForm.mesRef}
+                  onChange={e => setPrintForm(f => ({ ...f, mesRef: e.target.value }))}
+                  className={inputClass} />
+              </section>
+            )}
 
             {/* FILTROS */}
             <section>
@@ -2715,14 +2749,23 @@ export default function EscalaPage() {
             <section>
               <h4 className="text-sm font-semibold mb-2">Opções de impressão</h4>
               <div className="grid grid-cols-2 gap-2 text-sm">
-                {([
+                {(printForm.modelo === 'detalhado' ? ([
                   ['somentePublicada', 'Somente escala publicada'],
                   ['incluirFolgas', 'Incluir folgas/indisponibilidades'],
                   ['incluirObservacoes', 'Incluir observações'],
                   ['incluirTotalHoras', 'Incluir total de horas'],
                   ['incluirAssinatura', 'Incluir campo de assinatura'],
                   ['incluirConselho', 'Incluir conselho/registro'],
-                ] as const).map(([k, l]) => (
+                ] as const) : ([
+                  ['somentePublicada', 'Somente escala publicada'],
+                  ['incluirFolgas', 'Incluir folgas'],
+                  ['incluirAfastamentos', 'Incluir afastamentos (FE/LP/A)'],
+                  ['incluirTotalHoras', 'Mostrar total de horas (em vez de qtd. plantões)'],
+                  ['incluirAssinatura', 'Incluir campo de assinatura'],
+                  ['incluirConselho', 'Incluir conselho/registro'],
+                  ['incluirLogo', 'Incluir logo da instituição'],
+                  ['incluirObservacoesRodape', 'Incluir observações no rodapé'],
+                ] as const)).map(([k, l]) => (
                   <label key={k} className="flex items-center gap-2 cursor-pointer select-none">
                     <input type="checkbox"
                       checked={(printForm as any)[k]}
@@ -2732,7 +2775,51 @@ export default function EscalaPage() {
                   </label>
                 ))}
               </div>
+              {printForm.modelo === 'mensal_oficial' && (
+                <div className="mt-3">
+                  <label className="text-xs font-medium text-muted-foreground">Rótulo da coluna total</label>
+                  <div className="flex gap-2 mt-1">
+                    {(['TOTAL', 'ADN'] as const).map(v => (
+                      <button key={v} type="button"
+                        onClick={() => setPrintForm(f => ({ ...f, totalLabel: v }))}
+                        className={`px-3 py-1 rounded-md text-xs border ${printForm.totalLabel === v ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border hover:bg-muted'}`}>
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </section>
+
+            {/* RESPONSÁVEL (apenas mensal_oficial) */}
+            {printForm.modelo === 'mensal_oficial' && printForm.incluirAssinatura && (
+              <section>
+                <h4 className="text-sm font-semibold mb-2">Responsável pela escala</h4>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Nome</label>
+                    <input type="text" value={printForm.responsavelNome}
+                      placeholder="Nome do responsável"
+                      onChange={e => setPrintForm(f => ({ ...f, responsavelNome: e.target.value }))}
+                      className={inputClass} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Cargo/Função</label>
+                    <input type="text" value={printForm.responsavelCargo}
+                      placeholder="Coordenação"
+                      onChange={e => setPrintForm(f => ({ ...f, responsavelCargo: e.target.value }))}
+                      className={inputClass} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Conselho/Registro</label>
+                    <input type="text" value={printForm.responsavelConselho}
+                      placeholder="Ex.: COREN-PA 12345"
+                      onChange={e => setPrintForm(f => ({ ...f, responsavelConselho: e.target.value }))}
+                      className={inputClass} />
+                  </div>
+                </div>
+              </section>
+            )}
           </div>
 
           <DialogFooter className="mt-4 gap-2 flex-wrap">
