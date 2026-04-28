@@ -129,7 +129,7 @@ const App = () => (
                 <Route path="/meus-plantoes" element={<ProfessionalOnly><Navigate to="/minha-escala" replace /></ProfessionalOnly>} />
                 <Route path="/minhas-trocas" element={<ProfessionalOnly><MinhasTrocasPage /></ProfessionalOnly>} />
                 <Route path="/meu-financeiro" element={<ProfessionalOnly><Navigate to="/meu-painel" replace /></ProfessionalOnly>} />
-                <Route path="/meu-perfil" element={<ProfessionalOnly><MeuPerfilPage /></ProfessionalOnly>} />
+                <Route path="/meu-perfil" element={<MeuPerfilPage />} />
                 <Route path="/minha-indisponibilidade" element={<ProfessionalOnly><MinhaIndisponibilidadePage /></ProfessionalOnly>} />
                 <Route path="/meus-documentos" element={<ProfessionalOnly><MeusDocumentosPage /></ProfessionalOnly>} />
 

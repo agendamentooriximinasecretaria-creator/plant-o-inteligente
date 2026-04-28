@@ -81,6 +81,13 @@ export function AppSidebar() {
       groups.push({ label: "Sistema", items: systemItems });
     }
 
+    // Meu Perfil disponível para Gestor Master e Coordenador
+    // (carimbo/assinatura institucional usados em aprovações e documentos)
+    groups.push({
+      label: "Conta",
+      items: [{ title: "Meu Perfil", url: "/meu-perfil", icon: UserCircle }],
+    });
+
     return groups;
   }, [isMaster, isProfessional]);
 
