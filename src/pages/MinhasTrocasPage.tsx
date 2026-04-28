@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { FileText, AlertCircle } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import ComprovanteTroca from "@/components/ComprovanteTroca";
+import SwapAttachmentsSection, { type PendingFile } from "@/components/SwapAttachmentsSection";
+import { uploadSwapAttachment } from "@/lib/swapAttachments";
 
 const tabs = [
   { id: "solicitar", label: "Solicitar Troca" },
