@@ -146,6 +146,9 @@ export default function MeuPerfilPage() {
           </button>
         </div>
       </div>
+
+      {/* Carimbo Digital */}
+      {myProfId && <CarimboDigitalCard profissionalId={myProfId} isMaster={isMaster} />}
     </div>
   );
 }
