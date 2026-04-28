@@ -439,6 +439,75 @@ export type Database = {
           },
         ]
       }
+      professional_stamps: {
+        Row: {
+          assinatura_path: string | null
+          assinatura_posicao: string
+          assinatura_tamanho: number
+          bloqueado: boolean
+          bloqueado_motivo: string | null
+          cargo: string | null
+          carimbo_path: string | null
+          carimbo_tamanho: number
+          cbo: string | null
+          cns: string | null
+          cor_texto: string
+          created_at: string
+          id: string
+          mostrar_cbo: boolean
+          mostrar_cns: boolean
+          mostrar_conselho: boolean
+          mostrar_unidade: boolean
+          profissional_id: string
+          texto_personalizado: string | null
+          updated_at: string
+        }
+        Insert: {
+          assinatura_path?: string | null
+          assinatura_posicao?: string
+          assinatura_tamanho?: number
+          bloqueado?: boolean
+          bloqueado_motivo?: string | null
+          cargo?: string | null
+          carimbo_path?: string | null
+          carimbo_tamanho?: number
+          cbo?: string | null
+          cns?: string | null
+          cor_texto?: string
+          created_at?: string
+          id?: string
+          mostrar_cbo?: boolean
+          mostrar_cns?: boolean
+          mostrar_conselho?: boolean
+          mostrar_unidade?: boolean
+          profissional_id: string
+          texto_personalizado?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assinatura_path?: string | null
+          assinatura_posicao?: string
+          assinatura_tamanho?: number
+          bloqueado?: boolean
+          bloqueado_motivo?: string | null
+          cargo?: string | null
+          carimbo_path?: string | null
+          carimbo_tamanho?: number
+          cbo?: string | null
+          cns?: string | null
+          cor_texto?: string
+          created_at?: string
+          id?: string
+          mostrar_cbo?: boolean
+          mostrar_cns?: boolean
+          mostrar_conselho?: boolean
+          mostrar_unidade?: boolean
+          profissional_id?: string
+          texto_personalizado?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       professional_unavailability: {
         Row: {
           created_at: string

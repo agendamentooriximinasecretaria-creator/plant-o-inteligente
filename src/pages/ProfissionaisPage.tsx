@@ -25,6 +25,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { CardListSkeleton } from "@/components/PageSkeleton";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useAuth } from "@/hooks/useAuth";
+import CarimboDigitalCard from "@/components/CarimboDigitalCard";
 
 function useDebounced<T>(value: T, delay = 300): T {
   const [v, setV] = useState(value);
@@ -657,7 +658,7 @@ export default function ProfissionaisPage() {
       )}
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? 'Editar Profissional' : 'Novo Profissional'}</DialogTitle>
           </DialogHeader>
@@ -743,6 +744,13 @@ export default function ProfissionaisPage() {
               </button>
             </div>
           </form>
+
+          {/* Carimbo digital — apenas em edição */}
+          {editingId && (
+            <div className="mt-6 pt-6 border-t border-border">
+              <CarimboDigitalCard profissionalId={editingId} isMaster={isMaster} />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
