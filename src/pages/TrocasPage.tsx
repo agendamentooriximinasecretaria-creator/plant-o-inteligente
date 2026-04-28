@@ -727,6 +727,9 @@ export default function TrocasPage() {
                         <FileText className="h-3 w-3" /> Comprovante
                       </button>
                     )}
+                    <button onClick={() => setAttachmentsSwapId(swap.id)} className="px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors inline-flex items-center gap-1" title="Anexos justificativos">
+                      <Paperclip className="h-3 w-3" /> Anexos
+                    </button>
                     <SignActionButton
                       compact
                       signLabel="Assinar"
