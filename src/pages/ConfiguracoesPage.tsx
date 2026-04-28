@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { ShiftTypesManager } from "@/components/ShiftTypesManager";
 import DocumentTemplatesManager from "@/components/document-templates/DocumentTemplatesManager";
+import SwapAttachmentSettingsManager from "@/components/SwapAttachmentSettingsManager";
 
 // Strip credentials/secrets before logging settings to audit trail.
 function sanitizeSettingForAudit(key: string, value: any): any {
