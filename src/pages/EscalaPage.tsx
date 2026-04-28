@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { invalidateCrossShifts } from "@/lib/queryInvalidation";
 import { logAudit } from "@/lib/auditLog";
 import { dispatchNotification } from "@/lib/notifyHelper";
-import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info, Users as UsersIcon, Palmtree, AlertTriangle, LayoutGrid, MoreHorizontal, Printer, FileText, FileSpreadsheet, CopyPlus, ShieldCheck, Send, Megaphone, Loader2, Search, X, Table2 } from "lucide-react";
+import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info, Users as UsersIcon, Palmtree, AlertTriangle, AlertCircle, LayoutGrid, MoreHorizontal, Printer, FileText, FileSpreadsheet, CopyPlus, ShieldCheck, Send, Megaphone, Loader2, Search, X, Table2, ChevronLeft, ChevronRight, Eye } from "lucide-react";
 import { WeeklyGrid, type ProfRow, type GridShift } from "@/components/schedule/WeeklyGrid";
 import { MonthlyConsolidatedGrid } from "@/components/schedule/MonthlyConsolidatedGrid";
 import { ContactActionButton } from "@/components/ContactActionButton";
@@ -118,6 +118,10 @@ function ShiftHistoryView({ shiftId }: { shiftId: string }) {
 export default function EscalaPage() {
   const sb = supabase as any;
   const [view, setView] = useState<'lista' | 'calendario' | 'grade' | 'consolidada'>('lista');
+  // Mês visível no Calendário Mensal (independente dos filtros)
+  const [calMes, setCalMes] = useState<Date>(() => {
+    const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), 1);
+  });
   // ---- Filtros da Escala ----
   type FiltrosEscala = {
     unidadeId: string; setorId: string; profissao: string; profissionalId: string;
@@ -1871,40 +1875,77 @@ export default function EscalaPage() {
 
 
       {isLoading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>
+        view === 'lista' ? (
+          <div className="bg-card rounded-xl border border-border/60 overflow-hidden shadow-[var(--shadow-card)]">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="table-header">
+                  <th className="text-left p-3">Profissional</th><th className="text-left p-3">Profissão</th><th className="text-left p-3">Setor</th><th className="text-left p-3">Data</th><th className="text-left p-3">Horário</th><th className="text-left p-3">Tipo</th><th className="text-left p-3">Status</th><th className="text-left p-3">Ações</th>
+                </tr></thead>
+                <tbody>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <tr key={i} className="border-t border-border">
+                      {Array.from({ length: 8 }).map((__, j) => (
+                        <td key={j} className="p-3"><div className="h-3 bg-muted rounded animate-pulse" /></td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="flex justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>
+        )
       ) : view === 'lista' ? (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-xl border border-border/60 overflow-hidden shadow-[var(--shadow-card)]">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead><tr className="table-header">
-                <th className="text-left p-3">Profissional</th><th className="text-left p-3">Setor</th><th className="text-left p-3">Data</th><th className="text-left p-3">Horário</th><th className="text-left p-3">Tipo</th><th className="text-left p-3">Status</th><th className="text-left p-3">Ações</th>
+              <thead><tr className="table-header text-xs uppercase tracking-wide">
+                <th className="text-left px-3 py-2.5">Profissional</th>
+                <th className="text-left px-3 py-2.5">Profissão</th>
+                <th className="text-left px-3 py-2.5">Setor</th>
+                <th className="text-left px-3 py-2.5">Data</th>
+                <th className="text-left px-3 py-2.5">Horário</th>
+                <th className="text-left px-3 py-2.5">Tipo</th>
+                <th className="text-left px-3 py-2.5">Status</th>
+                <th className="text-right px-3 py-2.5">Ações</th>
               </tr></thead>
               <tbody>
                 {filtered.length === 0 && (
-                  <tr><td colSpan={7} className="p-10 text-center text-sm text-muted-foreground">
-                    {buscaDebounced
-                      ? 'Nenhum resultado encontrado para sua busca.'
-                      : 'Nenhum plantão encontrado para os filtros selecionados.'}
-                    <div className="mt-2 flex items-center justify-center gap-3">
-                      {buscaDebounced && (
-                        <button onClick={() => setBusca("")} className="text-primary hover:underline text-xs font-medium">Limpar busca</button>
-                      )}
-                      {filtrosAtivos > 0 && (
-                        <button onClick={limparFiltros} className="text-primary hover:underline text-xs font-medium">Limpar filtros</button>
-                      )}
+                  <tr><td colSpan={8} className="p-12 text-center text-sm text-muted-foreground">
+                    <div className="flex flex-col items-center gap-2">
+                      <Calendar className="h-10 w-10 text-muted-foreground/40" />
+                      <p className="font-medium text-foreground">
+                        {buscaDebounced
+                          ? 'Nenhum resultado encontrado para sua busca.'
+                          : 'Nenhum plantão encontrado.'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {filtrosAtivos > 0 ? 'Tente ajustar os filtros ativos para ver mais resultados.' : 'Cadastre um novo plantão para começar.'}
+                      </p>
+                      <div className="mt-2 flex items-center justify-center gap-3">
+                        {buscaDebounced && (
+                          <button onClick={() => setBusca("")} className="text-primary hover:underline text-xs font-medium">Limpar busca</button>
+                        )}
+                        {filtrosAtivos > 0 && (
+                          <button onClick={limparFiltros} className="text-primary hover:underline text-xs font-medium">Limpar filtros</button>
+                        )}
+                      </div>
                     </div>
                   </td></tr>
                 )}
                 {filtered.map((s: any) => (
-                  <tr key={s.id} className={`border-t border-border hover:bg-muted/30 transition-colors ${isFolga(s) ? 'bg-amber-50/40 dark:bg-amber-950/10' : ''}`}>
-                    <td className="p-3">
+                  <tr key={s.id} className={`border-t border-border hover:bg-muted/40 transition-colors ${isFolga(s) ? 'bg-amber-50/40 dark:bg-amber-950/10' : ''}`}>
+                    <td className="px-3 py-2 align-middle">
                       <div className="flex items-center gap-2">
                         {isFolga(s) && <Palmtree className="h-3.5 w-3.5 text-amber-600 shrink-0" />}
-                        <div>
-                          <p className="font-medium text-foreground">{(s.professionals as any)?.nome}</p>
-                          <p className="text-xs text-muted-foreground">{PROFISSAO_LABELS[(s.professionals as any)?.profissao] || ''}</p>
-                        </div>
+                        <span className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">{initials((s.professionals as any)?.nome || '')}</span>
+                        <p className="font-medium text-foreground truncate">{(s.professionals as any)?.nome}</p>
                       </div>
+                    </td>
+                    <td className="px-3 py-2 align-middle text-xs text-muted-foreground">
+                      {PROFISSAO_LABELS[(s.professionals as any)?.profissao] || '—'}
                     </td>
                     <td className="p-3">
                       <div className="flex items-center gap-1.5">
@@ -1932,8 +1973,9 @@ export default function EscalaPage() {
                       {isFolga(s) ? <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400 text-xs font-medium"><Palmtree className="h-3 w-3" /> {s.tipo_plantao === 'folga' ? 'Folga' : 'Indisponível'}</span> : s.tipo_plantao}
                     </td>
                     <td className="p-3"><span className={`status-badge ${STATUS_CLASSES[s.status] || ''}`}>{STATUS_LABELS[s.status]}</span></td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-1">
+                    <td className="px-3 py-2 align-middle">
+                      <div className="flex items-center justify-end gap-0.5">
+                        <button onClick={() => setDetailShift(s)} title="Ver detalhes" className="p-1.5 rounded hover:bg-muted"><Eye className="h-3.5 w-3.5 text-muted-foreground" /></button>
                         <ContactActionButton
                           profissional={{ nome: (s.professionals as any)?.nome || '', telefone: (professionals as any[]).find((p: any) => p.id === s.profissional_id)?.telefone }}
                           contexto={{ tipo: 'plantao', data: new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR'), horario: `${s.hora_inicio} às ${s.hora_fim}`, setor: (s.sectors as any)?.nome, unidade: (s.units as any)?.nome }}
@@ -1957,6 +1999,16 @@ export default function EscalaPage() {
                   </tr>
                 ))}
               </tbody>
+              {filtered.length > 0 && (
+                <tfoot>
+                  <tr className="border-t border-border bg-muted/30">
+                    <td colSpan={8} className="px-3 py-2 text-xs text-muted-foreground">
+                      Total: <strong className="text-foreground">{filtered.length}</strong> plantão(ões) listado(s)
+                      {filtrosAtivos > 0 && <span className="ml-2">· {filtrosAtivos} filtro(s) aplicado(s)</span>}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </motion.div>
@@ -1996,44 +2048,74 @@ export default function EscalaPage() {
           />
         </motion.div>
       ) : (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-lg border border-border p-6 shadow-[var(--shadow-card)]">
-          {/* Legenda */}
-          <div className="flex flex-wrap items-center gap-3 mb-4 text-[11px] text-muted-foreground">
-            <span className="font-medium text-foreground mr-1">Legenda:</span>
-            <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-success/40 border border-success/60" /> Confirmado</span>
-            <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-info/40 border border-info/60" /> Agendado</span>
-            <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-warning/40 border border-warning/60" /> Pendente</span>
-            <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-primary/40 border border-primary/60" /> Em troca</span>
-            <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-orange-500/40 border border-orange-500/60" /> Interrompido</span>
-            <span className="inline-flex items-center gap-1"><Palmtree className="h-3 w-3 text-amber-600" /> Folga</span>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-xl border border-border/60 p-5 shadow-[var(--shadow-card)]">
+          {/* Navegação do mês */}
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCalMes(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
+                className="p-1.5 rounded-lg border border-border hover:bg-muted transition-colors"
+                title="Mês anterior"
+              ><ChevronLeft className="h-4 w-4" /></button>
+              <span className="text-sm font-semibold capitalize min-w-[140px] text-center">
+                {calMes.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+              </span>
+              <button
+                onClick={() => setCalMes(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
+                className="p-1.5 rounded-lg border border-border hover:bg-muted transition-colors"
+                title="Próximo mês"
+              ><ChevronRight className="h-4 w-4" /></button>
+              <button
+                onClick={() => { const t = new Date(); setCalMes(new Date(t.getFullYear(), t.getMonth(), 1)); }}
+                className="text-xs px-2.5 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors text-muted-foreground"
+              >Hoje</button>
+            </div>
+            {/* Legenda compacta */}
+            <div className="flex flex-wrap items-center gap-2.5 text-[11px] text-muted-foreground">
+              <span className="font-medium text-foreground">Legenda:</span>
+              <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-success/40 border border-success/60" /> Confirmado</span>
+              <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-info/40 border border-info/60" /> Agendado</span>
+              <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-warning/40 border border-warning/60" /> Pendente</span>
+              <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-primary/40 border border-primary/60" /> Em troca</span>
+              <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-orange-500/40 border border-orange-500/60" /> Interrompido</span>
+              <span className="inline-flex items-center gap-1"><Palmtree className="h-3 w-3 text-amber-600" /> Folga</span>
+            </div>
           </div>
 
           <div className="grid grid-cols-7 gap-1 text-center">
             {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
-              <div key={d} className="text-xs font-semibold text-muted-foreground py-2">{d}</div>
+              <div key={d} className="text-[11px] font-semibold text-muted-foreground py-2 uppercase tracking-wide">{d}</div>
             ))}
             {(() => {
-              const now = new Date();
-              const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).getDay();
-              const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+              const ref = calMes;
+              const today = new Date();
+              const firstDay = new Date(ref.getFullYear(), ref.getMonth(), 1).getDay();
+              const daysInMonth = new Date(ref.getFullYear(), ref.getMonth() + 1, 0).getDate();
               const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
               return Array.from({ length: totalCells }, (_, i) => {
                 const day = i - firstDay + 1;
                 const isValid = day >= 1 && day <= daysInMonth;
-                const isToday = isValid && day === now.getDate();
-                const dateStr = isValid ? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}` : '';
-                const dayShifts = isValid ? (shifts as any[]).filter((s: any) => s.data === dateStr) : [];
+                const isToday = isValid && day === today.getDate() && ref.getMonth() === today.getMonth() && ref.getFullYear() === today.getFullYear();
+                const dateStr = isValid ? `${ref.getFullYear()}-${String(ref.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}` : '';
+                const dayShifts = isValid ? (filtered as any[]).filter((s: any) => s.data === dateStr) : [];
                 const onlyFolgas = dayShifts.length > 0 && dayShifts.every(isFolga);
+                const setoresCobertos = new Set(dayShifts.filter((s: any) => !isFolga(s)).map((s: any) => s.setor_id));
+                const semCobertura = isValid && dayShifts.length > 0 && setoresCobertos.size === 0;
+                const isWeekend = isValid && (i % 7 === 0 || i % 7 === 6);
                 return (
                   <div key={i}
                     onClick={() => isValid && dayShifts.length === 0 && openEmptyCellMenu(dateStr)}
                     className={`min-h-[110px] p-1.5 rounded-lg border transition-colors text-left ${
-                      isValid ? 'border-border/50 hover:border-primary/40 cursor-pointer' : 'border-transparent'
-                    } ${isToday ? 'ring-2 ring-primary/40' : ''} ${onlyFolgas ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800' : ''}`}>
+                      isValid ? 'border-border/50 hover:border-primary/40 cursor-pointer' : 'border-transparent bg-transparent'
+                    } ${isToday ? 'ring-2 ring-primary/50 bg-primary/5' : isWeekend && isValid ? 'bg-muted/30' : ''} ${onlyFolgas ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800' : ''} ${semCobertura ? 'bg-destructive/5 border-destructive/30' : ''}`}>
                     {isValid && (<>
                       <div className="flex items-center justify-between">
                         <span className={`text-xs font-bold ${isToday ? 'text-primary' : 'text-foreground'}`}>{day}</span>
-                        {onlyFolgas && <Palmtree className="h-3 w-3 text-amber-600" />}
+                        <div className="flex items-center gap-0.5">
+                          {semCobertura && <AlertCircle className="h-3 w-3 text-destructive" />}
+                          {onlyFolgas && <Palmtree className="h-3 w-3 text-amber-600" />}
+                          {dayShifts.length > 0 && <span className="text-[9px] text-muted-foreground font-medium">{dayShifts.length}</span>}
+                        </div>
                       </div>
                       <div className="flex flex-col gap-0.5 mt-1">
                         {dayShifts.slice(0, 4).map((s: any) => {
@@ -2045,11 +2127,11 @@ export default function EscalaPage() {
                             <button
                               key={s.id}
                               onClick={(e) => { e.stopPropagation(); setDetailShift(s); }}
-                              title={`${(s.professionals as any)?.nome} • ${s.tipo_plantao}`}
+                              title={`${(s.professionals as any)?.nome} • ${s.tipo_plantao} • ${s.hora_inicio}-${s.hora_fim}`}
                               className={`flex items-center gap-1 rounded-md border px-1 py-0.5 text-[10px] font-semibold leading-tight truncate ${cellClass}`}
                             >
-                              <span className="font-bold">{initials((s.professionals as any)?.nome)}</span>
-                              <span className="opacity-80">·</span>
+                              <span className="font-bold truncate">{initials((s.professionals as any)?.nome)}</span>
+                              <span className="opacity-60">·</span>
                               <span className="font-mono">{folga ? 'F' : tipoToSigla(s.tipo_plantao)}</span>
                             </button>
                           );
