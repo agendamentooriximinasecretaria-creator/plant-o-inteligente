@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
-import { Building2, Shield, Bell, Mail, Webhook, ArrowLeftRight, Save, TestTube, Power, Loader2, Eye, EyeOff, Clock } from "lucide-react";
+import { Building2, Shield, Bell, Mail, Webhook, ArrowLeftRight, Save, TestTube, Power, Loader2, Eye, EyeOff, Clock, FileText } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { ShiftTypesManager } from "@/components/ShiftTypesManager";
+import DocumentTemplatesManager from "@/components/document-templates/DocumentTemplatesManager";
 
 // Strip credentials/secrets before logging settings to audit trail.
 function sanitizeSettingForAudit(key: string, value: any): any {
@@ -236,6 +237,18 @@ export default function ConfiguracoesPage() {
               </div>
             ))}
           </div>
+        </motion.div>
+
+        {/* Modelos de Documentos */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className={sectionClass}>
+          <div className="flex items-start gap-3 mb-4">
+            <div className="p-2 rounded-lg bg-primary/10"><FileText className="h-5 w-5 text-primary" /></div>
+            <div>
+              <h3 className="font-display font-semibold text-foreground">Modelos de Documentos</h3>
+              <p className="text-sm text-muted-foreground">Editor profissional ABNT — escala, comprovantes, declarações e documentos personalizados.</p>
+            </div>
+          </div>
+          <DocumentTemplatesManager />
         </motion.div>
       </div>
     </div>
