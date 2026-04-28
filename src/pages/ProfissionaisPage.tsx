@@ -23,6 +23,8 @@ import { printFichaProfissional } from "@/lib/printFichaProfissional";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { CardListSkeleton } from "@/components/PageSkeleton";
+import { useConfirm } from "@/hooks/useConfirm";
+import { useAuth } from "@/hooks/useAuth";
 
 function useDebounced<T>(value: T, delay = 300): T {
   const [v, setV] = useState(value);
