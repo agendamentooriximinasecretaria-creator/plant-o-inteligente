@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Paperclip, Upload, FileText, Trash2, Download, AlertCircle, ShieldX, CheckCircle2, X } from "lucide-react";
+import { Paperclip, Upload, FileText, FileImage, FileType2, File as FileIcon, Trash2, Download, Eye, AlertCircle, ShieldX, CheckCircle2, X, BadgeCheck } from "lucide-react";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   SWAP_ATTACHMENT_TYPES,
   MAX_FILES_PER_SWAP,
@@ -10,11 +11,15 @@ import {
   uploadSwapAttachment,
   removeSwapAttachment,
   rejectSwapAttachment,
+  markAttachmentAnalyzed,
   getSignedAttachmentUrl,
   validateFile,
   formatBytes,
   getAttachmentTypeLabel,
+  isPreviewable,
+  getFileIconType,
 } from "@/lib/swapAttachments";
+import { supabase } from "@/integrations/supabase/client";
 
 type Props = {
   trocaId?: string | null;
