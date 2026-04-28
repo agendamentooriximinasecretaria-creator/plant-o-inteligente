@@ -323,32 +323,45 @@ export default function SwapAttachmentsSection({
             const isMine = a.enviado_por_profissional_id === professionalId;
             const canDelete = (isMine && swapEditable) || isManager;
             const rejected = a.status === "rejeitado";
+            const previewable = isPreviewable(a.mime_type, a.nome_original);
+            const senderName = a.enviado_por_profissional_id ? (senderNames[a.enviado_por_profissional_id] || '—') : 'Sistema';
             return (
               <div key={a.id} className={`rounded-md border px-2.5 py-2 ${rejected ? "border-destructive/30 bg-destructive/5" : "border-border bg-background"}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="flex items-center gap-1.5 truncate text-xs font-medium text-foreground">
-                      <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
-                      {a.nome_original}
-                      {rejected && <span className="ml-1 rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] text-destructive">Rejeitado</span>}
+                      {renderFileIcon(a)}
+                      <span className="truncate">{a.nome_original}</span>
+                      {rejected && <span className="ml-1 rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] text-destructive shrink-0">Rejeitado</span>}
                       {!rejected && a.analisado_em && (
-                        <span className="ml-1 inline-flex items-center gap-0.5 rounded bg-success/10 px-1.5 py-0.5 text-[10px] text-success">
-                          <CheckCircle2 className="h-2.5 w-2.5" /> Analisado
+                        <span className="ml-1 inline-flex items-center gap-0.5 rounded bg-success/10 px-1.5 py-0.5 text-[10px] text-success shrink-0">
+                          <BadgeCheck className="h-2.5 w-2.5" /> Analisado
                         </span>
                       )}
                     </p>
                     <p className="text-[11px] text-muted-foreground">
                       {getAttachmentTypeLabel(a.tipo_documento)} • {formatBytes(a.tamanho)} • {new Date(a.created_at).toLocaleString("pt-BR")}
                     </p>
+                    <p className="text-[11px] text-muted-foreground">Enviado por: <span className="text-foreground">{senderName}</span></p>
                     {a.descricao && <p className="mt-0.5 text-[11px] text-muted-foreground italic">"{a.descricao}"</p>}
                     {rejected && a.motivo_rejeicao && (
                       <p className="mt-0.5 text-[11px] text-destructive">Motivo: {a.motivo_rejeicao}</p>
                     )}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
+                    {previewable && (
+                      <button onClick={() => handlePreview(a)} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground" title="Visualizar">
+                        <Eye className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                     <button onClick={() => handleDownload(a)} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground" title="Baixar">
                       <Download className="h-3.5 w-3.5" />
                     </button>
+                    {isManager && !rejected && !a.analisado_em && (
+                      <button onClick={() => handleMarkAnalyzed(a)} disabled={busy} className="rounded p-1 text-muted-foreground hover:bg-success/10 hover:text-success disabled:opacity-50" title="Marcar como analisado">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                     {isManager && !rejected && (
                       <button onClick={() => { setRejectingId(a.id); setRejectMotivo(""); }} className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" title="Rejeitar anexo">
                         <ShieldX className="h-3.5 w-3.5" />
@@ -367,7 +380,7 @@ export default function SwapAttachmentsSection({
                       autoFocus
                       value={rejectMotivo}
                       onChange={(e) => setRejectMotivo(e.target.value)}
-                      placeholder="Motivo da rejeição"
+                      placeholder="Motivo da rejeição (obrigatório)"
                       className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-ring"
                     />
                     <button onClick={() => handleReject(a)} disabled={busy} className="rounded-md bg-destructive px-2 py-1 text-[11px] font-medium text-destructive-foreground hover:opacity-90 disabled:opacity-50">Confirmar</button>
@@ -379,6 +392,34 @@ export default function SwapAttachmentsSection({
           })}
         </div>
       )}
+
+      <Dialog open={!!preview} onOpenChange={(open) => !open && setPreview(null)}>
+        <DialogContent className="max-w-4xl max-h-[92vh] p-0 overflow-hidden flex flex-col">
+          <DialogHeader className="px-4 pt-4 pb-2 border-b border-border">
+            <DialogTitle className="text-sm flex items-center gap-2 truncate">
+              {preview && renderFileIcon(preview.a)}
+              <span className="truncate">{preview?.a.nome_original}</span>
+            </DialogTitle>
+            <p className="text-[11px] text-muted-foreground">
+              {preview && `${getAttachmentTypeLabel(preview.a.tipo_documento)} • ${formatBytes(preview.a.tamanho)}`}
+            </p>
+          </DialogHeader>
+          <div className="flex-1 bg-muted/40 overflow-auto flex items-center justify-center">
+            {preview?.kind === 'pdf' && (
+              <iframe src={preview.url} title={preview.a.nome_original} className="w-full h-[80vh] border-0 bg-background" />
+            )}
+            {preview?.kind === 'image' && (
+              <img src={preview.url} alt={preview.a.nome_original} className="max-w-full max-h-[80vh] object-contain" />
+            )}
+          </div>
+          <div className="px-4 py-2 border-t border-border flex items-center justify-end gap-2">
+            <button onClick={() => preview && handleDownload(preview.a)} className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted">
+              <Download className="h-3.5 w-3.5" /> Baixar
+            </button>
+            <button onClick={() => setPreview(null)} className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90">Fechar</button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
