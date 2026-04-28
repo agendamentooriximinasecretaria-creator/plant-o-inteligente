@@ -1,22 +1,36 @@
 import jsPDF from 'jspdf';
 import type { ABNTConfig } from '@/components/document-templates/types';
+import { resolveVariables, getSampleVariables, ResolveContext } from '@/lib/documentVariables';
 
 /**
  * Render a document template (HTML + ABNT config) to a PDF using jsPDF.
  * Uses jsPDF's html() method for fidelity with TipTap output.
+ *
+ * Variables are resolved automatically:
+ *  - Pass `context` para resolver variáveis com dados REAIS (Supabase).
+ *  - Passe `useSamples=true` para usar amostras (preview sem contexto).
+ *  - Use `variables` para sobrescrever pontualmente alguma chave.
  */
 export async function gerarPdfDocumentTemplate(opts: {
   nome: string;
   conteudoHtml: string;
   abnt: ABNTConfig;
   variables?: Record<string, string>;
+  context?: ResolveContext;
+  useSamples?: boolean;
   acao?: 'open' | 'save' | 'print';
 }) {
-  const { nome, conteudoHtml, abnt, variables = {}, acao = 'open' } = opts;
+  const { nome, conteudoHtml, abnt, variables, context, useSamples, acao = 'open' } = opts;
 
-  // 1. Replace variables {{key}} -> value
+  // 1. Build resolved variables map
+  let resolved: Record<string, string> = {};
+  if (context) resolved = await resolveVariables(context);
+  else if (useSamples) resolved = getSampleVariables();
+  if (variables) resolved = { ...resolved, ...variables };
+
+  // 2. Substitui {{key}} -> valor (vazio quando não houver — regra do produto)
   const replaced = conteudoHtml.replace(/\{\{\s*([\w_]+)\s*\}\}/g, (_, k) => {
-    return variables[k] !== undefined ? String(variables[k]) : `{{${k}}}`;
+    return resolved[k] !== undefined ? String(resolved[k]) : '';
   });
 
   const orientation = abnt.orientation === 'landscape' ? 'landscape' : 'portrait';

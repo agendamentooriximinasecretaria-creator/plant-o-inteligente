@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import {
   FileText, Plus, Edit3, Copy, Trash2, Eye, Search, Filter, Lock,
   Globe, Building2, Layers, User as UserIcon, Save, X, Printer, Download,
+  AlertTriangle, Sparkles,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { RichEditor } from './RichEditor';
@@ -14,6 +15,7 @@ import {
   TIPO_LABEL, VARIAVEIS_PADRAO, DEFAULT_ABNT,
 } from './types';
 import { gerarPdfDocumentTemplate } from '@/lib/printDocumentTemplate';
+import { extractVariables, findUnknownVariables } from '@/lib/documentVariables';
 
 const SCOPE_ICON: Record<DocumentScope, JSX.Element> = {
   global: <Globe className="h-3.5 w-3.5" />,
@@ -125,10 +127,19 @@ export default function DocumentTemplatesManager() {
 
   const previewPdf = async (t: DocumentTemplate, acao: 'open' | 'save' | 'print' = 'open') => {
     try {
+      // Tenta usar dados reais do usuário corrente quando aplicável; cai em samples se não houver.
+      const ctx: any = { profissionalId: professionalId || undefined };
+      const now = new Date();
+      ctx.mes = now.getMonth() + 1;
+      ctx.ano = now.getFullYear();
+      ctx.unidadeId = t.unidade_id || undefined;
+      ctx.setorId = t.setor_id || undefined;
       await gerarPdfDocumentTemplate({
         nome: t.nome,
         conteudoHtml: t.conteudo_html,
         abnt: t.abnt_config,
+        context: ctx,
+        useSamples: !professionalId, // sem profissional vinculado, usa amostras
         acao,
       });
     } catch (e: any) {
@@ -283,11 +294,19 @@ function TemplateEditor({
   const [saving, setSaving] = useState(false);
 
   const variaveis = VARIAVEIS_PADRAO[form.tipo] || [];
+  const usadas = useMemo(() => extractVariables(conteudo), [conteudo]);
+  const desconhecidas = useMemo(() => findUnknownVariables(conteudo), [conteudo]);
 
   const updateAbnt = <K extends keyof ABNTConfig>(k: K, v: ABNTConfig[K]) => setAbnt(p => ({ ...p, [k]: v }));
 
   async function save() {
     if (!form.nome.trim()) { toast.error('Informe um nome para o modelo.'); return; }
+    if (desconhecidas.length > 0) {
+      const ok = window.confirm(
+        `Atenção: ${desconhecidas.length} variável(is) não reconhecida(s):\n\n${desconhecidas.map(v => `{{${v}}}`).join(', ')}\n\nElas serão renderizadas como vazias. Deseja salvar mesmo assim?`
+      );
+      if (!ok) return;
+    }
     setSaving(true);
     try {
       const payload: any = {
@@ -303,7 +322,7 @@ function TemplateEditor({
         perfis_edicao: form.perfis_edicao,
         conteudo_html: conteudo,
         abnt_config: abnt as any,
-        variaveis_disponiveis: variaveis,
+        variaveis_disponiveis: usadas, // chaves realmente referenciadas no conteúdo
         ativo: form.ativo,
         is_personalizado: form.is_personalizado,
       };
@@ -330,12 +349,20 @@ function TemplateEditor({
     }
   }
 
-  async function previewPdf(acao: 'open' | 'print') {
+  async function previewPdf(acao: 'open' | 'print', modo: 'amostras' | 'reais' = 'amostras') {
     try {
       await gerarPdfDocumentTemplate({
         nome: form.nome || 'preview',
         conteudoHtml: conteudo,
         abnt,
+        useSamples: modo === 'amostras',
+        context: modo === 'reais' ? {
+          profissionalId: professionalId || undefined,
+          unidadeId: form.unidade_id || undefined,
+          setorId: form.setor_id || undefined,
+          mes: new Date().getMonth() + 1,
+          ano: new Date().getFullYear(),
+        } : undefined,
         acao,
       });
     } catch (e: any) {
@@ -371,9 +398,14 @@ function TemplateEditor({
           </h2>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => previewPdf('open')}
+          <button onClick={() => previewPdf('open', 'amostras')}
             className="flex items-center gap-2 border border-border px-3 py-2 rounded-lg text-sm font-medium hover:bg-muted">
             <Eye className="h-4 w-4" /> Pré-visualizar
+          </button>
+          <button onClick={() => previewPdf('open', 'reais')}
+            className="flex items-center gap-2 border border-border px-3 py-2 rounded-lg text-sm font-medium hover:bg-muted"
+            title="Substitui variáveis com dados reais do sistema">
+            <Sparkles className="h-4 w-4" /> Pré-visualizar com dados reais
           </button>
           <button onClick={restaurarPadrao}
             className="flex items-center gap-2 border border-border px-3 py-2 rounded-lg text-sm hover:bg-muted">
@@ -385,6 +417,22 @@ function TemplateEditor({
           </button>
         </div>
       </div>
+
+      {desconhecidas.length > 0 && (
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-warning/10 border border-warning/30 text-warning text-xs">
+          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+          <div>
+            <strong>Variáveis não reconhecidas detectadas:</strong>{' '}
+            {desconhecidas.map(v => <code key={v} className="font-mono mx-0.5">{`{{${v}}}`}</code>)}
+            . Elas serão renderizadas como vazias na exportação.
+          </div>
+        </div>
+      )}
+      {usadas.length > 0 && desconhecidas.length === 0 && (
+        <div className="text-[11px] text-muted-foreground px-1">
+          {usadas.length} variável(is) em uso: {usadas.map(v => <code key={v} className="font-mono mx-0.5 px-1 bg-muted rounded">{`{{${v}}}`}</code>)}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr,340px] gap-4">
         {/* Editor */}
