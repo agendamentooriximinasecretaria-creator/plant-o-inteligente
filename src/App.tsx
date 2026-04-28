@@ -27,6 +27,7 @@ import MinhasTrocasPage from "@/pages/MinhasTrocasPage";
 import MeuPerfilPage from "@/pages/MeuPerfilPage";
 import MinhaIndisponibilidadePage from "@/pages/MinhaIndisponibilidadePage";
 import MeusDocumentosPage from "@/pages/MeusDocumentosPage";
+import ValidarAssinaturaPage from "@/pages/ValidarAssinaturaPage";
 
 const queryClient = new QueryClient();
 
@@ -101,6 +102,7 @@ const App = () => (
             <Routes>
               <Route path="/login" element={<LoginRoute />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/validar/:codigo" element={<ValidarAssinaturaPage />} />
               <Route element={<ProtectedRoutes />}>
                 <Route path="/" element={<HomeRedirect />} />
                 <Route path="/index" element={<HomeRedirect />} />
