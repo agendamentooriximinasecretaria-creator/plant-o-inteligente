@@ -4,11 +4,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { KeyRound } from "lucide-react";
+import CarimboDigitalCard from "@/components/CarimboDigitalCard";
 
 export default function MeuPerfilPage() {
   const sb = supabase as any;
   const qc = useQueryClient();
-  const { user } = useAuth();
+  const { user, isMaster } = useAuth();
+
+  const { data: myProfId } = useQuery({
+    queryKey: ["my-prof-id"],
+    queryFn: async () => {
+      const { data } = await supabase.from('professionals').select('id').maybeSingle();
+      return (data as any)?.id || null;
+    },
+  });
 
   const [telefone, setTelefone] = useState("");
   const [endereco, setEndereco] = useState("");
