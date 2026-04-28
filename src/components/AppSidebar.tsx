@@ -61,6 +61,7 @@ export function AppSidebar() {
     const managementItems: MenuItem[] = [
       { title: "Relatórios", url: "/relatorios", icon: FileText },
       { title: "Documentos Oficiais", url: "/documentos-oficiais", icon: FileText },
+      { title: "Validar Documento", url: "/validar-documento", icon: Shield },
       { title: "Notificações", url: "/notificacoes", icon: Bell },
     ];
 
