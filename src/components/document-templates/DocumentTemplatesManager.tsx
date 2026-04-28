@@ -294,11 +294,19 @@ function TemplateEditor({
   const [saving, setSaving] = useState(false);
 
   const variaveis = VARIAVEIS_PADRAO[form.tipo] || [];
+  const usadas = useMemo(() => extractVariables(conteudo), [conteudo]);
+  const desconhecidas = useMemo(() => findUnknownVariables(conteudo), [conteudo]);
 
   const updateAbnt = <K extends keyof ABNTConfig>(k: K, v: ABNTConfig[K]) => setAbnt(p => ({ ...p, [k]: v }));
 
   async function save() {
     if (!form.nome.trim()) { toast.error('Informe um nome para o modelo.'); return; }
+    if (desconhecidas.length > 0) {
+      const ok = window.confirm(
+        `Atenção: ${desconhecidas.length} variável(is) não reconhecida(s):\n\n${desconhecidas.map(v => `{{${v}}}`).join(', ')}\n\nElas serão renderizadas como vazias. Deseja salvar mesmo assim?`
+      );
+      if (!ok) return;
+    }
     setSaving(true);
     try {
       const payload: any = {
@@ -314,7 +322,7 @@ function TemplateEditor({
         perfis_edicao: form.perfis_edicao,
         conteudo_html: conteudo,
         abnt_config: abnt as any,
-        variaveis_disponiveis: variaveis,
+        variaveis_disponiveis: usadas, // chaves realmente referenciadas no conteúdo
         ativo: form.ativo,
         is_personalizado: form.is_personalizado,
       };
