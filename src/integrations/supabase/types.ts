@@ -617,6 +617,8 @@ export type Database = {
       }
       professional_stamps: {
         Row: {
+          alinhamento_texto: string
+          altura_max: number
           assinatura_path: string | null
           assinatura_posicao: string
           assinatura_tamanho: number
@@ -626,19 +628,42 @@ export type Database = {
           carimbo_path: string | null
           carimbo_tamanho: number
           cbo: string | null
+          cidade_uf: string | null
           cns: string | null
+          contextos_uso: string[]
           cor_texto: string
           created_at: string
+          espacamento_bottom: number
+          espacamento_top: number
+          especialidade: string | null
+          estilo: string
           id: string
+          largura: number
+          metadata: Json
           mostrar_cbo: boolean
+          mostrar_cidade_uf: boolean
           mostrar_cns: boolean
+          mostrar_codigo_validacao: boolean
           mostrar_conselho: boolean
+          mostrar_data_local: boolean
+          mostrar_especialidade: boolean
+          mostrar_hash: boolean
+          mostrar_linha_assinatura: boolean
+          mostrar_profissao: boolean
+          mostrar_qr_code: boolean
+          mostrar_setor: boolean
+          mostrar_uf_conselho: boolean
           mostrar_unidade: boolean
           profissional_id: string
+          tamanho_fonte: number
           texto_personalizado: string | null
+          tipo: string
+          uf_conselho: string | null
           updated_at: string
         }
         Insert: {
+          alinhamento_texto?: string
+          altura_max?: number
           assinatura_path?: string | null
           assinatura_posicao?: string
           assinatura_tamanho?: number
@@ -648,19 +673,42 @@ export type Database = {
           carimbo_path?: string | null
           carimbo_tamanho?: number
           cbo?: string | null
+          cidade_uf?: string | null
           cns?: string | null
+          contextos_uso?: string[]
           cor_texto?: string
           created_at?: string
+          espacamento_bottom?: number
+          espacamento_top?: number
+          especialidade?: string | null
+          estilo?: string
           id?: string
+          largura?: number
+          metadata?: Json
           mostrar_cbo?: boolean
+          mostrar_cidade_uf?: boolean
           mostrar_cns?: boolean
+          mostrar_codigo_validacao?: boolean
           mostrar_conselho?: boolean
+          mostrar_data_local?: boolean
+          mostrar_especialidade?: boolean
+          mostrar_hash?: boolean
+          mostrar_linha_assinatura?: boolean
+          mostrar_profissao?: boolean
+          mostrar_qr_code?: boolean
+          mostrar_setor?: boolean
+          mostrar_uf_conselho?: boolean
           mostrar_unidade?: boolean
           profissional_id: string
+          tamanho_fonte?: number
           texto_personalizado?: string | null
+          tipo?: string
+          uf_conselho?: string | null
           updated_at?: string
         }
         Update: {
+          alinhamento_texto?: string
+          altura_max?: number
           assinatura_path?: string | null
           assinatura_posicao?: string
           assinatura_tamanho?: number
@@ -670,16 +718,37 @@ export type Database = {
           carimbo_path?: string | null
           carimbo_tamanho?: number
           cbo?: string | null
+          cidade_uf?: string | null
           cns?: string | null
+          contextos_uso?: string[]
           cor_texto?: string
           created_at?: string
+          espacamento_bottom?: number
+          espacamento_top?: number
+          especialidade?: string | null
+          estilo?: string
           id?: string
+          largura?: number
+          metadata?: Json
           mostrar_cbo?: boolean
+          mostrar_cidade_uf?: boolean
           mostrar_cns?: boolean
+          mostrar_codigo_validacao?: boolean
           mostrar_conselho?: boolean
+          mostrar_data_local?: boolean
+          mostrar_especialidade?: boolean
+          mostrar_hash?: boolean
+          mostrar_linha_assinatura?: boolean
+          mostrar_profissao?: boolean
+          mostrar_qr_code?: boolean
+          mostrar_setor?: boolean
+          mostrar_uf_conselho?: boolean
           mostrar_unidade?: boolean
           profissional_id?: string
+          tamanho_fonte?: number
           texto_personalizado?: string | null
+          tipo?: string
+          uf_conselho?: string | null
           updated_at?: string
         }
         Relationships: []
