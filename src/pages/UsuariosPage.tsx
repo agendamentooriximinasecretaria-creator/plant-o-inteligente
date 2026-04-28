@@ -22,6 +22,9 @@ const roleLabels: Record<string, string> = {
 export default function UsuariosPage() {
   const sb = supabase as any;
   const qc = useQueryClient();
+  const confirm = useConfirm();
+  const { isMaster, isCoordinator, user: authUser } = useAuth();
+  const canDelete = isMaster || isCoordinator;
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     nome: "",
