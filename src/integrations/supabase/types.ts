@@ -25,7 +25,7 @@ export type Database = {
           profissional_id: string
           resposta_em: string | null
           setor_destino_id: string | null
-          setor_origem_id: string
+          setor_origem_id: string | null
           status: string
           updated_at: string | null
         }
@@ -39,7 +39,7 @@ export type Database = {
           profissional_id: string
           resposta_em?: string | null
           setor_destino_id?: string | null
-          setor_origem_id: string
+          setor_origem_id?: string | null
           status?: string
           updated_at?: string | null
         }
@@ -53,7 +53,7 @@ export type Database = {
           profissional_id?: string
           resposta_em?: string | null
           setor_destino_id?: string | null
-          setor_origem_id?: string
+          setor_origem_id?: string | null
           status?: string
           updated_at?: string | null
         }
@@ -1133,10 +1133,10 @@ export type Database = {
           observacoes: string | null
           profissao: Database["public"]["Enums"]["profissao_type"]
           profissional_id: string
-          setor_id: string
+          setor_id: string | null
           status: Database["public"]["Enums"]["shift_status"]
           tipo_plantao: string
-          unidade_id: string
+          unidade_id: string | null
           updated_at: string
         }
         Insert: {
@@ -1159,10 +1159,10 @@ export type Database = {
           observacoes?: string | null
           profissao: Database["public"]["Enums"]["profissao_type"]
           profissional_id: string
-          setor_id: string
+          setor_id?: string | null
           status?: Database["public"]["Enums"]["shift_status"]
           tipo_plantao?: string
-          unidade_id: string
+          unidade_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -1185,10 +1185,10 @@ export type Database = {
           observacoes?: string | null
           profissao?: Database["public"]["Enums"]["profissao_type"]
           profissional_id?: string
-          setor_id?: string
+          setor_id?: string | null
           status?: Database["public"]["Enums"]["shift_status"]
           tipo_plantao?: string
-          unidade_id?: string
+          unidade_id?: string | null
           updated_at?: string
         }
         Relationships: [
