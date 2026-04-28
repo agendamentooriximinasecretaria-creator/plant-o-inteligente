@@ -789,8 +789,15 @@ export default function EscalaPage() {
   // Imprimir Escala — modal completo, dados reais e seguros
   // (NÃO expõe CPF, banco, endereço residencial ou observações privadas do profissional)
   // ==========================================================
+  type PrintModelo =
+    | 'mensal_oficial'
+    | 'semanal_simples'
+    | 'lista'
+    | 'por_profissional'
+    | 'por_setor'
+    | 'detalhado'; // legado mantido p/ compatibilidade
   type PrintForm = {
-    modelo: 'detalhado' | 'mensal_oficial';
+    modelo: PrintModelo;
     periodo: 'semana' | 'mes' | 'personalizado';
     dataIni: string;
     dataFim: string;
