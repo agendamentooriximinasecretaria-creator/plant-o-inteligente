@@ -12,6 +12,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import ComprovanteTroca from "@/components/ComprovanteTroca";
 import SwapAttachmentsSection, { type PendingFile } from "@/components/SwapAttachmentsSection";
 import { uploadSwapAttachment } from "@/lib/swapAttachments";
+import { useSwapAttachmentSettings, motivoEhSaude, HEALTH_DOC_TYPES } from "@/lib/swapAttachmentSettings";
 
 const tabs = [
   { id: "solicitar", label: "Solicitar Troca" },
@@ -45,7 +46,7 @@ export default function MinhasTrocasPage() {
   });
 
   const needsManagerApproval = (settings as any)?.aprovacao_gestor_trocas ?? true;
-
+  const { data: attachSettings } = useSwapAttachmentSettings();
   // Fetch own profile to know the personal limits
   const { data: myProfile } = useQuery({
     queryKey: ["my-professional-limits", professionalId],
@@ -121,6 +122,19 @@ export default function MinhasTrocasPage() {
       if (!form.shift_id || !form.motivo) throw new Error("Selecione um plantão e informe o motivo.");
       if (form.tipo === "direto" && !form.destinatario_id) throw new Error("Selecione o destinatário da troca direta.");
 
+      // Validações de anexos conforme configuração
+      const ehSaude = motivoEhSaude(form.motivo) || pendingAttachments.some((p) => HEALTH_DOC_TYPES.has(p.tipo));
+      const obrigatorioAgora =
+        attachSettings?.permitir_anexos && (
+          attachSettings?.obrigatorio ||
+          (attachSettings?.obrigatorio_apenas_saude && ehSaude)
+        );
+      if (obrigatorioAgora && pendingAttachments.length === 0) {
+        throw new Error("É obrigatório anexar documento justificativo para este tipo de troca.");
+      }
+      if (attachSettings?.exigir_descricao && pendingAttachments.some((p) => !p.descricao.trim())) {
+        throw new Error("A descrição é obrigatória em todos os anexos conforme configuração do sistema.");
+      }
       const { data: inserted, error } = await supabase
         .from("shift_swaps")
         .insert({

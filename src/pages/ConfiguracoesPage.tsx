@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { ShiftTypesManager } from "@/components/ShiftTypesManager";
 import DocumentTemplatesManager from "@/components/document-templates/DocumentTemplatesManager";
+import SwapAttachmentSettingsManager from "@/components/SwapAttachmentSettingsManager";
 
 // Strip credentials/secrets before logging settings to audit trail.
 function sanitizeSettingForAudit(key: string, value: any): any {
@@ -172,7 +173,12 @@ export default function ConfiguracoesPage() {
           </button>
         </motion.div>
 
-        {/* Conflict Rules */}
+        {/* Anexos em Trocas de Plantão */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.045 }} className={sectionClass}>
+          <SwapAttachmentSettingsManager />
+        </motion.div>
+
+
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className={sectionClass}>
           <div className="flex items-start gap-3 mb-4"><div className="p-2 rounded-lg bg-primary/10"><Shield className="h-5 w-5 text-primary" /></div><div><h3 className="font-display font-semibold text-foreground">Regras de Conflito</h3><p className="text-sm text-muted-foreground">Limites e validações automáticas</p></div></div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

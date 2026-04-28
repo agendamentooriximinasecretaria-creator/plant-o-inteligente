@@ -1,11 +1,8 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Paperclip, Upload, FileText, FileImage, FileType2, File as FileIcon, Trash2, Download, Eye, AlertCircle, ShieldX, CheckCircle2, X, BadgeCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  SWAP_ATTACHMENT_TYPES,
-  MAX_FILES_PER_SWAP,
-  MAX_FILE_SIZE_BYTES,
   type SwapAttachment,
   listSwapAttachments,
   uploadSwapAttachment,
@@ -19,6 +16,11 @@ import {
   isPreviewable,
   getFileIconType,
 } from "@/lib/swapAttachments";
+import {
+  useSwapAttachmentSettings,
+  activeDocTypes,
+  DEFAULT_SWAP_ATTACHMENT_SETTINGS,
+} from "@/lib/swapAttachmentSettings";
 import { supabase } from "@/integrations/supabase/client";
 
 type Props = {
@@ -57,9 +59,16 @@ export default function SwapAttachmentsSection({
   swapStatus,
   onChanged,
 }: Props) {
+  const { data: settings = DEFAULT_SWAP_ATTACHMENT_SETTINGS } = useSwapAttachmentSettings();
+  const docTypes = useMemo(() => activeDocTypes(settings), [settings]);
+  const maxFiles = settings.max_arquivos || 5;
+  const maxSizeBytes = (settings.max_tamanho_mb || 10) * 1024 * 1024;
+  const allowedExt = settings.tipos_permitidos || [];
+  const acceptAttr = useMemo(() => allowedExt.map((e) => `.${e}`).join(","), [allowedExt]);
+
   const [attachments, setAttachments] = useState<SwapAttachment[]>([]);
   const [loading, setLoading] = useState(false);
-  const [tipo, setTipo] = useState<string>("atestado_medico");
+  const [tipo, setTipo] = useState<string>(docTypes[0]?.value || "outro");
   const [descricao, setDescricao] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -68,8 +77,16 @@ export default function SwapAttachmentsSection({
   const [senderNames, setSenderNames] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState<{ a: SwapAttachment; url: string; kind: 'pdf' | 'image' } | null>(null);
 
+  // Garante que o tipo selecionado é válido após carregar settings
+  useEffect(() => {
+    if (docTypes.length > 0 && !docTypes.some((t) => t.value === tipo)) {
+      setTipo(docTypes[0].value);
+    }
+  }, [docTypes, tipo]);
+
   const isPendingMode = !trocaId;
   const swapEditable = !swapStatus || ["solicitada", "aguardando_resposta"].includes(swapStatus);
+  const podeRemoverPendente = settings.permitir_remover_pendente;
 
   const reload = useCallback(async () => {
     if (!trocaId) return;
@@ -101,7 +118,7 @@ export default function SwapAttachmentsSection({
   }, [attachments, senderNames]);
 
   const totalCount = (isPendingMode ? pendingFiles.length : attachments.filter(a => a.status === "ativo").length);
-  const limitReached = totalCount >= MAX_FILES_PER_SWAP;
+  const limitReached = totalCount >= maxFiles;
 
   const handlePick = () => fileRef.current?.click();
 
@@ -110,9 +127,13 @@ export default function SwapAttachmentsSection({
     const file = files[0];
     fileRef.current && (fileRef.current.value = "");
 
-    const err = validateFile(file);
+    const err = validateFile(file, { allowedExtensions: allowedExt, maxSizeBytes });
     if (err) { toast.error(err); return; }
-    if (limitReached) { toast.error(`Máximo de ${MAX_FILES_PER_SWAP} anexos por solicitação.`); return; }
+    if (limitReached) { toast.error(`Máximo de ${maxFiles} anexos por solicitação.`); return; }
+    if (settings.exigir_descricao && !descricao.trim()) {
+      toast.error("Descrição do anexo é obrigatória conforme configuração do sistema.");
+      return;
+    }
 
     if (isPendingMode) {
       onPendingChange?.([...pendingFiles, { uid: newUid(), file, tipo, descricao: descricao.trim() }]);
@@ -227,19 +248,30 @@ export default function SwapAttachmentsSection({
     return <FileIcon className={`${cls} text-muted-foreground`} />;
   };
 
+  // Quando anexos estão totalmente desativados pela configuração, esconde a seção (gestores ainda veem para revisar histórico).
+  if (!settings.permitir_anexos && !isManager && totalCount === 0) {
+    return null;
+  }
+
   return (
     <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Paperclip className="h-4 w-4 text-primary" />
           <h4 className="text-sm font-semibold text-foreground">Anexos justificativos</h4>
+          {settings.obrigatorio && !settings.obrigatorio_apenas_saude && (
+            <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] text-destructive">Obrigatório</span>
+          )}
+          {settings.obrigatorio_apenas_saude && (
+            <span className="rounded bg-warning/10 px-1.5 py-0.5 text-[10px] text-warning">Obrigatório se saúde</span>
+          )}
         </div>
         <span className="text-[11px] text-muted-foreground">
-          {totalCount}/{MAX_FILES_PER_SWAP} • até {Math.round(MAX_FILE_SIZE_BYTES / 1024 / 1024)} MB
+          {totalCount}/{maxFiles} • até {settings.max_tamanho_mb} MB
         </span>
       </div>
 
-      {canUpload && (!swapStatus || swapEditable) && (
+      {settings.permitir_anexos && canUpload && (!swapStatus || swapEditable) && (
         <div className="space-y-2 rounded-md border border-border bg-background p-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
@@ -250,27 +282,29 @@ export default function SwapAttachmentsSection({
                 disabled={limitReached || busy}
                 className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring"
               >
-                {SWAP_ATTACHMENT_TYPES.map((t) => (
+                {docTypes.map((t) => (
                   <option key={t.value} value={t.value}>{t.label}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-foreground">Descrição (opcional)</label>
+              <label className="text-xs font-medium text-foreground">
+                Descrição {settings.exigir_descricao ? <span className="text-destructive">*</span> : "(opcional)"}
+              </label>
               <input
                 value={descricao}
                 onChange={(e) => setDescricao(e.target.value.slice(0, 200))}
                 disabled={limitReached || busy}
-                placeholder="Observação do anexo"
+                placeholder={settings.exigir_descricao ? "Descrição obrigatória do anexo" : "Observação do anexo"}
                 className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <input
               ref={fileRef}
               type="file"
-              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,application/pdf,image/jpeg,image/png,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              accept={acceptAttr}
               className="hidden"
               onChange={(e) => handleFiles(e.target.files)}
             />
@@ -283,14 +317,20 @@ export default function SwapAttachmentsSection({
               <Upload className="h-3.5 w-3.5" />
               {busy ? "Enviando..." : isPendingMode ? "Adicionar anexo" : "Enviar anexo"}
             </button>
-            <p className="text-[11px] text-muted-foreground">PDF, JPG, PNG, DOC ou DOCX</p>
+            <p className="text-[11px] text-muted-foreground uppercase">{allowedExt.join(", ")}</p>
           </div>
           {limitReached && (
             <p className="flex items-center gap-1 text-[11px] text-warning">
-              <AlertCircle className="h-3 w-3" /> Limite de {MAX_FILES_PER_SWAP} anexos atingido.
+              <AlertCircle className="h-3 w-3" /> Limite de {maxFiles} anexos atingido.
             </p>
           )}
         </div>
+      )}
+
+      {!settings.permitir_anexos && (
+        <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+          <AlertCircle className="h-3 w-3" /> Anexos em trocas estão desativados nas configurações do sistema.
+        </p>
       )}
 
       {/* Pendentes */}
@@ -321,7 +361,7 @@ export default function SwapAttachmentsSection({
           )}
           {attachments.map((a) => {
             const isMine = a.enviado_por_profissional_id === professionalId;
-            const canDelete = (isMine && swapEditable) || isManager;
+            const canDelete = (isMine && swapEditable && podeRemoverPendente) || isManager;
             const rejected = a.status === "rejeitado";
             const previewable = isPreviewable(a.mime_type, a.nome_original);
             const senderName = a.enviado_por_profissional_id ? (senderNames[a.enviado_por_profissional_id] || '—') : 'Sistema';
