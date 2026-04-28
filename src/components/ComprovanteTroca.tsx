@@ -317,14 +317,43 @@ export default function ComprovanteTroca({ trocaId, onClose }: Props) {
           ))}
         </div>
 
+        {/* Assinaturas eletrônicas */}
+        {signatures.length > 0 && (
+          <div className="mt-4 space-y-2">
+            {signatures.filter(s => s.status === 'ativa').map(s => (
+              <div key={s.id} className="rounded-md border border-border p-3 text-[11px] flex gap-3 items-center bg-muted/20">
+                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(`${window.location.origin}/validar/${s.validation_code}`)}`}
+                  alt="QR" className="h-16 w-16" />
+                <div className="leading-relaxed">
+                  <div><strong>Documento assinado eletronicamente</strong> por <strong>{s.signer_name}</strong>, {s.signer_role.replace('_', ' ')}, em {new Date(s.signed_at).toLocaleString('pt-BR')}.</div>
+                  <div>Código: <strong className="font-mono">{s.validation_code}</strong> · Verifique em /validar/{s.validation_code}</div>
+                  <div className="text-muted-foreground italic text-[10px]">Assinatura eletrônica interna — não substitui ICP-Brasil.</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Footer */}
-        <div className="border-t border-border pt-3 text-center text-[10px] text-muted-foreground space-y-0.5">
+        <div className="border-t border-border pt-3 text-center text-[10px] text-muted-foreground space-y-0.5 mt-4">
           <p>Gerado em: {new Date().toLocaleString("pt-BR")} | Usuário: {user?.email || ""}</p>
           <p>ID do Registro: {trocaId}</p>
           <p>GestorPlantão SMS Oriximiná — gestorplantaosmsoriximina.lovable.app</p>
           <p className="italic mt-1">Este documento é válido como comprovante de troca de plantão conforme registrado no sistema.</p>
         </div>
       </div>
+
+      <SignDocumentDialog
+        open={signOpen}
+        onOpenChange={setSignOpen}
+        document={{
+          document_type: 'troca',
+          document_id: trocaId,
+          document_title: `Comprovante de troca ${seqNumber()}`,
+          content: JSON.stringify({ trocaId, troca: data?.troca, shiftOrigem: data?.shiftOrigem, shiftDestino: data?.shiftDestino }),
+        }}
+        onSigned={() => refreshSigs()}
+      />
     </div>
   );
 }
