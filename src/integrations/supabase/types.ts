@@ -159,6 +159,107 @@ export type Database = {
           },
         ]
       }
+      document_templates: {
+        Row: {
+          abnt_config: Json
+          ativo: boolean
+          conteudo_html: string
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          escopo: Database["public"]["Enums"]["document_template_scope"]
+          id: string
+          is_personalizado: boolean
+          is_system_default: boolean
+          nome: string
+          owner_profissional_id: string | null
+          perfis_edicao: string[]
+          perfis_uso: string[]
+          setor_id: string | null
+          sigla: string | null
+          tipo: Database["public"]["Enums"]["document_template_type"]
+          unidade_id: string | null
+          updated_at: string
+          variaveis_disponiveis: string[] | null
+          versao: number
+        }
+        Insert: {
+          abnt_config?: Json
+          ativo?: boolean
+          conteudo_html?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          escopo?: Database["public"]["Enums"]["document_template_scope"]
+          id?: string
+          is_personalizado?: boolean
+          is_system_default?: boolean
+          nome: string
+          owner_profissional_id?: string | null
+          perfis_edicao?: string[]
+          perfis_uso?: string[]
+          setor_id?: string | null
+          sigla?: string | null
+          tipo: Database["public"]["Enums"]["document_template_type"]
+          unidade_id?: string | null
+          updated_at?: string
+          variaveis_disponiveis?: string[] | null
+          versao?: number
+        }
+        Update: {
+          abnt_config?: Json
+          ativo?: boolean
+          conteudo_html?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          escopo?: Database["public"]["Enums"]["document_template_scope"]
+          id?: string
+          is_personalizado?: boolean
+          is_system_default?: boolean
+          nome?: string
+          owner_profissional_id?: string | null
+          perfis_edicao?: string[]
+          perfis_uso?: string[]
+          setor_id?: string | null
+          sigla?: string | null
+          tipo?: Database["public"]["Enums"]["document_template_type"]
+          unidade_id?: string | null
+          updated_at?: string
+          variaveis_disponiveis?: string[] | null
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_templates_owner_profissional_id_fkey"
+            columns: ["owner_profissional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_templates_owner_profissional_id_fkey"
+            columns: ["owner_profissional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_templates_setor_id_fkey"
+            columns: ["setor_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_templates_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       historico_ocupacao: {
         Row: {
           id: string
@@ -1146,6 +1247,19 @@ export type Database = {
     }
     Enums: {
       app_role: "gestor_master" | "coordenador" | "profissional"
+      document_template_scope: "global" | "unidade" | "setor" | "pessoal"
+      document_template_type:
+        | "escala_mensal_oficial"
+        | "escala_semanal"
+        | "comprovante_plantao"
+        | "solicitacao_troca"
+        | "aprovacao_troca"
+        | "recusa_troca"
+        | "declaracao_comparecimento"
+        | "relatorio_plantoes"
+        | "relatorio_horas"
+        | "ficha_profissional"
+        | "personalizado"
       profissao_type:
         | "medico"
         | "enfermeiro"
@@ -1304,6 +1418,20 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["gestor_master", "coordenador", "profissional"],
+      document_template_scope: ["global", "unidade", "setor", "pessoal"],
+      document_template_type: [
+        "escala_mensal_oficial",
+        "escala_semanal",
+        "comprovante_plantao",
+        "solicitacao_troca",
+        "aprovacao_troca",
+        "recusa_troca",
+        "declaracao_comparecimento",
+        "relatorio_plantoes",
+        "relatorio_horas",
+        "ficha_profissional",
+        "personalizado",
+      ],
       profissao_type: [
         "medico",
         "enfermeiro",
