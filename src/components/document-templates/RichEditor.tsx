@@ -62,7 +62,7 @@ export function RichEditor({ value, onChange, variaveis = [], font = 'Times', fo
     </button>
   );
 
-  const insertVar = (v: string) => editor.chain().focus().insertContent(`{{${v}}}`).run();
+  void variaveis; // mantido p/ compat — menu de variáveis agora abre modal completo
 
   const fontFamilyMap: Record<string, string> = {
     Times: '"Times New Roman", Times, serif',
