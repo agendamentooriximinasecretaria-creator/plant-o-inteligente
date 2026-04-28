@@ -5,8 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { invalidateCrossShifts } from "@/lib/queryInvalidation";
 import { logAudit } from "@/lib/auditLog";
 import { dispatchNotification } from "@/lib/notifyHelper";
-import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info, Users as UsersIcon, Palmtree, AlertTriangle, LayoutGrid, MoreHorizontal, Printer, FileText, FileSpreadsheet, CopyPlus, ShieldCheck, Send, Megaphone, Loader2, Search, X } from "lucide-react";
+import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info, Users as UsersIcon, Palmtree, AlertTriangle, LayoutGrid, MoreHorizontal, Printer, FileText, FileSpreadsheet, CopyPlus, ShieldCheck, Send, Megaphone, Loader2, Search, X, Table2 } from "lucide-react";
 import { WeeklyGrid, type ProfRow, type GridShift } from "@/components/schedule/WeeklyGrid";
+import { MonthlyConsolidatedGrid } from "@/components/schedule/MonthlyConsolidatedGrid";
 import { ContactActionButton } from "@/components/ContactActionButton";
 import { MoreActionsMenu } from "@/components/MoreActionsMenu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -115,7 +116,7 @@ function ShiftHistoryView({ shiftId }: { shiftId: string }) {
 
 export default function EscalaPage() {
   const sb = supabase as any;
-  const [view, setView] = useState<'lista' | 'calendario' | 'grade'>('lista');
+  const [view, setView] = useState<'lista' | 'calendario' | 'grade' | 'consolidada'>('lista');
   // ---- Filtros da Escala ----
   type FiltrosEscala = {
     unidadeId: string; setorId: string; profissao: string; profissionalId: string;
@@ -1426,6 +1427,7 @@ export default function EscalaPage() {
             <button onClick={() => setView('lista')} className={`p-1.5 rounded-md transition-all ${view === 'lista' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}><List className="h-4 w-4" /></button>
             <button onClick={() => setView('calendario')} className={`p-1.5 rounded-md transition-all ${view === 'calendario' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}><Calendar className="h-4 w-4" /></button>
             <button onClick={() => setView('grade')} className={`p-1.5 rounded-md transition-all ${view === 'grade' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`} title="Grade semanal"><LayoutGrid className="h-4 w-4" /></button>
+            <button onClick={() => setView('consolidada')} className={`p-1.5 rounded-md transition-all ${view === 'consolidada' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`} title="Escala mensal consolidada"><Table2 className="h-4 w-4" /></button>
           </div>
           {!isProfessional && (
             <button onClick={() => { setFolgaForm(emptyFolga); setFolgaModalOpen(true); }} className="flex items-center gap-1.5 border border-input bg-card px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-muted text-foreground transition-colors"><Palmtree className="h-3.5 w-3.5 text-amber-600" /> Folga</button>
@@ -1749,6 +1751,25 @@ export default function EscalaPage() {
               }
             }}
             onCreateClick={(dateStr) => openEmptyCellMenu(dateStr)}
+          />
+        </motion.div>
+      ) : view === 'consolidada' ? (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <MonthlyConsolidatedGrid
+            shifts={filtered.map((s: any) => ({
+              id: s.id,
+              profissional_id: s.profissional_id,
+              profissional_nome: (s.professionals as any)?.nome || 'Sem nome',
+              profissao: PROFISSAO_LABELS[(s.professionals as any)?.profissao] || '',
+              data: s.data,
+              tipo_plantao: s.tipo_plantao,
+              hora_inicio: s.hora_inicio,
+              hora_fim: s.hora_fim,
+              carga_horaria: Number(s.carga_horaria || 0),
+              status: s.status,
+            }))}
+            tipos={TIPOS_PLANTAO}
+            initialMonth={filtros.dataIni ? filtros.dataIni.slice(0, 7) : undefined}
           />
         </motion.div>
       ) : (
