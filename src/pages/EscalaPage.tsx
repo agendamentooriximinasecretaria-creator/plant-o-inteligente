@@ -972,10 +972,175 @@ export default function EscalaPage() {
     incluirConselho: printForm.incluirConselho,
   });
 
+  // ============== Builder do modelo "Escala Mensal Oficial" ==============
+  // Agrupa por profissional × dia do mês selecionado (printForm.mesRef)
+  const buildMensalOficial = async (): Promise<{ profs: MensalProfissional[]; cab: MensalCabecalho; tipos: MensalTipoLegenda[] } | null> => {
+    if (!printForm.mesRef) { toast.error('Selecione o mês.'); return null; }
+    const [yStr, mStr] = printForm.mesRef.split('-');
+    const ano = parseInt(yStr, 10);
+    const mes = parseInt(mStr, 10);
+    if (!ano || !mes) { toast.error('Mês inválido.'); return null; }
+    const dataIni = `${yStr}-${mStr}-01`;
+    const ultimoDia = new Date(ano, mes, 0).getDate();
+    const dataFim = `${yStr}-${mStr}-${String(ultimoDia).padStart(2, '0')}`;
+
+    let q = sb.from('shifts')
+      .select('id, data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, status, profissional_id, professionals:profissional_id(nome, profissao, conselho, registro), units:unidade_id(nome), sectors:setor_id(nome), unidade_id, setor_id, profissao')
+      .gte('data', dataIni).lte('data', dataFim)
+      .order('data', { ascending: true })
+      .order('hora_inicio', { ascending: true });
+    if (printForm.unidadeId) q = q.eq('unidade_id', printForm.unidadeId);
+    if (printForm.setorId) q = q.eq('setor_id', printForm.setorId);
+    if (printForm.profissionalId) q = q.eq('profissional_id', printForm.profissionalId);
+    if (printForm.profissao) q = q.eq('profissao', printForm.profissao);
+    if (printForm.tipoPlantao) q = q.eq('tipo_plantao', printForm.tipoPlantao);
+    if (printForm.status) q = q.eq('status', printForm.status);
+    if (printForm.somentePublicada) q = q.in('status', ['confirmado', 'concluido', 'agendado']);
+
+    const { data, error } = await q;
+    if (error) { toast.error('Falha ao carregar plantões: ' + error.message); return null; }
+
+    let rows = (data as any[]) || [];
+    if (!printForm.incluirFolgas) {
+      rows = rows.filter((r) => !['folga', 'indisponibilidade'].includes(String(r.tipo_plantao || '').toLowerCase()));
+    }
+    if (!printForm.incluirAfastamentos) {
+      rows = rows.filter((r) => {
+        const t = String(r.tipo_plantao || '').toLowerCase();
+        return !['ferias', 'férias', 'licenca', 'licença', 'licenca premio', 'licença prêmio', 'lp', 'atestado'].some((k) => t.includes(k));
+      });
+    }
+
+    // Agrupa por profissional
+    const map = new Map<string, MensalProfissional>();
+    for (const s of rows) {
+      const profId = s.profissional_id;
+      if (!profId) continue;
+      const prof = s.professionals || {};
+      let row = map.get(profId);
+      if (!row) {
+        const conselho = printForm.incluirConselho && (prof.conselho || prof.registro)
+          ? `${prof.conselho || ''}${prof.registro ? ' ' + prof.registro : ''}`.trim()
+          : undefined;
+        row = {
+          id: profId,
+          nome: prof.nome || '—',
+          profissao: PROFISSAO_LABELS[prof.profissao] || prof.profissao || '',
+          conselho,
+          porDia: {},
+          totalHoras: 0,
+          totalPlantoes: 0,
+        };
+        map.set(profId, row);
+      }
+      const dia = parseInt(String(s.data).slice(8, 10), 10);
+      if (!row.porDia[dia]) row.porDia[dia] = [];
+      row.porDia[dia].push({
+        dia,
+        sigla: tipoToSigla(s.tipo_plantao),
+        tipo: s.tipo_plantao,
+        hora_inicio: s.hora_inicio,
+        hora_fim: s.hora_fim,
+        carga: Number(s.carga_horaria) || 0,
+        status: s.status,
+      });
+      const carga = Number(s.carga_horaria) || 0;
+      if (s.status !== 'cancelado' && !['folga', 'indisponibilidade'].includes(String(s.tipo_plantao || '').toLowerCase())) {
+        row.totalHoras += carga;
+        row.totalPlantoes += 1;
+      }
+    }
+
+    const profs = Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+
+    const setorNome = printForm.setorId
+      ? ((sectors as any[]).find((x: any) => x.id === printForm.setorId)?.nome || '')
+      : undefined;
+    const unidadeNome = printForm.unidadeId
+      ? ((units as any[]).find((u: any) => u.id === printForm.unidadeId)?.nome || '')
+      : (instituicaoCfg?.nome || 'Hospital Municipal de Oriximiná');
+
+    const profissaoLabel = printForm.profissao
+      ? (PROFISSAO_LABELS[printForm.profissao] || printForm.profissao)
+      : undefined;
+
+    const cab: MensalCabecalho = {
+      instituicao: {
+        prefeitura: 'Prefeitura Municipal de Oriximiná',
+        secretaria: 'Secretaria Municipal de Saúde',
+        unidade: unidadeNome,
+        cnpj: instituicaoCfg?.cnpj,
+      },
+      ano, mes,
+      setor: setorNome,
+      profissaoLabel,
+      emitidoPor: profileName || user?.email || '—',
+      sistema: 'GestorPlantão SMS Oriximiná',
+    };
+
+    // Legenda automática a partir dos tipos configurados
+    const tipos: MensalTipoLegenda[] = (TIPOS_PLANTAO || []).map((t) => ({
+      sigla: t.sigla,
+      nome: t.value,
+      start: t.start,
+      end: t.end,
+      carga: t.carga,
+    }));
+
+    return { profs, cab, tipos };
+  };
+
+  const mensalOpts = (): MensalOpts => ({
+    incluirLogo: printForm.incluirLogo,
+    incluirAssinatura: printForm.incluirAssinatura,
+    incluirTotalHoras: printForm.incluirTotalHoras,
+    incluirObservacoesRodape: printForm.incluirObservacoesRodape,
+    totalLabel: printForm.totalLabel,
+    responsavel: {
+      nome: printForm.responsavelNome || undefined,
+      cargo: printForm.responsavelCargo || undefined,
+      conselho: printForm.responsavelConselho || undefined,
+    },
+  });
+
   const handlePrintAction = async (acao: 'view' | 'print' | 'pdf-open' | 'pdf-save') => {
     if (printBusy) return;
     setPrintBusy(acao);
     try {
+      // ===== Modelo "Escala Mensal Oficial" =====
+      if (printForm.modelo === 'mensal_oficial') {
+        const built = await buildMensalOficial();
+        if (!built) return;
+        const { profs, cab, tipos } = built;
+        if (!profs.length) {
+          toast.warning('Nenhum plantão encontrado para os filtros selecionados.');
+          return;
+        }
+        const filename = `escala_oficial_${printForm.mesRef}`;
+        if (acao === 'view') {
+          const ok = abrirEscalaMensalOficial(cab, profs, tipos, mensalOpts(), false);
+          if (!ok) toast.error('Bloqueador de popups impediu a visualização.');
+        } else if (acao === 'print') {
+          const ok = abrirEscalaMensalOficial(cab, profs, tipos, mensalOpts(), true);
+          if (!ok) toast.error('Bloqueador de popups impediu a impressão.');
+        } else if (acao === 'pdf-open') {
+          await gerarPdfEscalaMensalOficial(cab, profs, tipos, mensalOpts(), filename, 'open');
+        } else if (acao === 'pdf-save') {
+          await gerarPdfEscalaMensalOficial(cab, profs, tipos, mensalOpts(), filename, 'save');
+        }
+        logAudit('Escala impressa/PDF (Mensal Oficial)', 'escala', {
+          acao, total: profs.length, mesRef: printForm.mesRef,
+          filtros: {
+            unidade: printForm.unidadeId || null, setor: printForm.setorId || null,
+            profissional: printForm.profissionalId || null, profissao: printForm.profissao || null,
+            tipo: printForm.tipoPlantao || null, status: printForm.status || null,
+            publicada: printForm.somentePublicada,
+          },
+        });
+        return;
+      }
+
+      // ===== Modelo Detalhado (legado, mantido) =====
       const built = await buildPrintLinhas();
       if (!built) return;
       const { linhas, cab } = built;
