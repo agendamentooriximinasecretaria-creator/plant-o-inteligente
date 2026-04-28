@@ -13,6 +13,7 @@ import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { MoreActionsMenu } from "@/components/MoreActionsMenu";
+import SignActionButton from "@/components/SignActionButton";
 
 const PROFISSAO_LABELS: Record<string, string> = { medico: 'Médico(a)', enfermeiro: 'Enfermeiro(a)', fisioterapeuta: 'Fisioterapeuta', tecnico_enfermagem: 'Téc. Enfermagem', biomedico: 'Biomédico(a)', psicologo: 'Psicólogo(a)', terapeuta_ocupacional: 'Terapeuta Ocupacional', nutricionista: 'Nutricionista', fonoaudiologo: 'Fonoaudiólogo(a)', farmaceutico: 'Farmacêutico(a)', outro: 'Outro' };
 
@@ -620,6 +621,25 @@ export default function RelatoriosPage() {
             <button onClick={closeModal} className="px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted inline-flex items-center gap-1.5">
               <X className="h-4 w-4" /> Fechar
             </button>
+            {modalReport && preview && (isMaster || isCoordinator) && (
+              <SignActionButton
+                signLabel="Assinar relatório"
+                getDocument={() => ({
+                  document_type: `relatorio_${modalReport.id}`,
+                  document_id: `${modalReport.id}_${(filtros.dataIni || 'all')}_${(filtros.dataFim || 'all')}`,
+                  document_title: `${modalReport.nome} — ${periodoLabel}`,
+                  content: JSON.stringify({
+                    nome: modalReport.nome,
+                    periodo: periodoLabel,
+                    filtros: filtrosAplicados,
+                    columns: preview.columns,
+                    rows: preview.rows,
+                    totalHoras: preview.totalHoras,
+                  }),
+                  metadata: { reportId: modalReport.id, totalRegistros: preview.rows.length },
+                })}
+              />
+            )}
             <div className="flex flex-wrap gap-2 ml-auto">
               <button onClick={acaoVisualizar} disabled={!preview} className="px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted inline-flex items-center gap-1.5 disabled:opacity-50">
                 <Eye className="h-4 w-4" /> Visualizar
