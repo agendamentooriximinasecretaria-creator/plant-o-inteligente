@@ -1901,8 +1901,15 @@ export default function EscalaPage() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-xl border border-border/60 overflow-hidden shadow-[var(--shadow-card)]">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead><tr className="table-header">
-                <th className="text-left p-3">Profissional</th><th className="text-left p-3">Setor</th><th className="text-left p-3">Data</th><th className="text-left p-3">Horário</th><th className="text-left p-3">Tipo</th><th className="text-left p-3">Status</th><th className="text-left p-3">Ações</th>
+              <thead><tr className="table-header text-xs uppercase tracking-wide">
+                <th className="text-left px-3 py-2.5">Profissional</th>
+                <th className="text-left px-3 py-2.5">Profissão</th>
+                <th className="text-left px-3 py-2.5">Setor</th>
+                <th className="text-left px-3 py-2.5">Data</th>
+                <th className="text-left px-3 py-2.5">Horário</th>
+                <th className="text-left px-3 py-2.5">Tipo</th>
+                <th className="text-left px-3 py-2.5">Status</th>
+                <th className="text-right px-3 py-2.5">Ações</th>
               </tr></thead>
               <tbody>
                 {filtered.length === 0 && (
