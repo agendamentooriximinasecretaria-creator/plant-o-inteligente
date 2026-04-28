@@ -197,6 +197,35 @@ export default function ProfissionaisPage() {
     onError: (e: Error) => toast.error('Erro: ' + e.message),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (p: { id: string; nome: string }) => {
+      const { error } = await supabase.from('professionals').delete().eq('id', p.id);
+      if (error) throw error;
+      await logAudit('Profissional excluído', 'profissionais', { id: p.id, nome: p.nome });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['professionals'] });
+      toast.success('Profissional excluído com sucesso.');
+    },
+    onError: (e: Error) => toast.error('Não foi possível excluir: ' + e.message),
+  });
+
+  const handleDelete = async (p: any) => {
+    if ((p.email || '').toLowerCase() === 'artemiosouza99@gmail.com') {
+      toast.error('O Gestor Master raiz não pode ser excluído.');
+      return;
+    }
+    const ok = await confirm({
+      title: `Excluir ${p.nome}?`,
+      description: 'O profissional será removido permanentemente do cadastro. Plantões anteriores podem ficar órfãos. Esta ação não pode ser desfeita.',
+      confirmText: 'Excluir definitivamente',
+      cancelText: 'Cancelar',
+      variant: 'destructive',
+    });
+    if (!ok) return;
+    deleteMutation.mutate({ id: p.id, nome: p.nome });
+  };
+
   const closeModal = () => { setModalOpen(false); setEditingId(null); setForm(emptyForm); };
 
   const openEdit = async (p: any) => {
