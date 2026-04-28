@@ -154,6 +154,37 @@ export default function UsuariosPage() {
     onError: (error: any) => toast.error(error.message ?? "Erro ao alterar perfil."),
   });
 
+  const deleteUser = useMutation({
+    mutationFn: async (target: { user_id: string; email?: string; nome?: string }) => {
+      const { data, error } = await sb.functions.invoke("user-admin", {
+        body: { action: "delete_user", user_id: target.user_id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      await logAudit('Usuário excluído', 'usuarios', { user_id: target.user_id, alvo_email: target.email, alvo_nome: target.nome });
+    },
+    onSuccess: () => {
+      toast.success("Usuário excluído com sucesso.");
+      qc.invalidateQueries({ queryKey: ["users-admin"] });
+      qc.invalidateQueries({ queryKey: ["users-admin-professionals"] });
+    },
+    onError: (error: any) => toast.error(error.message ?? "Erro ao excluir usuário."),
+  });
+
+  const handleDelete = async (u: any) => {
+    if (!u.user_id) { toast.error('Usuário sem vínculo de autenticação.'); return; }
+    if (u.user_id === authUser?.id) { toast.error('Você não pode excluir a si mesmo.'); return; }
+    const ok = await confirm({
+      title: `Excluir ${u.nome}?`,
+      description: `Esta ação remove definitivamente o acesso de ${u.email || u.nome} ao sistema. Não pode ser desfeita.`,
+      confirmText: 'Excluir definitivamente',
+      cancelText: 'Cancelar',
+      variant: 'destructive',
+    });
+    if (!ok) return;
+    deleteUser.mutate({ user_id: u.user_id, email: u.email, nome: u.nome });
+  };
+
   const availableProfessionals = professionals.filter((p: any) => !p.user_id || p.id === form.professional_id);
 
   const exportarUsuariosCSV = () => {
