@@ -125,10 +125,19 @@ export default function DocumentTemplatesManager() {
 
   const previewPdf = async (t: DocumentTemplate, acao: 'open' | 'save' | 'print' = 'open') => {
     try {
+      // Tenta usar dados reais do usuário corrente quando aplicável; cai em samples se não houver.
+      const ctx: any = { profissionalId: professionalId || undefined };
+      const now = new Date();
+      ctx.mes = now.getMonth() + 1;
+      ctx.ano = now.getFullYear();
+      ctx.unidadeId = t.unidade_id || undefined;
+      ctx.setorId = t.setor_id || undefined;
       await gerarPdfDocumentTemplate({
         nome: t.nome,
         conteudoHtml: t.conteudo_html,
         abnt: t.abnt_config,
+        context: ctx,
+        useSamples: !professionalId, // sem profissional vinculado, usa amostras
         acao,
       });
     } catch (e: any) {
