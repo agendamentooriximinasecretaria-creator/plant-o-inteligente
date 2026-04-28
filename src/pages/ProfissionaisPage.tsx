@@ -92,6 +92,9 @@ export default function ProfissionaisPage() {
   const [form, setForm] = useState(emptyForm);
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const confirm = useConfirm();
+  const { isMaster, isCoordinator } = useAuth();
+  const canDelete = isMaster || isCoordinator;
 
   useRealtimeInvalidation({
     tables: ["shifts", "shift_swaps", "professionals"],
