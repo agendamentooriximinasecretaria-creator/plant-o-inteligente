@@ -124,4 +124,17 @@ export async function gerarPdfDocumentTemplate(opts: {
     const blob = doc.output('bloburl');
     window.open(blob as any, '_blank');
   }
+
+  // Registra documento versionado (silencioso)
+  try {
+    const { registrarDocumentoGerado } = await import('./registrarDocumento');
+    await registrarDocumentoGerado({
+      tipo: 'documento_personalizado',
+      titulo: nome,
+      conteudoHtml: replaced,
+      dadosGeracao: { abnt, contextoUsado: !!context, amostras: !!useSamples },
+      modeloNome: nome,
+    });
+  } catch { /* silencioso */ }
 }
+

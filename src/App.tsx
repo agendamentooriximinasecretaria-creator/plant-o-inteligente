@@ -28,6 +28,7 @@ import MeuPerfilPage from "@/pages/MeuPerfilPage";
 import MinhaIndisponibilidadePage from "@/pages/MinhaIndisponibilidadePage";
 import MeusDocumentosPage from "@/pages/MeusDocumentosPage";
 import ValidarAssinaturaPage from "@/pages/ValidarAssinaturaPage";
+import DocumentosOficiaisPage from "@/pages/DocumentosOficiaisPage";
 
 const queryClient = new QueryClient();
 
@@ -115,6 +116,7 @@ const App = () => (
                 <Route path="/medicos" element={<Navigate to="/profissionais" replace />} />
                 <Route path="/setores" element={<ManagerOnly><SetoresPage /></ManagerOnly>} />
                 <Route path="/relatorios" element={<ManagerOnly><RelatoriosPage /></ManagerOnly>} />
+                <Route path="/documentos-oficiais" element={<ManagerOnly><DocumentosOficiaisPage /></ManagerOnly>} />
                 {/* Legacy financial routes redirect */}
                 <Route path="/financeiro" element={<Navigate to="/dashboard" replace />} />
 
