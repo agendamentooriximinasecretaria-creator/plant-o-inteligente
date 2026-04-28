@@ -52,6 +52,7 @@ export default function TrocasPage() {
   const { isMaster } = useAuth();
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [comprovanteId, setComprovanteId] = useState<string | null>(null);
+  const [attachmentsSwapId, setAttachmentsSwapId] = useState<string | null>(null);
   const [reviewSwap, setReviewSwap] = useState<any | null>(null);
   const [reviewAction, setReviewAction] = useState<'aprovar' | 'rejeitar' | null>(null);
   const [reviewMotivo, setReviewMotivo] = useState('');
