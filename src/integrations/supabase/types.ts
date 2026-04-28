@@ -159,6 +159,86 @@ export type Database = {
           },
         ]
       }
+      document_signatures: {
+        Row: {
+          content_hash: string
+          created_at: string
+          document_id: string
+          document_title: string | null
+          document_type: string
+          document_version: number
+          id: string
+          ip_address: string | null
+          metadata: Json
+          previous_signature_id: string | null
+          revoke_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          signed_at: string
+          signed_by_professional_id: string | null
+          signed_by_user_id: string
+          signer_name: string
+          signer_role: Database["public"]["Enums"]["signature_role"]
+          status: Database["public"]["Enums"]["signature_status"]
+          user_agent: string | null
+          validation_code: string
+        }
+        Insert: {
+          content_hash: string
+          created_at?: string
+          document_id: string
+          document_title?: string | null
+          document_type: string
+          document_version?: number
+          id?: string
+          ip_address?: string | null
+          metadata?: Json
+          previous_signature_id?: string | null
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          signed_at?: string
+          signed_by_professional_id?: string | null
+          signed_by_user_id: string
+          signer_name: string
+          signer_role: Database["public"]["Enums"]["signature_role"]
+          status?: Database["public"]["Enums"]["signature_status"]
+          user_agent?: string | null
+          validation_code: string
+        }
+        Update: {
+          content_hash?: string
+          created_at?: string
+          document_id?: string
+          document_title?: string | null
+          document_type?: string
+          document_version?: number
+          id?: string
+          ip_address?: string | null
+          metadata?: Json
+          previous_signature_id?: string | null
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          signed_at?: string
+          signed_by_professional_id?: string | null
+          signed_by_user_id?: string
+          signer_name?: string
+          signer_role?: Database["public"]["Enums"]["signature_role"]
+          status?: Database["public"]["Enums"]["signature_status"]
+          user_agent?: string | null
+          validation_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_signatures_previous_signature_id_fkey"
+            columns: ["previous_signature_id"]
+            isOneToOne: false
+            referencedRelation: "document_signatures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_templates: {
         Row: {
           abnt_config: Json
@@ -1313,6 +1393,20 @@ export type Database = {
           unidade_principal_id: string
         }[]
       }
+      validate_signature: {
+        Args: { _code: string }
+        Returns: {
+          content_hash: string
+          document_title: string
+          document_type: string
+          document_version: number
+          signed_at: string
+          signer_name: string
+          signer_role: Database["public"]["Enums"]["signature_role"]
+          status: Database["public"]["Enums"]["signature_status"]
+          validation_code: string
+        }[]
+      }
     }
     Enums: {
       app_role: "gestor_master" | "coordenador" | "profissional"
@@ -1349,6 +1443,12 @@ export type Database = {
         | "trocando"
         | "concluido"
         | "cancelado"
+      signature_role:
+        | "profissional"
+        | "coordenador"
+        | "gestor_master"
+        | "institucional"
+      signature_status: "ativa" | "revogada" | "substituida"
       swap_status:
         | "solicitada"
         | "aguardando_resposta"
@@ -1523,6 +1623,13 @@ export const Constants = {
         "concluido",
         "cancelado",
       ],
+      signature_role: [
+        "profissional",
+        "coordenador",
+        "gestor_master",
+        "institucional",
+      ],
+      signature_status: ["ativa", "revogada", "substituida"],
       swap_status: [
         "solicitada",
         "aguardando_resposta",

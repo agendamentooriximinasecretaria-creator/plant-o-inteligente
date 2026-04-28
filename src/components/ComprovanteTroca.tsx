@@ -1,10 +1,12 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Printer, Download } from "lucide-react";
+import { Printer, Download, ShieldCheck } from "lucide-react";
 import jsPDF from "jspdf";
 import { LOGO_SMS_PATH, getLogoSmsDataUrl } from "@/lib/logoSMS";
+import SignDocumentDialog from "@/components/SignDocumentDialog";
+import { listSignatures, type SignatureRecord } from "@/lib/eSignature";
 
 interface Props {
   trocaId: string;
@@ -14,6 +16,11 @@ interface Props {
 export default function ComprovanteTroca({ trocaId, onClose }: Props) {
   const printRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
+  const [signOpen, setSignOpen] = useState(false);
+  const [signatures, setSignatures] = useState<SignatureRecord[]>([]);
+
+  const refreshSigs = () => listSignatures('troca', trocaId).then(setSignatures).catch(() => {});
+  useEffect(() => { refreshSigs(); }, [trocaId]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["comprovante-troca", trocaId],
@@ -206,6 +213,9 @@ export default function ComprovanteTroca({ trocaId, onClose }: Props) {
         <button onClick={handleDownloadPDF} className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted">
           <Download className="h-4 w-4" /> Baixar PDF
         </button>
+        <button onClick={() => setSignOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-primary text-primary px-4 py-2 text-sm font-medium hover:bg-primary/10">
+          <ShieldCheck className="h-4 w-4" /> Assinar eletronicamente
+        </button>
         {onClose && (
           <button onClick={onClose} className="ml-auto inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted">
             Fechar
@@ -307,14 +317,43 @@ export default function ComprovanteTroca({ trocaId, onClose }: Props) {
           ))}
         </div>
 
+        {/* Assinaturas eletrônicas */}
+        {signatures.length > 0 && (
+          <div className="mt-4 space-y-2">
+            {signatures.filter(s => s.status === 'ativa').map(s => (
+              <div key={s.id} className="rounded-md border border-border p-3 text-[11px] flex gap-3 items-center bg-muted/20">
+                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(`${window.location.origin}/validar/${s.validation_code}`)}`}
+                  alt="QR" className="h-16 w-16" />
+                <div className="leading-relaxed">
+                  <div><strong>Documento assinado eletronicamente</strong> por <strong>{s.signer_name}</strong>, {s.signer_role.replace('_', ' ')}, em {new Date(s.signed_at).toLocaleString('pt-BR')}.</div>
+                  <div>Código: <strong className="font-mono">{s.validation_code}</strong> · Verifique em /validar/{s.validation_code}</div>
+                  <div className="text-muted-foreground italic text-[10px]">Assinatura eletrônica interna — não substitui ICP-Brasil.</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Footer */}
-        <div className="border-t border-border pt-3 text-center text-[10px] text-muted-foreground space-y-0.5">
+        <div className="border-t border-border pt-3 text-center text-[10px] text-muted-foreground space-y-0.5 mt-4">
           <p>Gerado em: {new Date().toLocaleString("pt-BR")} | Usuário: {user?.email || ""}</p>
           <p>ID do Registro: {trocaId}</p>
           <p>GestorPlantão SMS Oriximiná — gestorplantaosmsoriximina.lovable.app</p>
           <p className="italic mt-1">Este documento é válido como comprovante de troca de plantão conforme registrado no sistema.</p>
         </div>
       </div>
+
+      <SignDocumentDialog
+        open={signOpen}
+        onOpenChange={setSignOpen}
+        document={{
+          document_type: 'troca',
+          document_id: trocaId,
+          document_title: `Comprovante de troca ${seqNumber()}`,
+          content: JSON.stringify({ trocaId, troca: data?.troca, shiftOrigem: data?.shiftOrigem, shiftDestino: data?.shiftDestino }),
+        }}
+        onSigned={() => refreshSigs()}
+      />
     </div>
   );
 }

@@ -6,8 +6,9 @@ import { toast } from 'sonner';
 import {
   FileText, Plus, Edit3, Copy, Trash2, Eye, Search, Filter, Lock,
   Globe, Building2, Layers, User as UserIcon, Save, X, Printer, Download,
-  AlertTriangle, Sparkles,
+  AlertTriangle, Sparkles, ShieldCheck,
 } from 'lucide-react';
+import SignDocumentDialog from '@/components/SignDocumentDialog';
 import { motion } from 'framer-motion';
 import { RichEditor } from './RichEditor';
 import {
@@ -85,6 +86,7 @@ export default function DocumentTemplatesManager() {
   };
 
   const canDelete = canEdit;
+  const [signTpl, setSignTpl] = useState<DocumentTemplate | null>(null);
 
   const canCreate = isMaster || isCoordinator || isProfessional;
 
@@ -231,6 +233,8 @@ export default function DocumentTemplatesManager() {
                   className="p-1.5 rounded hover:bg-muted text-foreground"><Download className="h-4 w-4" /></button>
                 <button onClick={() => previewPdf(t, 'print')} title="Imprimir"
                   className="p-1.5 rounded hover:bg-muted text-foreground"><Printer className="h-4 w-4" /></button>
+                <button onClick={() => setSignTpl(t)} title="Assinar eletronicamente"
+                  className="p-1.5 rounded hover:bg-muted text-primary"><ShieldCheck className="h-4 w-4" /></button>
                 <div className="flex-1" />
                 {canCreate && (
                   <button onClick={() => duplicate.mutate(t)} title="Duplicar"
@@ -249,6 +253,21 @@ export default function DocumentTemplatesManager() {
             </motion.div>
           ))}
         </div>
+      )}
+
+      {signTpl && (
+        <SignDocumentDialog
+          open={!!signTpl}
+          onOpenChange={(o) => !o && setSignTpl(null)}
+          document={{
+            document_type: 'modelo_personalizado',
+            document_id: signTpl.id,
+            document_title: signTpl.nome,
+            content: signTpl.conteudo_html || '',
+            metadata: { tipo: signTpl.tipo, escopo: signTpl.escopo },
+          }}
+          onSigned={() => setSignTpl(null)}
+        />
       )}
     </div>
   );
