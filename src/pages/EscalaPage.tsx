@@ -852,6 +852,26 @@ export default function EscalaPage() {
     },
   });
 
+  // Responsável padrão da escala (system_settings.escala_responsavel)
+  const { data: respCfg } = useQuery({
+    queryKey: ['settings', 'escala_responsavel'],
+    queryFn: async () => {
+      const { data } = await sb.from('system_settings').select('value').eq('key', 'escala_responsavel').maybeSingle();
+      return (data?.value as { nome?: string; cargo?: string; conselho?: string }) || {};
+    },
+  });
+
+  // Aplica defaults do responsável quando o config carregar (apenas se usuário ainda não digitou)
+  useEffect(() => {
+    if (!respCfg) return;
+    setPrintForm((f) => ({
+      ...f,
+      responsavelNome: f.responsavelNome || respCfg.nome || '',
+      responsavelCargo: f.responsavelCargo || respCfg.cargo || 'Coordenação',
+      responsavelConselho: f.responsavelConselho || respCfg.conselho || '',
+    }));
+  }, [respCfg]);
+
   const aplicarPeriodo = (p: PrintForm['periodo']) => {
     const today = new Date();
     if (p === 'semana') {
