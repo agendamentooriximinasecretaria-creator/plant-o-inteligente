@@ -20,6 +20,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 import { abrirVisualizacaoImpressao, gerarPdfEscala, diaSemanaPt, type PrintLinha, type PrintCabecalho, type PrintOptions } from "@/lib/printEscala";
+import { abrirEscalaMensalOficial, gerarPdfEscalaMensalOficial, type MensalProfissional, type MensalCabecalho, type MensalOpts, type MensalTipoLegenda } from "@/lib/printEscalaMensalOficial";
 import { imprimirComprovantePlantao, type ComprovantePlantaoData } from "@/lib/printComprovantePlantao";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -789,9 +790,11 @@ export default function EscalaPage() {
   // (NÃO expõe CPF, banco, endereço residencial ou observações privadas do profissional)
   // ==========================================================
   type PrintForm = {
+    modelo: 'detalhado' | 'mensal_oficial';
     periodo: 'semana' | 'mes' | 'personalizado';
     dataIni: string;
     dataFim: string;
+    mesRef: string; // YYYY-MM (usado no modelo mensal_oficial)
     unidadeId: string;
     setorId: string;
     profissionalId: string;
@@ -800,26 +803,43 @@ export default function EscalaPage() {
     status: string;
     somentePublicada: boolean;
     incluirFolgas: boolean;
+    incluirAfastamentos: boolean;
     incluirObservacoes: boolean;
+    incluirObservacoesRodape: boolean;
     incluirTotalHoras: boolean;
     incluirAssinatura: boolean;
     incluirConselho: boolean;
+    incluirLogo: boolean;
+    totalLabel: 'TOTAL' | 'ADN';
+    responsavelNome: string;
+    responsavelCargo: string;
+    responsavelConselho: string;
   };
 
   const _hojeRef = new Date();
   const _semIni = startOfWeek(_hojeRef);
+  const _mesRefStr = `${_hojeRef.getFullYear()}-${String(_hojeRef.getMonth() + 1).padStart(2, '0')}`;
   const [printForm, setPrintForm] = useState<PrintForm>({
+    modelo: 'detalhado',
     periodo: 'semana',
     dataIni: ymd(_semIni),
     dataFim: ymd(addDays(_semIni, 6)),
+    mesRef: _mesRefStr,
     unidadeId: '', setorId: '', profissionalId: '', profissao: '',
     tipoPlantao: '', status: '',
     somentePublicada: false,
     incluirFolgas: false,
+    incluirAfastamentos: false,
     incluirObservacoes: true,
+    incluirObservacoesRodape: true,
     incluirTotalHoras: true,
     incluirAssinatura: true,
     incluirConselho: true,
+    incluirLogo: true,
+    totalLabel: 'TOTAL',
+    responsavelNome: '',
+    responsavelCargo: 'Coordenação',
+    responsavelConselho: '',
   });
   const [printBusy, setPrintBusy] = useState<null | 'view' | 'print' | 'pdf-open' | 'pdf-save'>(null);
 
@@ -831,6 +851,26 @@ export default function EscalaPage() {
       return (data?.value as { nome?: string; cnpj?: string; endereco?: string }) || {};
     },
   });
+
+  // Responsável padrão da escala (system_settings.escala_responsavel)
+  const { data: respCfg } = useQuery({
+    queryKey: ['settings', 'escala_responsavel'],
+    queryFn: async () => {
+      const { data } = await sb.from('system_settings').select('value').eq('key', 'escala_responsavel').maybeSingle();
+      return (data?.value as { nome?: string; cargo?: string; conselho?: string }) || {};
+    },
+  });
+
+  // Aplica defaults do responsável quando o config carregar (apenas se usuário ainda não digitou)
+  useEffect(() => {
+    if (!respCfg) return;
+    setPrintForm((f) => ({
+      ...f,
+      responsavelNome: f.responsavelNome || respCfg.nome || '',
+      responsavelCargo: f.responsavelCargo || respCfg.cargo || 'Coordenação',
+      responsavelConselho: f.responsavelConselho || respCfg.conselho || '',
+    }));
+  }, [respCfg]);
 
   const aplicarPeriodo = (p: PrintForm['periodo']) => {
     const today = new Date();
@@ -932,10 +972,175 @@ export default function EscalaPage() {
     incluirConselho: printForm.incluirConselho,
   });
 
+  // ============== Builder do modelo "Escala Mensal Oficial" ==============
+  // Agrupa por profissional × dia do mês selecionado (printForm.mesRef)
+  const buildMensalOficial = async (): Promise<{ profs: MensalProfissional[]; cab: MensalCabecalho; tipos: MensalTipoLegenda[] } | null> => {
+    if (!printForm.mesRef) { toast.error('Selecione o mês.'); return null; }
+    const [yStr, mStr] = printForm.mesRef.split('-');
+    const ano = parseInt(yStr, 10);
+    const mes = parseInt(mStr, 10);
+    if (!ano || !mes) { toast.error('Mês inválido.'); return null; }
+    const dataIni = `${yStr}-${mStr}-01`;
+    const ultimoDia = new Date(ano, mes, 0).getDate();
+    const dataFim = `${yStr}-${mStr}-${String(ultimoDia).padStart(2, '0')}`;
+
+    let q = sb.from('shifts')
+      .select('id, data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, status, profissional_id, professionals:profissional_id(nome, profissao, conselho, registro), units:unidade_id(nome), sectors:setor_id(nome), unidade_id, setor_id, profissao')
+      .gte('data', dataIni).lte('data', dataFim)
+      .order('data', { ascending: true })
+      .order('hora_inicio', { ascending: true });
+    if (printForm.unidadeId) q = q.eq('unidade_id', printForm.unidadeId);
+    if (printForm.setorId) q = q.eq('setor_id', printForm.setorId);
+    if (printForm.profissionalId) q = q.eq('profissional_id', printForm.profissionalId);
+    if (printForm.profissao) q = q.eq('profissao', printForm.profissao);
+    if (printForm.tipoPlantao) q = q.eq('tipo_plantao', printForm.tipoPlantao);
+    if (printForm.status) q = q.eq('status', printForm.status);
+    if (printForm.somentePublicada) q = q.in('status', ['confirmado', 'concluido', 'agendado']);
+
+    const { data, error } = await q;
+    if (error) { toast.error('Falha ao carregar plantões: ' + error.message); return null; }
+
+    let rows = (data as any[]) || [];
+    if (!printForm.incluirFolgas) {
+      rows = rows.filter((r) => !['folga', 'indisponibilidade'].includes(String(r.tipo_plantao || '').toLowerCase()));
+    }
+    if (!printForm.incluirAfastamentos) {
+      rows = rows.filter((r) => {
+        const t = String(r.tipo_plantao || '').toLowerCase();
+        return !['ferias', 'férias', 'licenca', 'licença', 'licenca premio', 'licença prêmio', 'lp', 'atestado'].some((k) => t.includes(k));
+      });
+    }
+
+    // Agrupa por profissional
+    const map = new Map<string, MensalProfissional>();
+    for (const s of rows) {
+      const profId = s.profissional_id;
+      if (!profId) continue;
+      const prof = s.professionals || {};
+      let row = map.get(profId);
+      if (!row) {
+        const conselho = printForm.incluirConselho && (prof.conselho || prof.registro)
+          ? `${prof.conselho || ''}${prof.registro ? ' ' + prof.registro : ''}`.trim()
+          : undefined;
+        row = {
+          id: profId,
+          nome: prof.nome || '—',
+          profissao: PROFISSAO_LABELS[prof.profissao] || prof.profissao || '',
+          conselho,
+          porDia: {},
+          totalHoras: 0,
+          totalPlantoes: 0,
+        };
+        map.set(profId, row);
+      }
+      const dia = parseInt(String(s.data).slice(8, 10), 10);
+      if (!row.porDia[dia]) row.porDia[dia] = [];
+      row.porDia[dia].push({
+        dia,
+        sigla: tipoToSigla(s.tipo_plantao),
+        tipo: s.tipo_plantao,
+        hora_inicio: s.hora_inicio,
+        hora_fim: s.hora_fim,
+        carga: Number(s.carga_horaria) || 0,
+        status: s.status,
+      });
+      const carga = Number(s.carga_horaria) || 0;
+      if (s.status !== 'cancelado' && !['folga', 'indisponibilidade'].includes(String(s.tipo_plantao || '').toLowerCase())) {
+        row.totalHoras += carga;
+        row.totalPlantoes += 1;
+      }
+    }
+
+    const profs = Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+
+    const setorNome = printForm.setorId
+      ? ((sectors as any[]).find((x: any) => x.id === printForm.setorId)?.nome || '')
+      : undefined;
+    const unidadeNome = printForm.unidadeId
+      ? ((units as any[]).find((u: any) => u.id === printForm.unidadeId)?.nome || '')
+      : (instituicaoCfg?.nome || 'Hospital Municipal de Oriximiná');
+
+    const profissaoLabel = printForm.profissao
+      ? (PROFISSAO_LABELS[printForm.profissao] || printForm.profissao)
+      : undefined;
+
+    const cab: MensalCabecalho = {
+      instituicao: {
+        prefeitura: 'Prefeitura Municipal de Oriximiná',
+        secretaria: 'Secretaria Municipal de Saúde',
+        unidade: unidadeNome,
+        cnpj: instituicaoCfg?.cnpj,
+      },
+      ano, mes,
+      setor: setorNome,
+      profissaoLabel,
+      emitidoPor: profileName || user?.email || '—',
+      sistema: 'GestorPlantão SMS Oriximiná',
+    };
+
+    // Legenda automática a partir dos tipos configurados
+    const tipos: MensalTipoLegenda[] = (TIPOS_PLANTAO || []).map((t) => ({
+      sigla: t.sigla,
+      nome: t.value,
+      start: t.start,
+      end: t.end,
+      carga: t.carga,
+    }));
+
+    return { profs, cab, tipos };
+  };
+
+  const mensalOpts = (): MensalOpts => ({
+    incluirLogo: printForm.incluirLogo,
+    incluirAssinatura: printForm.incluirAssinatura,
+    incluirTotalHoras: printForm.incluirTotalHoras,
+    incluirObservacoesRodape: printForm.incluirObservacoesRodape,
+    totalLabel: printForm.totalLabel,
+    responsavel: {
+      nome: printForm.responsavelNome || undefined,
+      cargo: printForm.responsavelCargo || undefined,
+      conselho: printForm.responsavelConselho || undefined,
+    },
+  });
+
   const handlePrintAction = async (acao: 'view' | 'print' | 'pdf-open' | 'pdf-save') => {
     if (printBusy) return;
     setPrintBusy(acao);
     try {
+      // ===== Modelo "Escala Mensal Oficial" =====
+      if (printForm.modelo === 'mensal_oficial') {
+        const built = await buildMensalOficial();
+        if (!built) return;
+        const { profs, cab, tipos } = built;
+        if (!profs.length) {
+          toast.warning('Nenhum plantão encontrado para os filtros selecionados.');
+          return;
+        }
+        const filename = `escala_oficial_${printForm.mesRef}`;
+        if (acao === 'view') {
+          const ok = abrirEscalaMensalOficial(cab, profs, tipos, mensalOpts(), false);
+          if (!ok) toast.error('Bloqueador de popups impediu a visualização.');
+        } else if (acao === 'print') {
+          const ok = abrirEscalaMensalOficial(cab, profs, tipos, mensalOpts(), true);
+          if (!ok) toast.error('Bloqueador de popups impediu a impressão.');
+        } else if (acao === 'pdf-open') {
+          await gerarPdfEscalaMensalOficial(cab, profs, tipos, mensalOpts(), filename, 'open');
+        } else if (acao === 'pdf-save') {
+          await gerarPdfEscalaMensalOficial(cab, profs, tipos, mensalOpts(), filename, 'save');
+        }
+        logAudit('Escala impressa/PDF (Mensal Oficial)', 'escala', {
+          acao, total: profs.length, mesRef: printForm.mesRef,
+          filtros: {
+            unidade: printForm.unidadeId || null, setor: printForm.setorId || null,
+            profissional: printForm.profissionalId || null, profissao: printForm.profissao || null,
+            tipo: printForm.tipoPlantao || null, status: printForm.status || null,
+            publicada: printForm.somentePublicada,
+          },
+        });
+        return;
+      }
+
+      // ===== Modelo Detalhado (legado, mantido) =====
       const built = await buildPrintLinhas();
       if (!built) return;
       const { linhas, cab } = built;
@@ -2423,37 +2628,71 @@ export default function EscalaPage() {
           </DialogHeader>
 
           <div className="space-y-5">
-            {/* PERÍODO */}
+            {/* MODELO */}
             <section>
-              <h4 className="text-sm font-semibold mb-2">Período</h4>
-              <div className="flex flex-wrap gap-2 mb-2">
+              <h4 className="text-sm font-semibold mb-2">Modelo de impressão</h4>
+              <div className="flex flex-wrap gap-2">
                 {([
-                  { v: 'semana', l: 'Semana atual' },
-                  { v: 'mes', l: 'Mês atual' },
-                  { v: 'personalizado', l: 'Personalizado' },
+                  { v: 'detalhado', l: 'Detalhado (linhas)' },
+                  { v: 'mensal_oficial', l: 'Escala Mensal Oficial' },
                 ] as const).map(o => (
                   <button key={o.v} type="button"
-                    onClick={() => aplicarPeriodo(o.v)}
-                    className={`px-3 py-1.5 rounded-lg text-xs border transition ${printForm.periodo === o.v ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border hover:bg-muted'}`}>
+                    onClick={() => setPrintForm(f => ({ ...f, modelo: o.v }))}
+                    className={`px-3 py-1.5 rounded-lg text-xs border transition ${printForm.modelo === o.v ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border hover:bg-muted'}`}>
                     {o.l}
                   </button>
                 ))}
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground">Data inicial</label>
-                  <input type="date" value={printForm.dataIni}
-                    onChange={e => setPrintForm(f => ({ ...f, dataIni: e.target.value, periodo: 'personalizado' }))}
-                    className={inputClass} />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground">Data final</label>
-                  <input type="date" value={printForm.dataFim}
-                    onChange={e => setPrintForm(f => ({ ...f, dataFim: e.target.value, periodo: 'personalizado' }))}
-                    className={inputClass} />
-                </div>
-              </div>
+              {printForm.modelo === 'mensal_oficial' && (
+                <p className="text-[11px] text-muted-foreground mt-2">
+                  Layout em grade tipo escala em papel hospitalar (Profissional × dias do mês), A4 paisagem, com legenda e assinatura.
+                </p>
+              )}
             </section>
+
+            {/* PERÍODO (modelo detalhado) */}
+            {printForm.modelo === 'detalhado' && (
+              <section>
+                <h4 className="text-sm font-semibold mb-2">Período</h4>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {([
+                    { v: 'semana', l: 'Semana atual' },
+                    { v: 'mes', l: 'Mês atual' },
+                    { v: 'personalizado', l: 'Personalizado' },
+                  ] as const).map(o => (
+                    <button key={o.v} type="button"
+                      onClick={() => aplicarPeriodo(o.v)}
+                      className={`px-3 py-1.5 rounded-lg text-xs border transition ${printForm.periodo === o.v ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border hover:bg-muted'}`}>
+                      {o.l}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Data inicial</label>
+                    <input type="date" value={printForm.dataIni}
+                      onChange={e => setPrintForm(f => ({ ...f, dataIni: e.target.value, periodo: 'personalizado' }))}
+                      className={inputClass} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Data final</label>
+                    <input type="date" value={printForm.dataFim}
+                      onChange={e => setPrintForm(f => ({ ...f, dataFim: e.target.value, periodo: 'personalizado' }))}
+                      className={inputClass} />
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* MÊS (modelo mensal_oficial) */}
+            {printForm.modelo === 'mensal_oficial' && (
+              <section>
+                <h4 className="text-sm font-semibold mb-2">Mês de referência</h4>
+                <input type="month" value={printForm.mesRef}
+                  onChange={e => setPrintForm(f => ({ ...f, mesRef: e.target.value }))}
+                  className={inputClass} />
+              </section>
+            )}
 
             {/* FILTROS */}
             <section>
@@ -2510,14 +2749,23 @@ export default function EscalaPage() {
             <section>
               <h4 className="text-sm font-semibold mb-2">Opções de impressão</h4>
               <div className="grid grid-cols-2 gap-2 text-sm">
-                {([
+                {(printForm.modelo === 'detalhado' ? ([
                   ['somentePublicada', 'Somente escala publicada'],
                   ['incluirFolgas', 'Incluir folgas/indisponibilidades'],
                   ['incluirObservacoes', 'Incluir observações'],
                   ['incluirTotalHoras', 'Incluir total de horas'],
                   ['incluirAssinatura', 'Incluir campo de assinatura'],
                   ['incluirConselho', 'Incluir conselho/registro'],
-                ] as const).map(([k, l]) => (
+                ] as const) : ([
+                  ['somentePublicada', 'Somente escala publicada'],
+                  ['incluirFolgas', 'Incluir folgas'],
+                  ['incluirAfastamentos', 'Incluir afastamentos (FE/LP/A)'],
+                  ['incluirTotalHoras', 'Mostrar total de horas (em vez de qtd. plantões)'],
+                  ['incluirAssinatura', 'Incluir campo de assinatura'],
+                  ['incluirConselho', 'Incluir conselho/registro'],
+                  ['incluirLogo', 'Incluir logo da instituição'],
+                  ['incluirObservacoesRodape', 'Incluir observações no rodapé'],
+                ] as const)).map(([k, l]) => (
                   <label key={k} className="flex items-center gap-2 cursor-pointer select-none">
                     <input type="checkbox"
                       checked={(printForm as any)[k]}
@@ -2527,7 +2775,51 @@ export default function EscalaPage() {
                   </label>
                 ))}
               </div>
+              {printForm.modelo === 'mensal_oficial' && (
+                <div className="mt-3">
+                  <label className="text-xs font-medium text-muted-foreground">Rótulo da coluna total</label>
+                  <div className="flex gap-2 mt-1">
+                    {(['TOTAL', 'ADN'] as const).map(v => (
+                      <button key={v} type="button"
+                        onClick={() => setPrintForm(f => ({ ...f, totalLabel: v }))}
+                        className={`px-3 py-1 rounded-md text-xs border ${printForm.totalLabel === v ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border hover:bg-muted'}`}>
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </section>
+
+            {/* RESPONSÁVEL (apenas mensal_oficial) */}
+            {printForm.modelo === 'mensal_oficial' && printForm.incluirAssinatura && (
+              <section>
+                <h4 className="text-sm font-semibold mb-2">Responsável pela escala</h4>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Nome</label>
+                    <input type="text" value={printForm.responsavelNome}
+                      placeholder="Nome do responsável"
+                      onChange={e => setPrintForm(f => ({ ...f, responsavelNome: e.target.value }))}
+                      className={inputClass} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Cargo/Função</label>
+                    <input type="text" value={printForm.responsavelCargo}
+                      placeholder="Coordenação"
+                      onChange={e => setPrintForm(f => ({ ...f, responsavelCargo: e.target.value }))}
+                      className={inputClass} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Conselho/Registro</label>
+                    <input type="text" value={printForm.responsavelConselho}
+                      placeholder="Ex.: COREN-PA 12345"
+                      onChange={e => setPrintForm(f => ({ ...f, responsavelConselho: e.target.value }))}
+                      className={inputClass} />
+                  </div>
+                </div>
+              </section>
+            )}
           </div>
 
           <DialogFooter className="mt-4 gap-2 flex-wrap">
