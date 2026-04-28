@@ -86,6 +86,20 @@ export default function SwapAttachmentsSection({
 
   useEffect(() => { reload(); }, [reload]);
 
+  // Carrega nomes dos remetentes (sem expor PII)
+  useEffect(() => {
+    const ids = Array.from(new Set(attachments.map(a => a.enviado_por_profissional_id).filter(Boolean))) as string[];
+    const missing = ids.filter(id => !(id in senderNames));
+    if (missing.length === 0) return;
+    (async () => {
+      const sb = supabase as any;
+      const { data } = await sb.from('professionals_safe').select('id, nome').in('id', missing);
+      const map: Record<string, string> = { ...senderNames };
+      (data || []).forEach((p: any) => { map[p.id] = p.nome; });
+      setSenderNames(map);
+    })();
+  }, [attachments, senderNames]);
+
   const totalCount = (isPendingMode ? pendingFiles.length : attachments.filter(a => a.status === "ativo").length);
   const limitReached = totalCount >= MAX_FILES_PER_SWAP;
 
