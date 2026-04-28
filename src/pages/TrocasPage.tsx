@@ -197,6 +197,31 @@ export default function TrocasPage() {
       if (status === 'rejeitada' && (!motivo || motivo.trim().length < 5)) {
         throw new Error('Motivo da recusa é obrigatório (mín. 5 caracteres)');
       }
+
+      // Validações de anexos ao aprovar
+      if (status === 'aprovada' && attachSettings) {
+        const ctx = swaps.find((s: any) => s.id === id);
+        const motivoTroca = ctx?.motivo || '';
+        const ehSaude = motivoEhSaude(motivoTroca);
+        const obrigatorio = attachSettings.permitir_anexos && (
+          attachSettings.obrigatorio || (attachSettings.obrigatorio_apenas_saude && ehSaude)
+        );
+        if (obrigatorio || attachSettings.bloquear_aprovacao_sem_anexo || attachSettings.exigir_analise_coordenador) {
+          const { data: anexos } = await (supabase as any)
+            .from('swap_attachments')
+            .select('id, status, analisado_em')
+            .eq('troca_id', id)
+            .neq('status', 'removido');
+          const ativos = (anexos || []).filter((a: any) => a.status === 'ativo');
+          if ((obrigatorio || attachSettings.bloquear_aprovacao_sem_anexo) && ativos.length === 0) {
+            throw new Error('É obrigatório anexar documento justificativo antes da aprovação desta troca.');
+          }
+          if (attachSettings.exigir_analise_coordenador && ativos.some((a: any) => !a.analisado_em)) {
+            throw new Error('Existem anexos pendentes de análise do coordenador. Marque-os como analisados antes de aprovar.');
+          }
+        }
+      }
+
       const updatePayload: Record<string, any> = { status: status as any, observacao_gestor: motivo || null };
       if (status === 'aprovada') updatePayload.aprovado_em = new Date().toISOString();
       if (status === 'rejeitada') {
