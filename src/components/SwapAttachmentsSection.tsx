@@ -361,7 +361,7 @@ export default function SwapAttachmentsSection({
           )}
           {attachments.map((a) => {
             const isMine = a.enviado_por_profissional_id === professionalId;
-            const canDelete = (isMine && swapEditable) || isManager;
+            const canDelete = (isMine && swapEditable && podeRemoverPendente) || isManager;
             const rejected = a.status === "rejeitado";
             const previewable = isPreviewable(a.mime_type, a.nome_original);
             const senderName = a.enviado_por_profissional_id ? (senderNames[a.enviado_por_profissional_id] || '—') : 'Sistema';
