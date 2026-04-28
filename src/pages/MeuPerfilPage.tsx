@@ -181,7 +181,37 @@ export default function MeuPerfilPage() {
       </div>
 
       {/* Carimbo e Assinatura Profissional */}
-      {myProfId && <CarimboAssinaturaProfissional profissionalId={myProfId} isMaster={isMaster} />}
+      {myProfId ? (
+        <CarimboAssinaturaProfissional profissionalId={myProfId} isMaster={isMaster} />
+      ) : isManagerRole ? (
+        <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/5 via-card to-accent/5 p-6 shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-xl bg-primary/10 text-primary border border-primary/20">
+              <Stamp className="h-6 w-6" />
+            </div>
+            <div className="flex-1">
+              <h2 className="font-display text-lg font-semibold text-foreground">Área de Assinatura Institucional</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Como <strong>{isMaster ? "Gestor Master" : "Coordenador(a)"}</strong>, você precisa de uma área própria para configurar carimbo, assinatura, cargo, função e dados institucionais — necessária para assinar aprovações de troca, escalas oficiais e demais documentos.
+              </p>
+              <div className="mt-3 flex items-start gap-2 rounded-lg border border-border/60 bg-background/60 p-3 text-xs text-muted-foreground">
+                <ShieldCheck className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+                <span>
+                  Será criado um cadastro institucional vinculado ao seu usuário (não é registro clínico). Você poderá editar nome, cargo, conselho, registro, CBO, unidade, setor, assinatura e carimbo nas abas do módulo.
+                </span>
+              </div>
+              <button
+                onClick={() => createInstitutional.mutate()}
+                disabled={createInstitutional.isPending}
+                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 shadow-sm"
+              >
+                <Stamp className="h-4 w-4" />
+                {createInstitutional.isPending ? "Criando..." : "Criar minha área de assinatura institucional"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
