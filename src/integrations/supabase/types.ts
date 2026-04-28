@@ -1222,6 +1222,63 @@ export type Database = {
           },
         ]
       }
+      swap_attachments: {
+        Row: {
+          analisado_em: string | null
+          analisado_por: string | null
+          created_at: string
+          descricao: string | null
+          enviado_por_profissional_id: string | null
+          enviado_por_user_id: string
+          id: string
+          mime_type: string
+          motivo_rejeicao: string | null
+          nome_original: string
+          status: Database["public"]["Enums"]["swap_attachment_status"]
+          storage_path: string
+          tamanho: number
+          tipo_documento: Database["public"]["Enums"]["swap_attachment_type"]
+          troca_id: string
+          updated_at: string
+        }
+        Insert: {
+          analisado_em?: string | null
+          analisado_por?: string | null
+          created_at?: string
+          descricao?: string | null
+          enviado_por_profissional_id?: string | null
+          enviado_por_user_id: string
+          id?: string
+          mime_type: string
+          motivo_rejeicao?: string | null
+          nome_original: string
+          status?: Database["public"]["Enums"]["swap_attachment_status"]
+          storage_path: string
+          tamanho: number
+          tipo_documento?: Database["public"]["Enums"]["swap_attachment_type"]
+          troca_id: string
+          updated_at?: string
+        }
+        Update: {
+          analisado_em?: string | null
+          analisado_por?: string | null
+          created_at?: string
+          descricao?: string | null
+          enviado_por_profissional_id?: string | null
+          enviado_por_user_id?: string
+          id?: string
+          mime_type?: string
+          motivo_rejeicao?: string | null
+          nome_original?: string
+          status?: Database["public"]["Enums"]["swap_attachment_status"]
+          storage_path?: string
+          tamanho?: number
+          tipo_documento?: Database["public"]["Enums"]["swap_attachment_type"]
+          troca_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       swap_history: {
         Row: {
           acao: string
@@ -1575,6 +1632,15 @@ export type Database = {
         | "gestor_master"
         | "institucional"
       signature_status: "ativa" | "revogada" | "substituida"
+      swap_attachment_status: "ativo" | "removido" | "rejeitado"
+      swap_attachment_type:
+        | "atestado_medico"
+        | "declaracao"
+        | "comprovante_consulta"
+        | "convocacao"
+        | "documento_institucional"
+        | "documento_pessoal"
+        | "outro"
       swap_status:
         | "solicitada"
         | "aguardando_resposta"
@@ -1773,6 +1839,16 @@ export const Constants = {
         "institucional",
       ],
       signature_status: ["ativa", "revogada", "substituida"],
+      swap_attachment_status: ["ativo", "removido", "rejeitado"],
+      swap_attachment_type: [
+        "atestado_medico",
+        "declaracao",
+        "comprovante_consulta",
+        "convocacao",
+        "documento_institucional",
+        "documento_pessoal",
+        "outro",
+      ],
       swap_status: [
         "solicitada",
         "aguardando_resposta",

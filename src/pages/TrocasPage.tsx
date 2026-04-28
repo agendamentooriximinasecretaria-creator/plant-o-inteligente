@@ -9,7 +9,7 @@ import { SWAP_STATUS_LABELS } from "@/types/hospital";
 import type { SwapStatus } from "@/types/hospital";
 import {
   ArrowLeftRight, Clock, CheckCircle2, XCircle, AlertCircle, Plus, Zap, FileText, Filter,
-  ChevronDown, Calendar as CalIcon, Search, X, Printer, Download, BellRing, Activity, History,
+  ChevronDown, Calendar as CalIcon, Search, X, Printer, Download, BellRing, Activity, History, Paperclip,
 } from "lucide-react";
 import { ContactActionButton } from "@/components/ContactActionButton";
 import { motion, AnimatePresence } from "framer-motion";
@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import ComprovanteTroca from "@/components/ComprovanteTroca";
 import SignActionButton from "@/components/SignActionButton";
+import SwapAttachmentsSection from "@/components/SwapAttachmentsSection";
 import { printSolicitacaoTroca } from "@/lib/printSolicitacaoTroca";
 import { calcularHorasMes } from "@/lib/horas";
 import { MoreActionsMenu } from "@/components/MoreActionsMenu";
@@ -51,6 +52,7 @@ export default function TrocasPage() {
   const { isMaster } = useAuth();
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [comprovanteId, setComprovanteId] = useState<string | null>(null);
+  const [attachmentsSwapId, setAttachmentsSwapId] = useState<string | null>(null);
   const [reviewSwap, setReviewSwap] = useState<any | null>(null);
   const [reviewAction, setReviewAction] = useState<'aprovar' | 'rejeitar' | null>(null);
   const [reviewMotivo, setReviewMotivo] = useState('');
@@ -725,6 +727,9 @@ export default function TrocasPage() {
                         <FileText className="h-3 w-3" /> Comprovante
                       </button>
                     )}
+                    <button onClick={() => setAttachmentsSwapId(swap.id)} className="px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors inline-flex items-center gap-1" title="Anexos justificativos">
+                      <Paperclip className="h-3 w-3" /> Anexos
+                    </button>
                     <SignActionButton
                       compact
                       signLabel="Assinar"
@@ -1004,6 +1009,23 @@ export default function TrocasPage() {
       <Dialog open={!!comprovanteId} onOpenChange={(open) => !open && setComprovanteId(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto print:max-w-none print:shadow-none">
           {comprovanteId && <ComprovanteTroca trocaId={comprovanteId} onClose={() => setComprovanteId(null)} />}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!attachmentsSwapId} onOpenChange={(open) => !open && setAttachmentsSwapId(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Anexos justificativos da troca</DialogTitle>
+            <DialogDescription>Documentos enviados pelo solicitante. Como gestor você pode rejeitar ou remover anexos.</DialogDescription>
+          </DialogHeader>
+          {attachmentsSwapId && (
+            <SwapAttachmentsSection
+              trocaId={attachmentsSwapId}
+              canUpload={false}
+              isManager
+              professionalId={null}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>

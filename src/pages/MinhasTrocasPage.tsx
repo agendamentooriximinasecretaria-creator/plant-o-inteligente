@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { FileText, AlertCircle } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import ComprovanteTroca from "@/components/ComprovanteTroca";
+import SwapAttachmentsSection, { type PendingFile } from "@/components/SwapAttachmentsSection";
+import { uploadSwapAttachment } from "@/lib/swapAttachments";
 
 const tabs = [
   { id: "solicitar", label: "Solicitar Troca" },
@@ -31,6 +33,8 @@ export default function MinhasTrocasPage() {
     motivo: "",
   });
   const [comprovanteId, setComprovanteId] = useState<string | null>(null);
+  const [pendingAttachments, setPendingAttachments] = useState<PendingFile[]>([]);
+  const [viewAttachmentsId, setViewAttachmentsId] = useState<string | null>(null);
 
   const { data: settings = {} } = useQuery({
     queryKey: ["professional-swap-settings"],
@@ -148,6 +152,23 @@ export default function MinhasTrocasPage() {
         motivo: form.motivo,
       });
 
+      // Envia anexos pendentes (se houver)
+      if (pendingAttachments.length > 0) {
+        for (const p of pendingAttachments) {
+          try {
+            await uploadSwapAttachment({
+              trocaId: inserted.id,
+              file: p.file,
+              tipo: p.tipo,
+              descricao: p.descricao,
+              professionalId,
+            });
+          } catch (err: any) {
+            toast.error(`Falha ao enviar "${p.file.name}": ${err.message || 'erro desconhecido'}`);
+          }
+        }
+      }
+
       if (form.tipo === "direto" && form.destinatario_id) {
         await dispatchNotification({ professionalId: form.destinatario_id, tipo: 'troca', titulo: '🔄 Nova solicitação de troca', mensagem: 'Um colega solicitou uma troca de plantão com você.' });
       } else {
@@ -160,6 +181,7 @@ export default function MinhasTrocasPage() {
     onSuccess: () => {
       toast.success("Troca solicitada com sucesso.");
       setForm({ shift_id: "", tipo: "grupo", destinatario_id: "", motivo: "" });
+      setPendingAttachments([]);
       qc.invalidateQueries({ queryKey: ["professional-swaps"] });
       invalidateCrossSwaps(qc);
       refetchStatus();
@@ -319,6 +341,13 @@ export default function MinhasTrocasPage() {
               className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" disabled={limiteAtingido} />
           </div>
 
+          <SwapAttachmentsSection
+            pendingFiles={pendingAttachments}
+            onPendingChange={setPendingAttachments}
+            canUpload
+            professionalId={professionalId}
+          />
+
           <button onClick={() => createSwap.mutate()} disabled={createSwap.isPending || limiteAtingido}
             className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">
             {createSwap.isPending ? "Enviando..." : limiteAtingido ? "Limite atingido" : "Solicitar troca"}
@@ -339,11 +368,15 @@ export default function MinhasTrocasPage() {
                   Plantão: {new Date(`${(swap.shifts as any)?.data}T12:00:00`).toLocaleDateString("pt-BR")} • {(swap.shifts as any)?.hora_inicio} - {(swap.shifts as any)?.hora_fim}
                 </p>
                 {(swap.status === "solicitada" || swap.status === "aguardando_resposta") && (
-                  <div className="mt-3 flex gap-2">
+                  <div className="mt-3 flex flex-wrap gap-2">
                     <button onClick={() => respondSwap.mutate({ swapId: swap.id, accept: true })}
                       className="rounded-lg bg-success px-3 py-1.5 text-xs font-medium text-success-foreground hover:opacity-90">Aceitar</button>
                     <button onClick={() => respondSwap.mutate({ swapId: swap.id, accept: false })}
                       className="rounded-lg bg-destructive px-3 py-1.5 text-xs font-medium text-destructive-foreground hover:opacity-90">Recusar</button>
+                    <button onClick={() => setViewAttachmentsId(swap.id)}
+                      className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted inline-flex items-center gap-1">
+                      <FileText className="h-3 w-3" /> Ver anexos
+                    </button>
                   </div>
                 )}
               </div>
@@ -365,11 +398,16 @@ export default function MinhasTrocasPage() {
                     <p className="text-xs text-muted-foreground mt-1">Status: {swap.status}</p>
                     {swap.observacao_gestor && <p className="text-xs text-muted-foreground mt-1">Obs. gestor: {swap.observacao_gestor}</p>}
                   </div>
-                  {['aprovada', 'concluida'].includes(swap.status) && (
-                    <button onClick={() => setComprovanteId(swap.id)} className="px-2.5 py-1 rounded-lg border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors inline-flex items-center gap-1 shrink-0">
-                      <FileText className="h-3 w-3" /> Comprovante
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => setViewAttachmentsId(swap.id)} className="px-2.5 py-1 rounded-lg border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors inline-flex items-center gap-1">
+                      <FileText className="h-3 w-3" /> Anexos
                     </button>
-                  )}
+                    {['aprovada', 'concluida'].includes(swap.status) && (
+                      <button onClick={() => setComprovanteId(swap.id)} className="px-2.5 py-1 rounded-lg border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors inline-flex items-center gap-1">
+                        <FileText className="h-3 w-3" /> Comprovante
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))
@@ -380,6 +418,26 @@ export default function MinhasTrocasPage() {
       <Dialog open={!!comprovanteId} onOpenChange={(open) => !open && setComprovanteId(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto print:max-w-none print:shadow-none">
           {comprovanteId && <ComprovanteTroca trocaId={comprovanteId} onClose={() => setComprovanteId(null)} />}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!viewAttachmentsId} onOpenChange={(open) => !open && setViewAttachmentsId(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <h2 className="text-lg font-semibold text-foreground mb-3">Anexos da troca</h2>
+          {viewAttachmentsId && (() => {
+            const sw: any = swaps.find((s: any) => s.id === viewAttachmentsId);
+            const isOwner = sw?.solicitante_id === professionalId;
+            const isReceiver = sw?.destinatario_id === professionalId;
+            return (
+              <SwapAttachmentsSection
+                trocaId={viewAttachmentsId}
+                canUpload={isOwner}
+                professionalId={professionalId}
+                swapStatus={sw?.status}
+                isManager={false}
+              />
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>
