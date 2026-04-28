@@ -3,13 +3,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
 import { toast } from "sonner";
-import { UserPlus, KeyRound, Shield, Power, Download, Printer, Users } from "lucide-react";
+import { UserPlus, KeyRound, Shield, Power, Download, Printer, Users, Trash2 } from "lucide-react";
 import { ContactActionButton } from "@/components/ContactActionButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MoreActionsMenu } from "@/components/MoreActionsMenu";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { TableRowSkeleton } from "@/components/PageSkeleton";
+import { useConfirm } from "@/hooks/useConfirm";
+import { useAuth } from "@/hooks/useAuth";
 
 const roleLabels: Record<string, string> = {
   gestor_master: "Gestor Master",
