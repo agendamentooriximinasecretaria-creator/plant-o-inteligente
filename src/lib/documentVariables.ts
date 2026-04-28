@@ -177,6 +177,49 @@ function blocoAssinatura(nome?: string, cargo?: string): string {
   return `<div style="margin-top:48px;text-align:center"><div style="border-top:1px solid #000;width:280px;margin:0 auto"></div><div style="margin-top:4px"><strong>${nome || '____________________'}</strong></div>${cargo ? `<div style="font-size:90%">${cargo}</div>` : ''}</div>`;
 }
 
+/** Renderiza a assinatura/carimbo personalizado armazenado em professional_stamps. */
+async function blocoCarimboPersonalizado(profissionalId: string, fallback: { nome?: string; profissao?: string; conselho?: string; registro?: string }): Promise<{ assinatura?: string; carimbo?: string }> {
+  try {
+    const { data: stamp } = await supabase.from('professional_stamps' as any).select('*').eq('profissional_id', profissionalId).maybeSingle();
+    if (!stamp) return {};
+    const s: any = stamp;
+    const align = s.assinatura_posicao || 'centro';
+    const textAlign = align === 'esquerda' ? 'left' : align === 'direita' ? 'right' : 'center';
+
+    let assinaturaImg = '';
+    if (s.assinatura_path) {
+      const { data: signed } = await supabase.storage.from('professional-documents').createSignedUrl(s.assinatura_path, 3600);
+      if (signed?.signedUrl) {
+        assinaturaImg = `<img src="${signed.signedUrl}" alt="assinatura" style="width:${s.assinatura_tamanho || 180}px;max-width:100%"/>`;
+      }
+    }
+    let carimboImg = '';
+    if (s.carimbo_path) {
+      const { data: signed } = await supabase.storage.from('professional-documents').createSignedUrl(s.carimbo_path, 3600);
+      if (signed?.signedUrl) {
+        carimboImg = `<img src="${signed.signedUrl}" alt="carimbo" style="width:${s.carimbo_tamanho || 140}px;max-width:100%"/>`;
+      }
+    }
+
+    const linhas: string[] = [];
+    if (fallback.nome) linhas.push(`<strong>${fallback.nome}</strong>`);
+    if (s.cargo) linhas.push(s.cargo);
+    else if (fallback.profissao) linhas.push(fallback.profissao);
+    if (s.mostrar_conselho && (fallback.conselho || fallback.registro)) linhas.push(`${fallback.conselho || ''} ${fallback.registro || ''}`.trim());
+    if (s.mostrar_cbo && s.cbo) linhas.push(`CBO: ${s.cbo}`);
+    if (s.mostrar_cns && s.cns) linhas.push(`CNS: ${s.cns}`);
+    if (s.texto_personalizado) linhas.push(s.texto_personalizado);
+
+    const cor = s.cor_texto || '#000';
+    const linhasHtml = `<div style="color:${cor};font-family:Times,serif;font-size:13px;line-height:1.4">${linhas.join('<br/>')}</div>`;
+    const linhaPontilhada = `<div style="border-top:1px solid #000;width:280px;margin:${align === 'centro' ? '4px auto' : (align === 'esquerda' ? '4px 0' : '4px 0 4px auto')}"></div>`;
+
+    const assinaturaBlock = `<div style="margin-top:36px;text-align:${textAlign}">${assinaturaImg}${linhaPontilhada}${linhasHtml}${carimboImg ? `<div style="margin-top:6px">${carimboImg}</div>` : ''}</div>`;
+    const carimboBlock = `<div style="text-align:${textAlign};display:inline-block;border:1px dashed #888;padding:8px 12px">${linhasHtml}${carimboImg ? `<div style="margin-top:6px">${carimboImg}</div>` : ''}</div>`;
+    return { assinatura: assinaturaBlock, carimbo: carimboBlock };
+  } catch { return {}; }
+}
+
 /**
  * Resolve as variáveis do catálogo a partir do contexto.
  * Variáveis sem dado retornam string vazia (regra: variáveis inexistentes ficam vazias).
