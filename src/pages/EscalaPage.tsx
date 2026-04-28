@@ -1913,17 +1913,25 @@ export default function EscalaPage() {
               </tr></thead>
               <tbody>
                 {filtered.length === 0 && (
-                  <tr><td colSpan={7} className="p-10 text-center text-sm text-muted-foreground">
-                    {buscaDebounced
-                      ? 'Nenhum resultado encontrado para sua busca.'
-                      : 'Nenhum plantão encontrado para os filtros selecionados.'}
-                    <div className="mt-2 flex items-center justify-center gap-3">
-                      {buscaDebounced && (
-                        <button onClick={() => setBusca("")} className="text-primary hover:underline text-xs font-medium">Limpar busca</button>
-                      )}
-                      {filtrosAtivos > 0 && (
-                        <button onClick={limparFiltros} className="text-primary hover:underline text-xs font-medium">Limpar filtros</button>
-                      )}
+                  <tr><td colSpan={8} className="p-12 text-center text-sm text-muted-foreground">
+                    <div className="flex flex-col items-center gap-2">
+                      <Calendar className="h-10 w-10 text-muted-foreground/40" />
+                      <p className="font-medium text-foreground">
+                        {buscaDebounced
+                          ? 'Nenhum resultado encontrado para sua busca.'
+                          : 'Nenhum plantão encontrado.'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {filtrosAtivos > 0 ? 'Tente ajustar os filtros ativos para ver mais resultados.' : 'Cadastre um novo plantão para começar.'}
+                      </p>
+                      <div className="mt-2 flex items-center justify-center gap-3">
+                        {buscaDebounced && (
+                          <button onClick={() => setBusca("")} className="text-primary hover:underline text-xs font-medium">Limpar busca</button>
+                        )}
+                        {filtrosAtivos > 0 && (
+                          <button onClick={limparFiltros} className="text-primary hover:underline text-xs font-medium">Limpar filtros</button>
+                        )}
+                      </div>
                     </div>
                   </td></tr>
                 )}
