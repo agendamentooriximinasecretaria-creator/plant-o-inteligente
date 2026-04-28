@@ -122,12 +122,35 @@ export async function uploadSwapAttachment(params: {
   return data as SwapAttachment;
 }
 
-export async function getSignedAttachmentUrl(storagePath: string): Promise<string> {
+export async function getSignedAttachmentUrl(storagePath: string, opts?: { audit?: { attachmentId: string; trocaId: string; action: 'visualizar' | 'baixar'; nome?: string } }): Promise<string> {
   const { data, error } = await supabase.storage
     .from(SWAP_ATTACHMENT_BUCKET)
     .createSignedUrl(storagePath, 60 * 5);
   if (error) throw error;
+  if (opts?.audit) {
+    logAudit(
+      opts.audit.action === 'visualizar' ? 'anexo_troca_visualizado' : 'anexo_troca_baixado',
+      'trocas_anexos',
+      { attachment_id: opts.audit.attachmentId, troca_id: opts.audit.trocaId, nome_original: opts.audit.nome }
+    ).catch(() => {});
+  }
   return data.signedUrl;
+}
+
+export function isPreviewable(mime: string, name: string): 'pdf' | 'image' | null {
+  const m = (mime || '').toLowerCase();
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  if (m === 'application/pdf' || ext === 'pdf') return 'pdf';
+  if (m.startsWith('image/') || ['jpg','jpeg','png','gif','webp'].includes(ext)) return 'image';
+  return null;
+}
+
+export function getFileIconType(mime: string, name: string): 'pdf' | 'image' | 'doc' | 'file' {
+  const p = isPreviewable(mime, name);
+  if (p) return p;
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  if (['doc', 'docx'].includes(ext) || (mime || '').includes('word')) return 'doc';
+  return 'file';
 }
 
 export async function removeSwapAttachment(attachmentId: string, storagePath: string): Promise<void> {
