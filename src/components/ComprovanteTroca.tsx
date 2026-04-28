@@ -16,6 +16,11 @@ interface Props {
 export default function ComprovanteTroca({ trocaId, onClose }: Props) {
   const printRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
+  const [signOpen, setSignOpen] = useState(false);
+  const [signatures, setSignatures] = useState<SignatureRecord[]>([]);
+
+  const refreshSigs = () => listSignatures('troca', trocaId).then(setSignatures).catch(() => {});
+  useEffect(() => { refreshSigs(); }, [trocaId]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["comprovante-troca", trocaId],
