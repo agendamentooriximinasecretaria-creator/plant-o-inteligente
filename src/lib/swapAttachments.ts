@@ -13,18 +13,20 @@ export const SWAP_ATTACHMENT_TYPES = [
   { value: "outro", label: "Outro" },
 ] as const;
 
+/** @deprecated Defaults — use settings de system_settings.swap_attachments_rules */
 export const MAX_FILES_PER_SWAP = 5;
+/** @deprecated Defaults — use settings de system_settings.swap_attachments_rules */
 export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
-const ALLOWED_EXTENSIONS = ["pdf", "jpg", "jpeg", "png", "doc", "docx"];
-const ALLOWED_MIME = new Set([
-  "application/pdf",
-  "image/jpeg",
-  "image/jpg",
-  "image/png",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-]);
+const DEFAULT_ALLOWED_EXTENSIONS = ["pdf", "jpg", "jpeg", "png", "doc", "docx"];
+const MIME_BY_EXT: Record<string, string[]> = {
+  pdf: ["application/pdf"],
+  jpg: ["image/jpeg", "image/jpg"],
+  jpeg: ["image/jpeg", "image/jpg"],
+  png: ["image/png"],
+  doc: ["application/msword"],
+  docx: ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+};
 const BLOCKED_EXTENSIONS = ["exe", "bat", "cmd", "js", "sh", "zip", "rar", "msi", "ps1", "vbs", "jar", "apk"];
 
 export type SwapAttachment = {
