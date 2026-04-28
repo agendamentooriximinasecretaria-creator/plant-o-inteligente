@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import ComprovanteTroca from "@/components/ComprovanteTroca";
 import SignActionButton from "@/components/SignActionButton";
 import SwapAttachmentsSection from "@/components/SwapAttachmentsSection";
+import { useSwapAttachmentSettings, motivoEhSaude } from "@/lib/swapAttachmentSettings";
 import { printSolicitacaoTroca } from "@/lib/printSolicitacaoTroca";
 import { calcularHorasMes } from "@/lib/horas";
 import { MoreActionsMenu } from "@/components/MoreActionsMenu";
