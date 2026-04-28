@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { ShiftTypesManager } from "@/components/ShiftTypesManager";
 import DocumentTemplatesManager from "@/components/document-templates/DocumentTemplatesManager";
 import SwapAttachmentSettingsManager from "@/components/SwapAttachmentSettingsManager";
+import CarimbosAssinaturasManager from "@/components/CarimbosAssinaturasManager";
 
 // Strip credentials/secrets before logging settings to audit trail.
 function sanitizeSettingForAudit(key: string, value: any): any {
@@ -176,6 +177,11 @@ export default function ConfiguracoesPage() {
         {/* Anexos em Trocas de Plantão */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.045 }} className={sectionClass}>
           <SwapAttachmentSettingsManager />
+        </motion.div>
+
+        {/* Assinaturas e Carimbos (Gestor Master) */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.047 }} className={sectionClass}>
+          <CarimbosAssinaturasManager />
         </motion.div>
 
 
