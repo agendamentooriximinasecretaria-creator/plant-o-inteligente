@@ -2808,7 +2808,7 @@ export default function EscalaPage() {
             <section>
               <h4 className="text-sm font-semibold mb-2">Opções de impressão</h4>
               <div className="grid grid-cols-2 gap-2 text-sm">
-                {(printForm.modelo === 'detalhado' ? ([
+                {(printForm.modelo !== 'mensal_oficial' ? ([
                   ['somentePublicada', 'Somente escala publicada'],
                   ['incluirFolgas', 'Incluir folgas/indisponibilidades'],
                   ['incluirObservacoes', 'Incluir observações'],
