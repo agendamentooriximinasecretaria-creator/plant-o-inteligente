@@ -6,8 +6,9 @@ import { toast } from 'sonner';
 import {
   FileText, Plus, Edit3, Copy, Trash2, Eye, Search, Filter, Lock,
   Globe, Building2, Layers, User as UserIcon, Save, X, Printer, Download,
-  AlertTriangle, Sparkles,
+  AlertTriangle, Sparkles, ShieldCheck,
 } from 'lucide-react';
+import SignDocumentDialog from '@/components/SignDocumentDialog';
 import { motion } from 'framer-motion';
 import { RichEditor } from './RichEditor';
 import {
