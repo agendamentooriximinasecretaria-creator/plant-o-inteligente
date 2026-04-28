@@ -1,10 +1,12 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Printer, Download } from "lucide-react";
+import { Printer, Download, ShieldCheck } from "lucide-react";
 import jsPDF from "jspdf";
 import { LOGO_SMS_PATH, getLogoSmsDataUrl } from "@/lib/logoSMS";
+import SignDocumentDialog from "@/components/SignDocumentDialog";
+import { listSignatures, type SignatureRecord } from "@/lib/eSignature";
 
 interface Props {
   trocaId: string;
