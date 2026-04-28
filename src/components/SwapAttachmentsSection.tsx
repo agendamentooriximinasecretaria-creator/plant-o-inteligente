@@ -59,9 +59,16 @@ export default function SwapAttachmentsSection({
   swapStatus,
   onChanged,
 }: Props) {
+  const { data: settings = DEFAULT_SWAP_ATTACHMENT_SETTINGS } = useSwapAttachmentSettings();
+  const docTypes = useMemo(() => activeDocTypes(settings), [settings]);
+  const maxFiles = settings.max_arquivos || 5;
+  const maxSizeBytes = (settings.max_tamanho_mb || 10) * 1024 * 1024;
+  const allowedExt = settings.tipos_permitidos || [];
+  const acceptAttr = useMemo(() => allowedExt.map((e) => `.${e}`).join(","), [allowedExt]);
+
   const [attachments, setAttachments] = useState<SwapAttachment[]>([]);
   const [loading, setLoading] = useState(false);
-  const [tipo, setTipo] = useState<string>("atestado_medico");
+  const [tipo, setTipo] = useState<string>(docTypes[0]?.value || "outro");
   const [descricao, setDescricao] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -70,8 +77,16 @@ export default function SwapAttachmentsSection({
   const [senderNames, setSenderNames] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState<{ a: SwapAttachment; url: string; kind: 'pdf' | 'image' } | null>(null);
 
+  // Garante que o tipo selecionado é válido após carregar settings
+  useEffect(() => {
+    if (docTypes.length > 0 && !docTypes.some((t) => t.value === tipo)) {
+      setTipo(docTypes[0].value);
+    }
+  }, [docTypes, tipo]);
+
   const isPendingMode = !trocaId;
   const swapEditable = !swapStatus || ["solicitada", "aguardando_resposta"].includes(swapStatus);
+  const podeRemoverPendente = settings.permitir_remover_pendente;
 
   const reload = useCallback(async () => {
     if (!trocaId) return;
