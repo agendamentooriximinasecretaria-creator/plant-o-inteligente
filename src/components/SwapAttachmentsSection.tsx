@@ -248,19 +248,30 @@ export default function SwapAttachmentsSection({
     return <FileIcon className={`${cls} text-muted-foreground`} />;
   };
 
+  // Quando anexos estão totalmente desativados pela configuração, esconde a seção (gestores ainda veem para revisar histórico).
+  if (!settings.permitir_anexos && !isManager && totalCount === 0) {
+    return null;
+  }
+
   return (
     <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Paperclip className="h-4 w-4 text-primary" />
           <h4 className="text-sm font-semibold text-foreground">Anexos justificativos</h4>
+          {settings.obrigatorio && !settings.obrigatorio_apenas_saude && (
+            <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] text-destructive">Obrigatório</span>
+          )}
+          {settings.obrigatorio_apenas_saude && (
+            <span className="rounded bg-warning/10 px-1.5 py-0.5 text-[10px] text-warning">Obrigatório se saúde</span>
+          )}
         </div>
         <span className="text-[11px] text-muted-foreground">
-          {totalCount}/{MAX_FILES_PER_SWAP} • até {Math.round(MAX_FILE_SIZE_BYTES / 1024 / 1024)} MB
+          {totalCount}/{maxFiles} • até {settings.max_tamanho_mb} MB
         </span>
       </div>
 
-      {canUpload && (!swapStatus || swapEditable) && (
+      {settings.permitir_anexos && canUpload && (!swapStatus || swapEditable) && (
         <div className="space-y-2 rounded-md border border-border bg-background p-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
@@ -271,27 +282,29 @@ export default function SwapAttachmentsSection({
                 disabled={limitReached || busy}
                 className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring"
               >
-                {SWAP_ATTACHMENT_TYPES.map((t) => (
+                {docTypes.map((t) => (
                   <option key={t.value} value={t.value}>{t.label}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-foreground">Descrição (opcional)</label>
+              <label className="text-xs font-medium text-foreground">
+                Descrição {settings.exigir_descricao ? <span className="text-destructive">*</span> : "(opcional)"}
+              </label>
               <input
                 value={descricao}
                 onChange={(e) => setDescricao(e.target.value.slice(0, 200))}
                 disabled={limitReached || busy}
-                placeholder="Observação do anexo"
+                placeholder={settings.exigir_descricao ? "Descrição obrigatória do anexo" : "Observação do anexo"}
                 className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <input
               ref={fileRef}
               type="file"
-              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,application/pdf,image/jpeg,image/png,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              accept={acceptAttr}
               className="hidden"
               onChange={(e) => handleFiles(e.target.files)}
             />
@@ -304,14 +317,20 @@ export default function SwapAttachmentsSection({
               <Upload className="h-3.5 w-3.5" />
               {busy ? "Enviando..." : isPendingMode ? "Adicionar anexo" : "Enviar anexo"}
             </button>
-            <p className="text-[11px] text-muted-foreground">PDF, JPG, PNG, DOC ou DOCX</p>
+            <p className="text-[11px] text-muted-foreground uppercase">{allowedExt.join(", ")}</p>
           </div>
           {limitReached && (
             <p className="flex items-center gap-1 text-[11px] text-warning">
-              <AlertCircle className="h-3 w-3" /> Limite de {MAX_FILES_PER_SWAP} anexos atingido.
+              <AlertCircle className="h-3 w-3" /> Limite de {maxFiles} anexos atingido.
             </p>
           )}
         </div>
+      )}
+
+      {!settings.permitir_anexos && (
+        <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+          <AlertCircle className="h-3 w-3" /> Anexos em trocas estão desativados nas configurações do sistema.
+        </p>
       )}
 
       {/* Pendentes */}
