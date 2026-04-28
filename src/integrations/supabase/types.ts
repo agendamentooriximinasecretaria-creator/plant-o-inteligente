@@ -340,6 +340,102 @@ export type Database = {
           },
         ]
       }
+      generated_documents: {
+        Row: {
+          assinado_em: string | null
+          assinado_por: string | null
+          atualizado_por: string | null
+          codigo_validacao: string
+          conteudo_html: string
+          created_at: string
+          criado_por: string | null
+          dados_geracao: Json
+          hash: string
+          id: string
+          modelo_id: string | null
+          modelo_nome: string | null
+          motivo_retificacao: string | null
+          previous_document_id: string | null
+          profissional_id: string | null
+          root_document_id: string | null
+          setor_id: string | null
+          signature_id: string | null
+          status: Database["public"]["Enums"]["generated_document_status"]
+          tipo_documento: Database["public"]["Enums"]["generated_document_type"]
+          titulo: string
+          unidade_id: string | null
+          updated_at: string
+          versao: number
+        }
+        Insert: {
+          assinado_em?: string | null
+          assinado_por?: string | null
+          atualizado_por?: string | null
+          codigo_validacao: string
+          conteudo_html?: string
+          created_at?: string
+          criado_por?: string | null
+          dados_geracao?: Json
+          hash: string
+          id?: string
+          modelo_id?: string | null
+          modelo_nome?: string | null
+          motivo_retificacao?: string | null
+          previous_document_id?: string | null
+          profissional_id?: string | null
+          root_document_id?: string | null
+          setor_id?: string | null
+          signature_id?: string | null
+          status?: Database["public"]["Enums"]["generated_document_status"]
+          tipo_documento: Database["public"]["Enums"]["generated_document_type"]
+          titulo: string
+          unidade_id?: string | null
+          updated_at?: string
+          versao?: number
+        }
+        Update: {
+          assinado_em?: string | null
+          assinado_por?: string | null
+          atualizado_por?: string | null
+          codigo_validacao?: string
+          conteudo_html?: string
+          created_at?: string
+          criado_por?: string | null
+          dados_geracao?: Json
+          hash?: string
+          id?: string
+          modelo_id?: string | null
+          modelo_nome?: string | null
+          motivo_retificacao?: string | null
+          previous_document_id?: string | null
+          profissional_id?: string | null
+          root_document_id?: string | null
+          setor_id?: string | null
+          signature_id?: string | null
+          status?: Database["public"]["Enums"]["generated_document_status"]
+          tipo_documento?: Database["public"]["Enums"]["generated_document_type"]
+          titulo?: string
+          unidade_id?: string | null
+          updated_at?: string
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generated_documents_previous_document_id_fkey"
+            columns: ["previous_document_id"]
+            isOneToOne: false
+            referencedRelation: "generated_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generated_documents_signature_id_fkey"
+            columns: ["signature_id"]
+            isOneToOne: false
+            referencedRelation: "document_signatures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       historico_ocupacao: {
         Row: {
           id: string
@@ -1393,6 +1489,21 @@ export type Database = {
           unidade_principal_id: string
         }[]
       }
+      validate_generated_document: {
+        Args: { _code: string }
+        Returns: {
+          assinado_em: string
+          codigo_validacao: string
+          created_at: string
+          hash: string
+          id: string
+          root_document_id: string
+          status: Database["public"]["Enums"]["generated_document_status"]
+          tipo_documento: Database["public"]["Enums"]["generated_document_type"]
+          titulo: string
+          versao: number
+        }[]
+      }
       validate_signature: {
         Args: { _code: string }
         Returns: {
@@ -1423,6 +1534,21 @@ export type Database = {
         | "relatorio_horas"
         | "ficha_profissional"
         | "personalizado"
+      generated_document_status:
+        | "rascunho"
+        | "gerado"
+        | "assinado"
+        | "publicado"
+        | "retificado"
+        | "cancelado"
+        | "arquivado"
+      generated_document_type:
+        | "escala_mensal"
+        | "comprovante_plantao"
+        | "troca_plantao"
+        | "relatorio_oficial"
+        | "documento_personalizado"
+        | "outro"
       profissao_type:
         | "medico"
         | "enfermeiro"
@@ -1600,6 +1726,23 @@ export const Constants = {
         "relatorio_horas",
         "ficha_profissional",
         "personalizado",
+      ],
+      generated_document_status: [
+        "rascunho",
+        "gerado",
+        "assinado",
+        "publicado",
+        "retificado",
+        "cancelado",
+        "arquivado",
+      ],
+      generated_document_type: [
+        "escala_mensal",
+        "comprovante_plantao",
+        "troca_plantao",
+        "relatorio_oficial",
+        "documento_personalizado",
+        "outro",
       ],
       profissao_type: [
         "medico",
