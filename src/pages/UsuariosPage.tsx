@@ -319,6 +319,11 @@ export default function UsuariosPage() {
                       {(() => {
                         const resetting = resetPassword.isPending && (resetPassword.variables as any) === u.user_id;
                         const toggling = toggleActive.isPending && (toggleActive.variables as any)?.userId === u.user_id;
+                        const deleting = deleteUser.isPending && (deleteUser.variables as any)?.user_id === u.user_id;
+                        const isSelf = u.user_id === authUser?.id;
+                        const isRootMaster = (u.email || '').toLowerCase() === 'artemiosouza99@gmail.com';
+                        const canDeleteRow = canDelete && !isSelf && !isRootMaster && !!u.user_id
+                          && !(isCoordinator && u.role === 'gestor_master');
                         return (
                           <>
                             <button
@@ -335,6 +340,16 @@ export default function UsuariosPage() {
                             >
                               <Power className="h-3.5 w-3.5" /> {toggling ? '...' : (u.ativo ? "Inativar" : "Ativar")}
                             </button>
+                            {canDeleteRow && (
+                              <button
+                                onClick={() => { if (!deleteUser.isPending) handleDelete(u); }}
+                                disabled={deleteUser.isPending}
+                                title="Excluir usuário"
+                                className="inline-flex items-center gap-1 rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" /> {deleting ? 'Excluindo...' : 'Excluir'}
+                              </button>
+                            )}
                           </>
                         );
                       })()}
