@@ -46,7 +46,7 @@ export default function MinhasTrocasPage() {
   });
 
   const needsManagerApproval = (settings as any)?.aprovacao_gestor_trocas ?? true;
-
+  const { data: attachSettings } = useSwapAttachmentSettings();
   // Fetch own profile to know the personal limits
   const { data: myProfile } = useQuery({
     queryKey: ["my-professional-limits", professionalId],
