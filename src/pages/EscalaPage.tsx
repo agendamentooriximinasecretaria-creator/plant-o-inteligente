@@ -1875,7 +1875,28 @@ export default function EscalaPage() {
 
 
       {isLoading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>
+        view === 'lista' ? (
+          <div className="bg-card rounded-xl border border-border/60 overflow-hidden shadow-[var(--shadow-card)]">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="table-header">
+                  <th className="text-left p-3">Profissional</th><th className="text-left p-3">Profissão</th><th className="text-left p-3">Setor</th><th className="text-left p-3">Data</th><th className="text-left p-3">Horário</th><th className="text-left p-3">Tipo</th><th className="text-left p-3">Status</th><th className="text-left p-3">Ações</th>
+                </tr></thead>
+                <tbody>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <tr key={i} className="border-t border-border">
+                      {Array.from({ length: 8 }).map((__, j) => (
+                        <td key={j} className="p-3"><div className="h-3 bg-muted rounded animate-pulse" /></td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="flex justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>
+        )
       ) : view === 'lista' ? (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-xl border border-border/60 overflow-hidden shadow-[var(--shadow-card)]">
           <div className="overflow-x-auto">
