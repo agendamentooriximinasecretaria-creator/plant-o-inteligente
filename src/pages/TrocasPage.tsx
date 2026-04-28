@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import ComprovanteTroca from "@/components/ComprovanteTroca";
+import SignActionButton from "@/components/SignActionButton";
 import { printSolicitacaoTroca } from "@/lib/printSolicitacaoTroca";
 import { calcularHorasMes } from "@/lib/horas";
 import { MoreActionsMenu } from "@/components/MoreActionsMenu";
@@ -724,6 +725,30 @@ export default function TrocasPage() {
                         <FileText className="h-3 w-3" /> Comprovante
                       </button>
                     )}
+                    <SignActionButton
+                      compact
+                      signLabel="Assinar"
+                      document={{
+                        document_type: 'troca',
+                        document_id: swap.id,
+                        document_title: `Troca de plantão ${swap.id.slice(0, 8)}`,
+                        content: JSON.stringify({
+                          id: swap.id,
+                          tipo: swap.tipo,
+                          status: swap.status,
+                          motivo: swap.motivo,
+                          solicitante: (swap.solicitante as any)?.nome,
+                          destinatario: (swap.destinatario as any)?.nome,
+                          shift: swap.shifts ? {
+                            data: (swap.shifts as any).data,
+                            hora_inicio: (swap.shifts as any).hora_inicio,
+                            hora_fim: (swap.shifts as any).hora_fim,
+                            setor: ((swap.shifts as any).sectors as any)?.nome,
+                            unidade: ((swap.shifts as any).units as any)?.nome,
+                          } : null,
+                        }),
+                      }}
+                    />
                     {isPending && isMaster && (
                       <>
                         <button onClick={() => openReview(swap, 'aprovar')} disabled={updateSwap.isPending}

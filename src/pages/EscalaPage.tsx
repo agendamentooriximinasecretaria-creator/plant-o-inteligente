@@ -22,6 +22,7 @@ import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 import { abrirVisualizacaoImpressao, gerarPdfEscala, diaSemanaPt, type PrintLinha, type PrintCabecalho, type PrintOptions } from "@/lib/printEscala";
 import { abrirEscalaMensalOficial, gerarPdfEscalaMensalOficial, type MensalProfissional, type MensalCabecalho, type MensalOpts, type MensalTipoLegenda } from "@/lib/printEscalaMensalOficial";
 import { imprimirComprovantePlantao, type ComprovantePlantaoData } from "@/lib/printComprovantePlantao";
+import SignActionButton from "@/components/SignActionButton";
 
 const STATUS_LABELS: Record<string, string> = {
   agendado: 'Agendado', confirmado: 'Confirmado', pendente: 'Pendente',
@@ -1689,6 +1690,36 @@ export default function EscalaPage() {
           >
             <FileText className="h-3.5 w-3.5" /> Exportar PDF
           </button>
+          {canManage && (() => {
+            const ref = filtros.dataIni ? new Date(filtros.dataIni + 'T12:00:00') : new Date();
+            const ano = ref.getFullYear();
+            const mes = ref.getMonth() + 1;
+            const escalaKey = `escala_${ano}_${String(mes).padStart(2, '0')}_${filtros.unidadeId || 'all'}_${filtros.setorId || 'all'}`;
+            return (
+              <SignActionButton
+                signLabel="Assinar escala"
+                variant="outline"
+                document={{
+                  document_type: 'escala_mensal',
+                  document_id: escalaKey,
+                  document_title: `Escala ${String(mes).padStart(2, '0')}/${ano}`,
+                  content: JSON.stringify({
+                    ano, mes,
+                    unidadeId: filtros.unidadeId || null,
+                    setorId: filtros.setorId || null,
+                    totalPlantoes: filtered.length,
+                    plantoes: filtered.slice(0, 500).map((s: any) => ({
+                      id: s.id, data: s.data, hi: s.hora_inicio, hf: s.hora_fim,
+                      profissional: (s.professionals as any)?.nome,
+                      setor: (s.sectors as any)?.nome,
+                      status: s.status,
+                    })),
+                  }),
+                  metadata: { ano, mes, unidadeId: filtros.unidadeId, setorId: filtros.setorId },
+                }}
+              />
+            );
+          })()}
           <MoreActionsMenu
             items={[
               { id: 'exp-excel', label: 'Exportar Excel', icon: <FileSpreadsheet />, onClick: handleExportExcel, group: 'Documentos' },
