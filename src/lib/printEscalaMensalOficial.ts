@@ -330,10 +330,10 @@ export function abrirEscalaMensalOficial(
   import("./registrarDocumento").then(({ registrarDocumentoGerado }) => {
     registrarDocumentoGerado({
       tipo: "escala_mensal",
-      titulo: `Escala Mensal Oficial — ${cab.mesNome ?? ""} ${cab.ano ?? ""}`.trim(),
+      titulo: `Escala Mensal Oficial — ${cab.mes}/${cab.ano} ${cab.setor ?? ""}`.trim(),
       conteudoHtml: html,
       dadosGeracao: {
-        cabecalho: { mes: cab.mes, ano: cab.ano, unidade: cab.unidadeNome, setor: cab.setorNome },
+        cabecalho: { mes: cab.mes, ano: cab.ano, setor: cab.setor, profissao: cab.profissaoLabel },
         totalProfissionais: profs.length,
       },
     });
