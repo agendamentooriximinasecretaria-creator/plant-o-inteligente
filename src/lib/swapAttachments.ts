@@ -47,13 +47,21 @@ export type SwapAttachment = {
   created_at: string;
 };
 
-export function validateFile(file: File): string | null {
+export function validateFile(
+  file: File,
+  opts?: { allowedExtensions?: string[]; maxSizeBytes?: number }
+): string | null {
+  const allowed = (opts?.allowedExtensions && opts.allowedExtensions.length > 0)
+    ? opts.allowedExtensions.map((e) => e.toLowerCase())
+    : DEFAULT_ALLOWED_EXTENSIONS;
+  const maxSize = opts?.maxSizeBytes && opts.maxSizeBytes > 0 ? opts.maxSizeBytes : MAX_FILE_SIZE_BYTES;
   const ext = file.name.split(".").pop()?.toLowerCase() || "";
   if (BLOCKED_EXTENSIONS.includes(ext)) return `Tipo de arquivo "${ext}" não permitido.`;
-  if (!ALLOWED_EXTENSIONS.includes(ext)) return `Extensão .${ext} não suportada. Use PDF, JPG, PNG ou DOC/DOCX.`;
-  if (file.size > MAX_FILE_SIZE_BYTES) return `Arquivo "${file.name}" excede o limite de 10 MB.`;
+  if (!allowed.includes(ext)) return `Extensão .${ext} não permitida pelas configurações do sistema.`;
+  if (file.size > maxSize) return `Arquivo "${file.name}" excede o limite de ${(maxSize / 1024 / 1024).toFixed(0)} MB.`;
   if (file.size <= 0) return `Arquivo "${file.name}" está vazio.`;
-  if (file.type && !ALLOWED_MIME.has(file.type)) return `Tipo MIME "${file.type}" não permitido.`;
+  const allowedMime = new Set(allowed.flatMap((e) => MIME_BY_EXT[e] || []));
+  if (file.type && !allowedMime.has(file.type)) return `Tipo MIME "${file.type}" não permitido.`;
   return null;
 }
 
