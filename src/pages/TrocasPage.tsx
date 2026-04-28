@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import ComprovanteTroca from "@/components/ComprovanteTroca";
 import SignActionButton from "@/components/SignActionButton";
+import SwapAttachmentsSection from "@/components/SwapAttachmentsSection";
 import { printSolicitacaoTroca } from "@/lib/printSolicitacaoTroca";
 import { calcularHorasMes } from "@/lib/horas";
 import { MoreActionsMenu } from "@/components/MoreActionsMenu";
