@@ -1112,6 +1112,17 @@ export default function EscalaPage() {
 
   const handlePrintAction = async (acao: 'view' | 'print' | 'pdf-open' | 'pdf-save') => {
     if (printBusy) return;
+
+    // Validações específicas por modelo
+    if (printForm.modelo === 'por_profissional' && !printForm.profissionalId) {
+      toast.error('Selecione um profissional para o modelo "Escala por profissional".');
+      return;
+    }
+    if (printForm.modelo === 'por_setor' && !printForm.setorId) {
+      toast.error('Selecione um setor para o modelo "Escala por setor".');
+      return;
+    }
+
     setPrintBusy(acao);
     try {
       // ===== Modelo "Escala Mensal Oficial" =====
