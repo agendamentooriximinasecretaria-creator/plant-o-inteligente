@@ -154,9 +154,30 @@ export function buildComprovantePlantaoHtml(d: ComprovantePlantaoData): string {
 }
 
 export function imprimirComprovantePlantao(d: ComprovantePlantaoData): boolean {
+  const html = buildComprovantePlantaoHtml(d);
   const w = window.open("", "_blank", "width=900,height=780");
   if (!w) return false;
-  w.document.write(buildComprovantePlantaoHtml(d));
+  w.document.write(html);
   w.document.close();
+
+  // Registra documento versionado (silencioso)
+  import("./registrarDocumento").then(({ registrarDocumentoGerado }) => {
+    registrarDocumentoGerado({
+      tipo: "comprovante_plantao",
+      titulo: `Comprovante de Plantão — ${d.profissionalNome} — ${d.data}`,
+      conteudoHtml: html,
+      dadosGeracao: {
+        shiftId: d.shiftId,
+        data: d.data,
+        horaInicio: d.horaInicio,
+        horaFim: d.horaFim,
+        unidade: d.unidadeNome,
+        setor: d.setorNome,
+        tipo: d.tipoPlantao,
+      },
+    });
+  });
+
   return true;
 }
+
