@@ -581,6 +581,19 @@ export default function ProfissionaisPage() {
                             <DropdownMenuItem onClick={() => validarDocumentos(p)}>
                               <FileCheck2 className="h-4 w-4 mr-2" /> Validar documentos
                             </DropdownMenuItem>
+                            {canDelete && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  disabled={deleteMutation.isPending}
+                                  onClick={(e) => { e.preventDefault(); if (!deleteMutation.isPending) handleDelete(p); }}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  {deleteMutation.isPending && (deleteMutation.variables as any)?.id === p.id ? 'Excluindo...' : 'Excluir profissional'}
+                                </DropdownMenuItem>
+                              </>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
