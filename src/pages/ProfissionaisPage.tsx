@@ -25,7 +25,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { CardListSkeleton } from "@/components/PageSkeleton";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useAuth } from "@/hooks/useAuth";
-import CarimboDigitalCard from "@/components/CarimboDigitalCard";
+import CarimboAssinaturaProfissional from "@/components/CarimboAssinaturaProfissional";
 
 function useDebounced<T>(value: T, delay = 300): T {
   const [v, setV] = useState(value);
@@ -748,7 +748,7 @@ export default function ProfissionaisPage() {
           {/* Carimbo digital — apenas em edição */}
           {editingId && (
             <div className="mt-6 pt-6 border-t border-border">
-              <CarimboDigitalCard profissionalId={editingId} isMaster={isMaster} />
+              <CarimboAssinaturaProfissional profissionalId={editingId} isMaster={isMaster} />
             </div>
           )}
         </DialogContent>

@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { KeyRound } from "lucide-react";
-import CarimboDigitalCard from "@/components/CarimboDigitalCard";
+import CarimboAssinaturaProfissional from "@/components/CarimboAssinaturaProfissional";
 
 export default function MeuPerfilPage() {
   const sb = supabase as any;
@@ -147,8 +147,8 @@ export default function MeuPerfilPage() {
         </div>
       </div>
 
-      {/* Carimbo Digital */}
-      {myProfId && <CarimboDigitalCard profissionalId={myProfId} isMaster={isMaster} />}
+      {/* Carimbo e Assinatura Profissional */}
+      {myProfId && <CarimboAssinaturaProfissional profissionalId={myProfId} isMaster={isMaster} />}
     </div>
   );
 }
