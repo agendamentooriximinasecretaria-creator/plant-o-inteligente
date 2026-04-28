@@ -61,6 +61,7 @@ export default function TrocasPage() {
   const [expandedHistory, setExpandedHistory] = useState<Record<string, boolean>>({});
   const [impactSwap, setImpactSwap] = useState<any | null>(null);
   const [notifyingId, setNotifyingId] = useState<string | null>(null);
+  const { data: attachSettings } = useSwapAttachmentSettings();
 
   // Filtros avançados
   const [searchInput, setSearchInput] = useState('');
