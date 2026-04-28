@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { logAudit } from "@/lib/auditLog";
 
 export const SWAP_ATTACHMENT_BUCKET = "swap-attachments";
 
