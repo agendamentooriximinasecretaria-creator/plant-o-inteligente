@@ -213,6 +213,9 @@ export default function ComprovanteTroca({ trocaId, onClose }: Props) {
         <button onClick={handleDownloadPDF} className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted">
           <Download className="h-4 w-4" /> Baixar PDF
         </button>
+        <button onClick={() => setSignOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-primary text-primary px-4 py-2 text-sm font-medium hover:bg-primary/10">
+          <ShieldCheck className="h-4 w-4" /> Assinar eletronicamente
+        </button>
         {onClose && (
           <button onClick={onClose} className="ml-auto inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted">
             Fechar
