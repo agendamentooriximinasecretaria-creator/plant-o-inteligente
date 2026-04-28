@@ -12,6 +12,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import ComprovanteTroca from "@/components/ComprovanteTroca";
 import SwapAttachmentsSection, { type PendingFile } from "@/components/SwapAttachmentsSection";
 import { uploadSwapAttachment } from "@/lib/swapAttachments";
+import { useSwapAttachmentSettings, motivoEhSaude, HEALTH_DOC_TYPES } from "@/lib/swapAttachmentSettings";
 
 const tabs = [
   { id: "solicitar", label: "Solicitar Troca" },
