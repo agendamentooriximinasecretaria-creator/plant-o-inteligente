@@ -65,6 +65,8 @@ export default function SwapAttachmentsSection({
   const [busy, setBusy] = useState(false);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectMotivo, setRejectMotivo] = useState("");
+  const [senderNames, setSenderNames] = useState<Record<string, string>>({});
+  const [preview, setPreview] = useState<{ a: SwapAttachment; url: string; kind: 'pdf' | 'image' } | null>(null);
 
   const isPendingMode = !trocaId;
   const swapEditable = !swapStatus || ["solicitada", "aguardando_resposta"].includes(swapStatus);
