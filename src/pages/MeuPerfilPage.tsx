@@ -3,20 +3,53 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { KeyRound } from "lucide-react";
+import { KeyRound, Stamp, ShieldCheck } from "lucide-react";
 import CarimboAssinaturaProfissional from "@/components/CarimboAssinaturaProfissional";
+import { logAudit } from "@/lib/auditLog";
 
 export default function MeuPerfilPage() {
   const sb = supabase as any;
   const qc = useQueryClient();
-  const { user, isMaster } = useAuth();
+  const { user, isMaster, isCoordinator, role, profileName } = useAuth();
+  const isManagerRole = isMaster || isCoordinator;
 
-  const { data: myProfId } = useQuery({
-    queryKey: ["my-prof-id"],
+  const { data: myProfId, refetch: refetchProfId } = useQuery({
+    queryKey: ["my-prof-id", user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from('professionals').select('id').maybeSingle();
+      const { data } = await supabase.from('professionals').select('id').eq('user_id', user?.id || '').maybeSingle();
       return (data as any)?.id || null;
     },
+    enabled: !!user?.id,
+  });
+
+  // Cria uma "área institucional" (registro em professionals) para Gestor/Coordenador
+  // que ainda não tem cadastro profissional, permitindo configurar carimbo/assinatura.
+  const createInstitutional = useMutation({
+    mutationFn: async () => {
+      if (!user?.id || !user?.email) throw new Error("Sessão inválida.");
+      const cargoFunc = isMaster ? "Gestor Master" : "Coordenador(a)";
+      const payload: any = {
+        user_id: user.id,
+        nome: profileName || user.email.split("@")[0],
+        email: user.email,
+        profissao: "outro",
+        status: "ativo",
+        vinculo: "gestor_administrativo",
+        observacoes: `Área institucional criada automaticamente para assinaturas (${cargoFunc}).`,
+      };
+      const { data, error } = await sb.from("professionals").insert(payload).select("id").single();
+      if (error) throw error;
+      // Vincula ao profile do usuário
+      await sb.from("profiles").update({ profissional_id: data.id }).eq("user_id", user.id);
+      await logAudit("criou_area_assinatura_institucional", "carimbo_digital", { professional_id: data.id, role });
+      return data.id as string;
+    },
+    onSuccess: () => {
+      toast.success("Área de assinatura institucional criada.");
+      refetchProfId();
+      qc.invalidateQueries({ queryKey: ["my-prof-id"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Falha ao criar área institucional."),
   });
 
   const [telefone, setTelefone] = useState("");
