@@ -286,6 +286,13 @@ export async function resolveVariables(ctx: ResolveContext): Promise<Record<stri
       out.profissional_cns = ctx.allowSensitive ? '' : '';
       out.profissional_carimbo = blocoCarimbo(out.profissional_nome, out.profissional_conselho, out.profissional_registro, out.profissional_profissao);
       out.profissional_assinatura_visual = blocoAssinatura(out.profissional_nome, out.profissional_profissao);
+      // Sobrescreve com carimbo personalizado se existir
+      const personalizado = await blocoCarimboPersonalizado(profissional.id, {
+        nome: out.profissional_nome, profissao: out.profissional_profissao,
+        conselho: out.profissional_conselho, registro: out.profissional_registro,
+      });
+      if (personalizado.assinatura) out.profissional_assinatura_visual = personalizado.assinatura;
+      if (personalizado.carimbo) out.profissional_carimbo = personalizado.carimbo;
       out.assinatura_profissional = out.profissional_assinatura_visual;
       out.carimbo_profissional = out.profissional_carimbo;
     }
