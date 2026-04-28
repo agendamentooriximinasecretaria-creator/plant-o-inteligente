@@ -86,6 +86,7 @@ export default function DocumentTemplatesManager() {
   };
 
   const canDelete = canEdit;
+  const [signTpl, setSignTpl] = useState<DocumentTemplate | null>(null);
 
   const canCreate = isMaster || isCoordinator || isProfessional;
 
@@ -232,6 +233,8 @@ export default function DocumentTemplatesManager() {
                   className="p-1.5 rounded hover:bg-muted text-foreground"><Download className="h-4 w-4" /></button>
                 <button onClick={() => previewPdf(t, 'print')} title="Imprimir"
                   className="p-1.5 rounded hover:bg-muted text-foreground"><Printer className="h-4 w-4" /></button>
+                <button onClick={() => setSignTpl(t)} title="Assinar eletronicamente"
+                  className="p-1.5 rounded hover:bg-muted text-primary"><ShieldCheck className="h-4 w-4" /></button>
                 <div className="flex-1" />
                 {canCreate && (
                   <button onClick={() => duplicate.mutate(t)} title="Duplicar"
