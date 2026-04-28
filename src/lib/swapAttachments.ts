@@ -96,7 +96,8 @@ export async function uploadSwapAttachment(params: {
   if (!uid) throw new Error("Sessão expirada.");
 
   const safeName = sanitizeFileName(params.file.name);
-  const path = `${params.trocaId}/${Date.now()}_${safeName}`;
+  // Caminho organizado em pasta dedicada — facilita auditoria e políticas de storage
+  const path = `trocas/${params.trocaId}/${Date.now()}_${safeName}`;
 
   const { error: upErr } = await supabase.storage
     .from(SWAP_ATTACHMENT_BUCKET)
@@ -132,11 +133,27 @@ export async function uploadSwapAttachment(params: {
   return data as SwapAttachment;
 }
 
-export async function getSignedAttachmentUrl(storagePath: string, opts?: { audit?: { attachmentId: string; trocaId: string; action: 'visualizar' | 'baixar'; nome?: string } }): Promise<string> {
+export async function getSignedAttachmentUrl(
+  storagePath: string,
+  opts?: { audit?: { attachmentId: string; trocaId: string; action: 'visualizar' | 'baixar'; nome?: string } }
+): Promise<string> {
+  // Tempo curto: 60s para baixar, 5 min para visualização inline
+  const expiresIn = opts?.audit?.action === 'baixar' ? 60 : 60 * 5;
   const { data, error } = await supabase.storage
     .from(SWAP_ATTACHMENT_BUCKET)
-    .createSignedUrl(storagePath, 60 * 5);
-  if (error) throw error;
+    .createSignedUrl(storagePath, expiresIn, opts?.audit?.action === 'baixar' ? { download: opts.audit.nome || true } : undefined);
+  if (error) {
+    // Auditar tentativa negada de acesso
+    if (opts?.audit) {
+      logAudit('anexo_troca_acesso_negado', 'trocas_anexos', {
+        attachment_id: opts.audit.attachmentId,
+        troca_id: opts.audit.trocaId,
+        action: opts.audit.action,
+        motivo: error.message,
+      }, 'erro').catch(() => {});
+    }
+    throw error;
+  }
   if (opts?.audit) {
     logAudit(
       opts.audit.action === 'visualizar' ? 'anexo_troca_visualizado' : 'anexo_troca_baixado',
@@ -163,14 +180,40 @@ export function getFileIconType(mime: string, name: string): 'pdf' | 'image' | '
   return 'file';
 }
 
-export async function removeSwapAttachment(attachmentId: string, storagePath: string): Promise<void> {
+/**
+ * Remoção lógica (soft-delete). Mantém o arquivo no storage para preservar
+ * trilha de auditoria e permitir investigação posterior. A exclusão física
+ * é restrita ao Gestor Master via `purgeSwapAttachment`.
+ */
+export async function removeSwapAttachment(attachmentId: string, _storagePath?: string): Promise<void> {
   const sb = supabase as any;
   const { error } = await sb
     .from("swap_attachments")
     .update({ status: "removido" })
     .eq("id", attachmentId);
   if (error) throw error;
-  await supabase.storage.from(SWAP_ATTACHMENT_BUCKET).remove([storagePath]).catch(() => {});
+  // NÃO apaga fisicamente — auditoria preservada (audit trigger registra status='removido')
+}
+
+/**
+ * Exclusão física definitiva (apaga arquivo do storage). Restrito ao Gestor Master
+ * pela política de storage. Use apenas quando exigido por LGPD/retention policy.
+ */
+export async function purgeSwapAttachment(attachmentId: string, storagePath: string): Promise<void> {
+  const sb = supabase as any;
+  const { error: storageErr } = await supabase.storage
+    .from(SWAP_ATTACHMENT_BUCKET)
+    .remove([storagePath]);
+  if (storageErr) {
+    logAudit('anexo_troca_purge_negado', 'trocas_anexos', {
+      attachment_id: attachmentId, motivo: storageErr.message,
+    }, 'erro').catch(() => {});
+    throw storageErr;
+  }
+  await sb.from("swap_attachments")
+    .update({ status: "removido", motivo_rejeicao: 'Arquivo expurgado pelo Gestor Master' })
+    .eq("id", attachmentId);
+  logAudit('anexo_troca_purgado', 'trocas_anexos', { attachment_id: attachmentId, storage_path: storagePath }).catch(() => {});
 }
 
 export async function rejectSwapAttachment(attachmentId: string, motivo: string): Promise<void> {
