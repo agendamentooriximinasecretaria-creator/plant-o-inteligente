@@ -28,6 +28,7 @@ import MeuPerfilPage from "@/pages/MeuPerfilPage";
 import MinhaIndisponibilidadePage from "@/pages/MinhaIndisponibilidadePage";
 import MeusDocumentosPage from "@/pages/MeusDocumentosPage";
 import ValidarAssinaturaPage from "@/pages/ValidarAssinaturaPage";
+import DocumentosOficiaisPage from "@/pages/DocumentosOficiaisPage";
 
 const queryClient = new QueryClient();
 
