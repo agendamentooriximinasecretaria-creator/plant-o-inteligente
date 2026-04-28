@@ -152,6 +152,23 @@ export default function MinhasTrocasPage() {
         motivo: form.motivo,
       });
 
+      // Envia anexos pendentes (se houver)
+      if (pendingAttachments.length > 0) {
+        for (const p of pendingAttachments) {
+          try {
+            await uploadSwapAttachment({
+              trocaId: inserted.id,
+              file: p.file,
+              tipo: p.tipo,
+              descricao: p.descricao,
+              professionalId,
+            });
+          } catch (err: any) {
+            toast.error(`Falha ao enviar "${p.file.name}": ${err.message || 'erro desconhecido'}`);
+          }
+        }
+      }
+
       if (form.tipo === "direto" && form.destinatario_id) {
         await dispatchNotification({ professionalId: form.destinatario_id, tipo: 'troca', titulo: '🔄 Nova solicitação de troca', mensagem: 'Um colega solicitou uma troca de plantão com você.' });
       } else {
@@ -160,6 +177,14 @@ export default function MinhasTrocasPage() {
           await dispatchNotification({ professionalId: p.id, tipo: 'troca', titulo: '🔄 Plantão disponível para troca', mensagem: 'Um colega disponibilizou um plantão para troca.' });
         }
       }
+    },
+    onSuccess: () => {
+      toast.success("Troca solicitada com sucesso.");
+      setForm({ shift_id: "", tipo: "grupo", destinatario_id: "", motivo: "" });
+      setPendingAttachments([]);
+      qc.invalidateQueries({ queryKey: ["professional-swaps"] });
+      invalidateCrossSwaps(qc);
+      refetchStatus();
     },
     onSuccess: () => {
       toast.success("Troca solicitada com sucesso.");
