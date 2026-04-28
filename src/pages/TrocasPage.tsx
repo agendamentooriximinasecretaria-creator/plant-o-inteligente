@@ -9,7 +9,7 @@ import { SWAP_STATUS_LABELS } from "@/types/hospital";
 import type { SwapStatus } from "@/types/hospital";
 import {
   ArrowLeftRight, Clock, CheckCircle2, XCircle, AlertCircle, Plus, Zap, FileText, Filter,
-  ChevronDown, Calendar as CalIcon, Search, X, Printer, Download, BellRing, Activity, History,
+  ChevronDown, Calendar as CalIcon, Search, X, Printer, Download, BellRing, Activity, History, Paperclip,
 } from "lucide-react";
 import { ContactActionButton } from "@/components/ContactActionButton";
 import { motion, AnimatePresence } from "framer-motion";
