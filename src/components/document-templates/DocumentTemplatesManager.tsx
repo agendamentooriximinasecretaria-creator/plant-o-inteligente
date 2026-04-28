@@ -349,12 +349,20 @@ function TemplateEditor({
     }
   }
 
-  async function previewPdf(acao: 'open' | 'print') {
+  async function previewPdf(acao: 'open' | 'print', modo: 'amostras' | 'reais' = 'amostras') {
     try {
       await gerarPdfDocumentTemplate({
         nome: form.nome || 'preview',
         conteudoHtml: conteudo,
         abnt,
+        useSamples: modo === 'amostras',
+        context: modo === 'reais' ? {
+          profissionalId: professionalId || undefined,
+          unidadeId: form.unidade_id || undefined,
+          setorId: form.setor_id || undefined,
+          mes: new Date().getMonth() + 1,
+          ano: new Date().getFullYear(),
+        } : undefined,
         acao,
       });
     } catch (e: any) {
@@ -390,9 +398,14 @@ function TemplateEditor({
           </h2>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => previewPdf('open')}
+          <button onClick={() => previewPdf('open', 'amostras')}
             className="flex items-center gap-2 border border-border px-3 py-2 rounded-lg text-sm font-medium hover:bg-muted">
             <Eye className="h-4 w-4" /> Pré-visualizar
+          </button>
+          <button onClick={() => previewPdf('open', 'reais')}
+            className="flex items-center gap-2 border border-border px-3 py-2 rounded-lg text-sm font-medium hover:bg-muted"
+            title="Substitui variáveis com dados reais do sistema">
+            <Sparkles className="h-4 w-4" /> Pré-visualizar com dados reais
           </button>
           <button onClick={restaurarPadrao}
             className="flex items-center gap-2 border border-border px-3 py-2 rounded-lg text-sm hover:bg-muted">
@@ -404,6 +417,22 @@ function TemplateEditor({
           </button>
         </div>
       </div>
+
+      {desconhecidas.length > 0 && (
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-warning/10 border border-warning/30 text-warning text-xs">
+          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+          <div>
+            <strong>Variáveis não reconhecidas detectadas:</strong>{' '}
+            {desconhecidas.map(v => <code key={v} className="font-mono mx-0.5">{`{{${v}}}`}</code>)}
+            . Elas serão renderizadas como vazias na exportação.
+          </div>
+        </div>
+      )}
+      {usadas.length > 0 && desconhecidas.length === 0 && (
+        <div className="text-[11px] text-muted-foreground px-1">
+          {usadas.length} variável(is) em uso: {usadas.map(v => <code key={v} className="font-mono mx-0.5 px-1 bg-muted rounded">{`{{${v}}}`}</code>)}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr,340px] gap-4">
         {/* Editor */}
