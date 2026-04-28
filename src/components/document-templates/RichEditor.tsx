@@ -13,7 +13,8 @@ import {
   AlignRight, AlignJustify, Heading1, Heading2, Heading3, Table as TableIcon, Image as ImgIcon,
   Link as LinkIcon, Undo, Redo, Code, Pilcrow, Variable
 } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { InsertVariableMenu } from './InsertVariableMenu';
 
 interface Props {
   value: string;
@@ -25,6 +26,7 @@ interface Props {
 }
 
 export function RichEditor({ value, onChange, variaveis = [], font = 'Times', fontSize = 12, lineHeight = 1.5 }: Props) {
+  const [showVarMenu, setShowVarMenu] = useState(false);
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -103,17 +105,18 @@ export function RichEditor({ value, onChange, variaveis = [], font = 'Times', fo
         <Btn onClick={() => editor.chain().focus().undo().run()} title="Desfazer"><Undo className="h-4 w-4" /></Btn>
         <Btn onClick={() => editor.chain().focus().redo().run()} title="Refazer"><Redo className="h-4 w-4" /></Btn>
 
-        {variaveis.length > 0 && (
-          <div className="ml-auto flex items-center gap-2">
-            <Variable className="h-4 w-4 text-muted-foreground" />
-            <select onChange={(e) => { if (e.target.value) { insertVar(e.target.value); e.target.value = ''; } }}
-              className="text-xs bg-card border border-border rounded px-2 py-1">
-              <option value="">Inserir variável...</option>
-              {variaveis.map(v => <option key={v} value={v}>{`{{${v}}}`}</option>)}
-            </select>
-          </div>
-        )}
+        <button type="button" onClick={() => setShowVarMenu(true)} title="Inserir variável dinâmica"
+          className="ml-auto flex items-center gap-1.5 text-xs px-2.5 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition">
+          <Variable className="h-3.5 w-3.5" /> Inserir variável
+        </button>
       </div>
+
+      {showVarMenu && (
+        <InsertVariableMenu
+          onInsert={(token) => { editor.chain().focus().insertContent(token).run(); setShowVarMenu(false); }}
+          onClose={() => setShowVarMenu(false)}
+        />
+      )}
       <div
         style={{
           fontFamily: fontFamilyMap[font] || fontFamilyMap.Times,
