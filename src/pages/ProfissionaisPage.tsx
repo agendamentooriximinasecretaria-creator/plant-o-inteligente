@@ -25,6 +25,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { CardListSkeleton } from "@/components/PageSkeleton";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useAuth } from "@/hooks/useAuth";
+import CarimboDigitalCard from "@/components/CarimboDigitalCard";
 
 function useDebounced<T>(value: T, delay = 300): T {
   const [v, setV] = useState(value);
