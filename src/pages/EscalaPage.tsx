@@ -2651,11 +2651,31 @@ export default function EscalaPage() {
               <h4 className="text-sm font-semibold mb-2">Modelo de impressão</h4>
               <div className="flex flex-wrap gap-2">
                 {([
-                  { v: 'detalhado', l: 'Detalhado (linhas)' },
                   { v: 'mensal_oficial', l: 'Escala Mensal Oficial' },
+                  { v: 'semanal_simples', l: 'Escala Semanal Simples' },
+                  { v: 'lista', l: 'Lista de Plantões' },
+                  { v: 'por_profissional', l: 'Escala por Profissional' },
+                  { v: 'por_setor', l: 'Escala por Setor' },
+                  { v: 'detalhado', l: 'Detalhado (legado)' },
                 ] as const).map(o => (
                   <button key={o.v} type="button"
-                    onClick={() => setPrintForm(f => ({ ...f, modelo: o.v }))}
+                    onClick={() => {
+                      // Auto-aplica período conforme modelo escolhido
+                      if (o.v === 'semanal_simples') {
+                        const s = startOfWeek(new Date());
+                        setPrintForm(f => ({ ...f, modelo: o.v, periodo: 'semana', dataIni: ymd(s), dataFim: ymd(addDays(s, 6)) }));
+                      } else if (o.v === 'lista' || o.v === 'por_profissional' || o.v === 'por_setor') {
+                        const t = new Date();
+                        setPrintForm(f => ({
+                          ...f, modelo: o.v,
+                          periodo: 'mes',
+                          dataIni: ymd(startOfMonth(t.getFullYear(), t.getMonth())),
+                          dataFim: ymd(endOfMonth(t.getFullYear(), t.getMonth())),
+                        }));
+                      } else {
+                        setPrintForm(f => ({ ...f, modelo: o.v }));
+                      }
+                    }}
                     className={`px-3 py-1.5 rounded-lg text-xs border transition ${printForm.modelo === o.v ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border hover:bg-muted'}`}>
                     {o.l}
                   </button>
@@ -2666,10 +2686,30 @@ export default function EscalaPage() {
                   Layout em grade tipo escala em papel hospitalar (Profissional × dias do mês), A4 paisagem, com legenda e assinatura.
                 </p>
               )}
+              {printForm.modelo === 'semanal_simples' && (
+                <p className="text-[11px] text-muted-foreground mt-2">
+                  Imprime a semana selecionada em formato de tabela simples (segunda a domingo).
+                </p>
+              )}
+              {printForm.modelo === 'lista' && (
+                <p className="text-[11px] text-muted-foreground mt-2">
+                  Tabela linear com todos os plantões do período aplicando os filtros.
+                </p>
+              )}
+              {printForm.modelo === 'por_profissional' && (
+                <p className="text-[11px] text-muted-foreground mt-2">
+                  ⚠️ Selecione um profissional nos filtros abaixo. Imprime apenas os plantões dele no período.
+                </p>
+              )}
+              {printForm.modelo === 'por_setor' && (
+                <p className="text-[11px] text-muted-foreground mt-2">
+                  ⚠️ Selecione um setor nos filtros abaixo. Imprime apenas os plantões desse setor no período.
+                </p>
+              )}
             </section>
 
-            {/* PERÍODO (modelo detalhado) */}
-            {printForm.modelo === 'detalhado' && (
+            {/* PERÍODO (todos exceto mensal_oficial) */}
+            {printForm.modelo !== 'mensal_oficial' && (
               <section>
                 <h4 className="text-sm font-semibold mb-2">Período</h4>
                 <div className="flex flex-wrap gap-2 mb-2">
@@ -2708,6 +2748,7 @@ export default function EscalaPage() {
                 <h4 className="text-sm font-semibold mb-2">Mês de referência</h4>
                 <input type="month" value={printForm.mesRef}
                   onChange={e => setPrintForm(f => ({ ...f, mesRef: e.target.value }))}
+
                   className={inputClass} />
               </section>
             )}
