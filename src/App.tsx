@@ -116,6 +116,7 @@ const App = () => (
                 <Route path="/medicos" element={<Navigate to="/profissionais" replace />} />
                 <Route path="/setores" element={<ManagerOnly><SetoresPage /></ManagerOnly>} />
                 <Route path="/relatorios" element={<ManagerOnly><RelatoriosPage /></ManagerOnly>} />
+                <Route path="/documentos-oficiais" element={<ManagerOnly><DocumentosOficiaisPage /></ManagerOnly>} />
                 {/* Legacy financial routes redirect */}
                 <Route path="/financeiro" element={<Navigate to="/dashboard" replace />} />
 
