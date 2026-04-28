@@ -118,7 +118,7 @@ export default function SwapAttachmentsSection({
   }, [attachments, senderNames]);
 
   const totalCount = (isPendingMode ? pendingFiles.length : attachments.filter(a => a.status === "ativo").length);
-  const limitReached = totalCount >= MAX_FILES_PER_SWAP;
+  const limitReached = totalCount >= maxFiles;
 
   const handlePick = () => fileRef.current?.click();
 
@@ -127,9 +127,13 @@ export default function SwapAttachmentsSection({
     const file = files[0];
     fileRef.current && (fileRef.current.value = "");
 
-    const err = validateFile(file);
+    const err = validateFile(file, { allowedExtensions: allowedExt, maxSizeBytes });
     if (err) { toast.error(err); return; }
-    if (limitReached) { toast.error(`Máximo de ${MAX_FILES_PER_SWAP} anexos por solicitação.`); return; }
+    if (limitReached) { toast.error(`Máximo de ${maxFiles} anexos por solicitação.`); return; }
+    if (settings.exigir_descricao && !descricao.trim()) {
+      toast.error("Descrição do anexo é obrigatória conforme configuração do sistema.");
+      return;
+    }
 
     if (isPendingMode) {
       onPendingChange?.([...pendingFiles, { uid: newUid(), file, tipo, descricao: descricao.trim() }]);
