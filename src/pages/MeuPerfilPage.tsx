@@ -122,7 +122,11 @@ export default function MeuPerfilPage() {
         {isLoading ? (
           <div className="flex justify-center py-8"><div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full" /></div>
         ) : !professional ? (
-          <p className="text-sm text-muted-foreground">Seu usuário ainda não está vinculado a um cadastro profissional.</p>
+          <p className="text-sm text-muted-foreground">
+            {isManagerRole
+              ? "Sua conta é de gestão (não clínica). Use a área de Assinatura Institucional abaixo para configurar carimbo, cargo, registro e dados institucionais."
+              : "Seu usuário ainda não está vinculado a um cadastro profissional."}
+          </p>
         ) : (
           <>
             <h2 className="text-base font-semibold text-foreground">Dados Profissionais</h2>
