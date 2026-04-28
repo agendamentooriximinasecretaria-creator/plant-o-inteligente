@@ -743,6 +743,13 @@ export default function ProfissionaisPage() {
               </button>
             </div>
           </form>
+
+          {/* Carimbo digital — apenas em edição */}
+          {editingId && (
+            <div className="mt-6 pt-6 border-t border-border">
+              <CarimboDigitalCard profissionalId={editingId} isMaster={isMaster} />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
