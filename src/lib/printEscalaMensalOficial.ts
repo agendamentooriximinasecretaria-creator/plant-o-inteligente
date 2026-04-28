@@ -325,8 +325,23 @@ export function abrirEscalaMensalOficial(
   }
   w.document.write(html);
   w.document.close();
+
+  // Registra documento versionado (silencioso)
+  import("./registrarDocumento").then(({ registrarDocumentoGerado }) => {
+    registrarDocumentoGerado({
+      tipo: "escala_mensal",
+      titulo: `Escala Mensal Oficial — ${cab.mesNome ?? ""} ${cab.ano ?? ""}`.trim(),
+      conteudoHtml: html,
+      dadosGeracao: {
+        cabecalho: { mes: cab.mes, ano: cab.ano, unidade: cab.unidadeNome, setor: cab.setorNome },
+        totalProfissionais: profs.length,
+      },
+    });
+  });
+
   return true;
 }
+
 
 // ---------------------------------------------------------------
 // PDF (jsPDF + autoTable)
