@@ -116,7 +116,7 @@ function ShiftHistoryView({ shiftId }: { shiftId: string }) {
 
 export default function EscalaPage() {
   const sb = supabase as any;
-  const [view, setView] = useState<'lista' | 'calendario' | 'grade'>('lista');
+  const [view, setView] = useState<'lista' | 'calendario' | 'grade' | 'consolidada'>('lista');
   // ---- Filtros da Escala ----
   type FiltrosEscala = {
     unidadeId: string; setorId: string; profissao: string; profissionalId: string;
