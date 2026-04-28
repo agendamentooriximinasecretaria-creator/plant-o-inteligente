@@ -790,9 +790,11 @@ export default function EscalaPage() {
   // (NÃO expõe CPF, banco, endereço residencial ou observações privadas do profissional)
   // ==========================================================
   type PrintForm = {
+    modelo: 'detalhado' | 'mensal_oficial';
     periodo: 'semana' | 'mes' | 'personalizado';
     dataIni: string;
     dataFim: string;
+    mesRef: string; // YYYY-MM (usado no modelo mensal_oficial)
     unidadeId: string;
     setorId: string;
     profissionalId: string;
@@ -801,26 +803,43 @@ export default function EscalaPage() {
     status: string;
     somentePublicada: boolean;
     incluirFolgas: boolean;
+    incluirAfastamentos: boolean;
     incluirObservacoes: boolean;
+    incluirObservacoesRodape: boolean;
     incluirTotalHoras: boolean;
     incluirAssinatura: boolean;
     incluirConselho: boolean;
+    incluirLogo: boolean;
+    totalLabel: 'TOTAL' | 'ADN';
+    responsavelNome: string;
+    responsavelCargo: string;
+    responsavelConselho: string;
   };
 
   const _hojeRef = new Date();
   const _semIni = startOfWeek(_hojeRef);
+  const _mesRefStr = `${_hojeRef.getFullYear()}-${String(_hojeRef.getMonth() + 1).padStart(2, '0')}`;
   const [printForm, setPrintForm] = useState<PrintForm>({
+    modelo: 'detalhado',
     periodo: 'semana',
     dataIni: ymd(_semIni),
     dataFim: ymd(addDays(_semIni, 6)),
+    mesRef: _mesRefStr,
     unidadeId: '', setorId: '', profissionalId: '', profissao: '',
     tipoPlantao: '', status: '',
     somentePublicada: false,
     incluirFolgas: false,
+    incluirAfastamentos: false,
     incluirObservacoes: true,
+    incluirObservacoesRodape: true,
     incluirTotalHoras: true,
     incluirAssinatura: true,
     incluirConselho: true,
+    incluirLogo: true,
+    totalLabel: 'TOTAL',
+    responsavelNome: '',
+    responsavelCargo: 'Coordenação',
+    responsavelConselho: '',
   });
   const [printBusy, setPrintBusy] = useState<null | 'view' | 'print' | 'pdf-open' | 'pdf-save'>(null);
 
