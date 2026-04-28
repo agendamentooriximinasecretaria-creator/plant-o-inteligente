@@ -254,6 +254,21 @@ export default function DocumentTemplatesManager() {
           ))}
         </div>
       )}
+
+      {signTpl && (
+        <SignDocumentDialog
+          open={!!signTpl}
+          onOpenChange={(o) => !o && setSignTpl(null)}
+          document={{
+            document_type: 'modelo_personalizado',
+            document_id: signTpl.id,
+            document_title: signTpl.nome,
+            content: signTpl.conteudo_html || '',
+            metadata: { tipo: signTpl.tipo, escopo: signTpl.escopo },
+          }}
+          onSigned={() => setSignTpl(null)}
+        />
+      )}
     </div>
   );
 }
