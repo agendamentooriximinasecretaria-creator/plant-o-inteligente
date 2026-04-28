@@ -368,11 +368,15 @@ export default function MinhasTrocasPage() {
                   Plantão: {new Date(`${(swap.shifts as any)?.data}T12:00:00`).toLocaleDateString("pt-BR")} • {(swap.shifts as any)?.hora_inicio} - {(swap.shifts as any)?.hora_fim}
                 </p>
                 {(swap.status === "solicitada" || swap.status === "aguardando_resposta") && (
-                  <div className="mt-3 flex gap-2">
+                  <div className="mt-3 flex flex-wrap gap-2">
                     <button onClick={() => respondSwap.mutate({ swapId: swap.id, accept: true })}
                       className="rounded-lg bg-success px-3 py-1.5 text-xs font-medium text-success-foreground hover:opacity-90">Aceitar</button>
                     <button onClick={() => respondSwap.mutate({ swapId: swap.id, accept: false })}
                       className="rounded-lg bg-destructive px-3 py-1.5 text-xs font-medium text-destructive-foreground hover:opacity-90">Recusar</button>
+                    <button onClick={() => setViewAttachmentsId(swap.id)}
+                      className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted inline-flex items-center gap-1">
+                      <FileText className="h-3 w-3" /> Ver anexos
+                    </button>
                   </div>
                 )}
               </div>
