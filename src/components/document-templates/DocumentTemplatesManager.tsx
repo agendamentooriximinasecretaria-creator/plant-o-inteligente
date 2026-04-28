@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import {
   FileText, Plus, Edit3, Copy, Trash2, Eye, Search, Filter, Lock,
   Globe, Building2, Layers, User as UserIcon, Save, X, Printer, Download,
+  AlertTriangle, Sparkles,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { RichEditor } from './RichEditor';
@@ -14,6 +15,7 @@ import {
   TIPO_LABEL, VARIAVEIS_PADRAO, DEFAULT_ABNT,
 } from './types';
 import { gerarPdfDocumentTemplate } from '@/lib/printDocumentTemplate';
+import { extractVariables, findUnknownVariables } from '@/lib/documentVariables';
 
 const SCOPE_ICON: Record<DocumentScope, JSX.Element> = {
   global: <Globe className="h-3.5 w-3.5" />,
