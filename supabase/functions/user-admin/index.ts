@@ -88,6 +88,48 @@ serve(async (req) => {
       return json(200, { success: true });
     }
 
+    // --- delete_user (gestor_master OR coordenador) ---
+    if (action === "delete_user") {
+      const userId = String(payload?.user_id ?? "");
+      if (!userId) return json(400, { error: "Usuário não informado." });
+
+      // Permission: master OR coordenador
+      const callerIsMasterDel = await isMaster(admin, caller.id);
+      let callerIsCoordenador = false;
+      if (!callerIsMasterDel) {
+        const { data: roleRow } = await admin.from("user_roles").select("id").eq("user_id", caller.id).eq("role", "coordenador").maybeSingle();
+        callerIsCoordenador = !!roleRow;
+      }
+      if (!callerIsMasterDel && !callerIsCoordenador) {
+        return json(403, { error: "Apenas Gestor Master ou Coordenador pode excluir usuários." });
+      }
+
+      // Block self-delete and master-admin root
+      if (userId === caller.id) return json(400, { error: "Você não pode excluir a si mesmo." });
+      const { data: targetUser } = await admin.auth.admin.getUserById(userId);
+      const targetEmail = targetUser?.user?.email ?? "";
+      if (targetEmail === "artemiosouza99@gmail.com") {
+        return json(400, { error: "O Gestor Master raiz não pode ser excluído." });
+      }
+      // Coordenador cannot delete a master
+      if (!callerIsMasterDel) {
+        const { data: targetIsMaster } = await admin.from("user_roles").select("id").eq("user_id", userId).eq("role", "gestor_master").maybeSingle();
+        if (targetIsMaster) return json(403, { error: "Coordenador não pode excluir um Gestor Master." });
+      }
+
+      // Cleanup related rows (defensive — RLS via service role bypasses checks)
+      await admin.from("user_roles").delete().eq("user_id", userId);
+      await admin.from("profiles").delete().eq("user_id", userId);
+      // Detach professional record (keep history) — clear user_id only
+      await admin.from("professionals").update({ user_id: null }).eq("user_id", userId);
+
+      const { error: delErr } = await admin.auth.admin.deleteUser(userId);
+      if (delErr) return json(400, { error: delErr.message });
+
+      await writeAudit(admin, caller.id, caller.email ?? "Gestor", "Usuário excluído", "usuarios", { target_user_id: userId, target_email: targetEmail });
+      return json(200, { success: true });
+    }
+
     // --- All actions below require gestor_master ---
     const callerIsMaster = await isMaster(admin, caller.id);
     if (!callerIsMaster) return json(403, { error: "Apenas Gestor Master pode executar esta ação." });

@@ -6,7 +6,7 @@ import { logAudit } from "@/lib/auditLog";
 import {
   Search, Plus, User2, Edit, Calendar as CalIcon, X, MoreHorizontal,
   Printer, MessageSquare, FileCheck2, History, AlertTriangle, Filter,
-  Upload, Download,
+  Upload, Download, Trash2,
 } from "lucide-react";
 import { MoreActionsMenu } from "@/components/MoreActionsMenu";
 import { ContactActionButton } from "@/components/ContactActionButton";
@@ -23,6 +23,8 @@ import { printFichaProfissional } from "@/lib/printFichaProfissional";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { CardListSkeleton } from "@/components/PageSkeleton";
+import { useConfirm } from "@/hooks/useConfirm";
+import { useAuth } from "@/hooks/useAuth";
 
 function useDebounced<T>(value: T, delay = 300): T {
   const [v, setV] = useState(value);
@@ -90,6 +92,9 @@ export default function ProfissionaisPage() {
   const [form, setForm] = useState(emptyForm);
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const confirm = useConfirm();
+  const { isMaster, isCoordinator } = useAuth();
+  const canDelete = isMaster || isCoordinator;
 
   useRealtimeInvalidation({
     tables: ["shifts", "shift_swaps", "professionals"],
@@ -191,6 +196,35 @@ export default function ProfissionaisPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['professionals'] }); toast.success('Status atualizado!'); },
     onError: (e: Error) => toast.error('Erro: ' + e.message),
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (p: { id: string; nome: string }) => {
+      const { error } = await supabase.from('professionals').delete().eq('id', p.id);
+      if (error) throw error;
+      await logAudit('Profissional excluído', 'profissionais', { id: p.id, nome: p.nome });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['professionals'] });
+      toast.success('Profissional excluído com sucesso.');
+    },
+    onError: (e: Error) => toast.error('Não foi possível excluir: ' + e.message),
+  });
+
+  const handleDelete = async (p: any) => {
+    if ((p.email || '').toLowerCase() === 'artemiosouza99@gmail.com') {
+      toast.error('O Gestor Master raiz não pode ser excluído.');
+      return;
+    }
+    const ok = await confirm({
+      title: `Excluir ${p.nome}?`,
+      description: 'O profissional será removido permanentemente do cadastro. Plantões anteriores podem ficar órfãos. Esta ação não pode ser desfeita.',
+      confirmText: 'Excluir definitivamente',
+      cancelText: 'Cancelar',
+      variant: 'destructive',
+    });
+    if (!ok) return;
+    deleteMutation.mutate({ id: p.id, nome: p.nome });
+  };
 
   const closeModal = () => { setModalOpen(false); setEditingId(null); setForm(emptyForm); };
 
@@ -547,6 +581,19 @@ export default function ProfissionaisPage() {
                             <DropdownMenuItem onClick={() => validarDocumentos(p)}>
                               <FileCheck2 className="h-4 w-4 mr-2" /> Validar documentos
                             </DropdownMenuItem>
+                            {canDelete && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  disabled={deleteMutation.isPending}
+                                  onClick={(e) => { e.preventDefault(); if (!deleteMutation.isPending) handleDelete(p); }}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  {deleteMutation.isPending && (deleteMutation.variables as any)?.id === p.id ? 'Excluindo...' : 'Excluir profissional'}
+                                </DropdownMenuItem>
+                              </>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>

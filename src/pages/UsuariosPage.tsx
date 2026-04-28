@@ -3,13 +3,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
 import { toast } from "sonner";
-import { UserPlus, KeyRound, Shield, Power, Download, Printer, Users } from "lucide-react";
+import { UserPlus, KeyRound, Shield, Power, Download, Printer, Users, Trash2 } from "lucide-react";
 import { ContactActionButton } from "@/components/ContactActionButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MoreActionsMenu } from "@/components/MoreActionsMenu";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { TableRowSkeleton } from "@/components/PageSkeleton";
+import { useConfirm } from "@/hooks/useConfirm";
+import { useAuth } from "@/hooks/useAuth";
 
 const roleLabels: Record<string, string> = {
   gestor_master: "Gestor Master",
@@ -20,6 +22,9 @@ const roleLabels: Record<string, string> = {
 export default function UsuariosPage() {
   const sb = supabase as any;
   const qc = useQueryClient();
+  const confirm = useConfirm();
+  const { isMaster, isCoordinator, user: authUser } = useAuth();
+  const canDelete = isMaster || isCoordinator;
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     nome: "",
@@ -148,6 +153,37 @@ export default function UsuariosPage() {
     },
     onError: (error: any) => toast.error(error.message ?? "Erro ao alterar perfil."),
   });
+
+  const deleteUser = useMutation({
+    mutationFn: async (target: { user_id: string; email?: string; nome?: string }) => {
+      const { data, error } = await sb.functions.invoke("user-admin", {
+        body: { action: "delete_user", user_id: target.user_id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      await logAudit('Usuário excluído', 'usuarios', { user_id: target.user_id, alvo_email: target.email, alvo_nome: target.nome });
+    },
+    onSuccess: () => {
+      toast.success("Usuário excluído com sucesso.");
+      qc.invalidateQueries({ queryKey: ["users-admin"] });
+      qc.invalidateQueries({ queryKey: ["users-admin-professionals"] });
+    },
+    onError: (error: any) => toast.error(error.message ?? "Erro ao excluir usuário."),
+  });
+
+  const handleDelete = async (u: any) => {
+    if (!u.user_id) { toast.error('Usuário sem vínculo de autenticação.'); return; }
+    if (u.user_id === authUser?.id) { toast.error('Você não pode excluir a si mesmo.'); return; }
+    const ok = await confirm({
+      title: `Excluir ${u.nome}?`,
+      description: `Esta ação remove definitivamente o acesso de ${u.email || u.nome} ao sistema. Não pode ser desfeita.`,
+      confirmText: 'Excluir definitivamente',
+      cancelText: 'Cancelar',
+      variant: 'destructive',
+    });
+    if (!ok) return;
+    deleteUser.mutate({ user_id: u.user_id, email: u.email, nome: u.nome });
+  };
 
   const availableProfessionals = professionals.filter((p: any) => !p.user_id || p.id === form.professional_id);
 
@@ -283,6 +319,11 @@ export default function UsuariosPage() {
                       {(() => {
                         const resetting = resetPassword.isPending && (resetPassword.variables as any) === u.user_id;
                         const toggling = toggleActive.isPending && (toggleActive.variables as any)?.userId === u.user_id;
+                        const deleting = deleteUser.isPending && (deleteUser.variables as any)?.user_id === u.user_id;
+                        const isSelf = u.user_id === authUser?.id;
+                        const isRootMaster = (u.email || '').toLowerCase() === 'artemiosouza99@gmail.com';
+                        const canDeleteRow = canDelete && !isSelf && !isRootMaster && !!u.user_id
+                          && !(isCoordinator && u.role === 'gestor_master');
                         return (
                           <>
                             <button
@@ -299,6 +340,16 @@ export default function UsuariosPage() {
                             >
                               <Power className="h-3.5 w-3.5" /> {toggling ? '...' : (u.ativo ? "Inativar" : "Ativar")}
                             </button>
+                            {canDeleteRow && (
+                              <button
+                                onClick={() => { if (!deleteUser.isPending) handleDelete(u); }}
+                                disabled={deleteUser.isPending}
+                                title="Excluir usuário"
+                                className="inline-flex items-center gap-1 rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" /> {deleting ? 'Excluindo...' : 'Excluir'}
+                              </button>
+                            )}
                           </>
                         );
                       })()}
