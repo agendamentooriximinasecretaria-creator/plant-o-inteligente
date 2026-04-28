@@ -1753,6 +1753,25 @@ export default function EscalaPage() {
             onCreateClick={(dateStr) => openEmptyCellMenu(dateStr)}
           />
         </motion.div>
+      ) : view === 'consolidada' ? (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <MonthlyConsolidatedGrid
+            shifts={filtered.map((s: any) => ({
+              id: s.id,
+              profissional_id: s.profissional_id,
+              profissional_nome: (s.professionals as any)?.nome || 'Sem nome',
+              profissao: PROFISSAO_LABELS[(s.professionals as any)?.profissao] || '',
+              data: s.data,
+              tipo_plantao: s.tipo_plantao,
+              hora_inicio: s.hora_inicio,
+              hora_fim: s.hora_fim,
+              carga_horaria: Number(s.carga_horaria || 0),
+              status: s.status,
+            }))}
+            tipos={TIPOS_PLANTAO}
+            initialMonth={filtros.dataIni ? filtros.dataIni.slice(0, 7) : undefined}
+          />
+        </motion.div>
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-lg border border-border p-6 shadow-[var(--shadow-card)]">
           {/* Legenda */}
