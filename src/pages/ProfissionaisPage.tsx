@@ -200,13 +200,20 @@ export default function ProfissionaisPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (p: { id: string; nome: string }) => {
-      const { error } = await supabase.from('professionals').delete().eq('id', p.id);
-      if (error) throw error;
-      await logAudit('Profissional excluído', 'profissionais', { id: p.id, nome: p.nome });
+      const { data, error } = await supabase.functions.invoke('user-admin', {
+        body: { action: 'delete_professional', professional_id: p.id },
+      });
+      if (error) throw new Error((data as any)?.error || error.message);
+      if ((data as any)?.error) throw new Error((data as any).error);
+      return data as { success: boolean; removed_user?: boolean };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['professionals'] });
-      toast.success('Profissional excluído com sucesso.');
+      toast.success(
+        data?.removed_user
+          ? 'Profissional e usuário de acesso excluídos com sucesso.'
+          : 'Profissional excluído com sucesso.'
+      );
     },
     onError: (e: Error) => toast.error('Não foi possível excluir: ' + e.message),
   });
@@ -218,7 +225,7 @@ export default function ProfissionaisPage() {
     }
     const ok = await confirm({
       title: `Excluir ${p.nome}?`,
-      description: 'O profissional será removido permanentemente do cadastro. Plantões anteriores podem ficar órfãos. Esta ação não pode ser desfeita.',
+      description: 'Serão removidos permanentemente: cadastro, plantões, trocas, anexos, notificações, carimbo/assinatura, documentos pessoais e o usuário de acesso vinculado (se houver). Esta ação não pode ser desfeita.',
       confirmText: 'Excluir definitivamente',
       cancelText: 'Cancelar',
       variant: 'destructive',

@@ -130,6 +130,56 @@ serve(async (req) => {
       return json(200, { success: true });
     }
 
+    // --- delete_professional (gestor_master only) ---
+    if (action === "delete_professional") {
+      const professionalId = String(payload?.professional_id ?? "");
+      if (!professionalId) return json(400, { error: "Profissional não informado." });
+
+      const callerIsMasterPro = await isMaster(admin, caller.id);
+      if (!callerIsMasterPro) return json(403, { error: "Apenas Gestor Master pode excluir profissionais." });
+
+      const { data: prof, error: profErr } = await admin
+        .from("professionals").select("id, nome, email, user_id").eq("id", professionalId).maybeSingle();
+      if (profErr) return json(400, { error: profErr.message });
+      if (!prof) return json(404, { error: "Profissional não encontrado." });
+
+      if ((prof.email ?? "").toLowerCase() === "artemiosouza99@gmail.com") {
+        return json(400, { error: "O Gestor Master raiz não pode ser excluído." });
+      }
+
+      // 1) Limpar dependências sem cascade
+      const swaps = await admin.from("shift_swaps").select("id")
+        .or(`solicitante_id.eq.${professionalId},destinatario_id.eq.${professionalId}`);
+      const swapIds = (swaps.data ?? []).map((s: any) => s.id);
+      if (swapIds.length > 0) {
+        await admin.from("swap_attachments").delete().in("troca_id", swapIds);
+      }
+      await admin.from("shift_swaps").delete()
+        .or(`solicitante_id.eq.${professionalId},destinatario_id.eq.${professionalId}`);
+      await admin.from("shifts").delete().eq("profissional_id", professionalId);
+      await admin.from("notifications").delete().eq("professional_id", professionalId);
+      await admin.from("acionamentos_reforco").delete().eq("profissional_id", professionalId);
+      await admin.from("professional_stamps").delete().eq("profissional_id", professionalId);
+
+      // 2) Excluir o profissional (cascateia documents, unavailability, templates pessoais; profiles SET NULL)
+      const { error: delProfErr } = await admin.from("professionals").delete().eq("id", professionalId);
+      if (delProfErr) return json(400, { error: delProfErr.message });
+
+      // 3) Se tinha usuário vinculado, remover acesso ao sistema
+      let removedUser = false;
+      if (prof.user_id) {
+        await admin.from("user_roles").delete().eq("user_id", prof.user_id);
+        await admin.from("profiles").delete().eq("user_id", prof.user_id);
+        const { error: delUserErr } = await admin.auth.admin.deleteUser(prof.user_id);
+        if (!delUserErr) removedUser = true;
+      }
+
+      await writeAudit(admin, caller.id, caller.email ?? "Gestor Master", "Profissional excluído", "profissionais", {
+        professional_id: professionalId, nome: prof.nome, email: prof.email, removed_user: removedUser,
+      });
+      return json(200, { success: true, removed_user: removedUser });
+    }
+
     // --- All actions below require gestor_master ---
     const callerIsMaster = await isMaster(admin, caller.id);
     if (!callerIsMaster) return json(403, { error: "Apenas Gestor Master pode executar esta ação." });
