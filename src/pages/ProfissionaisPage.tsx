@@ -225,7 +225,7 @@ export default function ProfissionaisPage() {
     }
     const ok = await confirm({
       title: `Excluir ${p.nome}?`,
-      description: 'O profissional será removido permanentemente do cadastro. Plantões anteriores podem ficar órfãos. Esta ação não pode ser desfeita.',
+      description: 'Serão removidos permanentemente: cadastro, plantões, trocas, anexos, notificações, carimbo/assinatura, documentos pessoais e o usuário de acesso vinculado (se houver). Esta ação não pode ser desfeita.',
       confirmText: 'Excluir definitivamente',
       cancelText: 'Cancelar',
       variant: 'destructive',
