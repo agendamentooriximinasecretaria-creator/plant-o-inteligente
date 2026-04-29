@@ -200,13 +200,20 @@ export default function ProfissionaisPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (p: { id: string; nome: string }) => {
-      const { error } = await supabase.from('professionals').delete().eq('id', p.id);
-      if (error) throw error;
-      await logAudit('Profissional excluído', 'profissionais', { id: p.id, nome: p.nome });
+      const { data, error } = await supabase.functions.invoke('user-admin', {
+        body: { action: 'delete_professional', professional_id: p.id },
+      });
+      if (error) throw new Error((data as any)?.error || error.message);
+      if ((data as any)?.error) throw new Error((data as any).error);
+      return data as { success: boolean; removed_user?: boolean };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['professionals'] });
-      toast.success('Profissional excluído com sucesso.');
+      toast.success(
+        data?.removed_user
+          ? 'Profissional e usuário de acesso excluídos com sucesso.'
+          : 'Profissional excluído com sucesso.'
+      );
     },
     onError: (e: Error) => toast.error('Não foi possível excluir: ' + e.message),
   });
