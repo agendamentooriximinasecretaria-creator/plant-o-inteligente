@@ -1967,10 +1967,20 @@ export default function EscalaPage() {
                   </td></tr>
                 )}
                 {filtered.map((s: any) => (
-                  <tr key={s.id} className={`border-t border-border hover:bg-muted/40 transition-colors ${isFolga(s) ? 'bg-amber-50/40 dark:bg-amber-950/10' : ''}`}>
+                  <tr key={s.id} className={`border-t border-border hover:bg-muted/40 transition-colors ${isFolga(s) ? 'bg-amber-50/40 dark:bg-amber-950/10' : ''} ${conflictIds.has(s.id) ? 'bg-destructive/5' : ''}`}>
                     <td className="px-3 py-2 align-middle">
                       <div className="flex items-center gap-2">
                         {isFolga(s) && <Palmtree className="h-3.5 w-3.5 text-amber-600 shrink-0" />}
+                        {conflictIds.has(s.id) && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <AlertTriangle className="h-4 w-4 text-destructive shrink-0 cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent>Conflito de horário detectado</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                         <span className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">{initials((s.professionals as any)?.nome || '')}</span>
                         <p className="font-medium text-foreground truncate">{(s.professionals as any)?.nome}</p>
                       </div>
