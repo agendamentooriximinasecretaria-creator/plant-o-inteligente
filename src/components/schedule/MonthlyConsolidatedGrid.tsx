@@ -226,15 +226,25 @@ export function MonthlyConsolidatedGrid({ shifts, tipos, initialMonth }: Props) 
                     }
                     // Pode haver 1+ plantões no mesmo dia: mostra siglas separadas por "/"
                     const siglas = lista.map((l) => tipoToSigla(l.tipo_plantao));
+                    const hasConflict = lista.length > 1 && lista.some((s1, i) =>
+                      lista.some((s2, j) =>
+                        i !== j && s1.status !== 'cancelado' && s2.status !== 'cancelado' &&
+                        (s1.hora_inicio || '00:00') < (s2.hora_fim || '23:59') && (s2.hora_inicio || '00:00') < (s1.hora_fim || '23:59')
+                      )
+                    );
                     const tipoBase = lista[0].tipo_plantao || "";
                     const statusBase = lista[0].status || "";
                     const cls = getCellClass(tipoBase, statusBase);
-                    const tooltip = lista
+                    const tooltip = (hasConflict ? "⚠️ CONFLITO DE HORÁRIO\n" : "") + lista
                       .map((l) => `${l.tipo_plantao || "?"} ${(l.hora_inicio || "").slice(0, 5)}-${(l.hora_fim || "").slice(0, 5)}${l.status ? ` · ${l.status}` : ""}`)
                       .join("\n");
                     return (
                       <td key={d} className="p-0.5 text-center align-middle">
-                        <div className={`inline-flex items-center justify-center min-w-[26px] h-6 px-1 rounded border text-[10px] font-semibold ${cls}`} title={tooltip}>
+                        <div
+                          className={`inline-flex items-center justify-center min-w-[26px] h-6 px-1 rounded border text-[10px] font-semibold gap-0.5 ${hasConflict ? 'ring-1 ring-destructive border-destructive bg-destructive/10 text-destructive' : cls}`}
+                          title={tooltip}
+                        >
+                          {hasConflict && <AlertTriangle className="h-2.5 w-2.5 shrink-0" />}
                           {siglas.join("/")}
                         </div>
                       </td>
