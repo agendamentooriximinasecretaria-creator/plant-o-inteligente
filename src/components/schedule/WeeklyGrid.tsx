@@ -22,6 +22,7 @@ export interface GridShift {
   horario: string;
   setor: string;
   status: string;
+  hasConflict?: boolean;
 }
 
 export interface ProfRow {
