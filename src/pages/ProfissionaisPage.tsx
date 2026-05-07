@@ -13,10 +13,15 @@ import { ContactActionButton } from "@/components/ContactActionButton";
 import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Briefcase, User, MapPin, FileText, Settings, ShieldCheck, Info } from "lucide-react";
 import { calcularHorasPorProfissional, calcularCargaPercentual, CLT_LIMITE_MENSAL } from "@/lib/horas";
 import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 import { printFichaProfissional } from "@/lib/printFichaProfissional";
