@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { addDays, startOfWeek, format, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 
 /* ── Style map per sigla (uses semantic tokens where possible) ── */
 const SIGLA_STYLES: Record<string, string> = {
