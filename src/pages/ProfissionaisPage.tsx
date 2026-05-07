@@ -305,7 +305,7 @@ export default function ProfissionaisPage() {
     }));
   };
 
-  const inputClass = "w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
+  const inputClass = "w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring focus:border-primary transition-all placeholder:text-muted-foreground";
   const hasFilters = !!(
     filterProfissao || filterUnidade || filterSetor || filterStatus || filterDisponivel ||
     filterDocVencido || filterDocVencendo || filterSobrecarga || filterSemPlantao || search
