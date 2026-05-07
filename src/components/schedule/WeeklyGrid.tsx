@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { addDays, startOfWeek, format, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 
 /* ── Style map per sigla (uses semantic tokens where possible) ── */
 const SIGLA_STYLES: Record<string, string> = {
@@ -22,6 +22,7 @@ export interface GridShift {
   horario: string;
   setor: string;
   status: string;
+  hasConflict?: boolean;
 }
 
 export interface ProfRow {
@@ -182,11 +183,13 @@ export function WeeklyGrid({
                             <button
                               key={s.id}
                               onClick={() => onCellClick(prof.id, key, s)}
-                              className={`rounded px-1.5 py-0.5 text-[10px] font-semibold truncate transition-opacity hover:opacity-80 ${
-                                SIGLA_STYLES[s.sigla] ?? "bg-muted text-muted-foreground"
+                              className={`rounded px-1.5 py-0.5 text-[10px] font-semibold truncate transition-opacity hover:opacity-80 flex items-center justify-center gap-1 ${
+                                s.hasConflict ? "ring-1 ring-destructive bg-destructive/10 text-destructive" :
+                                (SIGLA_STYLES[s.sigla] ?? "bg-muted text-muted-foreground")
                               }`}
-                              title={`${s.tipo} · ${s.horario} · ${s.setor}`}
+                              title={`${s.tipo} · ${s.horario} · ${s.setor}${s.hasConflict ? ' · CONFLITO DETECTADO' : ''}`}
                             >
+                              {s.hasConflict && <AlertTriangle className="h-2.5 w-2.5 shrink-0" />}
                               {s.sigla}
                             </button>
                           ))}
