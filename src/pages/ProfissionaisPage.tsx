@@ -670,99 +670,254 @@ export default function ProfissionaisPage() {
       )}
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingId ? 'Editar Profissional' : 'Novo Profissional'}</DialogTitle>
+        <DialogContent className="max-w-5xl w-[95vw] h-[90vh] p-0 flex flex-col overflow-hidden bg-background border-border shadow-2xl rounded-xl">
+          <DialogHeader className="px-6 py-4 border-b border-border bg-card/50">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-xl font-display font-bold text-foreground">
+                  {editingId ? 'Editar Profissional' : 'Novo Profissional'}
+                </DialogTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {editingId ? 'Atualize as informações do cadastro' : 'Preencha os dados para cadastrar um novo profissional'}
+                </p>
+              </div>
+            </div>
           </DialogHeader>
-          <form onSubmit={e => { e.preventDefault(); saveMutation.mutate(form); }} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><label className="text-sm font-medium text-foreground">Nome completo *</label><input required value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} className={inputClass} /></div>
-              <div><label className="text-sm font-medium text-foreground">Profissão *</label>
-                <select required value={form.profissao} onChange={e => setForm(f => ({ ...f, profissao: e.target.value as ProfissaoValue, competencias: [] }))} className={inputClass}>
-                  {PROFISSAO_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-                </select>
-              </div>
-              <div><label className="text-sm font-medium text-foreground">Especialidade</label><input value={form.especialidade} onChange={e => setForm(f => ({ ...f, especialidade: e.target.value }))} className={inputClass} /></div>
-              <div><label className="text-sm font-medium text-foreground">Conselho</label><input value={form.conselho} onChange={e => setForm(f => ({ ...f, conselho: e.target.value }))} className={inputClass} /></div>
-              <div><label className="text-sm font-medium text-foreground">Registro</label><input value={form.registro} onChange={e => setForm(f => ({ ...f, registro: e.target.value }))} className={inputClass} /></div>
-              <div><label className="text-sm font-medium text-foreground">CPF</label><input value={form.cpf} onChange={e => setForm(f => ({ ...f, cpf: e.target.value }))} className={inputClass} /></div>
-              <div><label className="text-sm font-medium text-foreground">Telefone</label><input value={form.telefone} onChange={e => setForm(f => ({ ...f, telefone: e.target.value }))} className={inputClass} /></div>
-              <div><label className="text-sm font-medium text-foreground">E-mail *</label><input required type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className={inputClass} /></div>
-              <div><label className="text-sm font-medium text-foreground">Unidade principal</label>
-                <select value={form.unidade_principal_id} onChange={e => setForm(f => ({ ...f, unidade_principal_id: e.target.value }))} className={inputClass}>
-                  <option value="">Selecione...</option>
-                  {units.map((u: any) => <option key={u.id} value={u.id}>{u.nome}</option>)}
-                </select>
-              </div>
-              <div><label className="text-sm font-medium text-foreground">Setor principal</label>
-                <select value={form.setor_principal_id} onChange={e => setForm(f => ({ ...f, setor_principal_id: e.target.value }))} className={inputClass}>
-                  <option value="">Selecione...</option>
-                  {sectors.filter((s: any) => !form.unidade_principal_id || s.unidade_id === form.unidade_principal_id).map((s: any) => <option key={s.id} value={s.id}>{s.nome}</option>)}
-                </select>
-              </div>
-              <div><label className="text-sm font-medium text-foreground">Vínculo</label><input value={form.vinculo} onChange={e => setForm(f => ({ ...f, vinculo: e.target.value }))} className={inputClass} /></div>
-              <div><label className="text-sm font-medium text-foreground">Conselho (CRM/COREN)</label><input placeholder="Ex: CRM" value={form.documento_conselho} onChange={e => setForm(f => ({ ...f, documento_conselho: e.target.value }))} className={inputClass} /></div>
-              <div><label className="text-sm font-medium text-foreground">Nº Documento</label><input value={form.documento_numero} onChange={e => setForm(f => ({ ...f, documento_numero: e.target.value }))} className={inputClass} /></div>
-              <div><label className="text-sm font-medium text-foreground">Validade do Documento</label><input type="date" value={form.documento_validade} onChange={e => setForm(f => ({ ...f, documento_validade: e.target.value }))} className={inputClass} /></div>
-              <div><label className="text-sm font-medium text-foreground">Status</label>
-                <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={inputClass}>
-                  <option value="ativo">Ativo</option><option value="inativo">Inativo</option>
-                </select>
-              </div>
-            </div>
 
-            {/* Limites mensais */}
-            <div className="border border-border rounded-lg p-3 bg-muted/30">
-              <h4 className="text-sm font-semibold text-foreground mb-2">Regras de Utilização (mensal)</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-foreground">Limite de Trocas de Plantão</label>
-                  <input type="number" min={0} max={50} value={form.limite_trocas_plantao_mes} onChange={e => setForm(f => ({ ...f, limite_trocas_plantao_mes: Math.max(0, parseInt(e.target.value) || 0) }))} className={inputClass} />
-                  <p className="text-[11px] text-muted-foreground mt-1">Máximo de trocas que este profissional pode solicitar por mês.</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-foreground">Limite de Trocas de Paciente</label>
-                  <input type="number" min={0} max={50} value={form.limite_trocas_paciente_mes} onChange={e => setForm(f => ({ ...f, limite_trocas_paciente_mes: Math.max(0, parseInt(e.target.value) || 0) }))} className={inputClass} />
-                  <p className="text-[11px] text-muted-foreground mt-1">Máximo de transferências de pacientes por mês.</p>
-                </div>
-              </div>
-            </div>
+          <form onSubmit={e => { e.preventDefault(); saveMutation.mutate(form); }} className="flex-1 flex flex-col min-h-0">
+            <ScrollArea className="flex-1 px-6 py-4 overflow-x-hidden">
+              <Tabs defaultValue="dados-basicos" className="w-full">
+                <TabsList className="grid grid-cols-3 md:grid-cols-6 mb-6 h-auto p-1 bg-muted/50 gap-1 sticky top-0 z-10">
+                  <TabsTrigger value="dados-basicos" className="text-xs py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                    <User className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" /> Básico
+                  </TabsTrigger>
+                  <TabsTrigger value="profissional" className="text-xs py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                    <Briefcase className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" /> Profissional
+                  </TabsTrigger>
+                  <TabsTrigger value="unidade" className="text-xs py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                    <MapPin className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" /> Unidade
+                  </TabsTrigger>
+                  <TabsTrigger value="documentos" className="text-xs py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                    <FileText className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" /> Documentos
+                  </TabsTrigger>
+                  <TabsTrigger value="regras" className="text-xs py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                    <Settings className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" /> Regras
+                  </TabsTrigger>
+                  {editingId && (
+                    <TabsTrigger value="carimbo" className="text-xs py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                      <ShieldCheck className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" /> Carimbo
+                    </TabsTrigger>
+                  )}
+                </TabsList>
 
-            {COMPETENCIAS_POR_PROFISSAO[form.profissao] && (
-              <div className="border border-border rounded-lg p-3">
-                <label className="text-sm font-semibold text-foreground mb-2 block">
-                  Competências / Certificações ({PROFISSAO_LABELS[form.profissao]})
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {COMPETENCIAS_POR_PROFISSAO[form.profissao].map(comp => (
-                    <button key={comp} type="button" onClick={() => toggleCompetencia(comp)}
-                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                        form.competencias.includes(comp)
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-muted text-muted-foreground border-border hover:border-primary/50'
-                      }`}>
-                      {form.competencias.includes(comp) ? '✓ ' : ''}{comp}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+                {/* ABA 1: Dados Básicos */}
+                <TabsContent value="dados-basicos" className="space-y-6 mt-0 min-w-0">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div className="md:col-span-2 lg:col-span-2">
+                      <Label className="text-sm font-semibold mb-1.5 block">Nome completo <span className="text-destructive">*</span></Label>
+                      <input required value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} className={inputClass} placeholder="Digite o nome completo" />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold mb-1.5 block">Status</Label>
+                      <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={inputClass}>
+                        <option value="ativo">Ativo</option>
+                        <option value="inativo">Inativo</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold mb-1.5 block">CPF</Label>
+                      <input value={form.cpf} onChange={e => setForm(f => ({ ...f, cpf: e.target.value }))} className={inputClass} placeholder="000.000.000-00" />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold mb-1.5 block">Telefone</Label>
+                      <input value={form.telefone} onChange={e => setForm(f => ({ ...f, telefone: e.target.value }))} className={inputClass} placeholder="(00) 00000-0000" />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold mb-1.5 block">E-mail <span className="text-destructive">*</span></Label>
+                      <input required type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className={inputClass} placeholder="exemplo@email.com" />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold mb-1.5 block">Vínculo</Label>
+                      <input value={form.vinculo} onChange={e => setForm(f => ({ ...f, vinculo: e.target.value }))} className={inputClass} placeholder="Ex: CLT, Cooperado, etc" />
+                    </div>
+                  </div>
+                  <div className="pt-2">
+                    <Label className="text-sm font-semibold mb-1.5 block">Observações internas</Label>
+                    <textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} rows={4} className={`${inputClass} resize-none`} placeholder="Observações e detalhes relevantes sobre o profissional..." />
+                  </div>
+                </TabsContent>
 
-            <div><label className="text-sm font-medium text-foreground">Observações internas</label><textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} rows={3} className={inputClass} /></div>
-            <div className="flex justify-end gap-3 pt-2">
-              <button type="button" onClick={closeModal} className="px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted">Cancelar</button>
-              <button type="submit" disabled={saveMutation.isPending} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50">
-                {saveMutation.isPending ? 'Salvando...' : 'Salvar'}
-              </button>
+                {/* ABA 2: Profissional */}
+                <TabsContent value="profissional" className="space-y-6 mt-0 min-w-0">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div>
+                      <Label className="text-sm font-semibold mb-1.5 block">Profissão <span className="text-destructive">*</span></Label>
+                      <select required value={form.profissao} onChange={e => setForm(f => ({ ...f, profissao: e.target.value as ProfissaoValue, competencias: [] }))} className={inputClass}>
+                        {PROFISSAO_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                      </select>
+                    </div>
+                    <div className="md:col-span-1 lg:col-span-2">
+                      <Label className="text-sm font-semibold mb-1.5 block">Especialidade</Label>
+                      <input value={form.especialidade} onChange={e => setForm(f => ({ ...f, especialidade: e.target.value }))} className={inputClass} placeholder="Ex: Pediatria, Terapia Intensiva..." />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold mb-1.5 block">Conselho Profissional</Label>
+                      <input value={form.conselho} onChange={e => setForm(f => ({ ...f, conselho: e.target.value }))} className={inputClass} placeholder="Ex: CRM, COREN..." />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold mb-1.5 block">Registro (Número)</Label>
+                      <input value={form.registro} onChange={e => setForm(f => ({ ...f, registro: e.target.value }))} className={inputClass} placeholder="Ex: 12345" />
+                    </div>
+                  </div>
+
+                  {COMPETENCIAS_POR_PROFISSAO[form.profissao] && (
+                    <div className="bg-muted/30 border border-border rounded-xl p-5">
+                      <Label className="text-sm font-bold text-foreground mb-4 block flex items-center gap-2">
+                        <BadgeCheck className="h-4 w-4 text-primary" /> Competências / Certificações ({PROFISSAO_LABELS[form.profissao]})
+                      </Label>
+                      <div className="flex flex-wrap gap-2">
+                        {COMPETENCIAS_POR_PROFISSAO[form.profissao].map(comp => {
+                          const isSelected = form.competencias.includes(comp);
+                          return (
+                            <button key={comp} type="button" onClick={() => toggleCompetencia(comp)}
+                              className={`text-xs px-3 py-1.5 rounded-full border transition-all flex items-center gap-1.5 ${
+                                isSelected
+                                  ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                  : 'bg-background text-muted-foreground border-border hover:border-primary/50'
+                              }`}>
+                              {isSelected ? <FileCheck2 className="h-3 w-3" /> : null}{comp}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* ABA 3: Unidade e Setor */}
+                <TabsContent value="unidade" className="space-y-6 mt-0 min-w-0">
+                  <div className="bg-card border border-border rounded-xl p-5 grid grid-cols-1 md:grid-cols-2 gap-5 shadow-sm">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold block">Unidade Principal</Label>
+                      <select value={form.unidade_principal_id} onChange={e => setForm(f => ({ ...f, unidade_principal_id: e.target.value, setor_principal_id: '' }))} className={inputClass}>
+                        <option value="">Selecione a unidade...</option>
+                        {units.map((u: any) => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                      </select>
+                      <p className="text-[11px] text-muted-foreground">Unidade onde o profissional atua com maior frequência.</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold block">Setor Principal</Label>
+                      <select value={form.setor_principal_id} onChange={e => setForm(f => ({ ...f, setor_principal_id: e.target.value }))} className={inputClass} disabled={!form.unidade_principal_id}>
+                        <option value="">{form.unidade_principal_id ? "Selecione o setor..." : "Selecione uma unidade primeiro"}</option>
+                        {sectors.filter((s: any) => !form.unidade_principal_id || s.unidade_id === form.unidade_principal_id).map((s: any) => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                      </select>
+                      <p className="text-[11px] text-muted-foreground">Setor de lotação principal para a escala.</p>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* ABA 4: Documentos */}
+                <TabsContent value="documentos" className="space-y-6 mt-0 min-w-0">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold block">Tipo de Conselho (Documento)</Label>
+                      <input placeholder="Ex: CRM" value={form.documento_conselho} onChange={e => setForm(f => ({ ...f, documento_conselho: e.target.value }))} className={inputClass} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold block">Nº Registro no Documento</Label>
+                      <input value={form.documento_numero} onChange={e => setForm(f => ({ ...f, documento_numero: e.target.value }))} className={inputClass} placeholder="Digite o número do registro" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold block">Data de Validade</Label>
+                      <input type="date" value={form.documento_validade} onChange={e => setForm(f => ({ ...f, documento_validade: e.target.value }))} className={inputClass} />
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-4 rounded-lg bg-info/5 border border-info/20">
+                    <Info className="h-5 w-5 text-info shrink-0 mt-0.5" />
+                    <div className="text-xs text-info-foreground/80 leading-relaxed">
+                      <p className="font-semibold mb-1">Dica de Gestão:</p>
+                      Mantenha a data de validade atualizada para receber alertas automáticos de vencimento e evitar irregularidades na escala.
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* ABA 5: Regras */}
+                <TabsContent value="regras" className="space-y-6 mt-0 min-w-0">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <History className="h-4 w-4 text-primary" />
+                        <h4 className="text-sm font-bold">Limites de Trocas</h4>
+                      </div>
+                      <div className="space-y-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-sm font-medium">Trocas de Plantão (Mês)</Label>
+                          <input type="number" min={0} max={50} value={form.limite_trocas_plantao_mes} onChange={e => setForm(f => ({ ...f, limite_trocas_plantao_mes: Math.max(0, parseInt(e.target.value) || 0) }))} className={inputClass} />
+                          <p className="text-[10px] text-muted-foreground">Máximo de trocas que o profissional pode solicitar mensalmente.</p>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-sm font-medium">Trocas de Paciente (Mês)</Label>
+                          <input type="number" min={0} max={50} value={form.limite_trocas_paciente_mes} onChange={e => setForm(f => ({ ...f, limite_trocas_paciente_mes: Math.max(0, parseInt(e.target.value) || 0) }))} className={inputClass} />
+                          <p className="text-[10px] text-muted-foreground">Limite para transferências de responsabilidade de pacientes.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertTriangle className="h-4 w-4 text-warning" />
+                        <h4 className="text-sm font-bold">Carga Horária</h4>
+                      </div>
+                      <div className="space-y-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-sm font-medium">Limite Horas (Automático)</Label>
+                          <div className="px-3 py-2 rounded-lg bg-muted text-sm border border-border text-muted-foreground">
+                            {LIMITE_HORAS_MENSAL} horas mensais (Padrão CLT)
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          O sistema monitora automaticamente a carga horária em relação ao limite padrão e emitirá alertas de sobrecarga acima de 90%.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* ABA 6: Carimbo Digital */}
+                {editingId && (
+                  <TabsContent value="carimbo" className="mt-0 min-w-0">
+                    <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+                      <CarimboAssinaturaProfissional profissionalId={editingId} isMaster={isMaster} />
+                    </div>
+                  </TabsContent>
+                )}
+              </Tabs>
+            </ScrollArea>
+
+            <div className="px-6 py-4 border-t border-border bg-card flex items-center justify-between">
+              <div className="text-xs text-muted-foreground hidden sm:block">
+                Campos marcados com <span className="text-destructive font-bold">*</span> são obrigatórios.
+              </div>
+              <div className="flex items-center gap-3 ml-auto">
+                <button type="button" onClick={closeModal} className="px-5 py-2 rounded-lg border border-border text-sm font-semibold text-foreground hover:bg-muted transition-colors">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={saveMutation.isPending} className="px-6 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-all shadow-md flex items-center gap-2">
+                  {saveMutation.isPending ? (
+                    <>
+                      <div className="h-3 w-3 border-2 border-primary-foreground border-t-transparent animate-spin rounded-full" />
+                      Salvando...
+                    </>
+                  ) : (
+                    <>
+                      <FileCheck2 className="h-4 w-4" />
+                      {editingId ? 'Salvar Alterações' : 'Cadastrar Profissional'}
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </form>
-
-          {/* Carimbo digital — apenas em edição */}
-          {editingId && (
-            <div className="mt-6 pt-6 border-t border-border">
-              <CarimboAssinaturaProfissional profissionalId={editingId} isMaster={isMaster} />
-            </div>
-          )}
         </DialogContent>
       </Dialog>
     </div>
