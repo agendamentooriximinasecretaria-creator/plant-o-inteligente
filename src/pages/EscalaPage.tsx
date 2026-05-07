@@ -1638,10 +1638,11 @@ export default function EscalaPage() {
         horario: `${(s.hora_inicio || '').slice(0, 5)}-${(s.hora_fim || '').slice(0, 5)}`,
         setor: (s.sectors as any)?.nome || '',
         status: s.status,
+        hasConflict: conflictIds.has(s.id),
       });
     }
     return Object.values(profMap).sort((a, b) => a.nome.localeCompare(b.nome));
-  }, [shifts, TIPOS_PLANTAO]);
+  }, [shifts, TIPOS_PLANTAO, conflictIds]);
 
   return (
     <div className="space-y-5 max-w-[1400px]">
