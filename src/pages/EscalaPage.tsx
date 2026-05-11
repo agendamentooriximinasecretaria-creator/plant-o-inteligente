@@ -20,7 +20,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 import { abrirVisualizacaoImpressao, gerarPdfEscala, diaSemanaPt, type PrintLinha, type PrintCabecalho, type PrintOptions } from "@/lib/printEscala";
-import { abrirEscalaMensalOficial, gerarPdfEscalaMensalOficial, type MensalProfissional, type MensalCabecalho, type MensalOpts, type MensalTipoLegenda } from "@/lib/printEscalaMensalOficial";
+import { abrirEscalaMensalOficial, gerarPdfEscalaMensalOficial, type MensalProfissional, type MensalCabecalho, type MensalOpts, type MensalTipoLegenda, type MensalResponsavel } from "@/lib/printEscalaMensalOficial";
+import { fetchStampData, fetchRTForUnidade } from "@/lib/pdfStampUtils";
 import { imprimirComprovantePlantao, type ComprovantePlantaoData } from "@/lib/printComprovantePlantao";
 import SignActionButton from "@/components/SignActionButton";
 
@@ -921,7 +922,7 @@ export default function EscalaPage() {
 
     // Busca real do banco respeitando RLS, sem expor PII (sem CPF/banco/endereço)
     let q = sb.from('shifts')
-      .select('id, data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, status, observacoes, profissional_id, professionals:profissional_id(nome, profissao, conselho, registro), units:unidade_id(nome), sectors:setor_id(nome), unidade_id, setor_id, profissao')
+      .select('id, data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, status, observacoes, profissional_id, professionals:profissional_id(nome, profissao, conselho, registro, documento_numero, documento_conselho), units:unidade_id(nome), sectors:setor_id(nome), unidade_id, setor_id, profissao')
       .gte('data', printForm.dataIni)
       .lte('data', printForm.dataFim)
       .order('data', { ascending: true })
@@ -945,9 +946,9 @@ export default function EscalaPage() {
 
     const linhas: PrintLinha[] = rows.map((s: any) => {
       const prof = s.professionals || {};
-      const conselho = (prof.conselho || prof.registro)
-        ? `${prof.conselho || ''}${prof.registro ? ' ' + prof.registro : ''}`.trim()
-        : '';
+      const conselho = (prof.conselho || prof.registro || prof.documento_conselho || prof.documento_numero)
+        ? `${prof.conselho || prof.documento_conselho || ''} ${prof.registro || prof.documento_numero || ''}`.trim()
+        : '—';
       return {
         profissional: prof.nome || '—',
         profissao: PROFISSAO_LABELS[prof.profissao] || prof.profissao || '',
@@ -1008,7 +1009,7 @@ export default function EscalaPage() {
     const dataFim = `${yStr}-${mStr}-${String(ultimoDia).padStart(2, '0')}`;
 
     let q = sb.from('shifts')
-      .select('id, data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, status, profissional_id, professionals:profissional_id(nome, profissao, conselho, registro), units:unidade_id(nome), sectors:setor_id(nome), unidade_id, setor_id, profissao')
+      .select('id, data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, status, profissional_id, professionals:profissional_id(nome, profissao, conselho, registro, documento_numero, documento_conselho), units:unidade_id(nome), sectors:setor_id(nome), unidade_id, setor_id, profissao')
       .gte('data', dataIni).lte('data', dataFim)
       .order('data', { ascending: true })
       .order('hora_inicio', { ascending: true });
@@ -1042,9 +1043,9 @@ export default function EscalaPage() {
       const prof = s.professionals || {};
       let row = map.get(profId);
       if (!row) {
-        const conselho = (prof.conselho || prof.registro)
-          ? `${prof.conselho || ''} ${prof.registro || ''}`.trim()
-          : undefined;
+        const conselho = (prof.conselho || prof.registro || prof.documento_conselho || prof.documento_numero)
+          ? `${prof.conselho || prof.documento_conselho || ''} ${prof.registro || prof.documento_numero || ''}`.trim()
+          : '—';
         row = {
           id: profId,
           nome: prof.nome || '—',
@@ -1113,16 +1114,13 @@ export default function EscalaPage() {
     return { profs, cab, tipos };
   };
 
-  const mensalOpts = (): MensalOpts => {
-    const metadata = (currentStamp?.metadata as any) || {};
+  const getMensalOpts = async (unidadeId?: string): Promise<MensalOpts> => {
+    // Busca dados reais do banco (incluindo base64 da assinatura)
+    const gestorStamp = currentProfId ? await fetchStampData(currentProfId) : null;
+    const rtStamp = await fetchRTForUnidade(unidadeId);
     
-    // Obter assinatura_url do storage se assinatura_path existir
-    let signatureUrl: string | undefined = undefined;
-    if (currentStamp?.assinatura_path) {
-      const { data: { publicUrl } } = supabase.storage
-        .from('signatures')
-        .getPublicUrl(currentStamp.assinatura_path);
-      signatureUrl = publicUrl;
+    if (!gestorStamp) {
+      toast.info("Atenção: seu carimbo não está cadastrado. Cadastre em Configurações > Meu Carimbo.", { duration: 6000 });
     }
 
     return {
@@ -1131,18 +1129,17 @@ export default function EscalaPage() {
       incluirTotalHoras: printForm.incluirTotalHoras,
       incluirObservacoesRodape: printForm.incluirObservacoesRodape,
       totalLabel: printForm.totalLabel,
-      responsavel: {
-        nome: printForm.responsavelNome || undefined,
-        cargo: printForm.responsavelCargo || undefined,
-        conselho: printForm.responsavelConselho || undefined,
-        assinaturaUrl: signatureUrl,
-        unidade: metadata.unidade_principal || undefined
+      responsavel: gestorStamp || {
+        nome: profileName || user?.email || "Gestor / Coordenador",
+        cargo: isMaster ? 'Gestor Master' : 'Coordenador',
+        conselho: "—",
+        unidade: "—"
       },
-      responsavelTecnico: {
+      responsavelTecnico: rtStamp || {
         nome: "DRA. PATRÍCIA M. DE SOUZA",
         cargo: "Responsável Técnica",
         conselho: "CRM-PA 000000",
-        unidade: metadata.unidade_principal || undefined
+        unidade: "—"
       }
     };
   };
@@ -1191,17 +1188,18 @@ export default function EscalaPage() {
           toast.warning('Nenhum plantão encontrado para os filtros selecionados.');
           return;
         }
+        const opts = await getMensalOpts(printForm.unidadeId);
         const filename = `escala_oficial_${printForm.mesRef}`;
         if (acao === 'view') {
-          const ok = abrirEscalaMensalOficial(cab, profs, tipos, mensalOpts(), false);
+          const ok = abrirEscalaMensalOficial(cab, profs, tipos, opts, false);
           if (!ok) toast.error('Bloqueador de popups impediu a visualização.');
         } else if (acao === 'print') {
-          const ok = abrirEscalaMensalOficial(cab, profs, tipos, mensalOpts(), true);
+          const ok = abrirEscalaMensalOficial(cab, profs, tipos, opts, true);
           if (!ok) toast.error('Bloqueador de popups impediu a impressão.');
         } else if (acao === 'pdf-open') {
-          await gerarPdfEscalaMensalOficial(cab, profs, tipos, mensalOpts(), filename, 'open');
+          await gerarPdfEscalaMensalOficial(cab, profs, tipos, opts, filename, 'open');
         } else if (acao === 'pdf-save') {
-          await gerarPdfEscalaMensalOficial(cab, profs, tipos, mensalOpts(), filename, 'save');
+          await gerarPdfEscalaMensalOficial(cab, profs, tipos, opts, filename, 'save');
         }
         logAudit('Escala impressa/PDF (Mensal Oficial)', 'escala', {
           acao, total: profs.length, mesRef: printForm.mesRef,
@@ -1223,17 +1221,25 @@ export default function EscalaPage() {
         toast.warning('Nenhum plantão encontrado para os filtros selecionados.');
         return;
       }
+      
+      const opts = await getMensalOpts(printForm.unidadeId);
+      const pOpts: PrintOptions = {
+        ...printOpts(),
+        responsavel: opts.responsavel,
+        responsavelTecnico: opts.responsavelTecnico
+      };
+
       const filename = `escala_${printForm.dataIni}_a_${printForm.dataFim}`;
       if (acao === 'view') {
-        const ok = abrirVisualizacaoImpressao(cab, linhas, printOpts(), false);
+        const ok = abrirVisualizacaoImpressao(cab, linhas, pOpts, false);
         if (!ok) toast.error('Bloqueador de popups impediu a visualização.');
       } else if (acao === 'print') {
-        const ok = abrirVisualizacaoImpressao(cab, linhas, printOpts(), true);
+        const ok = abrirVisualizacaoImpressao(cab, linhas, pOpts, true);
         if (!ok) toast.error('Bloqueador de popups impediu a impressão.');
       } else if (acao === 'pdf-open') {
-        gerarPdfEscala(cab, linhas, printOpts(), filename, 'open');
+        await gerarPdfEscala(cab, linhas, pOpts, filename, 'open');
       } else if (acao === 'pdf-save') {
-        gerarPdfEscala(cab, linhas, printOpts(), filename, 'save');
+        await gerarPdfEscala(cab, linhas, pOpts, filename, 'save');
       }
       logAudit('Escala impressa/PDF', 'escala', {
         acao, total: linhas.length,

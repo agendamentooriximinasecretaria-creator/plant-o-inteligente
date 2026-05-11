@@ -3,6 +3,7 @@
 // Rodapé com totalizadores e mensagem oficial. Sem expor dados sensíveis.
 
 import { logoSmsImgHtml } from "./logoSMS";
+import type { StampData } from "./pdfStampUtils";
 
 export interface RelatorioFiltroAplicado {
   label: string;
@@ -18,6 +19,8 @@ export interface RelatorioPrintCab {
   totalRegistros: number;
   totalHoras?: number | null;
   incluirAssinatura?: boolean;
+  responsavel?: StampData;
+  responsavelTecnico?: StampData;
   sistema?: string;
 }
 
@@ -51,6 +54,31 @@ export function buildRelatorioHtml(
         .join("")
     : `<tr><td colspan="${columns.length}" style="text-align:center;color:#777;padding:14px">Nenhum registro encontrado.</td></tr>`;
 
+  const responsavel = cab.responsavel;
+  const responsavelTecnico = cab.responsavelTecnico;
+
+  const assinaturas = cab.incluirAssinatura ? `
+    <div class="assinaturas">
+      <div class="ass-box">
+        ${responsavel?.assinaturaBase64 ? `<img src="${responsavel.assinaturaBase64}" style="height:50px;display:block;margin:0 auto -5px" />` : '<div style="height:50px"></div>'}
+        <div class="ass-line"></div>
+        <div class="ass-nome"><strong>${escapeHtml(responsavel?.nome || "Gestor / Coordenador")}</strong></div>
+        <div class="ass-cargo">${escapeHtml(responsavel?.cargo || "Coordenação")}</div>
+        ${responsavel?.conselho ? `<div class="ass-cons">${escapeHtml(responsavel.conselho)}</div>` : ""}
+        ${responsavel?.unidade ? `<div class="ass-unid">${escapeHtml(responsavel.unidade)}</div>` : ""}
+        ${!responsavel?.assinaturaBase64 ? '<div class="ass-missing">Assinatura não cadastrada</div>' : ''}
+      </div>
+      <div class="ass-box">
+        ${responsavelTecnico?.assinaturaBase64 ? `<img src="${responsavelTecnico.assinaturaBase64}" style="height:50px;display:block;margin:0 auto -5px" />` : '<div style="height:50px"></div>'}
+        <div class="ass-line"></div>
+        <div class="ass-nome"><strong>${escapeHtml(responsavelTecnico?.nome || "Responsável Técnico")}</strong></div>
+        <div class="ass-cargo">${escapeHtml(responsavelTecnico?.cargo || "Responsável Técnico")}</div>
+        ${responsavelTecnico?.conselho ? `<div class="ass-cons">${escapeHtml(responsavelTecnico.conselho)}</div>` : ""}
+        ${responsavelTecnico?.unidade ? `<div class="ass-unid">${escapeHtml(responsavelTecnico.unidade)}</div>` : ""}
+        ${!responsavelTecnico?.assinaturaBase64 ? '<div class="ass-missing">Assinatura não cadastrada</div>' : ''}
+      </div>
+    </div>` : "";
+
   return `<!doctype html>
 <html lang="pt-BR">
 <head>
@@ -75,13 +103,18 @@ export function buildRelatorioHtml(
   .totais { margin-top: 14px; font-size: 11px; display:flex; gap:24px; flex-wrap: wrap; }
   .totais b { color: #0e7490; }
   .assinaturas { margin-top: 48px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; font-size: 11px; }
-  .assinaturas .linha { border-top: 1px solid #111; padding-top: 4px; text-align: center; }
+  .ass-box { text-align: center; }
+  .ass-line { border-top: 1px solid #111; padding-top: 4px; text-align: center; width: 100%; margin-top: 5px; }
+  .ass-nome { font-size: 10.5px; }
+  .ass-cargo, .ass-cons, .ass-unid { font-size: 9px; color: #444; }
+  .ass-missing { font-size: 8px; color: #888; margin-top: 2px; }
   .footer { margin-top: 28px; border-top: 1px solid #e5e7eb; padding-top: 6px; font-size: 10px; color: #555; text-align: center; }
   @media print {
     body { margin: 12mm; }
     .no-print { display: none !important; }
     thead { display: table-header-group; }
     tr { page-break-inside: avoid; }
+    .assinaturas { page-break-inside: avoid; }
   }
   .toolbar { position: sticky; top: 0; background: #fff; padding: 8px 0; border-bottom: 1px solid #e5e7eb; margin-bottom: 12px; display:flex; gap:8px; }
   .toolbar button { background:#0e7490; color:#fff; border:none; padding: 6px 12px; border-radius: 6px; cursor:pointer; font-size: 12px; }
@@ -124,14 +157,7 @@ export function buildRelatorioHtml(
     ${cab.totalHoras != null ? `<div><b>Total de horas:</b> ${Number(cab.totalHoras).toFixed(1)}h</div>` : ""}
   </div>
 
-  ${
-    cab.incluirAssinatura
-      ? `<div class="assinaturas">
-          <div class="linha">Assinatura do Gestor / Coordenador</div>
-          <div class="linha">Assinatura do Responsável Técnico</div>
-        </div>`
-      : ""
-  }
+  ${assinaturas}
 
   <div class="footer">Documento emitido pelo ${escapeHtml(sistema)} • ${escapeHtml(emissao)}</div>
 </body>
