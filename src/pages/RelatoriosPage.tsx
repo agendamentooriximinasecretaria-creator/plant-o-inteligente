@@ -217,8 +217,23 @@ export default function RelatoriosPage() {
         };
       case 'plantoes':
         return {
-          columns: ['Profissional', 'Setor', 'Unidade', 'Data', 'Horário', 'Carga', 'Status'],
-          rows: filteredShifts.map((s: any) => [(s.professionals as any)?.nome || '', (s.sectors as any)?.nome || '', (s.units as any)?.nome || '', new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR'), `${s.hora_inicio}-${s.hora_fim}`, `${s.carga_horaria}h`, s.status]),
+          columns: ['Profissional', 'Conselho', 'Setor', 'Unidade', 'Data', 'Horário', 'Carga', 'Status'],
+          rows: filteredShifts.map((s: any) => {
+            const prof = s.professionals || {};
+            const conselho = (prof.conselho || prof.registro || prof.documento_conselho || prof.documento_numero)
+              ? `${prof.conselho || prof.documento_conselho || ''} ${prof.registro || prof.documento_numero || ''}`.trim()
+              : 'Não informado';
+            return [
+              prof.nome || '', 
+              conselho,
+              (s.sectors as any)?.nome || '', 
+              (s.units as any)?.nome || '', 
+              new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR'), 
+              `${s.hora_inicio}-${s.hora_fim}`, 
+              `${s.carga_horaria}h`, 
+              s.status
+            ];
+          }),
           totalHoras: filteredShifts.reduce((a, s: any) => a + (isPlantaoContabilizavel(s) ? Number(s.carga_horaria || 0) : 0), 0),
         };
       case 'horas_profissional': {
