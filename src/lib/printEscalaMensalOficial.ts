@@ -63,11 +63,11 @@ export interface MensalCabecalho {
 }
 
 export interface MensalResponsavel {
-  nome?: string;
-  cargo?: string;
-  conselho?: string;
-  assinaturaUrl?: string;
-  unidade?: string;
+  nome: string;
+  cargo: string;
+  conselho: string;
+  unidade: string;
+  assinaturaBase64?: string;
 }
 
 export interface MensalOpts {
