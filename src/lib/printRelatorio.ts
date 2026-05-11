@@ -78,7 +78,11 @@ export function buildRelatorioHtml(
   .totais { margin-top: 14px; font-size: 11px; display:flex; gap:24px; flex-wrap: wrap; }
   .totais b { color: #0e7490; }
   .assinaturas { margin-top: 48px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; font-size: 11px; }
-  .assinaturas .linha { border-top: 1px solid #111; padding-top: 4px; text-align: center; }
+  .ass-box { text-align: center; }
+  .ass-line { border-top: 1px solid #111; padding-top: 4px; text-align: center; width: 100%; margin-top: 5px; }
+  .ass-nome { font-size: 10.5px; }
+  .ass-cargo, .ass-cons, .ass-unid { font-size: 9px; color: #444; }
+  .ass-missing { font-size: 8px; color: #888; margin-top: 2px; }
   .footer { margin-top: 28px; border-top: 1px solid #e5e7eb; padding-top: 6px; font-size: 10px; color: #555; text-align: center; }
   @media print {
     body { margin: 12mm; }
