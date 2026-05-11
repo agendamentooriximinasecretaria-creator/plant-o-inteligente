@@ -544,7 +544,7 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
       {/* Tabs */}
       <nav className="px-6 pt-4 border-b border-border bg-background/40 overflow-x-auto">
         <div className="flex gap-1 min-w-max">
-          {TABS.map(t => {
+          {filteredTabs.map(t => {
             const Icon = t.icon;
             const active = tab === t.id;
             return (
