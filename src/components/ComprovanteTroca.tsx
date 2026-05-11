@@ -337,17 +337,21 @@ export default function ComprovanteTroca({ trocaId, onClose }: Props) {
         {/* Assinaturas eletrônicas */}
         {signatures.length > 0 && (
           <div className="mt-4 space-y-2">
-            {signatures.filter(s => s.status === 'ativa').map(s => (
-              <div key={s.id} className="rounded-md border border-border p-3 text-[11px] flex gap-3 items-center bg-muted/20">
-                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(`${window.location.origin}/validar/${s.validation_code}`)}`}
-                  alt="QR" className="h-16 w-16" />
-                <div className="leading-relaxed">
-                  <div><strong>Documento assinado eletronicamente</strong> por <strong>{s.signer_name}</strong>, {s.signer_role.replace('_', ' ')}, em {new Date(s.signed_at).toLocaleString('pt-BR')}.</div>
-                  <div>Código: <strong className="font-mono">{s.validation_code}</strong> · Verifique em /validar/{s.validation_code}</div>
-                  <div className="text-muted-foreground italic text-[10px]">Assinatura eletrônica interna — não substitui ICP-Brasil.</div>
+            {signatures.filter(s => s.status === 'ativa').map(s => {
+              const metadata = (s.metadata as any) || {};
+              const conselho = `${metadata.conselho || ''} ${metadata.registro || ''}`.trim();
+              return (
+                <div key={s.id} className="rounded-md border border-border p-3 text-[11px] flex gap-3 items-center bg-muted/20">
+                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(`${window.location.origin}/validar/${s.validation_code}`)}`}
+                    alt="QR" className="h-16 w-16" />
+                  <div className="leading-relaxed">
+                    <div><strong>Documento assinado eletronicamente</strong> por <strong>{s.signer_name}</strong>, {s.signer_role.replace('_', ' ')} {conselho ? `(${conselho})` : ''}, em {new Date(s.signed_at).toLocaleString('pt-BR')}.</div>
+                    <div>Código: <strong className="font-mono">{s.validation_code}</strong> · Verifique em /validar/{s.validation_code}</div>
+                    <div className="text-muted-foreground italic text-[10px]">Assinatura eletrônica interna — não substitui ICP-Brasil.</div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

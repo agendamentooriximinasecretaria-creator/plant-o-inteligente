@@ -70,10 +70,21 @@ export async function signDocument(
   const { error: signInErr } = await supabase.auth.signInWithPassword({ email: user.email, password: opts.password });
   if (signInErr) throw new Error('Senha incorreta. Não foi possível confirmar a assinatura.');
 
-  // Profissional vinculado
+  // Profissional vinculado e Carimbo
   const { data: prof } = await supabase.from('professionals').select('id,nome').eq('user_id', user.id).maybeSingle();
   const { data: profile } = await supabase.from('profiles').select('nome,role').eq('user_id', user.id).maybeSingle();
+  const { data: stamp } = await supabase.from('professional_stamps').select('*').eq('profissional_id', (prof as any)?.id).eq('bloqueado', false).maybeSingle();
+  
   const signerName = (prof as any)?.nome || (profile as any)?.nome || user.email;
+  const metadata = {
+    ...(doc.metadata ?? {}),
+    nome_profissional: signerName,
+    cargo: stamp?.cargo,
+    conselho: (stamp?.metadata as any)?.conselho,
+    registro: (stamp?.metadata as any)?.registro,
+    uf_conselho: stamp?.uf_conselho,
+    unidade: (stamp?.metadata as any)?.unidade_principal,
+  };
 
   const hash = await sha256Hex(doc.content);
   const code = shortCode(hash);
@@ -93,7 +104,7 @@ export async function signDocument(
     ip_address: ip,
     user_agent: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 300) : null,
     previous_signature_id: opts.previousSignatureId ?? null,
-    metadata: doc.metadata ?? {},
+    metadata,
     status: 'ativa' as const,
   };
 
@@ -150,7 +161,7 @@ export function renderSignatureBlock(sig: SignatureRecord, opts?: { baseUrl?: st
   <div style="margin-top:18px;padding:10px 12px;border:1px solid #888;border-radius:6px;font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.45;display:flex;gap:12px;align-items:center">
     <img src="${qr}" alt="QR validação" style="width:90px;height:90px;flex-shrink:0"/>
     <div>
-      <div><strong>Documento assinado eletronicamente</strong> por <strong>${sig.signer_name}</strong>, ${role}, em ${dt}.</div>
+      <div><strong>Documento assinado eletronicamente</strong> por <strong>${sig.signer_name}</strong>, ${role} ${((sig.metadata as any)?.conselho || '')} ${((sig.metadata as any)?.registro || '')}, em ${dt}.</div>
       <div>Código de validação: <strong>${sig.validation_code}</strong></div>
       <div>Verifique em ${base}/validar/${sig.validation_code}</div>
       <div style="font-size:10px;color:#555;margin-top:2px">Hash SHA-256: ${sig.content_hash.slice(0, 32)}…</div>
