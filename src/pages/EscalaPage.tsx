@@ -1221,17 +1221,25 @@ export default function EscalaPage() {
         toast.warning('Nenhum plantão encontrado para os filtros selecionados.');
         return;
       }
+      
+      const opts = await getMensalOpts(printForm.unidadeId);
+      const pOpts: PrintOptions = {
+        ...printOpts(),
+        responsavel: opts.responsavel,
+        responsavelTecnico: opts.responsavelTecnico
+      };
+
       const filename = `escala_${printForm.dataIni}_a_${printForm.dataFim}`;
       if (acao === 'view') {
-        const ok = abrirVisualizacaoImpressao(cab, linhas, printOpts(), false);
+        const ok = abrirVisualizacaoImpressao(cab, linhas, pOpts, false);
         if (!ok) toast.error('Bloqueador de popups impediu a visualização.');
       } else if (acao === 'print') {
-        const ok = abrirVisualizacaoImpressao(cab, linhas, printOpts(), true);
+        const ok = abrirVisualizacaoImpressao(cab, linhas, pOpts, true);
         if (!ok) toast.error('Bloqueador de popups impediu a impressão.');
       } else if (acao === 'pdf-open') {
-        gerarPdfEscala(cab, linhas, printOpts(), filename, 'open');
+        await gerarPdfEscala(cab, linhas, pOpts, filename, 'open');
       } else if (acao === 'pdf-save') {
-        gerarPdfEscala(cab, linhas, printOpts(), filename, 'save');
+        await gerarPdfEscala(cab, linhas, pOpts, filename, 'save');
       }
       logAudit('Escala impressa/PDF', 'escala', {
         acao, total: linhas.length,
