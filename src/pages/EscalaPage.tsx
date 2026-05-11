@@ -1045,7 +1045,7 @@ export default function EscalaPage() {
       if (!row) {
         const conselho = (prof.conselho || prof.registro || prof.documento_conselho || prof.documento_numero)
           ? `${prof.conselho || prof.documento_conselho || ''} ${prof.registro || prof.documento_numero || ''}`.trim()
-          : 'Não informado';
+          : 'Não inf.';
         row = {
           id: profId,
           nome: prof.nome || '—',
@@ -1158,7 +1158,7 @@ export default function EscalaPage() {
         unidade: ""
       },
       responsavelTecnico: responsavelSecundario || {
-        nome: isCoordinator ? "Gestor Master não cadastrado" : "Responsável Técnico não cadastrado",
+        nome: "",
         cargo: isCoordinator ? "Gestor Master" : "Responsável Técnico",
         conselho: "",
         unidade: ""
