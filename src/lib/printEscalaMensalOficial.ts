@@ -80,8 +80,30 @@ export interface MensalOpts {
   responsavelTecnico?: MensalResponsavel;
 }
 
-const DIAS_PT_FULL = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
-const DIAS_SEM_ABREV = ["DOM","SEG","TER","QUA","QUI","SEX","SÁB"];
+const DIAS_PT_FULL = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
+const DIAS_SEM_ABREV = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
+
+// Categorização por tipo de plantão -> cores suaves (RGB para jsPDF e hex para HTML)
+function getCategoryColor(tipo: string, status: string): { bg: [number, number, number], hex: string, text: [number, number, number] } {
+  const t = (tipo || "").toLowerCase();
+  const s = (status || "").toLowerCase();
+
+  if (s === "cancelado") return { bg: [254, 226, 226], hex: "#fee2e2", text: [153, 27, 27] };
+  if (s === "pendente") return { bg: [254, 249, 195], hex: "#fef9c3", text: [133, 77, 14] };
+
+  if (t.includes("férias") || t.includes("ferias")) return { bg: [204, 251, 241], hex: "#ccfbf1", text: [15, 118, 110] };
+  if (t.includes("licença") || t.includes("licenca") || t.includes("lp")) return { bg: [207, 250, 254], hex: "#cffafe", text: [14, 116, 144] };
+  if (t.includes("atestado")) return { bg: [255, 228, 230], hex: "#ffe4e6", text: [190, 18, 60] };
+  if (t.includes("folga") || t.includes("indispon")) return { bg: [255, 247, 237], hex: "#fff7ed", text: [194, 65, 12] };
+  if (t.includes("sobreaviso")) return { bg: [241, 245, 249], hex: "#f1f5f9", text: [51, 65, 85] };
+  if (t.includes("24")) return { bg: [209, 250, 229], hex: "#d1fae5", text: [6, 95, 70] };
+  if (t.includes("manh")) return { bg: [254, 243, 199], hex: "#fef3c7", text: [146, 64, 14] };
+  if (t.includes("tarde")) return { bg: [255, 237, 213], hex: "#ffedd5", text: [154, 52, 18] };
+  if (t.includes("not")) return { bg: [237, 233, 254], hex: "#ede9fe", text: [91, 33, 182] };
+  if (t.includes("diurn")) return { bg: [224, 242, 254], hex: "#e0f2fe", text: [7, 89, 133] };
+
+  return { bg: [255, 255, 255], hex: "#ffffff", text: [0, 0, 0] };
+}
 
 function escapeHtml(s: any): string {
   return String(s ?? "")
@@ -131,15 +153,18 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
           const lista = p.porDia[d] || [];
           const dow = diaSemana(cab.ano, cab.mes, d);
           const fds = dow === 0 || dow === 6;
-          if (lista.length === 0) return `<td class="dia ${fds ? "fds" : ""}"></td>`;
+          if (lista.length === 0) return `<td class="dia ${fds ? "fds" : ""}">—</td>`;
+          
           const siglas = lista.map((s) => s.sigla).join("/");
-          const status = lista[0].status || "";
-          const cls = status === "cancelado" ? "cancel" : status === "pendente" ? "pend" : "";
+          const tipoBase = lista[0].tipo || "";
+          const statusBase = lista[0].status || "";
+          const color = getCategoryColor(tipoBase, statusBase);
+          
           const tooltip = lista.map((l) => `${l.tipo || l.sigla} ${(l.hora_inicio || "").slice(0, 5)}-${(l.hora_fim || "").slice(0, 5)}`).join(" | ");
-          return `<td class="dia ${fds ? "fds" : ""} ${cls}" title="${escapeHtml(tooltip)}">${escapeHtml(siglas)}</td>`;
+          return `<td class="dia ${fds ? "fds" : ""}" style="background-color: ${color.hex}; color: rgb(${color.text.join(",")})" title="${escapeHtml(tooltip)}">${escapeHtml(siglas)}</td>`;
         }).join("");
         const total = opts.incluirTotalHoras ? `${p.totalHoras}h` : `${p.totalPlantoes}`;
-        const conselho = p.conselho ? ` <span class="cons">${escapeHtml(p.conselho)}</span>` : "";
+        const conselho = p.conselho && p.conselho !== "Não inf." ? `<span class="cons">${escapeHtml(p.conselho)}</span>` : `<span class="cons" style="color:#999;font-style:italic">Não informado</span>`;
         return `<tr>
           <td class="nome">${escapeHtml(p.nome)}${conselho}</td>
           ${cells}
@@ -148,8 +173,9 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
       }).join("");
 
   const legendaTipos = tipos.map((t) => {
-    const horario = t.start && t.end ? `${t.start}h às ${t.end}h` : (t.nome || "");
-    return `<span class="lg-item"><b>${escapeHtml(t.sigla)}</b> = ${escapeHtml(horario)}</span>`;
+    const horario = t.start && t.end ? `${t.start} às ${t.end}` : (t.nome || "");
+    const color = getCategoryColor(t.nome || "", "");
+    return `<span class="lg-item"><b style="background-color: ${color.hex}; color: rgb(${color.text.join(",")}); padding: 1px 3px; border-radius: 2px; border: 0.5px solid #ccc">${escapeHtml(t.sigla)}</b> = ${escapeHtml(horario)}</span>`;
   }).join("");
 
   const subtitulo = buildSubtituloTabela(cab);
@@ -452,9 +478,10 @@ export async function gerarPdfEscalaMensalOficial(
   ]];
 
   const body = profs.map((p) => {
+    const conselhoText = p.conselho && p.conselho !== "Não inf." ? p.conselho : "Não informado";
     const nomeCol = {
-      content: `${p.nome}\n${p.profissao || ""}`,
-      styles: { halign: "left" as const, fontSize: 7 }
+      content: `${p.nome}\n${p.profissao || ""}\n${conselhoText}`,
+      styles: { halign: "left" as const, fontSize: 6.5, cellPadding: 1 }
     };
 
     const diaCols = Array.from({ length: totalDias }, (_, i) => {
@@ -463,21 +490,17 @@ export async function gerarPdfEscalaMensalOficial(
       if (lista.length === 0) return "—";
       
       const siglas = lista.map((s) => s.sigla).join("/");
-      const status = lista[0].status || "";
-      
-      // Letras abreviadas exatamente como na tela
-      // O conteúdo já vem com as siglas corretas (D, N, M, T, Nt, 24, SA, F, !, *)
       return siglas;
     });
 
     const total = opts.incluirTotalHoras ? `${p.totalHoras}h` : `${p.totalPlantoes}`;
     
-    return [nomeCol, ...diaCols, { content: total, styles: { halign: "center" as const, fontStyle: "bold" as const } }];
+    return [nomeCol, ...diaCols, { content: total, styles: { halign: "center" as const, fontStyle: "bold" as const, fontSize: 8 } }];
   });
 
   // Cálculo de larguras
   const availW = pageW - (margin * 2);
-  const nomeW = 40; // Espaço para nome + profissão
+  const nomeW = 45; // Espaço um pouco maior para nome + profissão + conselho
   const totalW = 12;
   const diaW = (availW - nomeW - totalW) / totalDias;
 
@@ -515,18 +538,20 @@ export async function gerarPdfEscalaMensalOficial(
         data.cell.styles.cellWidth = diaW;
         data.cell.styles.halign = "center";
         
-        // Cores de fundo suaves por tipo de plantão (baseado na sigla)
         if (data.section === "body") {
           const sigla = String(data.cell.raw || "");
-          if (sigla.includes("D")) data.cell.styles.fillColor = [224, 242, 254]; // sky-100
-          else if (sigla.includes("N")) data.cell.styles.fillColor = [237, 233, 254]; // violet-100
-          else if (sigla.includes("M")) data.cell.styles.fillColor = [254, 243, 199]; // amber-100
-          else if (sigla.includes("T")) data.cell.styles.fillColor = [255, 237, 213]; // orange-100
-          else if (sigla.includes("24")) data.cell.styles.fillColor = [209, 250, 229]; // emerald-100
-          else if (sigla.includes("SA")) data.cell.styles.fillColor = [241, 245, 249]; // slate-100
-          else if (sigla.includes("F")) data.cell.styles.fillColor = [255, 247, 237]; // orange-50
-          else if (sigla === "!") data.cell.styles.fillColor = [254, 249, 195]; // yellow-100
-          else if (sigla === "*") data.cell.styles.fillColor = [254, 226, 226]; // red-100
+          if (sigla !== "—") {
+            const rowIndex = data.row.index;
+            const dia = ci;
+            const prof = profs[rowIndex];
+            const lista = prof.porDia[dia] || [];
+            if (lista.length > 0) {
+              const color = getCategoryColor(lista[0].tipo || "", lista[0].status || "");
+              data.cell.styles.fillColor = color.bg;
+              data.cell.styles.textColor = color.text;
+              data.cell.styles.fontStyle = "bold";
+            }
+          }
         }
       }
     }
@@ -534,12 +559,15 @@ export async function gerarPdfEscalaMensalOficial(
 
   let finalY = (doc as any).lastAutoTable?.finalY || (y + 20);
 
-  // ===== Legenda compacta =====
+  // ===== Legenda dinâmica =====
   doc.setFontSize(7);
-  doc.setTextColor(100);
-  const legendaText = "Legenda: D=Diurno 07-19h  |  N=Noturno 18-07h  |  M=Manhã 07-13h  |  T=Tarde 13-19h  |  Nt=Noturno 19-01h  |  24=24h  |  SA=Sobreaviso  |  F=Folga  |  !=Pendente  |  *=Cancelado";
-  doc.text(legendaText, margin, finalY + 5);
-  finalY += 8;
+  doc.setTextColor(80);
+  const legendaParts = tipos.map(t => `${t.sigla}=${t.nome}${t.start && t.end ? ` (${t.start}-${t.end}h)` : ""}`);
+  legendaParts.push("!=Pendente", "*=Cancelado");
+  const legendaText = "Legenda: " + legendaParts.join("  |  ");
+  const wrappedLegenda = doc.splitTextToSize(legendaText, availW);
+  doc.text(wrappedLegenda, margin, finalY + 5);
+  finalY += (wrappedLegenda.length * 4) + 2;
 
   // ===== Totais =====
   doc.setFont("helvetica", "bold");
@@ -548,7 +576,7 @@ export async function gerarPdfEscalaMensalOficial(
   const totalPlantoes = profs.reduce((acc, p) => acc + p.totalPlantoes, 0);
   const totalHorasGeral = profs.reduce((acc, p) => acc + p.totalHoras, 0);
   doc.text(`Total de plantões: ${totalPlantoes}    Total de horas: ${totalHorasGeral}h`, margin, finalY + 5);
-  finalY += 15;
+  finalY += 10;
 
   // ===== Rodapé — Carimbo e Assinatura =====
   if (opts.incluirAssinatura) {
@@ -596,7 +624,7 @@ export async function gerarPdfEscalaMensalOficial(
     doc.text(r2?.nome || "Responsável Técnico", xR, assY + 4, { align: "center" });
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
-    doc.text("Responsável Técnico", xR, assY + 7.5, { align: "center" });
+    doc.text(r2?.cargo || "Responsável Técnico", xR, assY + 7.5, { align: "center" });
     if (r2?.conselho && r2.conselho !== "Não informado") {
       doc.text(r2.conselho, xR, assY + 10.5, { align: "center" });
     }
