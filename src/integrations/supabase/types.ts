@@ -1086,6 +1086,9 @@ export type Database = {
           shift_id: string | null
           shift_id_destino: string | null
           solicitante_id: string
+          stamp_aprovador_id: string | null
+          stamp_destinatario_id: string | null
+          stamp_solicitante_id: string | null
           status: Database["public"]["Enums"]["swap_status"]
           tipo: string
           updated_at: string
@@ -1104,6 +1107,9 @@ export type Database = {
           shift_id?: string | null
           shift_id_destino?: string | null
           solicitante_id: string
+          stamp_aprovador_id?: string | null
+          stamp_destinatario_id?: string | null
+          stamp_solicitante_id?: string | null
           status?: Database["public"]["Enums"]["swap_status"]
           tipo?: string
           updated_at?: string
@@ -1122,6 +1128,9 @@ export type Database = {
           shift_id?: string | null
           shift_id_destino?: string | null
           solicitante_id?: string
+          stamp_aprovador_id?: string | null
+          stamp_destinatario_id?: string | null
+          stamp_solicitante_id?: string | null
           status?: Database["public"]["Enums"]["swap_status"]
           tipo?: string
           updated_at?: string
@@ -1167,6 +1176,27 @@ export type Database = {
             columns: ["solicitante_id"]
             isOneToOne: false
             referencedRelation: "professionals_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swaps_stamp_aprovador_id_fkey"
+            columns: ["stamp_aprovador_id"]
+            isOneToOne: false
+            referencedRelation: "professional_stamps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swaps_stamp_destinatario_id_fkey"
+            columns: ["stamp_destinatario_id"]
+            isOneToOne: false
+            referencedRelation: "professional_stamps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swaps_stamp_solicitante_id_fkey"
+            columns: ["stamp_solicitante_id"]
+            isOneToOne: false
+            referencedRelation: "professional_stamps"
             referencedColumns: ["id"]
           },
         ]
@@ -1608,6 +1638,10 @@ export type Database = {
           vizinho_fim: string
           vizinho_inicio: string
         }[]
+      }
+      check_professional_has_stamp: {
+        Args: { p_profissional_id: string }
+        Returns: boolean
       }
       check_shift_conflict: {
         Args: {
