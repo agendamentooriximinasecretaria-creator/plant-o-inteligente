@@ -922,7 +922,7 @@ export default function EscalaPage() {
 
     // Busca real do banco respeitando RLS, sem expor PII (sem CPF/banco/endereço)
     let q = sb.from('shifts')
-      .select('id, data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, status, observacoes, profissional_id, professionals:profissional_id(nome, profissao, conselho, registro), units:unidade_id(nome), sectors:setor_id(nome), unidade_id, setor_id, profissao')
+      .select('id, data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, status, observacoes, profissional_id, professionals:profissional_id(nome, profissao, conselho, registro, documento_numero, documento_conselho), units:unidade_id(nome), sectors:setor_id(nome), unidade_id, setor_id, profissao')
       .gte('data', printForm.dataIni)
       .lte('data', printForm.dataFim)
       .order('data', { ascending: true })
