@@ -1115,9 +1115,16 @@ export default function EscalaPage() {
 
   const mensalOpts = (): MensalOpts => {
     const metadata = (currentStamp?.metadata as any) || {};
-    // Aqui assumimos que o gestor logado é o 'responsavel'
-    // E poderíamos buscar o RT da unidade/projeto se houvesse um campo específico.
-    // Como regra simplificada, usaremos os dados do currentStamp para o bloco esquerdo.
+    
+    // Obter assinatura_url do storage se assinatura_path existir
+    let signatureUrl: string | undefined = undefined;
+    if (currentStamp?.assinatura_path) {
+      const { data: { publicUrl } } = supabase.storage
+        .from('signatures')
+        .getPublicUrl(currentStamp.assinatura_path);
+      signatureUrl = publicUrl;
+    }
+
     return {
       incluirLogo: printForm.incluirLogo,
       incluirAssinatura: printForm.incluirAssinatura,
@@ -1128,13 +1135,11 @@ export default function EscalaPage() {
         nome: printForm.responsavelNome || undefined,
         cargo: printForm.responsavelCargo || undefined,
         conselho: printForm.responsavelConselho || undefined,
-        assinaturaUrl: currentStamp?.assinatura_url || undefined,
+        assinaturaUrl: signatureUrl,
         unidade: metadata.unidade_principal || undefined
       },
-      // Para o RT, podemos tentar buscar um perfil que tenha cargo de 'Responsável Técnico' no mesmo setor/unidade
-      // Mas por enquanto usaremos placeholders se não houver um RT definido no state.
       responsavelTecnico: {
-        nome: "DRA. PATRÍCIA M. DE SOUZA", // Exemplo ou vindo de config
+        nome: "DRA. PATRÍCIA M. DE SOUZA",
         cargo: "Responsável Técnica",
         conselho: "CRM-PA 000000",
         unidade: metadata.unidade_principal || undefined
