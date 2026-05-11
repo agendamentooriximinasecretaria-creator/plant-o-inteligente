@@ -53,30 +53,16 @@ serve(async (req) => {
     }
 
     if (action === 'diagnostic') {
-      // 1. List tables
-      const { data: tables, error: tablesErr } = await sourceClient.rpc('get_tables_info');
-      // If RPC doesn't exist, we fallback to a direct query if possible or inform the user
-      
-      // Since we might not have the RPC, let's use a direct query to information_schema
-      // But Supabase REST API doesn't expose information_schema directly.
-      // We need a helper function in the DB or we use standard select on known tables.
-      
-      // A better way is to query the 'pg_catalog' or 'information_schema' via a custom function
-      // that we'll ask the user to create or we try to run it if we have enough permissions.
-      
       const diagnosticResult: any = {
         source: { tables: [] },
         destination: { tables: [], isEmpty: true }
       };
 
-      // Try to get tables from source
-      const { data: sourceTablesData, error: sourceTablesErr } = await sourceClient
-        .from('pg_tables') // This might not work via PostgREST without specific setup
-        .select('*')
-        .eq('schemaname', 'public');
+      // Get all tables from public schema via RPC or direct SQL if possible
+      // Since we don't have a reliable RPC, we'll use a trick: query pg_catalog via REST
+      // Supabase by default doesn't expose pg_catalog. Let's try to query some known tables
+      // and also check if we can run some system views.
       
-      // In Supabase, often we need to create a helper function to inspect the schema
-      // Let's assume for now we'll fetch common tables we saw earlier
       const tablesToTrack = [
         'professional_unavailability', 'professionals_safe', 'notifications', 
         'message_templates', 'audit_logs', 'profiles', 'document_signatures', 
@@ -87,19 +73,30 @@ serve(async (req) => {
         'professional_stamps', 'document_templates', 'swap_history'
       ];
 
+      // We can also try to get the list of tables by calling a function that we might create 
+      // or just trust the list we have from exploration.
+      
       for (const table of tablesToTrack) {
-        const { count, error } = await sourceClient.from(table).select('*', { count: 'exact', head: true });
-        if (!error) {
-          diagnosticResult.source.tables.push({ name: table, count });
+        try {
+          const { count, error } = await sourceClient.from(table).select('*', { count: 'exact', head: true });
+          if (!error) {
+            diagnosticResult.source.tables.push({ name: table, count: count || 0 });
+          }
+        } catch (e) {
+          // Table doesn't exist or no permission
         }
       }
 
       // Check destination
       for (const table of tablesToTrack) {
-        const { error } = await destClient.from(table).select('*', { count: 'exact', head: true });
-        if (!error) {
-          diagnosticResult.destination.isEmpty = false;
-          diagnosticResult.destination.tables.push({ name: table });
+        try {
+          const { data, error } = await destClient.from(table).select('*', { count: 'exact', head: true });
+          if (!error) {
+            diagnosticResult.destination.isEmpty = false;
+            diagnosticResult.destination.tables.push({ name: table });
+          }
+        } catch (e) {
+          // Table doesn't exist
         }
       }
 
