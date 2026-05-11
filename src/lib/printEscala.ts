@@ -90,7 +90,7 @@ function buildHtml(
     <tr>
       <td>${escapeHtml(l.profissional)}</td>
       <td>${escapeHtml(l.profissao)}</td>
-      ${opts.incluirConselho ? `<td>${escapeHtml(l.conselho || "—")}</td>` : ""}
+      ${opts.incluirConselho ? `<td>${escapeHtml(l.conselho || "Não informado")}</td>` : ""}
       <td>${escapeHtml(l.setor)}</td>
       <td>${escapeHtml(l.data)}</td>
       <td>${escapeHtml(l.diaSemana)}</td>
