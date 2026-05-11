@@ -53,7 +53,7 @@ export default function MinhasTrocasPage() {
     enabled: !!professionalId,
     queryFn: async () => {
       const { data } = await supabase.from("professionals")
-        .select("limite_trocas_plantao_mes, limite_trocas_paciente_mes")
+        .select("limite_trocas_plantao_mes, limite_trocas_paciente_mes, profissao")
         .eq("id", professionalId!)
         .maybeSingle();
       return data;
