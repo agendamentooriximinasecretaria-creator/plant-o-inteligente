@@ -153,15 +153,18 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
           const lista = p.porDia[d] || [];
           const dow = diaSemana(cab.ano, cab.mes, d);
           const fds = dow === 0 || dow === 6;
-          if (lista.length === 0) return `<td class="dia ${fds ? "fds" : ""}"></td>`;
+          if (lista.length === 0) return `<td class="dia ${fds ? "fds" : ""}">—</td>`;
+          
           const siglas = lista.map((s) => s.sigla).join("/");
-          const status = lista[0].status || "";
-          const cls = status === "cancelado" ? "cancel" : status === "pendente" ? "pend" : "";
+          const tipoBase = lista[0].tipo || "";
+          const statusBase = lista[0].status || "";
+          const color = getCategoryColor(tipoBase, statusBase);
+          
           const tooltip = lista.map((l) => `${l.tipo || l.sigla} ${(l.hora_inicio || "").slice(0, 5)}-${(l.hora_fim || "").slice(0, 5)}`).join(" | ");
-          return `<td class="dia ${fds ? "fds" : ""} ${cls}" title="${escapeHtml(tooltip)}">${escapeHtml(siglas)}</td>`;
+          return `<td class="dia ${fds ? "fds" : ""}" style="background-color: ${color.hex}; color: rgb(${color.text.join(",")})" title="${escapeHtml(tooltip)}">${escapeHtml(siglas)}</td>`;
         }).join("");
         const total = opts.incluirTotalHoras ? `${p.totalHoras}h` : `${p.totalPlantoes}`;
-        const conselho = p.conselho ? ` <span class="cons">${escapeHtml(p.conselho)}</span>` : "";
+        const conselho = p.conselho && p.conselho !== "Não inf." ? `<span class="cons">${escapeHtml(p.conselho)}</span>` : `<span class="cons" style="color:#999;font-style:italic">Não informado</span>`;
         return `<tr>
           <td class="nome">${escapeHtml(p.nome)}${conselho}</td>
           ${cells}
