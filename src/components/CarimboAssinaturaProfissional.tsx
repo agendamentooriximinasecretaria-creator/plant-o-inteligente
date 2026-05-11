@@ -578,36 +578,21 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
               <div className="md:col-span-2">
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-xs font-medium text-muted-foreground block mb-0">Tipo de assinante</label>
-                  {isOwnProfile && (myIsMaster || myIsCoordinator) && (
-                    <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded flex items-center gap-1 font-medium">
-                      <ShieldCheck className="h-2.5 w-2.5" /> Automático (Gestão)
-                    </span>
-                  )}
+                  <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded flex items-center gap-1 font-medium">
+                    <ShieldCheck className="h-2.5 w-2.5" /> Automático
+                  </span>
                 </div>
-                {isOwnProfile && (myIsMaster || myIsCoordinator) ? (
-                  <div className="relative">
-                    <input 
-                      value={TIPOS_ASSINANTE.find(t => t.value === tipoAssinante)?.label || (myIsMaster ? "Gestor Master" : "Coordenador(a)")} 
-                      readOnly 
-                      className={`${inputCls} pr-10 font-medium border-primary/20 bg-primary/5`} 
-                    />
-                    <ShieldCheck className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
-                  </div>
-                ) : (
-                  <select 
-                    value={tipoAssinante} 
-                    onChange={e => setTipoAssinante(e.target.value as TipoAssinante)} 
-                    disabled={disabledByLock} 
-                    className={inputCls}
-                  >
-                    {TIPOS_ASSINANTE.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
-                )}
-                {isOwnProfile && (myIsMaster || myIsCoordinator) && (
-                  <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
-                    <Info className="h-3 w-3" /> Definido permanentemente com base no seu nível de acesso.
-                  </p>
-                )}
+                <div className="relative">
+                  <input 
+                    value={TIPOS_ASSINANTE.find(t => t.value === tipoAssinante)?.label || "Profissional de saúde"} 
+                    readOnly 
+                    className={`${inputCls} pr-10 font-medium border-primary/20 bg-primary/5`} 
+                  />
+                  <ShieldCheck className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+                  <Info className="h-3 w-3" /> Definido permanentemente com base no cadastro oficial.
+                </p>
               </div>
               <div>
                 <label className={labelCls}>Nome completo</label>
@@ -619,10 +604,14 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
               </div>
               <div>
                 <label className={labelCls}>Cargo / Função</label>
-                <input list="cargos-list" value={stamp.cargo || ""} onChange={e => setStamp(s => ({ ...s, cargo: e.target.value }))} disabled={disabledByLock} className={inputCls} placeholder="Selecione ou digite" />
-                <datalist id="cargos-list">
-                  {CARGOS_SUGESTAO.map(c => <option key={c} value={c} />)}
-                </datalist>
+                <div className="relative">
+                  <input 
+                    value={stamp.cargo || ""} 
+                    readOnly 
+                    className={`${inputCls} pr-10 border-primary/10 bg-muted/30`} 
+                  />
+                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
+                </div>
               </div>
               <div>
                 <label className={labelCls}>Especialidade</label>
