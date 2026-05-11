@@ -5,6 +5,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { getLogoSmsDataUrl, logoSmsImgHtml } from "./logoSMS";
+import type { StampData } from "./pdfStampUtils";
 
 export interface PrintInstituicao {
   nome?: string;
