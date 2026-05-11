@@ -455,7 +455,7 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
     const sobrescrever = (!stamp.cargo && !stamp.cbo && !conselhoManual) ||
       window.confirm("Já existem dados preenchidos. Deseja sobrescrever com os dados do cadastro?");
     if (!sobrescrever) return;
-    const novoCargo = sugerirCargo(professional.profissao, tipoAssinante);
+    const novoCargo = professional.cargo || sugerirCargo(professional.profissao, tipoAssinante);
     const novoCbo = sugerirCBO(professional.profissao);
     const novoConselho = sugerirConselho(professional.profissao);
     setStamp(s => ({
