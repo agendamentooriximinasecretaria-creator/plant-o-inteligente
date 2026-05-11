@@ -70,7 +70,7 @@ const COMPETENCIAS_POR_PROFISSAO: Record<string, string[]> = {
 const LIMITE_HORAS_MENSAL = CLT_LIMITE_MENSAL;
 
 const emptyForm = {
-  nome: '', profissao: 'medico' as ProfissaoValue, especialidade: '', conselho: '', registro: '',
+  nome: '', profissao: 'medico' as ProfissaoValue, especialidade: '', cargo: '', conselho: '', registro: '',
   cpf: '', telefone: '', email: '',
   unidade_principal_id: '', setor_principal_id: '', status: 'ativo',
   observacoes: '', vinculo: '',
