@@ -521,48 +521,59 @@ export async function gerarPdfEscalaMensalOficial(
 
   // ===== Assinatura (Lado a lado) =====
   if (opts.incluirAssinatura) {
-    const r1 = opts.responsavel || {};
-    const r2 = opts.responsavelTecnico || {};
+    const r1 = opts.responsavel;
+    const r2 = opts.responsavelTecnico;
     const assY = Math.min(cursorY + 15, pageH - 25);
     const lineLen = 75;
     const marginSide = 25;
 
     // Bloco Esquerdo - Gestor/Coordenador
     const xL = marginSide + lineLen / 2;
-    if (r1.assinaturaUrl) {
+    if (r1?.assinaturaBase64) {
       try {
-        doc.addImage(r1.assinaturaUrl, "PNG", marginSide + 5, assY - 14, lineLen - 10, 12);
+        doc.addImage(r1.assinaturaBase64, "PNG", marginSide + 5, assY - 14, lineLen - 10, 12);
       } catch { /* ignora */ }
+    } else {
+      doc.setFontSize(6);
+      doc.setTextColor(150);
+      doc.text("Assinatura não cadastrada", xL, assY - 5, { align: "center" });
     }
     doc.setLineWidth(0.3);
     doc.setDrawColor(0);
+    doc.setTextColor(0);
     doc.line(marginSide, assY, marginSide + lineLen, assY);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
-    doc.text(r1.nome || "Gestor / Coordenador", xL, assY + 3.5, { align: "center" });
+    doc.text(r1?.nome || "Gestor / Coordenador", xL, assY + 3.5, { align: "center" });
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
-    doc.text(r1.cargo || "Coordenação", xL, assY + 6.5, { align: "center" });
+    doc.text(r1?.cargo || "Coordenação", xL, assY + 6.5, { align: "center" });
     let curY1 = assY + 9.5;
-    if (r1.conselho) { doc.text(r1.conselho, xL, curY1, { align: "center" }); curY1 += 3; }
-    if (r1.unidade) { doc.text(r1.unidade, xL, curY1, { align: "center" }); }
+    if (r1?.conselho) { doc.text(r1.conselho, xL, curY1, { align: "center" }); curY1 += 3; }
+    if (r1?.unidade) { doc.text(r1.unidade, xL, curY1, { align: "center" }); }
 
     // Bloco Direito - Responsável Técnico
     const xR = pageW - marginSide - lineLen / 2;
     const marginR = pageW - marginSide - lineLen;
-    if (r2.assinaturaUrl) {
+    if (r2?.assinaturaBase64) {
       try {
-        doc.addImage(r2.assinaturaUrl, "PNG", marginR + 5, assY - 14, lineLen - 10, 12);
+        doc.addImage(r2.assinaturaBase64, "PNG", marginR + 5, assY - 14, lineLen - 10, 12);
       } catch { /* ignora */ }
+    } else {
+      doc.setFontSize(6);
+      doc.setTextColor(150);
+      doc.text("Assinatura não cadastrada", xR, assY - 5, { align: "center" });
     }
+    doc.setDrawColor(0);
+    doc.setTextColor(0);
     doc.line(marginR, assY, pageW - marginSide, assY);
     doc.setFont("helvetica", "bold");
-    doc.text(r2.nome || "Responsável Técnico", xR, assY + 3.5, { align: "center" });
+    doc.text(r2?.nome || "Responsável Técnico", xR, assY + 3.5, { align: "center" });
     doc.setFont("helvetica", "normal");
-    doc.text(r2.cargo || "Responsável Técnico", xR, assY + 6.5, { align: "center" });
+    doc.text(r2?.cargo || "Responsável Técnico", xR, assY + 6.5, { align: "center" });
     let curY2 = assY + 9.5;
-    if (r2.conselho) { doc.text(r2.conselho, xR, curY2, { align: "center" }); curY2 += 3; }
-    if (r2.unidade) { doc.text(r2.unidade, xR, curY2, { align: "center" }); }
+    if (r2?.conselho) { doc.text(r2.conselho, xR, curY2, { align: "center" }); curY2 += 3; }
+    if (r2?.unidade) { doc.text(r2.unidade, xR, curY2, { align: "center" }); }
   }
 
   if (modo === "save") {
