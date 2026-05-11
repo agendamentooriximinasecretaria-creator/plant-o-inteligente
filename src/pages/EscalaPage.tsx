@@ -20,7 +20,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 import { abrirVisualizacaoImpressao, gerarPdfEscala, diaSemanaPt, type PrintLinha, type PrintCabecalho, type PrintOptions } from "@/lib/printEscala";
-import { abrirEscalaMensalOficial, gerarPdfEscalaMensalOficial, type MensalProfissional, type MensalCabecalho, type MensalOpts, type MensalTipoLegenda } from "@/lib/printEscalaMensalOficial";
+import { abrirEscalaMensalOficial, gerarPdfEscalaMensalOficial, type MensalProfissional, type MensalCabecalho, type MensalOpts, type MensalTipoLegenda, type MensalResponsavel } from "@/lib/printEscalaMensalOficial";
+import { fetchStampData, fetchRTForUnidade } from "@/lib/pdfStampUtils";
 import { imprimirComprovantePlantao, type ComprovantePlantaoData } from "@/lib/printComprovantePlantao";
 import SignActionButton from "@/components/SignActionButton";
 
