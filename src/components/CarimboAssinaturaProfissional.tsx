@@ -604,10 +604,14 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
               </div>
               <div>
                 <label className={labelCls}>Cargo / Função</label>
-                <input list="cargos-list" value={stamp.cargo || ""} onChange={e => setStamp(s => ({ ...s, cargo: e.target.value }))} disabled={disabledByLock} className={inputCls} placeholder="Selecione ou digite" />
-                <datalist id="cargos-list">
-                  {CARGOS_SUGESTAO.map(c => <option key={c} value={c} />)}
-                </datalist>
+                <div className="relative">
+                  <input 
+                    value={stamp.cargo || ""} 
+                    readOnly 
+                    className={`${inputCls} pr-10 border-primary/10 bg-muted/30`} 
+                  />
+                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
+                </div>
               </div>
               <div>
                 <label className={labelCls}>Especialidade</label>
