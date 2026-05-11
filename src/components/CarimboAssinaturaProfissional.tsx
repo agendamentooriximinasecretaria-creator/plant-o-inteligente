@@ -813,22 +813,30 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
                     <option value="justificado">Justificado</option>
                   </select>
                 </div>
-                <div>
-                  <label className={labelCls}>Largura: {stamp.largura}px</label>
-                  <input type="range" min={200} max={600} step={10} value={stamp.largura} onChange={e => setStamp(s => ({ ...s, largura: Number(e.target.value) }))} disabled={disabledByLock} className="w-full accent-primary" />
-                </div>
-                <div>
-                  <label className={labelCls}>Altura máxima: {stamp.altura_max}px</label>
-                  <input type="range" min={100} max={400} step={10} value={stamp.altura_max} onChange={e => setStamp(s => ({ ...s, altura_max: Number(e.target.value) }))} disabled={disabledByLock} className="w-full accent-primary" />
-                </div>
-                <div>
-                  <label className={labelCls}>Tamanho da fonte: {stamp.tamanho_fonte}px</label>
-                  <input type="range" min={9} max={18} step={1} value={stamp.tamanho_fonte} onChange={e => setStamp(s => ({ ...s, tamanho_fonte: Number(e.target.value) }))} disabled={disabledByLock} className="w-full accent-primary" />
-                </div>
-                <div>
-                  <label className={labelCls}>Cor do texto</label>
-                  <input type="color" value={stamp.cor_texto} onChange={e => setStamp(s => ({ ...s, cor_texto: e.target.value }))} disabled={disabledByLock} className="h-10 w-full rounded-lg border border-border bg-background cursor-pointer" />
-                </div>
+                {isManagement ? (
+                  <>
+                    <div>
+                      <label className={labelCls}>Largura: {stamp.largura}px</label>
+                      <input type="range" min={200} max={600} step={10} value={stamp.largura} onChange={e => setStamp(s => ({ ...s, largura: Number(e.target.value) }))} disabled={disabledByLock} className="w-full accent-primary" />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Altura máxima: {stamp.altura_max}px</label>
+                      <input type="range" min={100} max={400} step={10} value={stamp.altura_max} onChange={e => setStamp(s => ({ ...s, altura_max: Number(e.target.value) }))} disabled={disabledByLock} className="w-full accent-primary" />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Tamanho da fonte: {stamp.tamanho_fonte}px</label>
+                      <input type="range" min={9} max={18} step={1} value={stamp.tamanho_fonte} onChange={e => setStamp(s => ({ ...s, tamanho_fonte: Number(e.target.value) }))} disabled={disabledByLock} className="w-full accent-primary" />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Cor do texto</label>
+                      <input type="color" value={stamp.cor_texto} onChange={e => setStamp(s => ({ ...s, cor_texto: e.target.value }))} disabled={disabledByLock} className="h-10 w-full rounded-lg border border-border bg-background cursor-pointer" />
+                    </div>
+                  </>
+                ) : (
+                  <div className="md:col-span-3 p-3 rounded-lg border border-border/60 bg-muted/20 text-xs text-muted-foreground italic flex items-center gap-2">
+                    <Info className="h-4 w-4 shrink-0" /> Configurações de exibição avançadas são geridas pela coordenação para manter o padrão institucional.
+                  </div>
+                )}
               </div>
             </div>
           </div>
