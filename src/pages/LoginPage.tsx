@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [recovering, setRecovering] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const canRecover = useMemo(() => email.trim().length > 0, [email]);
 
