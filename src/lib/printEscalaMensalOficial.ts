@@ -80,8 +80,30 @@ export interface MensalOpts {
   responsavelTecnico?: MensalResponsavel;
 }
 
-const DIAS_PT_FULL = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
-const DIAS_SEM_ABREV = ["DOM","SEG","TER","QUA","QUI","SEX","SÁB"];
+const DIAS_PT_FULL = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
+const DIAS_SEM_ABREV = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
+
+// Categorização por tipo de plantão -> cores suaves (RGB para jsPDF e hex para HTML)
+function getCategoryColor(tipo: string, status: string): { bg: [number, number, number], hex: string, text: [number, number, number] } {
+  const t = (tipo || "").toLowerCase();
+  const s = (status || "").toLowerCase();
+
+  if (s === "cancelado") return { bg: [254, 226, 226], hex: "#fee2e2", text: [153, 27, 27] };
+  if (s === "pendente") return { bg: [254, 249, 195], hex: "#fef9c3", text: [133, 77, 14] };
+
+  if (t.includes("férias") || t.includes("ferias")) return { bg: [204, 251, 241], hex: "#ccfbf1", text: [15, 118, 110] };
+  if (t.includes("licença") || t.includes("licenca") || t.includes("lp")) return { bg: [207, 250, 254], hex: "#cffafe", text: [14, 116, 144] };
+  if (t.includes("atestado")) return { bg: [255, 228, 230], hex: "#ffe4e6", text: [190, 18, 60] };
+  if (t.includes("folga") || t.includes("indispon")) return { bg: [255, 247, 237], hex: "#fff7ed", text: [194, 65, 12] };
+  if (t.includes("sobreaviso")) return { bg: [241, 245, 249], hex: "#f1f5f9", text: [51, 65, 85] };
+  if (t.includes("24")) return { bg: [209, 250, 229], hex: "#d1fae5", text: [6, 95, 70] };
+  if (t.includes("manh")) return { bg: [254, 243, 199], hex: "#fef3c7", text: [146, 64, 14] };
+  if (t.includes("tarde")) return { bg: [255, 237, 213], hex: "#ffedd5", text: [154, 52, 18] };
+  if (t.includes("not")) return { bg: [237, 233, 254], hex: "#ede9fe", text: [91, 33, 182] };
+  if (t.includes("diurn")) return { bg: [224, 242, 254], hex: "#e0f2fe", text: [7, 89, 133] };
+
+  return { bg: [255, 255, 255], hex: "#ffffff", text: [0, 0, 0] };
+}
 
 function escapeHtml(s: any): string {
   return String(s ?? "")
