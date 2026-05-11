@@ -60,22 +60,49 @@ export async function fetchStampData(profissionalId: string): Promise<StampData 
 
 /**
  * Busca o Responsável Técnico da unidade.
- * Critério: profissional com cargo que contenha "Responsável Técnico" e esteja na mesma unidade.
  */
 export async function fetchRTForUnidade(unidadeId?: string): Promise<StampData | null> {
   try {
-    let query = supabase
+    if (!unidadeId) return null;
+    
+    // Busca na tabela professional_stamps onde o cargo contenha 'Responsável Técnico'
+    // E o profissional pertença à unidade informada
+    const { data } = await supabase
       .from('professional_stamps')
       .select('*, professionals_safe!inner(id, unidade_principal_id)')
       .ilike('cargo', '%Responsável Técnico%')
-      .eq('bloqueado', false);
+      .eq('professionals_safe.unidade_principal_id', unidadeId)
+      .eq('bloqueado', false)
+      .limit(1)
+      .maybeSingle();
       
-    if (unidadeId) {
-      query = query.eq('professionals_safe.unidade_principal_id', unidadeId);
+    if (data) {
+      return fetchStampData(data.profissional_id);
     }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
-    const { data } = await query.limit(1).maybeSingle();
-    
+/**
+ * Busca o Gestor Master da unidade.
+ */
+export async function fetchGestorMasterForUnidade(unidadeId?: string): Promise<StampData | null> {
+  try {
+    if (!unidadeId) return null;
+
+    // Busca na tabela professional_stamps onde o cargo contenha 'Gestor Master'
+    // E o profissional pertença à unidade informada
+    const { data } = await supabase
+      .from('professional_stamps')
+      .select('*, professionals_safe!inner(id, unidade_principal_id)')
+      .ilike('cargo', '%Gestor Master%')
+      .eq('professionals_safe.unidade_principal_id', unidadeId)
+      .eq('bloqueado', false)
+      .limit(1)
+      .maybeSingle();
+      
     if (data) {
       return fetchStampData(data.profissional_id);
     }
