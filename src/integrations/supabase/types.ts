@@ -758,36 +758,51 @@ export type Database = {
           created_at: string
           data_fim: string
           data_inicio: string
+          documento_url: string | null
           id: string
           motivo: string
+          motivo_gestor: string | null
           observacao_gestor: string | null
+          observacao_profissional: string | null
           profissional_id: string
           status: string
+          substituto_id: string | null
           tipo: string
+          tipo_gestor: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           data_fim: string
           data_inicio: string
+          documento_url?: string | null
           id?: string
           motivo: string
+          motivo_gestor?: string | null
           observacao_gestor?: string | null
+          observacao_profissional?: string | null
           profissional_id: string
           status?: string
+          substituto_id?: string | null
           tipo?: string
+          tipo_gestor?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           data_fim?: string
           data_inicio?: string
+          documento_url?: string | null
           id?: string
           motivo?: string
+          motivo_gestor?: string | null
           observacao_gestor?: string | null
+          observacao_profissional?: string | null
           profissional_id?: string
           status?: string
+          substituto_id?: string | null
           tipo?: string
+          tipo_gestor?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -801,6 +816,20 @@ export type Database = {
           {
             foreignKeyName: "professional_unavailability_profissional_id_fkey"
             columns: ["profissional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "professional_unavailability_substituto_id_fkey"
+            columns: ["substituto_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "professional_unavailability_substituto_id_fkey"
+            columns: ["substituto_id"]
             isOneToOne: false
             referencedRelation: "professionals_safe"
             referencedColumns: ["id"]
