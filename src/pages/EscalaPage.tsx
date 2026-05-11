@@ -1128,11 +1128,12 @@ export default function EscalaPage() {
 
   useEffect(() => {
     if (currentStamp && printOpen) {
+      const metadata = (currentStamp.metadata as any) || {};
       setPrintForm(f => ({
         ...f,
-        responsavelNome: currentStamp.metadata?.nome_profissional || profileName || user?.email || "",
+        responsavelNome: metadata.nome_profissional || profileName || user?.email || "",
         responsavelCargo: currentStamp.cargo || (isMaster ? 'Gestor Master' : 'Coordenador'),
-        responsavelConselho: `${currentStamp.metadata?.conselho || ''} ${currentStamp.metadata?.registro || ''}`.trim()
+        responsavelConselho: `${metadata.conselho || ''} ${metadata.registro || ''}`.trim()
       }));
     }
   }, [currentStamp, printOpen, profileName, user?.email, isMaster]);
