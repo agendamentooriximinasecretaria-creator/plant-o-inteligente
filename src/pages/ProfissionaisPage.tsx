@@ -756,7 +756,11 @@ export default function ProfissionaisPage() {
                         {PROFISSAO_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                       </select>
                     </div>
-                    <div className="md:col-span-1 lg:col-span-2">
+                    <div>
+                      <Label className="text-sm font-semibold mb-1.5 block">Cargo / Função</Label>
+                      <input value={form.cargo} onChange={e => setForm(f => ({ ...f, cargo: e.target.value }))} className={inputClass} placeholder="Ex: Plantonista, Coordenador..." />
+                    </div>
+                    <div>
                       <Label className="text-sm font-semibold mb-1.5 block">Especialidade</Label>
                       <input value={form.especialidade} onChange={e => setForm(f => ({ ...f, especialidade: e.target.value }))} className={inputClass} placeholder="Ex: Pediatria, Terapia Intensiva..." />
                     </div>
