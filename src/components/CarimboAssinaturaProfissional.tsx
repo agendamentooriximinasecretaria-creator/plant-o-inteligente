@@ -283,9 +283,10 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
   });
 
   const isOwnProfile = useMemo(() => {
+    if (isMyProfile) return true;
     if (!user?.id || !professional?.user_id) return false;
     return user.id === professional.user_id;
-  }, [user?.id, professional?.user_id]);
+  }, [user?.id, professional?.user_id, isMyProfile]);
 
   const { data: unidade } = useQuery({
     queryKey: ["unit-for-stamp", professional?.unidade_principal_id],
