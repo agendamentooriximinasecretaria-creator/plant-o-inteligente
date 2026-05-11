@@ -309,11 +309,32 @@ export default function RelatoriosPage() {
   }, [filtros]);
 
   const buildCab = async (): Promise<RelatorioPrintCab> => {
+    // 1. Identifica o perfil do usuário logado que está gerando o relatório
     const gestorStamp = currentProfId ? await fetchStampData(currentProfId) : null;
-    const rtStamp = await fetchRTForUnidade(filtros.unidadeId);
     
+    // 2. Determina os blocos esquerdo e direito conforme a regra de negócio
+    let responsavel: StampData | null = gestorStamp;
+    let responsavelSecundario: StampData | null = null;
+
+    if (isMaster) {
+      // SE quem gera é GESTOR MASTER:
+      // BLOCO ESQUERDO: Gestor Master (ele mesmo)
+      // BLOCO DIREITO: Responsável Técnico da Unidade
+      responsavelSecundario = await fetchRTForUnidade(filtros.unidadeId);
+    } else if (isCoordinator) {
+      // SE quem gera é COORDENADOR:
+      // BLOCO ESQUERDO: Coordenador (ele mesmo)
+      // BLOCO DIREITO: Gestor Master da Unidade
+      responsavelSecundario = await fetchGestorMasterForUnidade(filtros.unidadeId);
+    } else {
+      responsavelSecundario = await fetchRTForUnidade(filtros.unidadeId);
+    }
+
     if (filtros.incluirAssinatura && !gestorStamp) {
-      toast.info("Atenção: seu carimbo não está cadastrado. Cadastre em Configurações > Meu Carimbo.", { duration: 6000 });
+      toast.warning(
+        "Atenção: você não possui assinatura cadastrada. O documento será gerado com campo em branco para assinatura manual.", 
+        { duration: 8000 }
+      );
     }
 
     return {
@@ -329,8 +350,18 @@ export default function RelatoriosPage() {
       totalRegistros: preview?.rows.length || 0,
       totalHoras: preview?.totalHoras ?? null,
       incluirAssinatura: filtros.incluirAssinatura,
-      responsavel: gestorStamp || undefined,
-      responsavelTecnico: rtStamp || undefined,
+      responsavel: responsavel || {
+        nome: profileName || 'Gestor',
+        cargo: isMaster ? 'Gestor Master' : (isCoordinator ? 'Coordenador' : 'Gestor'),
+        conselho: "",
+        unidade: ""
+      },
+      responsavelTecnico: responsavelSecundario || {
+        nome: isCoordinator ? "Gestor Master não cadastrado" : "Responsável Técnico não cadastrado",
+        cargo: isCoordinator ? "Gestor Master" : "Responsável Técnico",
+        conselho: "",
+        unidade: ""
+      },
       sistema: 'GestorPlantão SMS Oriximiná',
     };
   };
