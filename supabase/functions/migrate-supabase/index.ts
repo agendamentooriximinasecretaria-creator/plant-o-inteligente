@@ -51,6 +51,16 @@ serve(async (req) => {
       });
     }
 
+    const tablesToTrack = [
+      'units', 'sectors', 'profiles', 'message_templates', 'document_templates',
+      'shift_types', 'professionals', 'professionals_safe', 'professional_stamps',
+      'professional_documents', 'shifts', 'shift_swaps', 'swap_history',
+      'swap_attachments', 'audit_logs', 'notifications', 'user_roles',
+      'setor_ocupacao', 'generated_documents', 'censo_pacientes',
+      'historico_ocupacao', 'professional_unavailability', 'document_signatures',
+      'acionamentos_reforco', 'system_settings'
+    ];
+
     if (action === 'diagnostic') {
       const diagnosticResult: any = {
         source: { tables: [] },
@@ -60,20 +70,21 @@ serve(async (req) => {
       const { data: tablesData, error: tErr } = await sourceClient.rpc('get_tables_info');
       
       if (!tErr && tablesData) {
-        diagnosticResult.source.tables = tablesData.map((t: any) => ({ 
-          name: t.table_name, 
-          count: t.record_count 
-        }));
+        // We use the returned list but order it according to our tracking list if possible
+        const returnedTables = tablesData.map((t: any) => t.table_name);
+        for (const tableName of tablesToTrack) {
+          if (returnedTables.includes(tableName)) {
+            const t = tablesData.find((x: any) => x.table_name === tableName);
+            diagnosticResult.source.tables.push({ name: tableName, count: t.record_count });
+          }
+        }
+        // Add any other tables not in our priority list
+        for (const t of tablesData) {
+          if (!tablesToTrack.includes(t.table_name)) {
+            diagnosticResult.source.tables.push({ name: t.table_name, count: t.record_count });
+          }
+        }
       } else {
-        const tablesToTrack = [
-          'professional_unavailability', 'professionals_safe', 'notifications', 
-          'message_templates', 'audit_logs', 'profiles', 'document_signatures', 
-          'shift_swaps', 'user_roles', 'setor_ocupacao', 'generated_documents', 
-          'swap_attachments', 'censo_pacientes', 'units', 'historico_ocupacao', 
-          'professional_documents', 'professionals', 'acionamentos_reforco', 
-          'system_settings', 'shifts', 'shift_types', 'sectors', 
-          'professional_stamps', 'document_templates', 'swap_history'
-        ];
         for (const table of tablesToTrack) {
           const { count, error } = await sourceClient.from(table).select('*', { count: 'exact', head: true });
           if (!error) {
@@ -96,16 +107,13 @@ serve(async (req) => {
     }
 
     if (action === 'generate-sql') {
-      const { data: tablesData, error: tErr } = await sourceClient.rpc('get_tables_info');
-      if (tErr) throw tErr;
-
       let fullSql = `-- MIGRAÇÃO DE SCHEMA\n-- Gerado em: ${new Date().toISOString()}\n\n`;
       fullSql += `CREATE EXTENSION IF NOT EXISTS "uuid-ossp";\nCREATE EXTENSION IF NOT EXISTS "pg_net";\n\n`;
 
-      for (const table of tablesData) {
-        const { data: ddl, error: ddlErr } = await sourceClient.rpc('get_table_ddl', { target_table: table.table_name });
+      for (const tableName of tablesToTrack) {
+        const { data: ddl, error: ddlErr } = await sourceClient.rpc('get_table_ddl', { target_table: tableName });
         if (!ddlErr && ddl) {
-          fullSql += `-- Tabela: ${table.table_name}\n${ddl}\n\n`;
+          fullSql += `-- Tabela: ${tableName}\n${ddl}\n\n`;
         }
       }
 
@@ -123,9 +131,15 @@ serve(async (req) => {
       const batchSize = 100;
 
       while (true) {
-        let query = sourceClient.from(table).select('*').order('id', { ascending: true }).limit(batchSize);
-        if (lastId) {
-          query = query.gt('id', lastId);
+        // Try to order by id, but fallback to ordering by first column if id doesn't exist
+        let query = sourceClient.from(table).select('*').limit(batchSize);
+        
+        // Some tables might not have 'id'. We could detect PK but for now we try id.
+        try {
+          query = query.order('id', { ascending: true });
+          if (lastId) query = query.gt('id', lastId);
+        } catch (e) {
+          // If no id, we might have duplicates if we don't have a unique column to paginate
         }
 
         const { data: rows, error: fetchErr } = await query;
@@ -136,7 +150,15 @@ serve(async (req) => {
         if (insertErr) throw insertErr;
 
         totalMigrated += rows.length;
-        lastId = rows[rows.length - 1].id;
+        if (rows[rows.length - 1].id) {
+          lastId = rows[rows.length - 1].id;
+        } else {
+          // Can't paginate safely without id, break after first batch to avoid infinite loop
+          if (rows.length === batchSize) {
+             throw new Error(`Tabela ${table} não possui coluna 'id' para paginação segura.`);
+          }
+          break;
+        }
         
         if (rows.length < batchSize) break;
       }
