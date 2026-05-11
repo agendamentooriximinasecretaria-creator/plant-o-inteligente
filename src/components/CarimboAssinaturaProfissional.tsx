@@ -790,29 +790,48 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
                 <h4 className="text-base font-semibold text-foreground">Posição e estilo</h4>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className={labelCls}>Posição no documento</label>
-                  <select value={stamp.assinatura_posicao} onChange={e => setStamp(s => ({ ...s, assinatura_posicao: e.target.value as Posicao }))} disabled={disabledByLock} className={inputCls}>
-                    {POSICOES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className={labelCls}>Estilo</label>
-                  <select value={stamp.estilo} onChange={e => setStamp(s => ({ ...s, estilo: e.target.value as Estilo }))} disabled={disabledByLock} className={inputCls}>
-                    <option value="compacto">Compacto</option>
-                    <option value="completo">Profissional</option>
-                    <option value="oficial">Oficial Hospitalar</option>
-                  </select>
-                </div>
-                <div>
-                  <label className={labelCls}>Alinhamento</label>
-                  <select value={stamp.alinhamento_texto} onChange={e => setStamp(s => ({ ...s, alinhamento_texto: e.target.value as Alinhamento }))} disabled={disabledByLock} className={inputCls}>
-                    <option value="esquerda">Esquerda</option>
-                    <option value="centro">Centro</option>
-                    <option value="direita">Direita</option>
-                    <option value="justificado">Justificado</option>
-                  </select>
-                </div>
+                {isManagement ? (
+                  <>
+                    <div>
+                      <label className={labelCls}>Posição no documento</label>
+                      <select value={stamp.assinatura_posicao} onChange={e => setStamp(s => ({ ...s, assinatura_posicao: e.target.value as Posicao }))} disabled={disabledByLock} className={inputCls}>
+                        {POSICOES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelCls}>Estilo</label>
+                      <select value={stamp.estilo} onChange={e => setStamp(s => ({ ...s, estilo: e.target.value as Estilo }))} disabled={disabledByLock} className={inputCls}>
+                        <option value="compacto">Compacto</option>
+                        <option value="completo">Profissional</option>
+                        <option value="oficial">Oficial Hospitalar</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelCls}>Alinhamento</label>
+                      <select value={stamp.alinhamento_texto} onChange={e => setStamp(s => ({ ...s, alinhamento_texto: e.target.value as Alinhamento }))} disabled={disabledByLock} className={inputCls}>
+                        <option value="esquerda">Esquerda</option>
+                        <option value="centro">Centro</option>
+                        <option value="direita">Direita</option>
+                        <option value="justificado">Justificado</option>
+                      </select>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className={labelCls}>Posição no documento</label>
+                      <input value={POSICOES.find(p => p.value === stamp.assinatura_posicao)?.label || "Centro"} readOnly className={`${inputCls} bg-muted/30 border-primary/10`} />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Estilo</label>
+                      <input value={stamp.estilo === "compacto" ? "Compacto" : stamp.estilo === "completo" ? "Profissional" : "Oficial Hospitalar"} readOnly className={`${inputCls} bg-muted/30 border-primary/10`} />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Alinhamento</label>
+                      <input value={stamp.alinhamento_texto === "esquerda" ? "Esquerda" : stamp.alinhamento_texto === "centro" ? "Centro" : stamp.alinhamento_texto === "direita" ? "Direita" : "Justificado"} readOnly className={`${inputCls} bg-muted/30 border-primary/10`} />
+                    </div>
+                  </>
+                )}
                 {isManagement ? (
                   <>
                     <div>
