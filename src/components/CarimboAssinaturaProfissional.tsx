@@ -332,8 +332,8 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
       
       // Se for o próprio perfil, estabelece o tipo de acordo com o acesso
       if (isOwnProfile) {
-        if (myIsMaster) setTipoAssinante(\"gestor_master\");
-        else if (myIsCoordinator) setTipoAssinante(\"coordenador\");
+        if (myIsMaster) setTipoAssinante("gestor_master");
+        else if (myIsCoordinator) setTipoAssinante("coordenador");
         else if (md.tipo_assinante) setTipoAssinante(md.tipo_assinante);
       } else if (md.tipo_assinante) {
         setTipoAssinante(md.tipo_assinante);
@@ -344,12 +344,11 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
     } else {
       setStamp(emptyStamp(profissionalId));
       if (isOwnProfile) {
-        if (myIsMaster) setTipoAssinante(\"gestor_master\");
-        else if (myIsCoordinator) setTipoAssinante(\"coordenador\");
+        if (myIsMaster) setTipoAssinante("gestor_master");
+        else if (myIsCoordinator) setTipoAssinante("coordenador");
       }
     }
   }, [existing, profissionalId, isOwnProfile, myIsMaster, myIsCoordinator]);
-  }, [existing, profissionalId]);
 
   useEffect(() => {
     let cancel = false;
