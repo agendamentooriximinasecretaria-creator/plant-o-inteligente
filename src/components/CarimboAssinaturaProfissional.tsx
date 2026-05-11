@@ -329,10 +329,26 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
     if (existing) {
       setStamp({ ...emptyStamp(profissionalId), ...existing });
       const md = (existing as any).metadata || {};
-      if (md.tipo_assinante) setTipoAssinante(md.tipo_assinante);
+      
+      // Se for o próprio perfil, estabelece o tipo de acordo com o acesso
+      if (isOwnProfile) {
+        if (myIsMaster) setTipoAssinante(\"gestor_master\");
+        else if (myIsCoordinator) setTipoAssinante(\"coordenador\");
+        else if (md.tipo_assinante) setTipoAssinante(md.tipo_assinante);
+      } else if (md.tipo_assinante) {
+        setTipoAssinante(md.tipo_assinante);
+      }
+
       if (md.conselho_manual) setConselhoManual(md.conselho_manual);
       if (md.matricula) setMatricula(md.matricula);
-    } else setStamp(emptyStamp(profissionalId));
+    } else {
+      setStamp(emptyStamp(profissionalId));
+      if (isOwnProfile) {
+        if (myIsMaster) setTipoAssinante(\"gestor_master\");
+        else if (myIsCoordinator) setTipoAssinante(\"coordenador\");
+      }
+    }
+  }, [existing, profissionalId, isOwnProfile, myIsMaster, myIsCoordinator]);
   }, [existing, profissionalId]);
 
   useEffect(() => {
