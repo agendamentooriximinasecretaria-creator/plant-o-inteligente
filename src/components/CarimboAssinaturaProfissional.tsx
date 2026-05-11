@@ -265,11 +265,15 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
   const [carimboUrl, setCarimboUrl] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState<"visual" | "carimbo_fisico" | "eletronica" | "sem_assinatura">("visual");
   const [tab, setTab] = useState<TabId>("assinante");
+
+  const isManagement = myIsMaster || myIsCoordinator;
+
+  const filteredTabs = useMemo(() => {
+    if (isManagement) return TABS;
+    return TABS.filter(t => t.id !== "permissoes");
+  }, [isManagement]);
+
   const [tipoAssinante, setTipoAssinante] = useState<TipoAssinante>("profissional_saude");
-  const [conselhoManual, setConselhoManual] = useState<string>("");
-  const [matricula, setMatricula] = useState<string>("");
-  const assRef = useRef<HTMLInputElement>(null);
-  const carRef = useRef<HTMLInputElement>(null);
 
   const { data: professional } = useQuery({
     queryKey: ["prof-for-stamp", profissionalId],
