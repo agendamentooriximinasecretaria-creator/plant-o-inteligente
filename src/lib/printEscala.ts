@@ -313,7 +313,7 @@ export async function gerarPdfEscala(
   const body = linhas.map((l) => [
     l.profissional,
     l.profissao,
-    ...(opts.incluirConselho ? [l.conselho || "—"] : []),
+    ...(opts.incluirConselho ? [l.conselho || "Não informado"] : []),
     l.setor,
     l.data,
     l.diaSemana,
