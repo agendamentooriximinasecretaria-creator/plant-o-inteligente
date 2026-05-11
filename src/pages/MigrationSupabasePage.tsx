@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { 
   AlertCircle, CheckCircle2, Database, ShieldAlert, Zap, 
   Search, FileCode, Play, ClipboardCheck, ArrowRightLeft, 
-  AlertTriangle, Loader2, Save
+  AlertTriangle, Loader2, Save, Download
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
@@ -149,16 +149,24 @@ export default function MigrationSupabasePage() {
     }
   };
 
-  const generateSchemaSQL = () => {
+  const generateSchemaSQL = async () => {
+    setLoading("generating-sql");
     addLog("Gerando SQL de migração...");
-    // Em uma implementação real, o backend geraria isso.
-    const sql = `-- MIGRATION SCHEMA SQL\n\n` +
-      `/* 1. Criar extensões */\nCREATE EXTENSION IF NOT EXISTS "uuid-ossp";\n\n` +
-      `/* 2. Criar tabelas e policies */\n` +
-      diagnosticData?.source.tables.map((t: any) => `-- Tabela ${t.name}\n-- Execute o dump do schema para obter o DDL completo.`).join("\n\n");
-    
-    addLog("SQL básico gerado. Recomenda-se usar o comando 'pg_dump' para o schema completo.");
-    toast.info("SQL básico disponível na aba Schema.");
+    try {
+      const { data, error } = await supabase.functions.invoke("migrate-supabase", {
+        body: { action: "generate-sql", source, destination },
+      });
+      if (error) throw error;
+      
+      setDiagnosticData((prev: any) => ({ ...prev, schemaSql: data.sql }));
+      addLog("SQL gerado com sucesso.");
+      toast.success("SQL básico disponível na aba Schema.");
+    } catch (err: any) {
+      addLog(`Erro ao gerar SQL: ${err.message}`);
+      toast.error("Erro ao gerar SQL.");
+    } finally {
+      setLoading(null);
+    }
   };
 
   const finalizeMigration = async () => {
@@ -170,6 +178,10 @@ export default function MigrationSupabasePage() {
     
     try {
       addLog("AVISO: Para concluir, você deve atualizar as Secrets do projeto no Lovable com os novos valores.");
+      addLog("VITE_SUPABASE_URL = " + destination.url);
+      addLog("VITE_SUPABASE_PUBLISHABLE_KEY = [Anon Key do Destino]");
+      addLog("SUPABASE_SERVICE_ROLE_KEY = " + destination.serviceRoleKey);
+      
       toast.success("Migração finalizada no banco. Atualize as chaves do projeto.");
     } catch (err: any) {
       addLog(`Erro ao finalizar: ${err.message}`);
@@ -394,18 +406,27 @@ export default function MigrationSupabasePage() {
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-[300px] w-full border rounded p-4 bg-muted font-mono text-xs">
-                  <pre>{diagnosticData ? (
+                  <pre>{diagnosticData?.schemaSql || (diagnosticData ? (
                     `-- MIGRATION SCHEMA SQL\n\n` +
                     `/* 1. Criar extensões */\nCREATE EXTENSION IF NOT EXISTS "uuid-ossp";\n\n` +
                     `/* 2. Criar tabelas */\n` +
                     diagnosticData.source.tables.map((t: any) => `-- Tabela ${t.name}\n-- Copie o DDL do dashboard do Supabase.`).join("\n\n")
-                  ) : "Aguardando diagnóstico..."}</pre>
+                  ) : "Aguardando diagnóstico...")}</pre>
                 </ScrollArea>
               </CardContent>
-              <CardFooter>
-                <Button variant="outline" onClick={generateSchemaSQL}>
-                  <Save className="h-4 w-4 mr-2" /> Gerar SQL Estrutural
+              <CardFooter className="flex justify-between">
+                <Button variant="outline" onClick={generateSchemaSQL} disabled={!!loading}>
+                   {loading === "generating-sql" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                   Gerar SQL Estrutural
                 </Button>
+                {diagnosticData?.schemaSql && (
+                  <Button variant="secondary" onClick={() => {
+                    navigator.clipboard.writeText(diagnosticData.schemaSql);
+                    toast.success("SQL copiado para a área de transferência.");
+                  }}>
+                    <Download className="h-4 w-4 mr-2" /> Copiar SQL
+                  </Button>
+                )}
               </CardFooter>
             </Card>
           </TabsContent>
