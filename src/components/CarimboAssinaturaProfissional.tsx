@@ -258,9 +258,7 @@ type TabId = typeof TABS[number]["id"];
 export default function CarimboAssinaturaProfissional({ profissionalId, isMaster, compact }: Props) {
   const sb = supabase as any;
   const qc = useQueryClient();
-  const { isMaster: myIsMaster, isCoordinator: myIsCoordinator, professionalId: myAuthProfId } = useAuth();
-  const isOwnProfile = profissionalId === myAuthProfId;
-
+  const { isMaster: myIsMaster, isCoordinator: myIsCoordinator, user } = useAuth();
   const [stamp, setStamp] = useState<StampRow>(emptyStamp(profissionalId));
   const [assinaturaUrl, setAssinaturaUrl] = useState<string | null>(null);
   const [carimboUrl, setCarimboUrl] = useState<string | null>(null);
