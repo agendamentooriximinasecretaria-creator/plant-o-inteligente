@@ -19,6 +19,8 @@ export interface RelatorioPrintCab {
   totalRegistros: number;
   totalHoras?: number | null;
   incluirAssinatura?: boolean;
+  responsavel?: StampData;
+  responsavelTecnico?: StampData;
   sistema?: string;
 }
 
