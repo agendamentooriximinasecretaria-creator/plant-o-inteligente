@@ -274,6 +274,10 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
   }, [isManagement]);
 
   const [tipoAssinante, setTipoAssinante] = useState<TipoAssinante>("profissional_saude");
+  const [conselhoManual, setConselhoManual] = useState<string>("");
+  const [matricula, setMatricula] = useState<string>("");
+  const assRef = useRef<HTMLInputElement>(null);
+  const carRef = useRef<HTMLInputElement>(null);
 
   const { data: professional } = useQuery({
     queryKey: ["prof-for-stamp", profissionalId],
