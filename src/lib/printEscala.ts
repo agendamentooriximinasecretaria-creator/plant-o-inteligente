@@ -104,6 +104,30 @@ function buildHtml(
     .join("");
 
   const sistema = cab.sistema || "GestorPlantão SMS Oriximiná";
+  const responsavel = opts.responsavel;
+  const responsavelTecnico = opts.responsavelTecnico;
+
+  const assinaturas = opts.incluirAssinatura ? `
+    <div class="assinaturas">
+      <div class="ass-box">
+        ${responsavel?.assinaturaBase64 ? `<img src="${responsavel.assinaturaBase64}" style="height:50px;display:block;margin:0 auto -5px" />` : '<div style="height:50px"></div>'}
+        <div class="ass-line"></div>
+        <div class="ass-nome"><strong>${escapeHtml(responsavel?.nome || "Gestor / Coordenador")}</strong></div>
+        <div class="ass-cargo">${escapeHtml(responsavel?.cargo || "Coordenação")}</div>
+        ${responsavel?.conselho ? `<div class="ass-cons">${escapeHtml(responsavel.conselho)}</div>` : ""}
+        ${responsavel?.unidade ? `<div class="ass-unid">${escapeHtml(responsavel.unidade)}</div>` : ""}
+        ${!responsavel?.assinaturaBase64 ? '<div class="ass-missing">Assinatura não cadastrada</div>' : ''}
+      </div>
+      <div class="ass-box">
+        ${responsavelTecnico?.assinaturaBase64 ? `<img src="${responsavelTecnico.assinaturaBase64}" style="height:50px;display:block;margin:0 auto -5px" />` : '<div style="height:50px"></div>'}
+        <div class="ass-line"></div>
+        <div class="ass-nome"><strong>${escapeHtml(responsavelTecnico?.nome || "Responsável Técnico")}</strong></div>
+        <div class="ass-cargo">${escapeHtml(responsavelTecnico?.cargo || "Responsável Técnico")}</div>
+        ${responsavelTecnico?.conselho ? `<div class="ass-cons">${escapeHtml(responsavelTecnico.conselho)}</div>` : ""}
+        ${responsavelTecnico?.unidade ? `<div class="ass-unid">${escapeHtml(responsavelTecnico.unidade)}</div>` : ""}
+        ${!responsavelTecnico?.assinaturaBase64 ? '<div class="ass-missing">Assinatura não cadastrada</div>' : ''}
+      </div>
+    </div>` : "";
 
   return `<!doctype html>
 <html lang="pt-BR">
@@ -124,36 +148,22 @@ function buildHtml(
   th, td { border: 1px solid #cbd5e1; padding: 5px 6px; text-align: left; vertical-align: top; }
   th { background: #f1f5f9; color: #0f172a; font-weight: 700; font-size: 10.5px; }
   tr:nth-child(even) td { background: #fafafa; }
-  const totais = `
-    <div class="totais">
-      <div><b>Total de plantões:</b> ${totalPlantoes}</div>
-      ${opts.incluirTotalHoras ? `<div><b>Total de horas:</b> ${totalHoras}h</div>` : ""}
-    </div>`;
-
-  const responsavel = opts.responsavel;
-  const responsavelTecnico = opts.responsavelTecnico;
-
-  const assinaturas = opts.incluirAssinatura ? `
-    <div class="assinaturas">
-      <div class="ass-box">
-        ${responsavel?.assinaturaBase64 ? `<img src="${responsavel.assinaturaBase64}" style="height:50px;display:block;margin:0 auto -5px" />` : '<div style="height:50px"></div>'}
-        <div class="linha"></div>
-        <strong>${escapeHtml(responsavel?.nome || "Gestor / Coordenador")}</strong>
-        <div style="font-size:9px">${escapeHtml(responsavel?.cargo || "Coordenação")}</div>
-        ${responsavel?.conselho ? `<div style="font-size:9px">${escapeHtml(responsavel.conselho)}</div>` : ""}
-        ${responsavel?.unidade ? `<div style="font-size:9px">${escapeHtml(responsavel.unidade)}</div>` : ""}
-        ${!responsavel?.assinaturaBase64 ? '<div style="font-size:8px;color:#888;margin-top:2px">Assinatura não cadastrada</div>' : ''}
-      </div>
-      <div class="ass-box">
-        ${responsavelTecnico?.assinaturaBase64 ? `<img src="${responsavelTecnico.assinaturaBase64}" style="height:50px;display:block;margin:0 auto -5px" />` : '<div style="height:50px"></div>'}
-        <div class="linha"></div>
-        <strong>${escapeHtml(responsavelTecnico?.nome || "Responsável Técnico")}</strong>
-        <div style="font-size:9px">${escapeHtml(responsavelTecnico?.cargo || "Responsável Técnico")}</div>
-        ${responsavelTecnico?.conselho ? `<div style="font-size:9px">${escapeHtml(responsavelTecnico.conselho)}</div>` : ""}
-        ${responsavelTecnico?.unidade ? `<div style="font-size:9px">${escapeHtml(responsavelTecnico.unidade)}</div>` : ""}
-        ${!responsavelTecnico?.assinaturaBase64 ? '<div style="font-size:8px;color:#888;margin-top:2px">Assinatura não cadastrada</div>' : ''}
-      </div>
-    </div>` : "";
+  .totais { margin-top: 14px; font-size: 11px; display:flex; gap:24px; }
+  .totais b { color: #0e7490; }
+  .assinaturas { margin-top: 48px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; font-size: 11px; }
+  .ass-box { text-align: center; }
+  .ass-line { border-top: 1px solid #111; padding-top: 4px; text-align: center; width: 100%; margin-top: 5px; }
+  .ass-nome { font-size: 10.5px; }
+  .ass-cargo, .ass-cons, .ass-unid { font-size: 9px; color: #444; }
+  .ass-missing { font-size: 8px; color: #888; margin-top: 2px; }
+  .footer { margin-top: 28px; border-top: 1px solid #e5e7eb; padding-top: 6px; font-size: 10px; color: #555; text-align: center; }
+  @media print {
+    body { margin: 12mm; }
+    .no-print { display: none !important; }
+    thead { display: table-header-group; }
+    tr { page-break-inside: avoid; }
+    .assinaturas { page-break-inside: avoid; }
+  }
   .toolbar { position: sticky; top: 0; background: #fff; padding: 8px 0; border-bottom: 1px solid #e5e7eb; margin-bottom: 12px; display:flex; gap:8px; }
   .toolbar button { background:#0e7490; color:#fff; border:none; padding: 6px 12px; border-radius: 6px; cursor:pointer; font-size: 12px; }
   .toolbar button.secondary { background:#fff; color:#111; border:1px solid #cbd5e1; }
@@ -194,14 +204,7 @@ function buildHtml(
     ${opts.incluirTotalHoras ? `<div><b>Total de horas:</b> ${totalHoras}h</div>` : ""}
   </div>
 
-  ${
-    opts.incluirAssinatura
-      ? `<div class="assinaturas">
-          <div class="linha">Assinatura do Gestor / Coordenador</div>
-          <div class="linha">Assinatura do Responsável Técnico</div>
-        </div>`
-      : ""
-  }
+  ${assinaturas}
 
   <div class="footer">Documento emitido pelo ${escapeHtml(sistema)} • ${escapeHtml(emissao)}</div>
 </body>
@@ -237,6 +240,7 @@ export async function gerarPdfEscala(
 ) {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
 
   // Logo redonda no canto superior esquerdo
   const logo = await getLogoSmsDataUrl();
@@ -329,7 +333,6 @@ export async function gerarPdfEscala(
     alternateRowStyles: { fillColor: [248, 250, 252] },
     margin: { left: 10, right: 10 },
     didDrawPage: () => {
-      const pageH = doc.internal.pageSize.getHeight();
       doc.setFontSize(7.5);
       doc.setTextColor(120);
       doc.text(
@@ -351,14 +354,61 @@ export async function gerarPdfEscala(
     doc.text(`Total de horas: ${totalHoras}h`, 70, finalY + 8);
   }
 
+  // ===== Assinatura (Lado a lado) =====
   if (opts.incluirAssinatura) {
-    const yAss = Math.min(finalY + 30, doc.internal.pageSize.getHeight() - 25);
-    doc.setDrawColor(60);
-    doc.line(20, yAss, 120, yAss);
-    doc.line(pageW - 120, yAss, pageW - 20, yAss);
-    doc.setFontSize(8);
-    doc.text("Assinatura do Gestor / Coordenador", 70, yAss + 4, { align: "center" });
-    doc.text("Responsável Técnico", pageW - 70, yAss + 4, { align: "center" });
+    const r1 = opts.responsavel;
+    const r2 = opts.responsavelTecnico;
+    const assY = Math.min(finalY + 25, pageH - 25);
+    const lineLen = 75;
+    const marginSide = 25;
+
+    // Bloco Esquerdo - Gestor/Coordenador
+    const xL = marginSide + lineLen / 2;
+    if (r1?.assinaturaBase64) {
+      try {
+        doc.addImage(r1.assinaturaBase64, "PNG", marginSide + 5, assY - 14, lineLen - 10, 12);
+      } catch { /* ignora */ }
+    } else {
+      doc.setFontSize(6);
+      doc.setTextColor(150);
+      doc.text("Assinatura não cadastrada", xL, assY - 5, { align: "center" });
+    }
+    doc.setLineWidth(0.3);
+    doc.setDrawColor(0);
+    doc.setTextColor(0);
+    doc.line(marginSide, assY, marginSide + lineLen, assY);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.text(r1?.nome || "Gestor / Coordenador", xL, assY + 3.5, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.text(r1?.cargo || "Coordenação", xL, assY + 6.5, { align: "center" });
+    let curY1 = assY + 9.5;
+    if (r1?.conselho) { doc.text(r1.conselho, xL, curY1, { align: "center" }); curY1 += 3; }
+    if (r1?.unidade) { doc.text(r1.unidade, xL, curY1, { align: "center" }); }
+
+    // Bloco Direito - Responsável Técnico
+    const xR = pageW - marginSide - lineLen / 2;
+    const marginR = pageW - marginSide - lineLen;
+    if (r2?.assinaturaBase64) {
+      try {
+        doc.addImage(r2.assinaturaBase64, "PNG", marginR + 5, assY - 14, lineLen - 10, 12);
+      } catch { /* ignora */ }
+    } else {
+      doc.setFontSize(6);
+      doc.setTextColor(150);
+      doc.text("Assinatura não cadastrada", xR, assY - 5, { align: "center" });
+    }
+    doc.setDrawColor(0);
+    doc.setTextColor(0);
+    doc.line(marginR, assY, pageW - marginSide, assY);
+    doc.setFont("helvetica", "bold");
+    doc.text(r2?.nome || "Responsável Técnico", xR, assY + 3.5, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.text(r2?.cargo || "Responsável Técnico", xR, assY + 6.5, { align: "center" });
+    let curY2 = assY + 9.5;
+    if (r2?.conselho) { doc.text(r2.conselho, xR, curY2, { align: "center" }); curY2 += 3; }
+    if (r2?.unidade) { doc.text(r2.unidade, xR, curY2, { align: "center" }); }
   }
 
   if (modo === "save") {
