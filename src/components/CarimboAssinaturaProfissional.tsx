@@ -19,6 +19,7 @@ import {
 interface Props {
   profissionalId: string;
   isMaster?: boolean;
+  isMyProfile?: boolean;
   compact?: boolean;
 }
 
