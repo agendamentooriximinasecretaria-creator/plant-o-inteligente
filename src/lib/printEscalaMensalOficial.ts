@@ -555,10 +555,6 @@ export async function gerarPdfEscalaMensalOficial(
       try {
         doc.addImage(r2.assinaturaBase64, "PNG", marginR + 5, assY - 14, lineLen - 10, 12);
       } catch { /* ignora */ }
-    } else {
-      doc.setFontSize(6);
-      doc.setTextColor(150);
-      doc.text("Assinatura não cadastrada", xR, assY - 5, { align: "center" });
     }
     doc.setDrawColor(0);
     doc.setTextColor(0);
