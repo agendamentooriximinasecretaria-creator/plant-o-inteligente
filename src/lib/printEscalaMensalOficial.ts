@@ -372,7 +372,7 @@ export async function gerarPdfEscalaMensalOficial(
   tipos: MensalTipoLegenda[],
   opts: MensalOpts,
   filename: string,
-  modo: "save" | "open" = "save",
+  modo: "save" | "open" = "save"
 ) {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
@@ -380,193 +380,233 @@ export async function gerarPdfEscalaMensalOficial(
   const totalDias = diasDoMes(cab.ano, cab.mes);
   const totalLabel = opts.totalLabel || "TOTAL";
 
-  // ===== Cabeçalho centralizado =====
-  let y = 10;
+  // Margens: 10mm em todos os lados para aproveitar o máximo do espaço
+  const margin = 10;
+
+  // ===== Cabeçalho =====
+  let y = margin;
   if (opts.incluirLogo) {
     try {
       const logo = await getLogoSmsDataUrl();
-      if (logo) doc.addImage(logo, "JPEG", 10, 8, 16, 16);
+      if (logo) {
+        doc.addImage(logo, "JPEG", margin, y - 2, 14, 14);
+      }
     } catch { /* ignora */ }
   }
+
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
+  doc.setFontSize(10);
   doc.setTextColor(0);
-  if (cab.instituicao.prefeitura) { doc.text(cab.instituicao.prefeitura.toUpperCase(), pageW / 2, y, { align: "center" }); y += 4.5; }
-  doc.setFontSize(10);
-  if (cab.instituicao.secretaria) { doc.text(cab.instituicao.secretaria.toUpperCase(), pageW / 2, y, { align: "center" }); y += 4.5; }
-  doc.setFontSize(10.5);
-  if (cab.instituicao.unidade) { doc.text(cab.instituicao.unidade.toUpperCase(), pageW / 2, y, { align: "center" }); y += 5; }
-  doc.setFontSize(12);
-  doc.text("ESCALA DE SERVIÇO", pageW / 2, y, { align: "center" }); y += 5;
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
-  doc.text(`Mês: ${DIAS_PT_FULL[cab.mes - 1]}    Ano: ${cab.ano}`, pageW / 2, y, { align: "center" });
-  y += 4;
+  const headerTextX = opts.incluirLogo ? margin + 18 : margin;
+  
+  if (cab.instituicao.prefeitura) {
+    doc.text(cab.instituicao.prefeitura.toUpperCase(), headerTextX, y);
+    y += 4;
+  }
+  doc.setFontSize(9);
+  if (cab.instituicao.secretaria) {
+    doc.text(cab.instituicao.secretaria.toUpperCase(), headerTextX, y);
+    y += 4;
+  }
+  if (cab.instituicao.unidade) {
+    doc.text(cab.instituicao.unidade.toUpperCase(), headerTextX, y);
+    y += 4;
+  }
+  
+  // Título: "Escala Mensal Consolidada — [Mês/Ano]"
+  y = Math.max(y, margin + 12);
+  doc.setFontSize(11);
+  const mesLabel = DIAS_PT_FULL[cab.mes - 1];
+  doc.text(`Escala Mensal Consolidada — ${mesLabel} / ${cab.ano}`, margin, y);
+  y += 5;
 
-  // Subtítulo da tabela (faixa cinza)
-  const subtitulo = buildSubtituloTabela(cab);
-  doc.setDrawColor(0);
-  doc.setFillColor(235, 235, 235);
-  doc.rect(8, y, pageW - 16, 7, "FD");
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
-  doc.text("ESCALA DE SERVIÇO", pageW / 2, y + 3, { align: "center" });
-  doc.setFontSize(8.5);
-  doc.text(subtitulo, pageW / 2, y + 6, { align: "center" });
-  y += 8;
+  // Linha com: Unidade • Setor • Período • Emissão • Emitido por
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(80);
+  const emissao = new Date().toLocaleString("pt-BR");
+  const infoParts = [
+    cab.instituicao.unidade ? `Unidade: ${cab.instituicao.unidade}` : null,
+    cab.setor ? `Setor: ${cab.setor}` : null,
+    `Período: ${mesLabel}/${cab.ano}`,
+    `Emissão: ${emissao}`,
+    cab.emitidoPor ? `Emitido por: ${cab.emitidoPor}` : null
+  ].filter(Boolean);
+  doc.text(infoParts.join("  •  "), margin, y);
+  y += 5;
 
-  // ===== Tabela =====
+  // ===== Tabela Principal — Formato Horizontal =====
   const headDias = Array.from({ length: totalDias }, (_, i) => {
     const d = i + 1;
     const dow = diaSemana(cab.ano, cab.mes, d);
-    return { content: `${d}\n${DIAS_SEM_ABREV[dow]}`, styles: { fontStyle: "bold" as const } };
+    return { 
+      content: `${d}\n${DIAS_SEM_ABREV[dow]}`, 
+      styles: { halign: "center" as const, fontStyle: "bold" as const, fontSize: 6.5 } 
+    };
   });
-  const head = [[{ content: "NOMES", styles: { halign: "left" as const, fontStyle: "bold" as const } }, ...headDias, { content: totalLabel, styles: { fontStyle: "bold" as const } }]];
+
+  const head = [[
+    { content: "Profissional", styles: { halign: "left" as const, fontStyle: "bold" as const } },
+    ...headDias,
+    { content: "Total", styles: { halign: "center" as const, fontStyle: "bold" as const } }
+  ]];
 
   const body = profs.map((p) => {
-    const nomeCol = p.conselho ? `${p.nome}\n${p.conselho}` : p.nome;
-    const dias = Array.from({ length: totalDias }, (_, i) => {
+    const nomeCol = {
+      content: `${p.nome}\n${p.profissao || ""}`,
+      styles: { halign: "left" as const, fontSize: 7 }
+    };
+
+    const diaCols = Array.from({ length: totalDias }, (_, i) => {
       const d = i + 1;
       const lista = p.porDia[d] || [];
-      if (lista.length === 0) return "";
-      return lista.map((s) => s.sigla).join("/");
+      if (lista.length === 0) return "—";
+      
+      const siglas = lista.map((s) => s.sigla).join("/");
+      const status = lista[0].status || "";
+      
+      // Letras abreviadas exatamente como na tela
+      // O conteúdo já vem com as siglas corretas (D, N, M, T, Nt, 24, SA, F, !, *)
+      return siglas;
     });
+
     const total = opts.incluirTotalHoras ? `${p.totalHoras}h` : `${p.totalPlantoes}`;
-    return [{ content: nomeCol, styles: { halign: "left" as const, fontStyle: "bold" as const } }, ...dias, total];
+    
+    return [nomeCol, ...diaCols, { content: total, styles: { halign: "center" as const, fontStyle: "bold" as const } }];
   });
 
-  // Largura disponível: pageW - 16 (margens). Reservamos ~36mm para nomes e ~14mm para total.
-  const availW = pageW - 16;
-  const nomeW = 36;
-  const totalW = 14;
-  const diaW = Math.max(4.5, (availW - nomeW - totalW) / totalDias);
-
-  // Cores de fim de semana
-  const fdsDias = new Set<number>();
-  for (let d = 1; d <= totalDias; d++) {
-    const dow = diaSemana(cab.ano, cab.mes, d);
-    if (dow === 0 || dow === 6) fdsDias.add(d);
-  }
+  // Cálculo de larguras
+  const availW = pageW - (margin * 2);
+  const nomeW = 40; // Espaço para nome + profissão
+  const totalW = 12;
+  const diaW = (availW - nomeW - totalW) / totalDias;
 
   autoTable(doc, {
     head,
     body,
     startY: y,
     theme: "grid",
-    margin: { left: 8, right: 8 },
+    margin: { left: margin, right: margin },
     styles: {
-      fontSize: 7, cellPadding: 0.6, halign: "center", valign: "middle",
-      lineColor: [0, 0, 0], lineWidth: 0.15, textColor: 0,
+      fontSize: 7,
+      cellPadding: 0.8,
+      valign: "middle",
+      lineColor: [200, 200, 200],
+      lineWidth: 0.1,
+      textColor: 0,
+      overflow: "hidden"
     },
-    headStyles: { fillColor: [232, 232, 232], textColor: 0, fontSize: 6.8, lineWidth: 0.2 },
+    headStyles: {
+      fillColor: [240, 240, 240],
+      textColor: 0,
+      fontStyle: "bold",
+      lineWidth: 0.2
+    },
+    alternateRowStyles: {
+      fillColor: [250, 250, 250] // Zebra (linhas alternadas com fundo levemente cinza)
+    },
     columnStyles: {
-      0: { cellWidth: nomeW, halign: "left", fontSize: 7.5 },
-      [totalDias + 1]: { cellWidth: totalW, fillColor: [241, 245, 249], fontStyle: "bold" },
+      0: { cellWidth: nomeW },
+      [totalDias + 1]: { cellWidth: totalW }
     },
     didParseCell: (data) => {
-      // Largura uniforme para colunas dos dias
       const ci = data.column.index;
       if (ci > 0 && ci <= totalDias) {
         data.cell.styles.cellWidth = diaW;
-        const diaNum = ci; // 1..totalDias
-        if (fdsDias.has(diaNum)) {
-          data.cell.styles.fillColor = data.section === "head" ? [225, 225, 225] : [241, 241, 241];
-        }
+        data.cell.styles.halign = "center";
+        
+        // Cores de fundo suaves por tipo de plantão (baseado na sigla)
         if (data.section === "body") {
-          const text = String(data.cell.raw ?? "");
-          if (text) data.cell.styles.fontStyle = "bold";
+          const sigla = String(data.cell.raw || "");
+          if (sigla.includes("D")) data.cell.styles.fillColor = [224, 242, 254]; // sky-100
+          else if (sigla.includes("N")) data.cell.styles.fillColor = [237, 233, 254]; // violet-100
+          else if (sigla.includes("M")) data.cell.styles.fillColor = [254, 243, 199]; // amber-100
+          else if (sigla.includes("T")) data.cell.styles.fillColor = [255, 237, 213]; // orange-100
+          else if (sigla.includes("24")) data.cell.styles.fillColor = [209, 250, 229]; // emerald-100
+          else if (sigla.includes("SA")) data.cell.styles.fillColor = [241, 245, 249]; // slate-100
+          else if (sigla.includes("F")) data.cell.styles.fillColor = [255, 247, 237]; // orange-50
+          else if (sigla === "!") data.cell.styles.fillColor = [254, 249, 195]; // yellow-100
+          else if (sigla === "*") data.cell.styles.fillColor = [254, 226, 226]; // red-100
         }
       }
-    },
-    didDrawPage: () => {
-      doc.setFontSize(7);
-      doc.setTextColor(110);
-      doc.text(
-        `Documento emitido pelo ${cab.sistema || "GestorPlantão SMS Oriximiná"} • ${new Date().toLocaleString("pt-BR")}`,
-        pageW / 2, pageH - 5, { align: "center" },
-      );
-    },
+    }
   });
 
-  let finalY = (doc as any).lastAutoTable?.finalY || (y + 60);
+  let finalY = (doc as any).lastAutoTable?.finalY || (y + 20);
 
-  // ===== Legenda =====
-  const legendaItens = tipos.map((t) => {
-    const horario = t.start && t.end ? `${t.start}h às ${t.end}h` : (t.nome || "");
-    return `${t.sigla} = ${horario}`;
-  });
-  doc.setDrawColor(80);
-  doc.setLineWidth(0.2);
-  const legY = finalY + 3;
-  const legText = `Legenda: ${legendaItens.join("    ")}`;
-  const legLines = doc.splitTextToSize(legText, pageW - 16);
-  const legHeight = legLines.length * 3.5 + 3;
-  doc.rect(8, legY, pageW - 16, legHeight, "S");
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
+  // ===== Legenda compacta =====
+  doc.setFontSize(7);
+  doc.setTextColor(100);
+  const legendaText = "Legenda: D=Diurno 07-19h  |  N=Noturno 18-07h  |  M=Manhã 07-13h  |  T=Tarde 13-19h  |  Nt=Noturno 19-01h  |  24=24h  |  SA=Sobreaviso  |  F=Folga  |  !=Pendente  |  *=Cancelado";
+  doc.text(legendaText, margin, finalY + 5);
+  finalY += 8;
+
+  // ===== Totais =====
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
   doc.setTextColor(0);
-  doc.text(legLines, 10, legY + 4);
-  let cursorY = legY + legHeight + 3;
+  const totalPlantoes = profs.reduce((acc, p) => acc + p.totalPlantoes, 0);
+  const totalHorasGeral = profs.reduce((acc, p) => acc + p.totalHoras, 0);
+  doc.text(`Total de plantões: ${totalPlantoes}    Total de horas: ${totalHorasGeral}h`, margin, finalY + 5);
+  finalY += 15;
 
-  // ===== Observações =====
-  if (opts.incluirObservacoesRodape) {
-    doc.setFontSize(7.5);
-    doc.text("Escala sujeita a alteração.", 10, cursorY); cursorY += 3;
-    doc.text("Troca de plantão comunicar à coordenação.", 10, cursorY); cursorY += 3;
-    doc.setFont("helvetica", "bold");
-    doc.text("OBS: Qualquer troca de plantão, comunicar à coordenação.", 10, cursorY);
-    doc.setFont("helvetica", "normal");
-    cursorY += 4;
-  }
-
-  // ===== Assinatura (Lado a lado) =====
+  // ===== Rodapé — Carimbo e Assinatura =====
   if (opts.incluirAssinatura) {
     const r1 = opts.responsavel;
     const r2 = opts.responsavelTecnico;
-    const assY = Math.min(cursorY + 15, pageH - 25);
-    const lineLen = 75;
-    const marginSide = 25;
+    const assY = Math.max(finalY + 15, pageH - 35);
+    const lineLen = 70;
+    const gap = (availW - (lineLen * 2)) / 3;
 
-    // Bloco Esquerdo - Gestor/Coordenador
-    const xL = marginSide + lineLen / 2;
+    // Bloco Esquerdo — Gestor Master / Coordenador
+    const xL = margin + gap + lineLen / 2;
+    const startXL = margin + gap;
+    
     if (r1?.assinaturaBase64) {
       try {
-        doc.addImage(r1.assinaturaBase64, "PNG", marginSide + 5, assY - 14, lineLen - 10, 12);
+        doc.addImage(r1.assinaturaBase64, "PNG", startXL + 5, assY - 12, lineLen - 10, 10);
       } catch { /* ignora */ }
     }
-    doc.setLineWidth(0.3);
-    doc.setDrawColor(0);
-    doc.setTextColor(0);
-    doc.line(marginSide, assY, marginSide + lineLen, assY);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
-    doc.text(r1?.nome || "Gestor / Coordenador", xL, assY + 3.5, { align: "center" });
+    doc.setLineWidth(0.2);
+    doc.line(startXL, assY, startXL + lineLen, assY);
+    doc.setFontSize(8);
+    doc.text(r1?.nome || "Gestor / Coordenador", xL, assY + 4, { align: "center" });
+    doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
-    doc.text(r1?.cargo || "Coordenação", xL, assY + 6.5, { align: "center" });
-    let curY1 = assY + 9.5;
-    if (r1?.conselho) { doc.text(r1.conselho, xL, curY1, { align: "center" }); curY1 += 3; }
-    if (r1?.unidade) { doc.text(r1.unidade, xL, curY1, { align: "center" }); }
+    doc.text(r1?.cargo || "Coordenação", xL, assY + 7.5, { align: "center" });
+    if (r1?.conselho && r1.conselho !== "Não informado") {
+      doc.text(r1.conselho, xL, assY + 10.5, { align: "center" });
+    }
+    if (r1?.unidade) {
+      doc.text(r1.unidade, xL, assY + 13.5, { align: "center" });
+    }
 
-    // Bloco Direito - Responsável Técnico
-    const xR = pageW - marginSide - lineLen / 2;
-    const marginR = pageW - marginSide - lineLen;
+    // Bloco Direito — Responsável Técnico
+    const startXR = pageW - margin - gap - lineLen;
+    const xR = startXR + lineLen / 2;
+    
     if (r2?.assinaturaBase64) {
       try {
-        doc.addImage(r2.assinaturaBase64, "PNG", marginR + 5, assY - 14, lineLen - 10, 12);
+        doc.addImage(r2.assinaturaBase64, "PNG", startXR + 5, assY - 12, lineLen - 10, 10);
       } catch { /* ignora */ }
     }
-    doc.setDrawColor(0);
-    doc.setTextColor(0);
-    doc.line(marginR, assY, pageW - marginSide, assY);
+    doc.line(startXR, assY, startXR + lineLen, assY);
     doc.setFont("helvetica", "bold");
-    doc.text(r2?.nome || "Responsável Técnico", xR, assY + 3.5, { align: "center" });
+    doc.setFontSize(8);
+    doc.text(r2?.nome || "Responsável Técnico", xR, assY + 4, { align: "center" });
+    doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
-    doc.text(r2?.cargo || "Responsável Técnico", xR, assY + 6.5, { align: "center" });
-    let curY2 = assY + 9.5;
-    if (r2?.conselho) { doc.text(r2.conselho, xR, curY2, { align: "center" }); curY2 += 3; }
-    if (r2?.unidade) { doc.text(r2.unidade, xR, curY2, { align: "center" }); }
+    doc.text("Responsável Técnico", xR, assY + 7.5, { align: "center" });
+    if (r2?.conselho && r2.conselho !== "Não informado") {
+      doc.text(r2.conselho, xR, assY + 10.5, { align: "center" });
+    }
   }
+
+  // ===== Rodapé Inferior =====
+  doc.setFontSize(7);
+  doc.setTextColor(150);
+  const footerText = `Documento emitido pelo ${cab.sistema || "GestorPlantão SMS Oriximiná"} • ${emissao}`;
+  doc.text(footerText, pageW / 2, pageH - 5, { align: "center" });
 
   if (modo === "save") {
     doc.save(`${filename}.pdf`);
