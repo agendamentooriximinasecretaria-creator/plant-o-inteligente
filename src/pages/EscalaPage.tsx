@@ -1114,16 +1114,13 @@ export default function EscalaPage() {
     return { profs, cab, tipos };
   };
 
-  const mensalOpts = (): MensalOpts => {
-    const metadata = (currentStamp?.metadata as any) || {};
+  const getMensalOpts = async (unidadeId?: string): Promise<MensalOpts> => {
+    // Busca dados reais do banco (incluindo base64 da assinatura)
+    const gestorStamp = currentProfId ? await fetchStampData(currentProfId) : null;
+    const rtStamp = await fetchRTForUnidade(unidadeId);
     
-    // Obter assinatura_url do storage se assinatura_path existir
-    let signatureUrl: string | undefined = undefined;
-    if (currentStamp?.assinatura_path) {
-      const { data: { publicUrl } } = supabase.storage
-        .from('signatures')
-        .getPublicUrl(currentStamp.assinatura_path);
-      signatureUrl = publicUrl;
+    if (!gestorStamp) {
+      toast.info("Atenção: seu carimbo não está cadastrado. Cadastre em Configurações > Meu Carimbo.", { duration: 6000 });
     }
 
     return {
@@ -1132,18 +1129,17 @@ export default function EscalaPage() {
       incluirTotalHoras: printForm.incluirTotalHoras,
       incluirObservacoesRodape: printForm.incluirObservacoesRodape,
       totalLabel: printForm.totalLabel,
-      responsavel: {
-        nome: printForm.responsavelNome || undefined,
-        cargo: printForm.responsavelCargo || undefined,
-        conselho: printForm.responsavelConselho || undefined,
-        assinaturaUrl: signatureUrl,
-        unidade: metadata.unidade_principal || undefined
+      responsavel: gestorStamp || {
+        nome: profileName || user?.email || "Gestor / Coordenador",
+        cargo: isMaster ? 'Gestor Master' : 'Coordenador',
+        conselho: "—",
+        unidade: "—"
       },
-      responsavelTecnico: {
+      responsavelTecnico: rtStamp || {
         nome: "DRA. PATRÍCIA M. DE SOUZA",
         cargo: "Responsável Técnica",
         conselho: "CRM-PA 000000",
-        unidade: metadata.unidade_principal || undefined
+        unidade: "—"
       }
     };
   };
