@@ -355,6 +355,17 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
     }
   }, [existing, profissionalId, isOwnProfile, myIsMaster, myIsCoordinator]);
 
+
+  useEffect(() => {
+    if (isOwnProfile) {
+      if (myIsMaster && tipoAssinante !== "gestor_master") {
+        setTipoAssinante("gestor_master");
+      } else if (myIsCoordinator && tipoAssinante !== "coordenador") {
+        setTipoAssinante("coordenador");
+      }
+    }
+  }, [isOwnProfile, myIsMaster, myIsCoordinator, tipoAssinante]);
+
   useEffect(() => {
     let cancel = false;
     (async () => {
