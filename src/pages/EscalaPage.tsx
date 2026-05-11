@@ -1188,17 +1188,18 @@ export default function EscalaPage() {
           toast.warning('Nenhum plantão encontrado para os filtros selecionados.');
           return;
         }
+        const opts = await getMensalOpts(printForm.unidadeId);
         const filename = `escala_oficial_${printForm.mesRef}`;
         if (acao === 'view') {
-          const ok = abrirEscalaMensalOficial(cab, profs, tipos, mensalOpts(), false);
+          const ok = abrirEscalaMensalOficial(cab, profs, tipos, opts, false);
           if (!ok) toast.error('Bloqueador de popups impediu a visualização.');
         } else if (acao === 'print') {
-          const ok = abrirEscalaMensalOficial(cab, profs, tipos, mensalOpts(), true);
+          const ok = abrirEscalaMensalOficial(cab, profs, tipos, opts, true);
           if (!ok) toast.error('Bloqueador de popups impediu a impressão.');
         } else if (acao === 'pdf-open') {
-          await gerarPdfEscalaMensalOficial(cab, profs, tipos, mensalOpts(), filename, 'open');
+          await gerarPdfEscalaMensalOficial(cab, profs, tipos, opts, filename, 'open');
         } else if (acao === 'pdf-save') {
-          await gerarPdfEscalaMensalOficial(cab, profs, tipos, mensalOpts(), filename, 'save');
+          await gerarPdfEscalaMensalOficial(cab, profs, tipos, opts, filename, 'save');
         }
         logAudit('Escala impressa/PDF (Mensal Oficial)', 'escala', {
           acao, total: profs.length, mesRef: printForm.mesRef,
