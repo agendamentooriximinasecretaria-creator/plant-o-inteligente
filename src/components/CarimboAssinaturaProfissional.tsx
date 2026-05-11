@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
 import {
@@ -257,6 +258,9 @@ type TabId = typeof TABS[number]["id"];
 export default function CarimboAssinaturaProfissional({ profissionalId, isMaster, compact }: Props) {
   const sb = supabase as any;
   const qc = useQueryClient();
+  const { isMaster: myIsMaster, isCoordinator: myIsCoordinator, professionalId: myAuthProfId } = useAuth();
+  const isOwnProfile = profissionalId === myAuthProfId;
+
   const [stamp, setStamp] = useState<StampRow>(emptyStamp(profissionalId));
   const [assinaturaUrl, setAssinaturaUrl] = useState<string | null>(null);
   const [carimboUrl, setCarimboUrl] = useState<string | null>(null);
@@ -325,11 +329,26 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
     if (existing) {
       setStamp({ ...emptyStamp(profissionalId), ...existing });
       const md = (existing as any).metadata || {};
-      if (md.tipo_assinante) setTipoAssinante(md.tipo_assinante);
+      
+      // Se for o próprio perfil, estabelece o tipo de acordo com o acesso
+      if (isOwnProfile) {
+        if (myIsMaster) setTipoAssinante("gestor_master");
+        else if (myIsCoordinator) setTipoAssinante("coordenador");
+        else if (md.tipo_assinante) setTipoAssinante(md.tipo_assinante);
+      } else if (md.tipo_assinante) {
+        setTipoAssinante(md.tipo_assinante);
+      }
+
       if (md.conselho_manual) setConselhoManual(md.conselho_manual);
       if (md.matricula) setMatricula(md.matricula);
-    } else setStamp(emptyStamp(profissionalId));
-  }, [existing, profissionalId]);
+    } else {
+      setStamp(emptyStamp(profissionalId));
+      if (isOwnProfile) {
+        if (myIsMaster) setTipoAssinante("gestor_master");
+        else if (myIsCoordinator) setTipoAssinante("coordenador");
+      }
+    }
+  }, [existing, profissionalId, isOwnProfile, myIsMaster, myIsCoordinator]);
 
   useEffect(() => {
     let cancel = false;
@@ -533,10 +552,27 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
-                <label className={labelCls}>Tipo de assinante</label>
-                <select value={tipoAssinante} onChange={e => setTipoAssinante(e.target.value as TipoAssinante)} disabled={disabledByLock} className={inputCls}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-medium text-muted-foreground block mb-0">Tipo de assinante</label>
+                  {isOwnProfile && (myIsMaster || myIsCoordinator) && (
+                    <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded flex items-center gap-1 font-medium">
+                      <ShieldCheck className="h-2.5 w-2.5" /> Automático (Gestão)
+                    </span>
+                  )}
+                </div>
+                <select 
+                  value={tipoAssinante} 
+                  onChange={e => setTipoAssinante(e.target.value as TipoAssinante)} 
+                  disabled={disabledByLock || (isOwnProfile && (myIsMaster || myIsCoordinator))} 
+                  className={inputCls}
+                >
                   {TIPOS_ASSINANTE.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                 </select>
+                {isOwnProfile && (myIsMaster || myIsCoordinator) && (
+                  <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+                    <Info className="h-3 w-3" /> Definido permanentemente com base no seu nível de acesso.
+                  </p>
+                )}
               </div>
               <div>
                 <label className={labelCls}>Nome completo</label>
