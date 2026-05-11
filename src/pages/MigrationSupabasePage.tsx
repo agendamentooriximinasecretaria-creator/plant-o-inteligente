@@ -152,13 +152,11 @@ export default function MigrationSupabasePage() {
   const generateSchemaSQL = () => {
     addLog("Gerando SQL de migração...");
     // Em uma implementação real, o backend geraria isso.
-    // Como demonstração e utilitário, mostramos os comandos básicos.
     const sql = `-- MIGRATION SCHEMA SQL\n\n` +
       `/* 1. Criar extensões */\nCREATE EXTENSION IF NOT EXISTS "uuid-ossp";\n\n` +
       `/* 2. Criar tabelas e policies */\n` +
       diagnosticData?.source.tables.map((t: any) => `-- Tabela ${t.name}\n-- Execute o dump do schema para obter o DDL completo.`).join("\n\n");
     
-    // We can't easily get the DDL via PostgREST, so we instruct the user.
     addLog("SQL básico gerado. Recomenda-se usar o comando 'pg_dump' para o schema completo.");
     toast.info("SQL básico disponível na aba Schema.");
   };
@@ -171,11 +169,6 @@ export default function MigrationSupabasePage() {
     addLog("Atualizando variáveis de ambiente do sistema...");
     
     try {
-      // Aqui o Lovable precisaria atualizar as variáveis VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY.
-      // Como agente, não posso mudar o .env do host Lovable diretamente de forma persistente 
-      // para o ambiente de runtime final sem intervenção do usuário ou ferramentas específicas.
-      // Mas posso instruir o usuário.
-      
       addLog("AVISO: Para concluir, você deve atualizar as Secrets do projeto no Lovable com os novos valores.");
       toast.success("Migração finalizada no banco. Atualize as chaves do projeto.");
     } catch (err: any) {
@@ -323,8 +316,10 @@ export default function MigrationSupabasePage() {
                         <span className="text-xs text-muted-foreground">{table.count} registros na origem</span>
                       </div>
                       <div className="text-right">
-                        {diagnosticData.destination.tables.some((t: any) => t.name === table.name) ? (
+                        {migrationStatus[table.name] === "success" ? (
                           <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        ) : diagnosticData.destination.tables.some((t: any) => t.name === table.name) ? (
+                          <CheckCircle2 className="h-5 w-5 text-blue-400" />
                         ) : (
                           <AlertCircle className="h-5 w-5 text-muted-foreground" />
                         )}
@@ -337,8 +332,9 @@ export default function MigrationSupabasePage() {
                 <div className="text-sm">
                   Destino está {diagnosticData.destination.isEmpty ? <span className="text-green-600 font-bold">VAZIO</span> : <span className="text-destructive font-bold">COM DADOS</span>}
                 </div>
-                <Button variant="default" className="bg-blue-600 hover:bg-blue-700">
-                  <Play className="h-4 w-4 mr-2" /> Iniciar Migração de Tabelas
+                <Button variant="default" className="bg-blue-600 hover:bg-blue-700" onClick={migrateTables} disabled={!!loading}>
+                  {loading === "migrating-data" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Play className="h-4 w-4 mr-2" />}
+                  Iniciar Migração de Tabelas
                 </Button>
               </CardFooter>
             </Card>
@@ -358,8 +354,9 @@ export default function MigrationSupabasePage() {
                 </p>
               </CardContent>
               <CardFooter>
-                <Button variant="outline">
-                  <ArrowRightLeft className="h-4 w-4 mr-2" /> Migrar Usuários
+                <Button variant="outline" onClick={migrateAuth} disabled={!!loading}>
+                  {loading === "migrating-auth" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ArrowRightLeft className="h-4 w-4 mr-2" />}
+                  Migrar Usuários
                 </Button>
               </CardFooter>
             </Card>
@@ -379,8 +376,9 @@ export default function MigrationSupabasePage() {
                 </p>
               </CardContent>
               <CardFooter>
-                <Button variant="outline">
-                  <FileCode className="h-4 w-4 mr-2" /> Migrar Buckets e Arquivos
+                <Button variant="outline" onClick={migrateStorage} disabled={!!loading}>
+                  {loading === "migrating-storage" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileCode className="h-4 w-4 mr-2" />}
+                  Migrar Buckets e Arquivos
                 </Button>
               </CardFooter>
             </Card>
@@ -396,12 +394,17 @@ export default function MigrationSupabasePage() {
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-[300px] w-full border rounded p-4 bg-muted font-mono text-xs">
-                  <pre>-- SQL de migração será gerado aqui</pre>
+                  <pre>{diagnosticData ? (
+                    `-- MIGRATION SCHEMA SQL\n\n` +
+                    `/* 1. Criar extensões */\nCREATE EXTENSION IF NOT EXISTS "uuid-ossp";\n\n` +
+                    `/* 2. Criar tabelas */\n` +
+                    diagnosticData.source.tables.map((t: any) => `-- Tabela ${t.name}\n-- Copie o DDL do dashboard do Supabase.`).join("\n\n")
+                  ) : "Aguardando diagnóstico..."}</pre>
                 </ScrollArea>
               </CardContent>
               <CardFooter>
-                <Button variant="outline">
-                  <Save className="h-4 w-4 mr-2" /> Gerar SQL Completo
+                <Button variant="outline" onClick={generateSchemaSQL}>
+                  <Save className="h-4 w-4 mr-2" /> Gerar SQL Estrutural
                 </Button>
               </CardFooter>
             </Card>
@@ -414,7 +417,7 @@ export default function MigrationSupabasePage() {
           <CardTitle className="text-lg">Logs Técnicos</CardTitle>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="h-[200px] w-full border rounded p-4 font-mono text-xs">
+          <ScrollArea className="h-[200px] w-full border rounded p-4 font-mono text-xs text-foreground">
             {logs.length === 0 && <span className="text-muted-foreground">Nenhum log disponível.</span>}
             {logs.map((log, i) => (
               <div key={i} className="mb-1">{log}</div>
@@ -423,7 +426,7 @@ export default function MigrationSupabasePage() {
         </CardContent>
       </Card>
 
-      {diagnosticData && !diagnosticData.destination.isEmpty && (
+      {diagnosticData && (
         <div className="space-y-4 p-6 border-2 border-destructive rounded-xl bg-destructive/5">
           <div className="flex items-center gap-2 text-destructive font-bold">
             <ShieldAlert className="h-6 w-6" />
@@ -443,9 +446,10 @@ export default function MigrationSupabasePage() {
           <Button 
             variant="destructive" 
             className="w-full font-bold"
-            disabled={confirmText !== "CONFIRMAR MIGRAÇÃO DEFINITIVA"}
+            disabled={confirmText !== "CONFIRMAR MIGRAÇÃO DEFINITIVA" || !!loading}
+            onClick={finalizeMigration}
           >
-            TROCAR SISTEMA PARA NOVO SUPABASE
+            {loading === "finalizing" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : "TROCAR SISTEMA PARA NOVO SUPABASE"}
           </Button>
         </div>
       )}
