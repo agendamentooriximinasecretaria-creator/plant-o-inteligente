@@ -1043,9 +1043,9 @@ export default function EscalaPage() {
       const prof = s.professionals || {};
       let row = map.get(profId);
       if (!row) {
-        const conselho = (prof.conselho || prof.registro)
-          ? `${prof.conselho || ''} ${prof.registro || ''}`.trim()
-          : undefined;
+        const conselho = (prof.conselho || prof.registro || prof.documento_conselho || prof.documento_numero)
+          ? `${prof.conselho || prof.documento_conselho || ''} ${prof.registro || prof.documento_numero || ''}`.trim()
+          : '—';
         row = {
           id: profId,
           nome: prof.nome || '—',
