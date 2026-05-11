@@ -166,7 +166,7 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
         <div class="ass-cargo">${escapeHtml(responsavel?.cargo || "Gestor / Coordenador")}</div>
         ${responsavel?.conselho ? `<div class="ass-cons">${escapeHtml(responsavel.conselho)}</div>` : ""}
         ${responsavel?.unidade ? `<div class="ass-unid">${escapeHtml(responsavel.unidade)}</div>` : ""}
-        ${!responsavel?.assinaturaBase64 ? '<div class="ass-missing">Assinatura não cadastrada</div>' : ''}
+        ${/* !responsavel?.assinaturaBase64 ? '<div class="ass-missing">Assinatura não cadastrada</div>' : '' */ ""}
       </div>
       <div class="ass-box">
         ${responsavelTecnico?.assinaturaBase64 ? `<img src="${responsavelTecnico.assinaturaBase64}" class="ass-img" />` : '<div class="ass-img-placeholder"></div>'}
@@ -175,7 +175,7 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
         <div class="ass-cargo">${escapeHtml(responsavelTecnico?.cargo || "Responsável Técnico")}</div>
         ${responsavelTecnico?.conselho ? `<div class="ass-cons">${escapeHtml(responsavelTecnico.conselho)}</div>` : ""}
         ${responsavelTecnico?.unidade ? `<div class="ass-unid">${escapeHtml(responsavelTecnico.unidade)}</div>` : ""}
-        ${!responsavelTecnico?.assinaturaBase64 ? '<div class="ass-missing">Assinatura não cadastrada</div>' : ''}
+        ${/* !responsavelTecnico?.assinaturaBase64 ? '<div class="ass-missing">Assinatura não cadastrada</div>' : '' */ ""}
       </div>
     </div>` : "";
 
@@ -533,10 +533,6 @@ export async function gerarPdfEscalaMensalOficial(
       try {
         doc.addImage(r1.assinaturaBase64, "PNG", marginSide + 5, assY - 14, lineLen - 10, 12);
       } catch { /* ignora */ }
-    } else {
-      doc.setFontSize(6);
-      doc.setTextColor(150);
-      doc.text("Assinatura não cadastrada", xL, assY - 5, { align: "center" });
     }
     doc.setLineWidth(0.3);
     doc.setDrawColor(0);
@@ -559,10 +555,6 @@ export async function gerarPdfEscalaMensalOficial(
       try {
         doc.addImage(r2.assinaturaBase64, "PNG", marginR + 5, assY - 14, lineLen - 10, 12);
       } catch { /* ignora */ }
-    } else {
-      doc.setFontSize(6);
-      doc.setTextColor(150);
-      doc.text("Assinatura não cadastrada", xR, assY - 5, { align: "center" });
     }
     doc.setDrawColor(0);
     doc.setTextColor(0);

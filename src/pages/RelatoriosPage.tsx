@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
 import { exportToPDF, exportToExcel, exportToCSV } from "@/lib/exportUtils";
 import { abrirVisualizacaoRelatorio, type RelatorioFiltroAplicado, type RelatorioPrintCab } from "@/lib/printRelatorio";
-import { fetchStampData, fetchRTForUnidade } from "@/lib/pdfStampUtils";
+import { fetchStampData, fetchRTForUnidade, fetchGestorMasterForUnidade, type StampData } from "@/lib/pdfStampUtils";
 import { Download, Loader2, Eye, Printer, FileText, FileSpreadsheet, Mail, Filter, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -85,11 +85,11 @@ export default function RelatoriosPage() {
 
   const { data: professionals = [] } = useQuery({
     queryKey: ['professionals-rep'],
-    queryFn: async () => { const { data } = await supabase.from('professionals_safe').select('id, nome, profissao, especialidade, telefone, email, status, setor_principal_id, unidade_principal_id').order('nome'); return data || []; }
+    queryFn: async () => { const { data } = await supabase.from('professionals_safe').select('id, nome, profissao, especialidade, telefone, email, status, setor_principal_id, unidade_principal_id, conselho, registro, documento_numero, documento_conselho').order('nome'); return data || []; }
   });
   const { data: shifts = [] } = useQuery({
     queryKey: ['shifts-report'],
-    queryFn: async () => { const { data } = await supabase.from('shifts').select('*, professionals:profissional_id(nome, profissao), sectors:setor_id(nome), units:unidade_id(nome)').order('data', { ascending: false }); return data || []; }
+    queryFn: async () => { const { data } = await supabase.from('shifts').select('*, professionals:profissional_id(nome, profissao, conselho, registro, documento_conselho, documento_numero), sectors:setor_id(nome), units:unidade_id(nome)').order('data', { ascending: false }); return data || []; }
   });
   const { data: swaps = [] } = useQuery({
     queryKey: ['swaps-report'],
@@ -199,13 +199,41 @@ export default function RelatoriosPage() {
     switch (id) {
       case 'profissionais':
         return {
-          columns: ['Nome', 'Profissão', 'Especialidade', 'E-mail', 'Telefone', 'Status'],
-          rows: filteredProfessionals.map((p: any) => [p.nome, PROFISSAO_LABELS[p.profissao] || p.profissao, p.especialidade || '', p.email, p.telefone || '', p.status]),
+          columns: ['Nome', 'Profissão', 'Conselho', 'Especialidade', 'E-mail', 'Telefone', 'Status'],
+          rows: filteredProfessionals.map((p: any) => {
+            const conselho = (p.conselho || p.registro || p.documento_conselho || p.documento_numero)
+              ? `${p.conselho || p.documento_conselho || ''} ${p.registro || p.documento_numero || ''}`.trim()
+              : 'Não informado';
+            return [
+              p.nome, 
+              PROFISSAO_LABELS[p.profissao] || p.profissao, 
+              conselho,
+              p.especialidade || '', 
+              p.email, 
+              p.telefone || '', 
+              p.status
+            ];
+          }),
         };
       case 'plantoes':
         return {
-          columns: ['Profissional', 'Setor', 'Unidade', 'Data', 'Horário', 'Carga', 'Status'],
-          rows: filteredShifts.map((s: any) => [(s.professionals as any)?.nome || '', (s.sectors as any)?.nome || '', (s.units as any)?.nome || '', new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR'), `${s.hora_inicio}-${s.hora_fim}`, `${s.carga_horaria}h`, s.status]),
+          columns: ['Profissional', 'Conselho', 'Setor', 'Unidade', 'Data', 'Horário', 'Carga', 'Status'],
+          rows: filteredShifts.map((s: any) => {
+            const prof = s.professionals || {};
+            const conselho = (prof.conselho || prof.registro || prof.documento_conselho || prof.documento_numero)
+              ? `${prof.conselho || prof.documento_conselho || ''} ${prof.registro || prof.documento_numero || ''}`.trim()
+              : 'Não informado';
+            return [
+              prof.nome || '', 
+              conselho,
+              (s.sectors as any)?.nome || '', 
+              (s.units as any)?.nome || '', 
+              new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR'), 
+              `${s.hora_inicio}-${s.hora_fim}`, 
+              `${s.carga_horaria}h`, 
+              s.status
+            ];
+          }),
           totalHoras: filteredShifts.reduce((a, s: any) => a + (isPlantaoContabilizavel(s) ? Number(s.carga_horaria || 0) : 0), 0),
         };
       case 'horas_profissional': {
@@ -309,11 +337,32 @@ export default function RelatoriosPage() {
   }, [filtros]);
 
   const buildCab = async (): Promise<RelatorioPrintCab> => {
+    // 1. Identifica o perfil do usuário logado que está gerando o relatório
     const gestorStamp = currentProfId ? await fetchStampData(currentProfId) : null;
-    const rtStamp = await fetchRTForUnidade(filtros.unidadeId);
     
+    // 2. Determina os blocos esquerdo e direito conforme a regra de negócio
+    let responsavel: StampData | null = gestorStamp;
+    let responsavelSecundario: StampData | null = null;
+
+    if (isMaster) {
+      // SE quem gera é GESTOR MASTER:
+      // BLOCO ESQUERDO: Gestor Master (ele mesmo)
+      // BLOCO DIREITO: Responsável Técnico da Unidade
+      responsavelSecundario = await fetchRTForUnidade(filtros.unidadeId);
+    } else if (isCoordinator) {
+      // SE quem gera é COORDENADOR:
+      // BLOCO ESQUERDO: Coordenador (ele mesmo)
+      // BLOCO DIREITO: Gestor Master da Unidade
+      responsavelSecundario = await fetchGestorMasterForUnidade(filtros.unidadeId);
+    } else {
+      responsavelSecundario = await fetchRTForUnidade(filtros.unidadeId);
+    }
+
     if (filtros.incluirAssinatura && !gestorStamp) {
-      toast.info("Atenção: seu carimbo não está cadastrado. Cadastre em Configurações > Meu Carimbo.", { duration: 6000 });
+      toast.warning(
+        "Atenção: você não possui assinatura cadastrada. O documento será gerado com campo em branco para assinatura manual.", 
+        { duration: 8000 }
+      );
     }
 
     return {
@@ -329,8 +378,18 @@ export default function RelatoriosPage() {
       totalRegistros: preview?.rows.length || 0,
       totalHoras: preview?.totalHoras ?? null,
       incluirAssinatura: filtros.incluirAssinatura,
-      responsavel: gestorStamp || undefined,
-      responsavelTecnico: rtStamp || undefined,
+      responsavel: responsavel || {
+        nome: profileName || 'Gestor',
+        cargo: isMaster ? 'Gestor Master' : (isCoordinator ? 'Coordenador' : 'Gestor'),
+        conselho: "",
+        unidade: ""
+      },
+      responsavelTecnico: responsavelSecundario || {
+        nome: isCoordinator ? "Gestor Master não cadastrado" : "Responsável Técnico não cadastrado",
+        cargo: isCoordinator ? "Gestor Master" : "Responsável Técnico",
+        conselho: "",
+        unidade: ""
+      },
       sistema: 'GestorPlantão SMS Oriximiná',
     };
   };

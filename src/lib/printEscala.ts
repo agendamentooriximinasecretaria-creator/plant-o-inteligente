@@ -90,7 +90,7 @@ function buildHtml(
     <tr>
       <td>${escapeHtml(l.profissional)}</td>
       <td>${escapeHtml(l.profissao)}</td>
-      ${opts.incluirConselho ? `<td>${escapeHtml(l.conselho || "—")}</td>` : ""}
+      ${opts.incluirConselho ? `<td>${escapeHtml(l.conselho || "Não informado")}</td>` : ""}
       <td>${escapeHtml(l.setor)}</td>
       <td>${escapeHtml(l.data)}</td>
       <td>${escapeHtml(l.diaSemana)}</td>
@@ -116,7 +116,7 @@ function buildHtml(
         <div class="ass-cargo">${escapeHtml(responsavel?.cargo || "Coordenação")}</div>
         ${responsavel?.conselho ? `<div class="ass-cons">${escapeHtml(responsavel.conselho)}</div>` : ""}
         ${responsavel?.unidade ? `<div class="ass-unid">${escapeHtml(responsavel.unidade)}</div>` : ""}
-        ${!responsavel?.assinaturaBase64 ? '<div class="ass-missing">Assinatura não cadastrada</div>' : ''}
+        ${/* !responsavel?.assinaturaBase64 ? '<div class="ass-missing">Assinatura não cadastrada</div>' : '' */ ""}
       </div>
       <div class="ass-box">
         ${responsavelTecnico?.assinaturaBase64 ? `<img src="${responsavelTecnico.assinaturaBase64}" style="height:50px;display:block;margin:0 auto -5px" />` : '<div style="height:50px"></div>'}
@@ -125,7 +125,7 @@ function buildHtml(
         <div class="ass-cargo">${escapeHtml(responsavelTecnico?.cargo || "Responsável Técnico")}</div>
         ${responsavelTecnico?.conselho ? `<div class="ass-cons">${escapeHtml(responsavelTecnico.conselho)}</div>` : ""}
         ${responsavelTecnico?.unidade ? `<div class="ass-unid">${escapeHtml(responsavelTecnico.unidade)}</div>` : ""}
-        ${!responsavelTecnico?.assinaturaBase64 ? '<div class="ass-missing">Assinatura não cadastrada</div>' : ''}
+        ${/* !responsavelTecnico?.assinaturaBase64 ? '<div class="ass-missing">Assinatura não cadastrada</div>' : '' */ ""}
       </div>
     </div>` : "";
 
@@ -313,7 +313,7 @@ export async function gerarPdfEscala(
   const body = linhas.map((l) => [
     l.profissional,
     l.profissao,
-    ...(opts.incluirConselho ? [l.conselho || "—"] : []),
+    ...(opts.incluirConselho ? [l.conselho || "Não informado"] : []),
     l.setor,
     l.data,
     l.diaSemana,
@@ -367,11 +367,7 @@ export async function gerarPdfEscala(
     if (r1?.assinaturaBase64) {
       try {
         doc.addImage(r1.assinaturaBase64, "PNG", marginSide + 5, assY - 14, lineLen - 10, 12);
-      } catch { /* ignora */ }
-    } else {
-      doc.setFontSize(6);
-      doc.setTextColor(150);
-      doc.text("Assinatura não cadastrada", xL, assY - 5, { align: "center" });
+    } catch { /* ignora */ }
     }
     doc.setLineWidth(0.3);
     doc.setDrawColor(0);
@@ -394,10 +390,6 @@ export async function gerarPdfEscala(
       try {
         doc.addImage(r2.assinaturaBase64, "PNG", marginR + 5, assY - 14, lineLen - 10, 12);
       } catch { /* ignora */ }
-    } else {
-      doc.setFontSize(6);
-      doc.setTextColor(150);
-      doc.text("Assinatura não cadastrada", xR, assY - 5, { align: "center" });
     }
     doc.setDrawColor(0);
     doc.setTextColor(0);

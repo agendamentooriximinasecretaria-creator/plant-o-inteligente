@@ -21,7 +21,7 @@ import { useNavigate } from "react-router-dom";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 import { abrirVisualizacaoImpressao, gerarPdfEscala, diaSemanaPt, type PrintLinha, type PrintCabecalho, type PrintOptions } from "@/lib/printEscala";
 import { abrirEscalaMensalOficial, gerarPdfEscalaMensalOficial, type MensalProfissional, type MensalCabecalho, type MensalOpts, type MensalTipoLegenda, type MensalResponsavel } from "@/lib/printEscalaMensalOficial";
-import { fetchStampData, fetchRTForUnidade } from "@/lib/pdfStampUtils";
+import { fetchStampData, fetchRTForUnidade, fetchGestorMasterForUnidade, type StampData } from "@/lib/pdfStampUtils";
 import { imprimirComprovantePlantao, type ComprovantePlantaoData } from "@/lib/printComprovantePlantao";
 import SignActionButton from "@/components/SignActionButton";
 
@@ -948,7 +948,7 @@ export default function EscalaPage() {
       const prof = s.professionals || {};
       const conselho = (prof.conselho || prof.registro || prof.documento_conselho || prof.documento_numero)
         ? `${prof.conselho || prof.documento_conselho || ''} ${prof.registro || prof.documento_numero || ''}`.trim()
-        : '—';
+        : 'Não informado';
       return {
         profissional: prof.nome || '—',
         profissao: PROFISSAO_LABELS[prof.profissao] || prof.profissao || '',
@@ -1045,7 +1045,7 @@ export default function EscalaPage() {
       if (!row) {
         const conselho = (prof.conselho || prof.registro || prof.documento_conselho || prof.documento_numero)
           ? `${prof.conselho || prof.documento_conselho || ''} ${prof.registro || prof.documento_numero || ''}`.trim()
-          : '—';
+          : 'Não informado';
         row = {
           id: profId,
           nome: prof.nome || '—',
@@ -1115,12 +1115,34 @@ export default function EscalaPage() {
   };
 
   const getMensalOpts = async (unidadeId?: string): Promise<MensalOpts> => {
-    // Busca dados reais do banco (incluindo base64 da assinatura)
+    // 1. Identifica o perfil do usuário logado que está gerando a escala
     const gestorStamp = currentProfId ? await fetchStampData(currentProfId) : null;
-    const rtStamp = await fetchRTForUnidade(unidadeId);
     
+    // 2. Determina os blocos esquerdo e direito conforme a regra de negócio
+    let responsavel: StampData | null = gestorStamp;
+    let responsavelSecundario: StampData | null = null;
+
+    if (isMaster) {
+      // SE quem gera é GESTOR MASTER:
+      // BLOCO ESQUERDO: Gestor Master (ele mesmo)
+      // BLOCO DIREITO: Responsável Técnico da Unidade
+      responsavelSecundario = await fetchRTForUnidade(unidadeId);
+    } else if (isCoordinator) {
+      // SE quem gera é COORDENADOR:
+      // BLOCO ESQUERDO: Coordenador (ele mesmo)
+      // BLOCO DIREITO: Gestor Master da Unidade
+      responsavelSecundario = await fetchGestorMasterForUnidade(unidadeId);
+    } else {
+      // Outros casos: mantemos o padrão anterior
+      responsavelSecundario = await fetchRTForUnidade(unidadeId);
+    }
+
+    // Validação de carimbo próprio para o aviso em tela
     if (!gestorStamp) {
-      toast.info("Atenção: seu carimbo não está cadastrado. Cadastre em Configurações > Meu Carimbo.", { duration: 6000 });
+      toast.warning(
+        "Atenção: você não possui assinatura cadastrada. O documento será gerado com campo em branco para assinatura manual.", 
+        { duration: 8000 }
+      );
     }
 
     return {
@@ -1129,17 +1151,17 @@ export default function EscalaPage() {
       incluirTotalHoras: printForm.incluirTotalHoras,
       incluirObservacoesRodape: printForm.incluirObservacoesRodape,
       totalLabel: printForm.totalLabel,
-      responsavel: gestorStamp || {
-        nome: profileName || user?.email || "Gestor / Coordenador",
-        cargo: isMaster ? 'Gestor Master' : 'Coordenador',
-        conselho: "—",
-        unidade: "—"
+      responsavel: responsavel || {
+        nome: profileName || user?.email || "",
+        cargo: isMaster ? 'Gestor Master' : (isCoordinator ? 'Coordenador' : 'Gestor'),
+        conselho: "",
+        unidade: ""
       },
-      responsavelTecnico: rtStamp || {
-        nome: "DRA. PATRÍCIA M. DE SOUZA",
-        cargo: "Responsável Técnica",
-        conselho: "CRM-PA 000000",
-        unidade: "—"
+      responsavelTecnico: responsavelSecundario || {
+        nome: isCoordinator ? "Gestor Master não cadastrado" : "Responsável Técnico não cadastrado",
+        cargo: isCoordinator ? "Gestor Master" : "Responsável Técnico",
+        conselho: "",
+        unidade: ""
       }
     };
   };
