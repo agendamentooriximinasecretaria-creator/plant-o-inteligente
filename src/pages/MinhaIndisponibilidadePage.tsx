@@ -225,8 +225,8 @@ export default function MinhaIndisponibilidadePage() {
           .neq("status", "cancelado");
 
         if (shifts && shifts.length > 0) {
-          for (const s of shifts) {
-            if (decision.substituto_id) {
+          for (const s of (shifts as any[])) {
+            if (decision.substituto_id && decision.substituto_id !== "none") {
               // Update to substitute
               await supabase.from("shifts").update({
                 profissional_id: decision.substituto_id,
