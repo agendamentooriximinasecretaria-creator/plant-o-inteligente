@@ -108,6 +108,109 @@ serve(async (req) => {
       });
     }
 
+    if (action === 'migrate-table-data') {
+      const { table } = await req.json();
+      if (!table) throw new Error("Nome da tabela é obrigatório.");
+
+      let totalMigrated = 0;
+      let lastId = null;
+      const batchSize = 100;
+
+      // We need to know the primary key to paginate correctly. 
+      // For now we assume 'id' or we'll need to fetch it.
+      // Most tables here use 'id'.
+      
+      while (true) {
+        let query = sourceClient.from(table).select('*').order('id', { ascending: true }).limit(batchSize);
+        if (lastId) {
+          query = query.gt('id', lastId);
+        }
+
+        const { data: rows, error: fetchErr } = await query;
+        if (fetchErr) throw fetchErr;
+        if (!rows || rows.length === 0) break;
+
+        const { error: insertErr } = await destClient.from(table).insert(rows);
+        if (insertErr) {
+          // If insert fails, maybe it's because of existing data or FK issues
+          // We could try to upsert if the user wants, but the requirement is to migrate.
+          throw insertErr;
+        }
+
+        totalMigrated += rows.length;
+        lastId = rows[rows.length - 1].id;
+        
+        if (rows.length < batchSize) break;
+      }
+
+      return new Response(JSON.stringify({ table, totalMigrated, success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (action === 'migrate-auth') {
+      // Supabase Auth Admin API
+      const { data: { users }, error: listErr } = await sourceClient.auth.admin.listUsers();
+      if (listErr) throw listErr;
+
+      const results = [];
+      for (const user of users) {
+        const { data: newUser, error: createErr } = await destClient.auth.admin.createUser({
+          id: user.id, // Preserving UUID
+          email: user.email,
+          email_confirm: true,
+          user_metadata: user.user_metadata,
+          app_metadata: user.app_metadata,
+          // Password cannot be migrated easily, so we set a random one and user must reset
+          password: Math.random().toString(36).slice(-12), 
+        });
+        
+        results.push({ email: user.email, success: !createErr, error: createErr?.message });
+      }
+
+      return new Response(JSON.stringify({ results }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (action === 'migrate-storage') {
+      const { data: buckets, error: bErr } = await sourceClient.storage.listBuckets();
+      if (bErr) throw bErr;
+
+      const results = [];
+      for (const bucket of buckets) {
+        // Create bucket in destination
+        await destClient.storage.createBucket(bucket.id, { public: bucket.public });
+        
+        // List files (recursively would be better, but listFiles is flat-ish)
+        // We'll need a recursive helper
+        const migratePath = async (path: string = "") => {
+          const { data: files, error: fErr } = await sourceClient.storage.from(bucket.id).list(path);
+          if (fErr) return;
+
+          for (const file of files) {
+            const fullPath = path ? `${path}/${file.name}` : file.name;
+            if (file.id === null) { 
+              // It's a directory (usually indicated by id null in list)
+              await migratePath(fullPath);
+            } else {
+              // It's a file
+              const { data: blob, error: dErr } = await sourceClient.storage.from(bucket.id).download(fullPath);
+              if (dErr) continue;
+              await destClient.storage.from(bucket.id).upload(fullPath, blob, { upsert: true });
+            }
+          }
+        };
+
+        await migratePath();
+        results.push({ bucket: bucket.id, success: true });
+      }
+
+      return new Response(JSON.stringify({ results }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     throw new Error(`Ação desconhecida: ${action}`);
 
   } catch (error) {
