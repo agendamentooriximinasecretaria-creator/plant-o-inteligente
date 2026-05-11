@@ -948,7 +948,7 @@ export default function EscalaPage() {
       const prof = s.professionals || {};
       const conselho = (prof.conselho || prof.registro || prof.documento_conselho || prof.documento_numero)
         ? `${prof.conselho || prof.documento_conselho || ''} ${prof.registro || prof.documento_numero || ''}`.trim()
-        : '—';
+        : 'Não informado';
       return {
         profissional: prof.nome || '—',
         profissao: PROFISSAO_LABELS[prof.profissao] || prof.profissao || '',
