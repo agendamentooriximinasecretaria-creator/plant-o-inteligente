@@ -624,7 +624,7 @@ export async function gerarPdfEscalaMensalOficial(
     doc.text(r2?.nome || "Responsável Técnico", xR, assY + 4, { align: "center" });
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
-    doc.text("Responsável Técnico", xR, assY + 7.5, { align: "center" });
+    doc.text(r2?.cargo || "Responsável Técnico", xR, assY + 7.5, { align: "center" });
     if (r2?.conselho && r2.conselho !== "Não informado") {
       doc.text(r2.conselho, xR, assY + 10.5, { align: "center" });
     }
