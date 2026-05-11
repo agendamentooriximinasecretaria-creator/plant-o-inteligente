@@ -173,8 +173,9 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
       }).join("");
 
   const legendaTipos = tipos.map((t) => {
-    const horario = t.start && t.end ? `${t.start}h às ${t.end}h` : (t.nome || "");
-    return `<span class="lg-item"><b>${escapeHtml(t.sigla)}</b> = ${escapeHtml(horario)}</span>`;
+    const horario = t.start && t.end ? `${t.start} às ${t.end}` : (t.nome || "");
+    const color = getCategoryColor(t.nome || "", "");
+    return `<span class="lg-item"><b style="background-color: ${color.hex}; color: rgb(${color.text.join(",")}); padding: 1px 3px; border-radius: 2px; border: 0.5px solid #ccc">${escapeHtml(t.sigla)}</b> = ${escapeHtml(horario)}</span>`;
   }).join("");
 
   const subtitulo = buildSubtituloTabela(cab);
