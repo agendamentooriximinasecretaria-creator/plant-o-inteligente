@@ -176,15 +176,32 @@ export default function ComprovanteTroca({ trocaId, onClose }: Props) {
       if (y > 260) { doc.addPage(); y = 15; }
     }
 
+    // Carimbos e Assinaturas
     y += 10;
-    doc.line(15, y, 75, y); doc.line(w / 2 - 25, y, w / 2 + 35, y); doc.line(w - 75, y, w - 15, y);
-    y += 5;
-    doc.setFontSize(8);
-    doc.text("Profissional A", 15, y);
-    doc.text("Profissional B", w / 2 - 25, y);
-    doc.text("Gestor Responsável", w - 75, y);
-    y += 10;
+    if (y > 240) { doc.addPage(); y = 20; }
+    
+    // Adicionar blocos de assinatura eletrônica ao PDF
+    for (const s of signatures.filter(sig => sig.status === 'ativa')) {
+      doc.setDrawColor(180);
+      doc.rect(15, y, w - 30, 25);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Assinado eletronicamente por ${s.signer_name}`, 20, y + 8);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${s.signer_role.replace("_", " ")} em ${new Date(s.signed_at).toLocaleString("pt-BR")}`, 20, y + 13);
+      doc.text(`Código: ${s.validation_code} | Hash: ${s.content_hash.slice(0, 20)}...`, 20, y + 18);
+      
+      try {
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${window.location.origin}/validar/${s.validation_code}`)}`;
+        // Nota: addImage com URL externa pode precisar ser pré-carregada ou convertida para dataURL
+        // Para simplificar, deixamos o espaço ou usamos um marcador visual se necessário.
+      } catch { /* noop */ }
+      
+      y += 30;
+      if (y > 270) { doc.addPage(); y = 20; }
+    }
 
+    y = doc.internal.pageSize.getHeight() - 20;
     doc.setFontSize(7);
     doc.text(`Gerado em: ${new Date().toLocaleString("pt-BR")} | Usuário: ${user?.email || ""} | ID: ${trocaId}`, 15, y);
     y += 4;
@@ -320,17 +337,21 @@ export default function ComprovanteTroca({ trocaId, onClose }: Props) {
         {/* Assinaturas eletrônicas */}
         {signatures.length > 0 && (
           <div className="mt-4 space-y-2">
-            {signatures.filter(s => s.status === 'ativa').map(s => (
-              <div key={s.id} className="rounded-md border border-border p-3 text-[11px] flex gap-3 items-center bg-muted/20">
-                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(`${window.location.origin}/validar/${s.validation_code}`)}`}
-                  alt="QR" className="h-16 w-16" />
-                <div className="leading-relaxed">
-                  <div><strong>Documento assinado eletronicamente</strong> por <strong>{s.signer_name}</strong>, {s.signer_role.replace('_', ' ')}, em {new Date(s.signed_at).toLocaleString('pt-BR')}.</div>
-                  <div>Código: <strong className="font-mono">{s.validation_code}</strong> · Verifique em /validar/{s.validation_code}</div>
-                  <div className="text-muted-foreground italic text-[10px]">Assinatura eletrônica interna — não substitui ICP-Brasil.</div>
+            {signatures.filter(s => s.status === 'ativa').map(s => {
+              const metadata = (s.metadata as any) || {};
+              const conselho = `${metadata.conselho || ''} ${metadata.registro || ''}`.trim();
+              return (
+                <div key={s.id} className="rounded-md border border-border p-3 text-[11px] flex gap-3 items-center bg-muted/20">
+                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(`${window.location.origin}/validar/${s.validation_code}`)}`}
+                    alt="QR" className="h-16 w-16" />
+                  <div className="leading-relaxed">
+                    <div><strong>Documento assinado eletronicamente</strong> por <strong>{s.signer_name}</strong>, {s.signer_role.replace('_', ' ')} {conselho ? `(${conselho})` : ''}, em {new Date(s.signed_at).toLocaleString('pt-BR')}.</div>
+                    <div>Código: <strong className="font-mono">{s.validation_code}</strong> · Verifique em /validar/{s.validation_code}</div>
+                    <div className="text-muted-foreground italic text-[10px]">Assinatura eletrônica interna — não substitui ICP-Brasil.</div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -352,7 +373,16 @@ export default function ComprovanteTroca({ trocaId, onClose }: Props) {
           document_title: `Comprovante de troca ${seqNumber()}`,
           content: JSON.stringify({ trocaId, troca: data?.troca, shiftOrigem: data?.shiftOrigem, shiftDestino: data?.shiftDestino }),
         }}
-        onSigned={() => refreshSigs()}
+        onSigned={() => {
+          refreshSigs();
+          // Registrar no histórico quando assinado
+          supabase.from('swap_history').insert({
+            swap_id: trocaId,
+            acao: 'Documento assinado eletronicamente',
+            usuario: user?.email || 'Usuário',
+            user_id: user?.id
+          }).then(() => {});
+        }}
       />
     </div>
   );

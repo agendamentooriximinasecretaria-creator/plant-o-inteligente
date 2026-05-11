@@ -117,6 +117,17 @@ function ShiftHistoryView({ shiftId }: { shiftId: string }) {
 }
 
 export default function EscalaPage() {
+  const { professionalId: currentProfId } = useAuth();
+  const { data: currentStamp } = useQuery({
+    queryKey: ['my-stamp', currentProfId],
+    queryFn: async () => {
+      if (!currentProfId) return null;
+      const { data } = await supabase.from('professional_stamps').select('*').eq('profissional_id', currentProfId).eq('bloqueado', false).maybeSingle();
+      return data;
+    },
+    enabled: !!currentProfId
+  });
+
   const sb = supabase as any;
   const [view, setView] = useState<'lista' | 'calendario' | 'grade' | 'consolidada'>('lista');
   // Mês visível no Calendário Mensal (independente dos filtros)
@@ -1115,8 +1126,28 @@ export default function EscalaPage() {
     },
   });
 
+  useEffect(() => {
+    if (currentStamp && printOpen) {
+      const metadata = (currentStamp.metadata as any) || {};
+      setPrintForm(f => ({
+        ...f,
+        responsavelNome: metadata.nome_profissional || profileName || user?.email || "",
+        responsavelCargo: currentStamp.cargo || (isMaster ? 'Gestor Master' : 'Coordenador'),
+        responsavelConselho: `${metadata.conselho || ''} ${metadata.registro || ''}`.trim()
+      }));
+    }
+  }, [currentStamp, printOpen, profileName, user?.email, isMaster]);
+
   const handlePrintAction = async (acao: 'view' | 'print' | 'pdf-open' | 'pdf-save') => {
     if (printBusy) return;
+
+    // Validação de Carimbo para Gestor/Coordenador
+    if (isMaster || isCoordinator) {
+      if (!currentStamp) {
+        toast.error("Cadastre seu carimbo e assinatura antes de imprimir ou publicar a escala.");
+        return;
+      }
+    }
 
     // Validações específicas por modelo
     if (printForm.modelo === 'por_profissional' && !printForm.profissionalId) {
@@ -2984,21 +3015,21 @@ export default function EscalaPage() {
                     <input type="text" value={printForm.responsavelNome}
                       placeholder="Nome do responsável"
                       onChange={e => setPrintForm(f => ({ ...f, responsavelNome: e.target.value }))}
-                      className={inputClass} />
+                      className={inputClass} disabled />
                   </div>
                   <div>
                     <label className="text-xs font-medium text-muted-foreground">Cargo/Função</label>
                     <input type="text" value={printForm.responsavelCargo}
                       placeholder="Coordenação"
                       onChange={e => setPrintForm(f => ({ ...f, responsavelCargo: e.target.value }))}
-                      className={inputClass} />
+                      className={inputClass} disabled />
                   </div>
                   <div>
                     <label className="text-xs font-medium text-muted-foreground">Conselho/Registro</label>
                     <input type="text" value={printForm.responsavelConselho}
                       placeholder="Ex.: COREN-PA 12345"
                       onChange={e => setPrintForm(f => ({ ...f, responsavelConselho: e.target.value }))}
-                      className={inputClass} />
+                      className={inputClass} disabled />
                   </div>
                 </div>
               </section>

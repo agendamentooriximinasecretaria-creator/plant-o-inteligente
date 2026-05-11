@@ -58,8 +58,18 @@ const filtrosVazios: Filtros = {
 };
 
 export default function RelatoriosPage() {
-  const { profileName, isMaster, isCoordinator } = useAuth();
+  const { profileName, isMaster, isCoordinator, professionalId: currentProfId } = useAuth();
   const canRead = isMaster || isCoordinator;
+
+  const { data: currentStamp } = useQuery({
+    queryKey: ['my-stamp', currentProfId],
+    queryFn: async () => {
+      if (!currentProfId) return null;
+      const { data } = await supabase.from('professional_stamps').select('*').eq('profissional_id', currentProfId).eq('bloqueado', false).maybeSingle();
+      return data;
+    },
+    enabled: !!currentProfId
+  });
 
   const [exporting, setExporting] = useState('');
   const [chartReport, setChartReport] = useState<string | null>(null);
@@ -316,6 +326,10 @@ export default function RelatoriosPage() {
   // ===== Ações =====
   const acaoVisualizar = () => {
     if (!modalReport || !preview) return;
+    if (filtros.incluirAssinatura && !currentStamp) {
+      toast.error("Cadastre seu carimbo e assinatura antes de gerar documentos com assinatura.");
+      return;
+    }
     const ok = abrirVisualizacaoRelatorio(buildCab(), preview.columns, preview.rows, false);
     if (!ok) toast.error('Bloqueio de pop-up. Permita janelas para visualizar.');
     else logAudit(`Relatório visualizado: ${modalReport.nome}`, 'relatorios', { reportId: modalReport.id });
@@ -323,6 +337,10 @@ export default function RelatoriosPage() {
 
   const acaoImprimir = () => {
     if (!modalReport || !preview) return;
+    if (filtros.incluirAssinatura && !currentStamp) {
+      toast.error("Cadastre seu carimbo e assinatura antes de gerar documentos com assinatura.");
+      return;
+    }
     const ok = abrirVisualizacaoRelatorio(buildCab(), preview.columns, preview.rows, true);
     if (!ok) toast.error('Bloqueio de pop-up. Permita janelas para imprimir.');
     else logAudit(`Relatório impresso: ${modalReport.nome}`, 'relatorios', { reportId: modalReport.id });
@@ -330,6 +348,10 @@ export default function RelatoriosPage() {
 
   const acaoBaixar = async (formato: FormatoExport) => {
     if (!modalReport || !preview) return;
+    if (filtros.incluirAssinatura && !currentStamp) {
+      toast.error("Cadastre seu carimbo e assinatura antes de gerar documentos com assinatura.");
+      return;
+    }
     setExporting(`${modalReport.id}-${formato}`);
     try {
       if (preview.rows.length === 0) { toast.warning('Nenhum dado para exportar com os filtros aplicados.'); return; }
