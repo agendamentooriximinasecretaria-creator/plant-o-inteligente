@@ -1662,6 +1662,14 @@ export type Database = {
         Returns: number
       }
       get_my_professional_id: { Args: never; Returns: string }
+      get_table_ddl: { Args: { target_table: string }; Returns: string }
+      get_tables_info: {
+        Args: never
+        Returns: {
+          record_count: number
+          table_name: string
+        }[]
+      }
       get_trocas_status_mes: {
         Args: { _profissional_id: string }
         Returns: Json
