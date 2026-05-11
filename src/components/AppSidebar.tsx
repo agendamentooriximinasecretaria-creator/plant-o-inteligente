@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Calendar, ArrowLeftRight, Users, Building2,
   FileText, Bell, Settings, Shield, LogOut, Activity,
-  UserCog, UserCircle, Ban, FolderLock,
+  UserCog, UserCircle, Ban, FolderLock, Database
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -70,6 +70,7 @@ export function AppSidebar() {
       systemItems.push({ title: "Usuários", url: "/usuarios", icon: UserCog });
       systemItems.push({ title: "Configurações", url: "/configuracoes", icon: Settings });
       systemItems.push({ title: "Auditoria", url: "/auditoria", icon: Shield });
+      systemItems.push({ title: "Migração Supabase", url: "/migracao-supabase", icon: Database });
     }
 
     const groups = [
