@@ -89,7 +89,7 @@ export default function RelatoriosPage() {
   });
   const { data: shifts = [] } = useQuery({
     queryKey: ['shifts-report'],
-    queryFn: async () => { const { data } = await supabase.from('shifts').select('*, professionals:profissional_id(nome, profissao), sectors:setor_id(nome), units:unidade_id(nome)').order('data', { ascending: false }); return data || []; }
+    queryFn: async () => { const { data } = await supabase.from('shifts').select('*, professionals:profissional_id(nome, profissao, conselho, registro, documento_conselho, documento_numero), sectors:setor_id(nome), units:unidade_id(nome)').order('data', { ascending: false }); return data || []; }
   });
   const { data: swaps = [] } = useQuery({
     queryKey: ['swaps-report'],
