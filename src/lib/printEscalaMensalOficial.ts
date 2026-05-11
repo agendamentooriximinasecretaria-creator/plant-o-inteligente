@@ -559,12 +559,15 @@ export async function gerarPdfEscalaMensalOficial(
 
   let finalY = (doc as any).lastAutoTable?.finalY || (y + 20);
 
-  // ===== Legenda compacta =====
+  // ===== Legenda dinâmica =====
   doc.setFontSize(7);
-  doc.setTextColor(100);
-  const legendaText = "Legenda: D=Diurno 07-19h  |  N=Noturno 18-07h  |  M=Manhã 07-13h  |  T=Tarde 13-19h  |  Nt=Noturno 19-01h  |  24=24h  |  SA=Sobreaviso  |  F=Folga  |  !=Pendente  |  *=Cancelado";
-  doc.text(legendaText, margin, finalY + 5);
-  finalY += 8;
+  doc.setTextColor(80);
+  const legendaParts = tipos.map(t => `${t.sigla}=${t.nome}${t.start && t.end ? ` (${t.start}-${t.end}h)` : ""}`);
+  legendaParts.push("!=Pendente", "*=Cancelado");
+  const legendaText = "Legenda: " + legendaParts.join("  |  ");
+  const wrappedLegenda = doc.splitTextToSize(legendaText, availW);
+  doc.text(wrappedLegenda, margin, finalY + 5);
+  finalY += (wrappedLegenda.length * 4) + 2;
 
   // ===== Totais =====
   doc.setFont("helvetica", "bold");
@@ -573,7 +576,7 @@ export async function gerarPdfEscalaMensalOficial(
   const totalPlantoes = profs.reduce((acc, p) => acc + p.totalPlantoes, 0);
   const totalHorasGeral = profs.reduce((acc, p) => acc + p.totalHoras, 0);
   doc.text(`Total de plantões: ${totalPlantoes}    Total de horas: ${totalHorasGeral}h`, margin, finalY + 5);
-  finalY += 15;
+  finalY += 10;
 
   // ===== Rodapé — Carimbo e Assinatura =====
   if (opts.incluirAssinatura) {
