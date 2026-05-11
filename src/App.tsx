@@ -30,6 +30,7 @@ import MeusDocumentosPage from "@/pages/MeusDocumentosPage";
 import ValidarAssinaturaPage from "@/pages/ValidarAssinaturaPage";
 import ValidarDocumentoPage from "@/pages/ValidarDocumentoPage";
 import DocumentosOficiaisPage from "@/pages/DocumentosOficiaisPage";
+import MigrationSupabasePage from "@/pages/MigrationSupabasePage";
 
 const queryClient = new QueryClient();
 
@@ -139,6 +140,7 @@ const App = () => (
                 <Route path="/usuarios" element={<MasterOnly><UsuariosPage /></MasterOnly>} />
                 <Route path="/configuracoes" element={<MasterOnly><ConfiguracoesPage /></MasterOnly>} />
                 <Route path="/auditoria" element={<MasterOnly><AuditoriaPage /></MasterOnly>} />
+                <Route path="/migracao-supabase" element={<MasterOnly><MigrationSupabasePage /></MasterOnly>} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
