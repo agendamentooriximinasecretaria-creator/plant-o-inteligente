@@ -946,9 +946,9 @@ export default function EscalaPage() {
 
     const linhas: PrintLinha[] = rows.map((s: any) => {
       const prof = s.professionals || {};
-      const conselho = (prof.conselho || prof.registro)
-        ? `${prof.conselho || ''}${prof.registro ? ' ' + prof.registro : ''}`.trim()
-        : '';
+      const conselho = (prof.conselho || prof.registro || prof.documento_conselho || prof.documento_numero)
+        ? `${prof.conselho || prof.documento_conselho || ''} ${prof.registro || prof.documento_numero || ''}`.trim()
+        : '—';
       return {
         profissional: prof.nome || '—',
         profissao: PROFISSAO_LABELS[prof.profissao] || prof.profissao || '',
