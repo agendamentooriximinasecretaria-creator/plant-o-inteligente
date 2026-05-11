@@ -85,7 +85,7 @@ export default function RelatoriosPage() {
 
   const { data: professionals = [] } = useQuery({
     queryKey: ['professionals-rep'],
-    queryFn: async () => { const { data } = await supabase.from('professionals_safe').select('id, nome, profissao, especialidade, telefone, email, status, setor_principal_id, unidade_principal_id').order('nome'); return data || []; }
+    queryFn: async () => { const { data } = await supabase.from('professionals_safe').select('id, nome, profissao, especialidade, telefone, email, status, setor_principal_id, unidade_principal_id, conselho, registro, documento_numero, documento_conselho').order('nome'); return data || []; }
   });
   const { data: shifts = [] } = useQuery({
     queryKey: ['shifts-report'],
