@@ -58,47 +58,65 @@ serve(async (req) => {
         destination: { tables: [], isEmpty: true }
       };
 
-      // Get all tables from public schema via RPC or direct SQL if possible
-      // Since we don't have a reliable RPC, we'll use a trick: query pg_catalog via REST
-      // Supabase by default doesn't expose pg_catalog. Let's try to query some known tables
-      // and also check if we can run some system views.
+      // Get tables from source using the new RPC
+      const { data: tablesData, error: tErr } = await sourceClient.rpc('get_tables_info');
       
-      const tablesToTrack = [
-        'professional_unavailability', 'professionals_safe', 'notifications', 
-        'message_templates', 'audit_logs', 'profiles', 'document_signatures', 
-        'shift_swaps', 'user_roles', 'setor_ocupacao', 'generated_documents', 
-        'swap_attachments', 'censo_pacientes', 'units', 'historico_ocupacao', 
-        'professional_documents', 'professionals', 'acionamentos_reforco', 
-        'system_settings', 'shifts', 'shift_types', 'sectors', 
-        'professional_stamps', 'document_templates', 'swap_history'
-      ];
-
-      // We can also try to get the list of tables by calling a function that we might create 
-      // or just trust the list we have from exploration.
-      
-      for (const table of tablesToTrack) {
-        try {
+      if (!tErr && tablesData) {
+        diagnosticResult.source.tables = tablesData.map((t: any) => ({ 
+          name: t.table_name, 
+          count: t.record_count 
+        }));
+      } else {
+        // Fallback for diagnostic if RPC fails
+        const tablesToTrack = [
+          'professional_unavailability', 'professionals_safe', 'notifications', 
+          'message_templates', 'audit_logs', 'profiles', 'document_signatures', 
+          'shift_swaps', 'user_roles', 'setor_ocupacao', 'generated_documents', 
+          'swap_attachments', 'censo_pacientes', 'units', 'historico_ocupacao', 
+          'professional_documents', 'professionals', 'acionamentos_reforco', 
+          'system_settings', 'shifts', 'shift_types', 'sectors', 
+          'professional_stamps', 'document_templates', 'swap_history'
+        ];
+        for (const table of tablesToTrack) {
           const { count, error } = await sourceClient.from(table).select('*', { count: 'exact', head: true });
           if (!error) {
             diagnosticResult.source.tables.push({ name: table, count: count || 0 });
           }
-        } catch (e) {
-          // Table doesn't exist or no permission
         }
       }
 
-      // Check destination
-      for (const table of tablesToTrack) {
-        try {
-          const { data, error } = await destClient.from(table).select('*', { count: 'exact', head: true });
-          if (!error) {
-            diagnosticResult.destination.isEmpty = false;
-            diagnosticResult.destination.tables.push({ name: table });
-          }
-        } catch (e) {
-          // Table doesn't exist
+      // Check destination tables
+      for (const table of diagnosticResult.source.tables) {
+        const { error } = await destClient.from(table.name).select('*', { count: 'exact', head: true });
+        if (!error) {
+          diagnosticResult.destination.isEmpty = false;
+          diagnosticResult.destination.tables.push({ name: table.name });
         }
       }
+
+      return new Response(JSON.stringify(diagnosticResult), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (action === 'generate-sql') {
+      const { data: tablesData, error: tErr } = await sourceClient.rpc('get_tables_info');
+      if (tErr) throw tErr;
+
+      let fullSql = `-- MIGRAÇÃO DE SCHEMA\n-- Gerado em: ${new Date().toISOString()}\n\n`;
+      fullSql += `CREATE EXTENSION IF NOT EXISTS "uuid-ossp";\nCREATE EXTENSION IF NOT EXISTS "pg_net";\n\n`;
+
+      for (const table of tablesData) {
+        const { data: ddl, error: ddlErr } = await sourceClient.rpc('get_table_ddl', { target_table: table.table_name });
+        if (!ddlErr && ddl) {
+          fullSql += `-- Tabela: ${table.table_name}\n${ddl}\n\n`;
+        }
+      }
+
+      return new Response(JSON.stringify({ sql: fullSql }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
       return new Response(JSON.stringify(diagnosticResult), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
