@@ -154,26 +154,28 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
 
   const subtitulo = buildSubtituloTabela(cab);
 
-  const responsavel = opts.responsavel || {};
-  const responsavelTecnico = opts.responsavelTecnico || {};
+  const responsavel = opts.responsavel;
+  const responsavelTecnico = opts.responsavelTecnico;
   
   const respHtml = opts.incluirAssinatura ? `
     <div class="ass-wrap">
       <div class="ass-box">
-        ${responsavel.assinaturaUrl ? `<img src="${responsavel.assinaturaUrl}" class="ass-img" />` : '<div class="ass-img-placeholder"></div>'}
+        ${responsavel?.assinaturaBase64 ? `<img src="${responsavel.assinaturaBase64}" class="ass-img" />` : '<div class="ass-img-placeholder"></div>'}
         <div class="ass-line"></div>
-        <div class="ass-nome">${escapeHtml(responsavel.nome || "Responsável pela Escala")}</div>
-        <div class="ass-cargo">${escapeHtml(responsavel.cargo || "Gestor / Coordenador")}</div>
-        ${responsavel.conselho ? `<div class="ass-cons">${escapeHtml(responsavel.conselho)}</div>` : ""}
-        ${responsavel.unidade ? `<div class="ass-unid">${escapeHtml(responsavel.unidade)}</div>` : ""}
+        <div class="ass-nome">${escapeHtml(responsavel?.nome || "Responsável pela Escala")}</div>
+        <div class="ass-cargo">${escapeHtml(responsavel?.cargo || "Gestor / Coordenador")}</div>
+        ${responsavel?.conselho ? `<div class="ass-cons">${escapeHtml(responsavel.conselho)}</div>` : ""}
+        ${responsavel?.unidade ? `<div class="ass-unid">${escapeHtml(responsavel.unidade)}</div>` : ""}
+        ${!responsavel?.assinaturaBase64 ? '<div class="ass-missing">Assinatura não cadastrada</div>' : ''}
       </div>
       <div class="ass-box">
-        ${responsavelTecnico.assinaturaUrl ? `<img src="${responsavelTecnico.assinaturaUrl}" class="ass-img" />` : '<div class="ass-img-placeholder"></div>'}
+        ${responsavelTecnico?.assinaturaBase64 ? `<img src="${responsavelTecnico.assinaturaBase64}" class="ass-img" />` : '<div class="ass-img-placeholder"></div>'}
         <div class="ass-line"></div>
-        <div class="ass-nome">${escapeHtml(responsavelTecnico.nome || "Responsável Técnico")}</div>
-        <div class="ass-cargo">${escapeHtml(responsavelTecnico.cargo || "Responsável Técnico")}</div>
-        ${responsavelTecnico.conselho ? `<div class="ass-cons">${escapeHtml(responsavelTecnico.conselho)}</div>` : ""}
-        ${responsavelTecnico.unidade ? `<div class="ass-unid">${escapeHtml(responsavelTecnico.unidade)}</div>` : ""}
+        <div class="ass-nome">${escapeHtml(responsavelTecnico?.nome || "Responsável Técnico")}</div>
+        <div class="ass-cargo">${escapeHtml(responsavelTecnico?.cargo || "Responsável Técnico")}</div>
+        ${responsavelTecnico?.conselho ? `<div class="ass-cons">${escapeHtml(responsavelTecnico.conselho)}</div>` : ""}
+        ${responsavelTecnico?.unidade ? `<div class="ass-unid">${escapeHtml(responsavelTecnico.unidade)}</div>` : ""}
+        ${!responsavelTecnico?.assinaturaBase64 ? '<div class="ass-missing">Assinatura não cadastrada</div>' : ''}
       </div>
     </div>` : "";
 
