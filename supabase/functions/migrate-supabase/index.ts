@@ -38,8 +38,7 @@ serve(async (req) => {
 
     if (action === 'test-connections') {
       const { data: sData, error: sErr } = await sourceClient.from('_test').select('*').limit(1).maybeSingle();
-      // _test might not exist, but we just want to see if we can connect
-      const sOk = !sErr || sErr.code !== 'PGRST301'; // 301 is JWT error, others like 404 table not found mean connection ok
+      const sOk = !sErr || sErr.code !== 'PGRST301';
 
       const { data: dData, error: dErr } = await destClient.from('_test').select('*').limit(1).maybeSingle();
       const dOk = !dErr || dErr.code !== 'PGRST301';
@@ -58,7 +57,6 @@ serve(async (req) => {
         destination: { tables: [], isEmpty: true }
       };
 
-      // Get tables from source using the new RPC
       const { data: tablesData, error: tErr } = await sourceClient.rpc('get_tables_info');
       
       if (!tErr && tablesData) {
@@ -67,7 +65,6 @@ serve(async (req) => {
           count: t.record_count 
         }));
       } else {
-        // Fallback for diagnostic if RPC fails
         const tablesToTrack = [
           'professional_unavailability', 'professionals_safe', 'notifications', 
           'message_templates', 'audit_logs', 'profiles', 'document_signatures', 
@@ -85,7 +82,6 @@ serve(async (req) => {
         }
       }
 
-      // Check destination tables
       for (const table of diagnosticResult.source.tables) {
         const { error } = await destClient.from(table.name).select('*', { count: 'exact', head: true });
         if (!error) {
@@ -118,11 +114,6 @@ serve(async (req) => {
       });
     }
 
-      return new Response(JSON.stringify(diagnosticResult), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
     if (action === 'migrate-table-data') {
       const { table } = await req.json();
       if (!table) throw new Error("Nome da tabela é obrigatório.");
@@ -131,10 +122,6 @@ serve(async (req) => {
       let lastId = null;
       const batchSize = 100;
 
-      // We need to know the primary key to paginate correctly. 
-      // For now we assume 'id' or we'll need to fetch it.
-      // Most tables here use 'id'.
-      
       while (true) {
         let query = sourceClient.from(table).select('*').order('id', { ascending: true }).limit(batchSize);
         if (lastId) {
@@ -146,11 +133,7 @@ serve(async (req) => {
         if (!rows || rows.length === 0) break;
 
         const { error: insertErr } = await destClient.from(table).insert(rows);
-        if (insertErr) {
-          // If insert fails, maybe it's because of existing data or FK issues
-          // We could try to upsert if the user wants, but the requirement is to migrate.
-          throw insertErr;
-        }
+        if (insertErr) throw insertErr;
 
         totalMigrated += rows.length;
         lastId = rows[rows.length - 1].id;
@@ -164,19 +147,17 @@ serve(async (req) => {
     }
 
     if (action === 'migrate-auth') {
-      // Supabase Auth Admin API
       const { data: { users }, error: listErr } = await sourceClient.auth.admin.listUsers();
       if (listErr) throw listErr;
 
       const results = [];
       for (const user of users) {
         const { data: newUser, error: createErr } = await destClient.auth.admin.createUser({
-          id: user.id, // Preserving UUID
+          id: user.id,
           email: user.email,
           email_confirm: true,
           user_metadata: user.user_metadata,
           app_metadata: user.app_metadata,
-          // Password cannot be migrated easily, so we set a random one and user must reset
           password: Math.random().toString(36).slice(-12), 
         });
         
@@ -194,11 +175,8 @@ serve(async (req) => {
 
       const results = [];
       for (const bucket of buckets) {
-        // Create bucket in destination
         await destClient.storage.createBucket(bucket.id, { public: bucket.public });
         
-        // List files (recursively would be better, but listFiles is flat-ish)
-        // We'll need a recursive helper
         const migratePath = async (path: string = "") => {
           const { data: files, error: fErr } = await sourceClient.storage.from(bucket.id).list(path);
           if (fErr) return;
@@ -206,10 +184,8 @@ serve(async (req) => {
           for (const file of files) {
             const fullPath = path ? `${path}/${file.name}` : file.name;
             if (file.id === null) { 
-              // It's a directory (usually indicated by id null in list)
               await migratePath(fullPath);
             } else {
-              // It's a file
               const { data: blob, error: dErr } = await sourceClient.storage.from(bucket.id).download(fullPath);
               if (dErr) continue;
               await destClient.storage.from(bucket.id).upload(fullPath, blob, { upsert: true });
