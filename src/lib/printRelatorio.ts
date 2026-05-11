@@ -3,6 +3,7 @@
 // Rodapé com totalizadores e mensagem oficial. Sem expor dados sensíveis.
 
 import { logoSmsImgHtml } from "./logoSMS";
+import type { StampData } from "./pdfStampUtils";
 
 export interface RelatorioFiltroAplicado {
   label: string;
