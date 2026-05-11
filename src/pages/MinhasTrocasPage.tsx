@@ -86,13 +86,21 @@ export default function MinhasTrocasPage() {
   });
 
   const { data: directory = [] } = useQuery({
-    queryKey: ["professional-directory"],
+    queryKey: ["professional-directory", professionalId, myProfile?.profissao],
     queryFn: async () => {
       const { data, error } = await sb.rpc("list_professional_directory");
       if (error) throw error;
-      return (data || []).filter((p: any) => p.id !== professionalId);
+      
+      let list = (data || []).filter((p: any) => p.id !== professionalId);
+      
+      // Filter by same area (profissao) if my profile is loaded
+      if (myProfile?.profissao) {
+        list = list.filter((p: any) => p.profissao === myProfile.profissao);
+      }
+      
+      return list;
     },
-    enabled: !!professionalId,
+    enabled: !!professionalId && !!myProfile,
   });
 
   const { data: swaps = [] } = useQuery({
