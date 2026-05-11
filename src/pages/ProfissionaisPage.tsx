@@ -250,7 +250,7 @@ export default function ProfissionaisPage() {
       .eq('id', p.id)
       .maybeSingle();
     setForm({
-      nome: p.nome, profissao: p.profissao, especialidade: p.especialidade || '', conselho: p.conselho || '',
+      nome: p.nome, profissao: p.profissao, cargo: p.cargo || '', especialidade: p.especialidade || '', conselho: p.conselho || '',
       registro: p.registro || '', cpf: sensitive?.cpf || '', telefone: p.telefone || '', email: p.email,
       unidade_principal_id: p.unidade_principal_id || '', setor_principal_id: p.setor_principal_id || '',
       status: p.status, observacoes: sensitive?.observacoes || '', vinculo: p.vinculo || '',
