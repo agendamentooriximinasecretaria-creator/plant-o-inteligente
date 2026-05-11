@@ -538,18 +538,20 @@ export async function gerarPdfEscalaMensalOficial(
         data.cell.styles.cellWidth = diaW;
         data.cell.styles.halign = "center";
         
-        // Cores de fundo suaves por tipo de plantão (baseado na sigla)
         if (data.section === "body") {
           const sigla = String(data.cell.raw || "");
-          if (sigla.includes("D")) data.cell.styles.fillColor = [224, 242, 254]; // sky-100
-          else if (sigla.includes("N")) data.cell.styles.fillColor = [237, 233, 254]; // violet-100
-          else if (sigla.includes("M")) data.cell.styles.fillColor = [254, 243, 199]; // amber-100
-          else if (sigla.includes("T")) data.cell.styles.fillColor = [255, 237, 213]; // orange-100
-          else if (sigla.includes("24")) data.cell.styles.fillColor = [209, 250, 229]; // emerald-100
-          else if (sigla.includes("SA")) data.cell.styles.fillColor = [241, 245, 249]; // slate-100
-          else if (sigla.includes("F")) data.cell.styles.fillColor = [255, 247, 237]; // orange-50
-          else if (sigla === "!") data.cell.styles.fillColor = [254, 249, 195]; // yellow-100
-          else if (sigla === "*") data.cell.styles.fillColor = [254, 226, 226]; // red-100
+          if (sigla !== "—") {
+            const rowIndex = data.row.index;
+            const dia = ci;
+            const prof = profs[rowIndex];
+            const lista = prof.porDia[dia] || [];
+            if (lista.length > 0) {
+              const color = getCategoryColor(lista[0].tipo || "", lista[0].status || "");
+              data.cell.styles.fillColor = color.bg;
+              data.cell.styles.textColor = color.text;
+              data.cell.styles.fontStyle = "bold";
+            }
+          }
         }
       }
     }
