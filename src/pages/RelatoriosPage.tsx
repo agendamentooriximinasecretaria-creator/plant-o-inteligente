@@ -199,8 +199,21 @@ export default function RelatoriosPage() {
     switch (id) {
       case 'profissionais':
         return {
-          columns: ['Nome', 'Profissão', 'Especialidade', 'E-mail', 'Telefone', 'Status'],
-          rows: filteredProfessionals.map((p: any) => [p.nome, PROFISSAO_LABELS[p.profissao] || p.profissao, p.especialidade || '', p.email, p.telefone || '', p.status]),
+          columns: ['Nome', 'Profissão', 'Conselho', 'Especialidade', 'E-mail', 'Telefone', 'Status'],
+          rows: filteredProfessionals.map((p: any) => {
+            const conselho = (p.conselho || p.registro || p.documento_conselho || p.documento_numero)
+              ? `${p.conselho || p.documento_conselho || ''} ${p.registro || p.documento_numero || ''}`.trim()
+              : 'Não informado';
+            return [
+              p.nome, 
+              PROFISSAO_LABELS[p.profissao] || p.profissao, 
+              conselho,
+              p.especialidade || '', 
+              p.email, 
+              p.telefone || '', 
+              p.status
+            ];
+          }),
         };
       case 'plantoes':
         return {
