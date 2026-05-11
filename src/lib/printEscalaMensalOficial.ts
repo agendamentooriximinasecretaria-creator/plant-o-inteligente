@@ -478,9 +478,10 @@ export async function gerarPdfEscalaMensalOficial(
   ]];
 
   const body = profs.map((p) => {
+    const conselhoText = p.conselho && p.conselho !== "Não inf." ? p.conselho : "Não informado";
     const nomeCol = {
-      content: `${p.nome}\n${p.profissao || ""}`,
-      styles: { halign: "left" as const, fontSize: 7 }
+      content: `${p.nome}\n${p.profissao || ""}\n${conselhoText}`,
+      styles: { halign: "left" as const, fontSize: 6.5, cellPadding: 1 }
     };
 
     const diaCols = Array.from({ length: totalDias }, (_, i) => {
@@ -489,21 +490,17 @@ export async function gerarPdfEscalaMensalOficial(
       if (lista.length === 0) return "—";
       
       const siglas = lista.map((s) => s.sigla).join("/");
-      const status = lista[0].status || "";
-      
-      // Letras abreviadas exatamente como na tela
-      // O conteúdo já vem com as siglas corretas (D, N, M, T, Nt, 24, SA, F, !, *)
       return siglas;
     });
 
     const total = opts.incluirTotalHoras ? `${p.totalHoras}h` : `${p.totalPlantoes}`;
     
-    return [nomeCol, ...diaCols, { content: total, styles: { halign: "center" as const, fontStyle: "bold" as const } }];
+    return [nomeCol, ...diaCols, { content: total, styles: { halign: "center" as const, fontStyle: "bold" as const, fontSize: 8 } }];
   });
 
   // Cálculo de larguras
   const availW = pageW - (margin * 2);
-  const nomeW = 40; // Espaço para nome + profissão
+  const nomeW = 45; // Espaço um pouco maior para nome + profissão + conselho
   const totalW = 12;
   const diaW = (availW - nomeW - totalW) / totalDias;
 
