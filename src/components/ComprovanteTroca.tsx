@@ -177,29 +177,78 @@ export default function ComprovanteTroca({ trocaId, onClose }: Props) {
       if (y > 260) { doc.addPage(); y = 15; }
     }
 
-    // Carimbos e Assinaturas
+    // Carimbos e Assinaturas Oficiais (Rodapé)
     y += 10;
-    if (y > 240) { doc.addPage(); y = 20; }
+    if (y > 230) { doc.addPage(); y = 20; }
     
-    // Adicionar blocos de assinatura eletrônica ao PDF
-    for (const s of signatures.filter(sig => sig.status === 'ativa')) {
-      doc.setDrawColor(180);
-      doc.rect(15, y, w - 30, 25);
-      doc.setFontSize(8);
+    const gestorStamp = user?.id ? await fetchStampData(user.id) : null; // Simplificação: busca do usuário logado
+    const rtStamp = await fetchRTForUnidade(shiftOrigem.unidade_id);
+    
+    const assY = Math.min(y + 35, doc.internal.pageSize.getHeight() - 25);
+    const lineLen = 70;
+    const marginSide = 15;
+
+    // Bloco Esquerdo - Gestor/Coordenador
+    const xL = marginSide + lineLen / 2;
+    if (gestorStamp?.assinaturaBase64) {
+      try { doc.addImage(gestorStamp.assinaturaBase64, "PNG", marginSide + 5, assY - 14, lineLen - 10, 12); } catch { /* noop */ }
+    } else {
+      doc.setFontSize(6);
+      doc.setTextColor(150);
+      doc.text("Assinatura não cadastrada", xL, assY - 5, { align: "center" });
+    }
+    doc.setLineWidth(0.3);
+    doc.setDrawColor(0);
+    doc.setTextColor(0);
+    doc.line(marginSide, assY, marginSide + lineLen, assY);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.text(gestorStamp?.nome || "Gestor / Coordenador", xL, assY + 3.5, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.text(gestorStamp?.cargo || "Coordenação", xL, assY + 6.5, { align: "center" });
+    if (gestorStamp?.conselho) doc.text(gestorStamp.conselho, xL, assY + 9.5, { align: "center" });
+
+    // Bloco Direito - Responsável Técnico
+    const xR = w - marginSide - lineLen / 2;
+    const marginR = w - marginSide - lineLen;
+    if (rtStamp?.assinaturaBase64) {
+      try { doc.addImage(rtStamp.assinaturaBase64, "PNG", marginR + 5, assY - 14, lineLen - 10, 12); } catch { /* noop */ }
+    } else {
+      doc.setFontSize(6);
+      doc.setTextColor(150);
+      doc.text("Assinatura não cadastrada", xR, assY - 5, { align: "center" });
+    }
+    doc.line(marginR, assY, w - marginSide, assY);
+    doc.setFont("helvetica", "bold");
+    doc.text(rtStamp?.nome || "Responsável Técnico", xR, assY + 3.5, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.text(rtStamp?.cargo || "Responsável Técnico", xR, assY + 6.5, { align: "center" });
+    if (rtStamp?.conselho) doc.text(rtStamp.conselho, xR, assY + 9.5, { align: "center" });
+
+    y = assY + 15;
+
+    // Assinaturas Eletrônicas Adicionais (Histórico)
+    if (signatures.filter(sig => sig.status === 'ativa').length > 0) {
+      if (y > 240) { doc.addPage(); y = 20; }
+      doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
-      doc.text(`Assinado eletronicamente por ${s.signer_name}`, 20, y + 8);
-      doc.setFont("helvetica", "normal");
-      doc.text(`${s.signer_role.replace("_", " ")} em ${new Date(s.signed_at).toLocaleString("pt-BR")}`, 20, y + 13);
-      doc.text(`Código: ${s.validation_code} | Hash: ${s.content_hash.slice(0, 20)}...`, 20, y + 18);
+      doc.text("ASSINATURAS ELETRÔNICAS", 15, y);
+      y += 6;
       
-      try {
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${window.location.origin}/validar/${s.validation_code}`)}`;
-        // Nota: addImage com URL externa pode precisar ser pré-carregada ou convertida para dataURL
-        // Para simplificar, deixamos o espaço ou usamos um marcador visual se necessário.
-      } catch { /* noop */ }
-      
-      y += 30;
-      if (y > 270) { doc.addPage(); y = 20; }
+      for (const s of signatures.filter(sig => sig.status === 'ativa')) {
+        doc.setDrawColor(200);
+        doc.rect(15, y, w - 30, 22);
+        doc.setFontSize(7.5);
+        doc.setFont("helvetica", "normal");
+        const sigText = `Assinado por ${s.signer_name} (${s.signer_role.replace("_", " ")}) em ${new Date(s.signed_at).toLocaleString("pt-BR")}.`;
+        doc.text(sigText, 18, y + 8);
+        doc.setFontSize(6.5);
+        doc.text(`Cód: ${s.validation_code} | Hash: ${s.content_hash.slice(0, 48)}...`, 18, y + 14);
+        
+        y += 26;
+        if (y > 270) { doc.addPage(); y = 20; }
+      }
     }
 
     y = doc.internal.pageSize.getHeight() - 20;
