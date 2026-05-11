@@ -1042,8 +1042,8 @@ export default function EscalaPage() {
       const prof = s.professionals || {};
       let row = map.get(profId);
       if (!row) {
-        const conselho = printForm.incluirConselho && (prof.conselho || prof.registro)
-          ? `${prof.conselho || ''}${prof.registro ? ' ' + prof.registro : ''}`.trim()
+        const conselho = (prof.conselho || prof.registro)
+          ? `${prof.conselho || ''} ${prof.registro || ''}`.trim()
           : undefined;
         row = {
           id: profId,
@@ -1113,18 +1113,39 @@ export default function EscalaPage() {
     return { profs, cab, tipos };
   };
 
-  const mensalOpts = (): MensalOpts => ({
-    incluirLogo: printForm.incluirLogo,
-    incluirAssinatura: printForm.incluirAssinatura,
-    incluirTotalHoras: printForm.incluirTotalHoras,
-    incluirObservacoesRodape: printForm.incluirObservacoesRodape,
-    totalLabel: printForm.totalLabel,
-    responsavel: {
-      nome: printForm.responsavelNome || undefined,
-      cargo: printForm.responsavelCargo || undefined,
-      conselho: printForm.responsavelConselho || undefined,
-    },
-  });
+  const mensalOpts = (): MensalOpts => {
+    const metadata = (currentStamp?.metadata as any) || {};
+    
+    // Obter assinatura_url do storage se assinatura_path existir
+    let signatureUrl: string | undefined = undefined;
+    if (currentStamp?.assinatura_path) {
+      const { data: { publicUrl } } = supabase.storage
+        .from('signatures')
+        .getPublicUrl(currentStamp.assinatura_path);
+      signatureUrl = publicUrl;
+    }
+
+    return {
+      incluirLogo: printForm.incluirLogo,
+      incluirAssinatura: printForm.incluirAssinatura,
+      incluirTotalHoras: printForm.incluirTotalHoras,
+      incluirObservacoesRodape: printForm.incluirObservacoesRodape,
+      totalLabel: printForm.totalLabel,
+      responsavel: {
+        nome: printForm.responsavelNome || undefined,
+        cargo: printForm.responsavelCargo || undefined,
+        conselho: printForm.responsavelConselho || undefined,
+        assinaturaUrl: signatureUrl,
+        unidade: metadata.unidade_principal || undefined
+      },
+      responsavelTecnico: {
+        nome: "DRA. PATRÍCIA M. DE SOUZA",
+        cargo: "Responsável Técnica",
+        conselho: "CRM-PA 000000",
+        unidade: metadata.unidade_principal || undefined
+      }
+    };
+  };
 
   useEffect(() => {
     if (currentStamp && printOpen) {
