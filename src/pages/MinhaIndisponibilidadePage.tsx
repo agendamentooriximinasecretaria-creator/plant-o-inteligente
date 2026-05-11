@@ -98,7 +98,8 @@ export default function MinhaIndisponibilidadePage() {
         .from("professional_unavailability")
         .select("profissional_id")
         .eq("status", "aprovada")
-        .overlaps("data_inicio", "data_fim", selectedItem.data_inicio, selectedItem.data_fim);
+        .filter("data_inicio", "lte", selectedItem.data_fim)
+        .filter("data_fim", "gte", selectedItem.data_inicio);
       
       const unavailableIds = new Set(unavs?.map(u => u.profissional_id) || []);
       
@@ -158,7 +159,8 @@ export default function MinhaIndisponibilidadePage() {
         documento_url: docUrl,
         tipo: "indisponibilidade",
         status: "pendente",
-      }).select().single();
+        motivo: form.observacao.trim() || "Indisponibilidade solicitada",
+      } as any).select().single();
 
       if (error) throw error;
 
@@ -216,7 +218,7 @@ export default function MinhaIndisponibilidadePage() {
         // 1. Mark existing shifts as "indisponibilidade" or "waiting replacement"
         const { data: shifts } = await supabase
           .from("shifts")
-          .select("id, profissional_id, data")
+          .select("id, profissional_id, data, observacoes")
           .eq("profissional_id", selectedItem.profissional_id)
           .gte("data", decision.data_inicio)
           .lte("data", decision.data_fim)
