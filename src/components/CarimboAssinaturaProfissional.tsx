@@ -905,7 +905,7 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
         )}
 
         {/* ABA 6 — Permissões e Uso */}
-        {tab === "permissoes" && (
+        {tab === "permissoes" && isManagement && (
           <div className="space-y-5">
             <div className={cardSection}>
               <div className="flex items-center gap-2 mb-4">
