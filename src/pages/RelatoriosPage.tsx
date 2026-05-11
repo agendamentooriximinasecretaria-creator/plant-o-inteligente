@@ -326,6 +326,10 @@ export default function RelatoriosPage() {
   // ===== Ações =====
   const acaoVisualizar = () => {
     if (!modalReport || !preview) return;
+    if (filtros.incluirAssinatura && !currentStamp) {
+      toast.error("Cadastre seu carimbo e assinatura antes de gerar documentos com assinatura.");
+      return;
+    }
     const ok = abrirVisualizacaoRelatorio(buildCab(), preview.columns, preview.rows, false);
     if (!ok) toast.error('Bloqueio de pop-up. Permita janelas para visualizar.');
     else logAudit(`Relatório visualizado: ${modalReport.nome}`, 'relatorios', { reportId: modalReport.id });
@@ -333,6 +337,10 @@ export default function RelatoriosPage() {
 
   const acaoImprimir = () => {
     if (!modalReport || !preview) return;
+    if (filtros.incluirAssinatura && !currentStamp) {
+      toast.error("Cadastre seu carimbo e assinatura antes de gerar documentos com assinatura.");
+      return;
+    }
     const ok = abrirVisualizacaoRelatorio(buildCab(), preview.columns, preview.rows, true);
     if (!ok) toast.error('Bloqueio de pop-up. Permita janelas para imprimir.');
     else logAudit(`Relatório impresso: ${modalReport.nome}`, 'relatorios', { reportId: modalReport.id });
@@ -340,6 +348,10 @@ export default function RelatoriosPage() {
 
   const acaoBaixar = async (formato: FormatoExport) => {
     if (!modalReport || !preview) return;
+    if (filtros.incluirAssinatura && !currentStamp) {
+      toast.error("Cadastre seu carimbo e assinatura antes de gerar documentos com assinatura.");
+      return;
+    }
     setExporting(`${modalReport.id}-${formato}`);
     try {
       if (preview.rows.length === 0) { toast.warning('Nenhum dado para exportar com os filtros aplicados.'); return; }
