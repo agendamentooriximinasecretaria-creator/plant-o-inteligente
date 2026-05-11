@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
 import { exportToPDF, exportToExcel, exportToCSV } from "@/lib/exportUtils";
 import { abrirVisualizacaoRelatorio, type RelatorioFiltroAplicado, type RelatorioPrintCab } from "@/lib/printRelatorio";
-import { fetchStampData, fetchRTForUnidade } from "@/lib/pdfStampUtils";
+import { fetchStampData, fetchRTForUnidade, fetchGestorMasterForUnidade, type StampData } from "@/lib/pdfStampUtils";
 import { Download, Loader2, Eye, Printer, FileText, FileSpreadsheet, Mail, Filter, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
