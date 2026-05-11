@@ -283,7 +283,7 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
     queryKey: ["prof-for-stamp", profissionalId],
     queryFn: async () => {
       const { data } = await supabase.from("professionals")
-        .select("nome,profissao,especialidade,conselho,registro,documento_conselho,documento_numero,unidade_principal_id,setor_principal_id,user_id")
+        .select("nome,profissao,cargo,especialidade,conselho,registro,documento_conselho,documento_numero,unidade_principal_id,setor_principal_id,user_id")
         .eq("id", profissionalId).maybeSingle();
       return data as any;
     },
@@ -455,7 +455,7 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
     const sobrescrever = (!stamp.cargo && !stamp.cbo && !conselhoManual) ||
       window.confirm("Já existem dados preenchidos. Deseja sobrescrever com os dados do cadastro?");
     if (!sobrescrever) return;
-    const novoCargo = sugerirCargo(professional.profissao, tipoAssinante);
+    const novoCargo = professional.cargo || sugerirCargo(professional.profissao, tipoAssinante);
     const novoCbo = sugerirCBO(professional.profissao);
     const novoConselho = sugerirConselho(professional.profissao);
     setStamp(s => ({

@@ -53,7 +53,7 @@ export default function MinhasTrocasPage() {
     enabled: !!professionalId,
     queryFn: async () => {
       const { data } = await supabase.from("professionals")
-        .select("limite_trocas_plantao_mes, limite_trocas_paciente_mes")
+        .select("limite_trocas_plantao_mes, limite_trocas_paciente_mes, profissao, cargo")
         .eq("id", professionalId!)
         .maybeSingle();
       return data;
@@ -86,13 +86,25 @@ export default function MinhasTrocasPage() {
   });
 
   const { data: directory = [] } = useQuery({
-    queryKey: ["professional-directory"],
+    queryKey: ["professional-directory", professionalId, myProfile?.profissao, myProfile?.cargo],
     queryFn: async () => {
       const { data, error } = await sb.rpc("list_professional_directory");
       if (error) throw error;
-      return (data || []).filter((p: any) => p.id !== professionalId);
+      
+      let list = (data || []).filter((p: any) => p.id !== professionalId);
+      
+      // Filter by same area (profissao OR cargo) if my profile is loaded
+      if (myProfile) {
+        list = list.filter((p: any) => {
+          const sameProfissao = myProfile.profissao && p.profissao === myProfile.profissao;
+          const sameCargo = myProfile.cargo && p.cargo === myProfile.cargo;
+          return sameProfissao || sameCargo;
+        });
+      }
+      
+      return list;
     },
-    enabled: !!professionalId,
+    enabled: !!professionalId && !!myProfile,
   });
 
   const { data: swaps = [] } = useQuery({

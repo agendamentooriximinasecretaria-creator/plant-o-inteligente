@@ -839,6 +839,7 @@ export type Database = {
       professionals: {
         Row: {
           avatar_url: string | null
+          cargo: string | null
           competencias: string[] | null
           conselho: string | null
           cpf: string | null
@@ -867,6 +868,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          cargo?: string | null
           competencias?: string[] | null
           conselho?: string | null
           cpf?: string | null
@@ -895,6 +897,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          cargo?: string | null
           competencias?: string[] | null
           conselho?: string | null
           cpf?: string | null
@@ -1492,6 +1495,7 @@ export type Database = {
       professionals_safe: {
         Row: {
           avatar_url: string | null
+          cargo: string | null
           competencias: string[] | null
           conselho: string | null
           cpf: string | null
@@ -1518,6 +1522,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          cargo?: string | null
           competencias?: string[] | null
           conselho?: string | null
           cpf?: never
@@ -1544,6 +1549,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          cargo?: string | null
           competencias?: string[] | null
           conselho?: string | null
           cpf?: never
@@ -1637,6 +1643,7 @@ export type Database = {
       list_professional_directory: {
         Args: never
         Returns: {
+          cargo: string
           id: string
           nome: string
           profissao: Database["public"]["Enums"]["profissao_type"]

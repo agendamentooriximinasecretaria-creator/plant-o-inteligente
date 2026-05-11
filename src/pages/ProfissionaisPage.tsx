@@ -70,7 +70,7 @@ const COMPETENCIAS_POR_PROFISSAO: Record<string, string[]> = {
 const LIMITE_HORAS_MENSAL = CLT_LIMITE_MENSAL;
 
 const emptyForm = {
-  nome: '', profissao: 'medico' as ProfissaoValue, especialidade: '', conselho: '', registro: '',
+  nome: '', profissao: 'medico' as ProfissaoValue, especialidade: '', cargo: '', conselho: '', registro: '',
   cpf: '', telefone: '', email: '',
   unidade_principal_id: '', setor_principal_id: '', status: 'ativo',
   observacoes: '', vinculo: '',
@@ -115,7 +115,7 @@ export default function ProfissionaisPage() {
       // Sensitive fields are fetched on-demand when opening the edit modal.
       const { data, error } = await supabase
         .from('professionals')
-        .select('id, nome, profissao, especialidade, conselho, registro, telefone, email, status, vinculo, unidade_principal_id, setor_principal_id, competencias, documento_conselho, documento_numero, documento_validade, avatar_url, units:unidade_principal_id(nome), sectors:setor_principal_id(nome)')
+        .select('id, nome, profissao, cargo, especialidade, conselho, registro, telefone, email, status, vinculo, unidade_principal_id, setor_principal_id, competencias, documento_conselho, documento_numero, documento_validade, avatar_url, units:unidade_principal_id(nome), sectors:setor_principal_id(nome)')
         .order('nome');
       if (error) throw error;
       return data;
@@ -164,7 +164,7 @@ export default function ProfissionaisPage() {
   const saveMutation = useMutation({
     mutationFn: async (data: typeof form) => {
       const payload: any = {
-        nome: data.nome, profissao: data.profissao, especialidade: data.especialidade || null,
+        nome: data.nome, profissao: data.profissao, cargo: data.cargo || null, especialidade: data.especialidade || null,
         conselho: data.conselho || null, registro: data.registro || null, cpf: data.cpf || null,
         telefone: data.telefone || null, email: data.email,
         unidade_principal_id: data.unidade_principal_id || null, setor_principal_id: data.setor_principal_id || null,
@@ -250,7 +250,7 @@ export default function ProfissionaisPage() {
       .eq('id', p.id)
       .maybeSingle();
     setForm({
-      nome: p.nome, profissao: p.profissao, especialidade: p.especialidade || '', conselho: p.conselho || '',
+      nome: p.nome, profissao: p.profissao, cargo: p.cargo || '', especialidade: p.especialidade || '', conselho: p.conselho || '',
       registro: p.registro || '', cpf: sensitive?.cpf || '', telefone: p.telefone || '', email: p.email,
       unidade_principal_id: p.unidade_principal_id || '', setor_principal_id: p.setor_principal_id || '',
       status: p.status, observacoes: sensitive?.observacoes || '', vinculo: p.vinculo || '',
@@ -756,7 +756,11 @@ export default function ProfissionaisPage() {
                         {PROFISSAO_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                       </select>
                     </div>
-                    <div className="md:col-span-1 lg:col-span-2">
+                    <div>
+                      <Label className="text-sm font-semibold mb-1.5 block">Cargo / Função</Label>
+                      <input value={form.cargo} onChange={e => setForm(f => ({ ...f, cargo: e.target.value }))} className={inputClass} placeholder="Ex: Plantonista, Coordenador..." />
+                    </div>
+                    <div>
                       <Label className="text-sm font-semibold mb-1.5 block">Especialidade</Label>
                       <input value={form.especialidade} onChange={e => setForm(f => ({ ...f, especialidade: e.target.value }))} className={inputClass} placeholder="Ex: Pediatria, Terapia Intensiva..." />
                     </div>
