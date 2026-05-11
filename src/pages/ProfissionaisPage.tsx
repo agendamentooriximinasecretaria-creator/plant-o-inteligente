@@ -164,7 +164,7 @@ export default function ProfissionaisPage() {
   const saveMutation = useMutation({
     mutationFn: async (data: typeof form) => {
       const payload: any = {
-        nome: data.nome, profissao: data.profissao, especialidade: data.especialidade || null,
+        nome: data.nome, profissao: data.profissao, cargo: data.cargo || null, especialidade: data.especialidade || null,
         conselho: data.conselho || null, registro: data.registro || null, cpf: data.cpf || null,
         telefone: data.telefone || null, email: data.email,
         unidade_principal_id: data.unidade_principal_id || null, setor_principal_id: data.setor_principal_id || null,
