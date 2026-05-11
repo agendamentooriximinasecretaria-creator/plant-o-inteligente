@@ -65,6 +65,8 @@ export interface MensalResponsavel {
   nome?: string;
   cargo?: string;
   conselho?: string;
+  assinaturaUrl?: string;
+  unidade?: string;
 }
 
 export interface MensalOpts {
@@ -74,6 +76,7 @@ export interface MensalOpts {
   incluirObservacoesRodape: boolean;
   totalLabel?: "TOTAL" | "ADN";
   responsavel?: MensalResponsavel;
+  responsavelTecnico?: MensalResponsavel;
 }
 
 const DIAS_PT_FULL = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
@@ -151,13 +154,25 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
   const subtitulo = buildSubtituloTabela(cab);
 
   const responsavel = opts.responsavel || {};
+  const responsavelTecnico = opts.responsavelTecnico || {};
+  
   const respHtml = opts.incluirAssinatura ? `
     <div class="ass-wrap">
       <div class="ass-box">
+        ${responsavel.assinaturaUrl ? `<img src="${responsavel.assinaturaUrl}" class="ass-img" />` : '<div class="ass-img-placeholder"></div>'}
         <div class="ass-line"></div>
         <div class="ass-nome">${escapeHtml(responsavel.nome || "Responsável pela Escala")}</div>
-        <div class="ass-cargo">${escapeHtml(responsavel.cargo || "Coordenação")}</div>
+        <div class="ass-cargo">${escapeHtml(responsavel.cargo || "Gestor / Coordenador")}</div>
         ${responsavel.conselho ? `<div class="ass-cons">${escapeHtml(responsavel.conselho)}</div>` : ""}
+        ${responsavel.unidade ? `<div class="ass-unid">${escapeHtml(responsavel.unidade)}</div>` : ""}
+      </div>
+      <div class="ass-box">
+        ${responsavelTecnico.assinaturaUrl ? `<img src="${responsavelTecnico.assinaturaUrl}" class="ass-img" />` : '<div class="ass-img-placeholder"></div>'}
+        <div class="ass-line"></div>
+        <div class="ass-nome">${escapeHtml(responsavelTecnico.nome || "Responsável Técnico")}</div>
+        <div class="ass-cargo">${escapeHtml(responsavelTecnico.cargo || "Responsável Técnico")}</div>
+        ${responsavelTecnico.conselho ? `<div class="ass-cons">${escapeHtml(responsavelTecnico.conselho)}</div>` : ""}
+        ${responsavelTecnico.unidade ? `<div class="ass-unid">${escapeHtml(responsavelTecnico.unidade)}</div>` : ""}
       </div>
     </div>` : "";
 
@@ -234,12 +249,14 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
   .obs-rodape { margin-top: 6px; font-size: 9px; line-height: 1.3; }
   .obs-rodape p { margin: 1px 0; }
 
-  /* Assinatura canto inferior direito */
-  .ass-wrap { display:flex; justify-content: flex-end; margin-top: 24px; }
-  .ass-box { text-align:center; min-width: 240px; }
-  .ass-line { border-top: 1px solid #111; margin-bottom: 3px; }
+  /* Assinatura lado a lado */
+  .ass-wrap { display:flex; justify-content: space-between; margin-top: 24px; gap: 40px; padding: 0 40px; }
+  .ass-box { text-align:center; min-width: 280px; flex: 1; display: flex; flex-direction: column; align-items: center; }
+  .ass-img { height: 50px; object-fit: contain; margin-bottom: -5px; }
+  .ass-img-placeholder { height: 50px; }
+  .ass-line { border-top: 1px solid #111; margin-bottom: 3px; width: 100%; }
   .ass-nome { font-size: 10px; font-weight: 700; }
-  .ass-cargo, .ass-cons { font-size: 9px; color:#333; }
+  .ass-cargo, .ass-cons, .ass-unid { font-size: 9px; color:#333; }
 
   /* Rodapé de emissão (não aparece no papel se não quiser) */
   .doc-footer { margin-top: 10px; font-size: 8px; color:#777; text-align:center; border-top: 0.4px dashed #ccc; padding-top: 3px; }
@@ -499,22 +516,50 @@ export async function gerarPdfEscalaMensalOficial(
     cursorY += 4;
   }
 
-  // ===== Assinatura (canto inferior direito) =====
+  // ===== Assinatura (Lado a lado) =====
   if (opts.incluirAssinatura) {
-    const r = opts.responsavel || {};
-    const assY = Math.min(cursorY + 12, pageH - 18);
-    const xRight = pageW - 10;
-    const lineLen = 70;
+    const r1 = opts.responsavel || {};
+    const r2 = opts.responsavelTecnico || {};
+    const assY = Math.min(cursorY + 15, pageH - 25);
+    const lineLen = 75;
+    const marginSide = 25;
+
+    // Bloco Esquerdo - Gestor/Coordenador
+    const xL = marginSide + lineLen / 2;
+    if (r1.assinaturaUrl) {
+      try {
+        doc.addImage(r1.assinaturaUrl, "PNG", marginSide + 5, assY - 14, lineLen - 10, 12);
+      } catch { /* ignora */ }
+    }
     doc.setLineWidth(0.3);
     doc.setDrawColor(0);
-    doc.line(xRight - lineLen, assY, xRight, assY);
+    doc.line(marginSide, assY, marginSide + lineLen, assY);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
-    doc.text(r.nome || "Responsável pela Escala", xRight - lineLen / 2, assY + 3.5, { align: "center" });
+    doc.text(r1.nome || "Gestor / Coordenador", xL, assY + 3.5, { align: "center" });
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
-    doc.text(r.cargo || "Coordenação", xRight - lineLen / 2, assY + 6.5, { align: "center" });
-    if (r.conselho) doc.text(r.conselho, xRight - lineLen / 2, assY + 9.5, { align: "center" });
+    doc.text(r1.cargo || "Coordenação", xL, assY + 6.5, { align: "center" });
+    let curY1 = assY + 9.5;
+    if (r1.conselho) { doc.text(r1.conselho, xL, curY1, { align: "center" }); curY1 += 3; }
+    if (r1.unidade) { doc.text(r1.unidade, xL, curY1, { align: "center" }); }
+
+    // Bloco Direito - Responsável Técnico
+    const xR = pageW - marginSide - lineLen / 2;
+    const marginR = pageW - marginSide - lineLen;
+    if (r2.assinaturaUrl) {
+      try {
+        doc.addImage(r2.assinaturaUrl, "PNG", marginR + 5, assY - 14, lineLen - 10, 12);
+      } catch { /* ignora */ }
+    }
+    doc.line(marginR, assY, pageW - marginSide, assY);
+    doc.setFont("helvetica", "bold");
+    doc.text(r2.nome || "Responsável Técnico", xR, assY + 3.5, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.text(r2.cargo || "Responsável Técnico", xR, assY + 6.5, { align: "center" });
+    let curY2 = assY + 9.5;
+    if (r2.conselho) { doc.text(r2.conselho, xR, curY2, { align: "center" }); curY2 += 3; }
+    if (r2.unidade) { doc.text(r2.unidade, xR, curY2, { align: "center" }); }
   }
 
   if (modo === "save") {

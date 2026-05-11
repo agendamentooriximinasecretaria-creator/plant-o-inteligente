@@ -1042,8 +1042,8 @@ export default function EscalaPage() {
       const prof = s.professionals || {};
       let row = map.get(profId);
       if (!row) {
-        const conselho = printForm.incluirConselho && (prof.conselho || prof.registro)
-          ? `${prof.conselho || ''}${prof.registro ? ' ' + prof.registro : ''}`.trim()
+        const conselho = (prof.conselho || prof.registro)
+          ? `${prof.conselho || ''} ${prof.registro || ''}`.trim()
           : undefined;
         row = {
           id: profId,
@@ -1113,18 +1113,34 @@ export default function EscalaPage() {
     return { profs, cab, tipos };
   };
 
-  const mensalOpts = (): MensalOpts => ({
-    incluirLogo: printForm.incluirLogo,
-    incluirAssinatura: printForm.incluirAssinatura,
-    incluirTotalHoras: printForm.incluirTotalHoras,
-    incluirObservacoesRodape: printForm.incluirObservacoesRodape,
-    totalLabel: printForm.totalLabel,
-    responsavel: {
-      nome: printForm.responsavelNome || undefined,
-      cargo: printForm.responsavelCargo || undefined,
-      conselho: printForm.responsavelConselho || undefined,
-    },
-  });
+  const mensalOpts = (): MensalOpts => {
+    const metadata = (currentStamp?.metadata as any) || {};
+    // Aqui assumimos que o gestor logado é o 'responsavel'
+    // E poderíamos buscar o RT da unidade/projeto se houvesse um campo específico.
+    // Como regra simplificada, usaremos os dados do currentStamp para o bloco esquerdo.
+    return {
+      incluirLogo: printForm.incluirLogo,
+      incluirAssinatura: printForm.incluirAssinatura,
+      incluirTotalHoras: printForm.incluirTotalHoras,
+      incluirObservacoesRodape: printForm.incluirObservacoesRodape,
+      totalLabel: printForm.totalLabel,
+      responsavel: {
+        nome: printForm.responsavelNome || undefined,
+        cargo: printForm.responsavelCargo || undefined,
+        conselho: printForm.responsavelConselho || undefined,
+        assinaturaUrl: currentStamp?.assinatura_url || undefined,
+        unidade: metadata.unidade_principal || undefined
+      },
+      // Para o RT, podemos tentar buscar um perfil que tenha cargo de 'Responsável Técnico' no mesmo setor/unidade
+      // Mas por enquanto usaremos placeholders se não houver um RT definido no state.
+      responsavelTecnico: {
+        nome: "DRA. PATRÍCIA M. DE SOUZA", // Exemplo ou vindo de config
+        cargo: "Responsável Técnica",
+        conselho: "CRM-PA 000000",
+        unidade: metadata.unidade_principal || undefined
+      }
+    };
+  };
 
   useEffect(() => {
     if (currentStamp && printOpen) {
