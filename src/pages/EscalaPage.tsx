@@ -1158,7 +1158,7 @@ export default function EscalaPage() {
         unidade: ""
       },
       responsavelTecnico: responsavelSecundario || {
-        nome: isCoordinator ? "Gestor Master não cadastrado" : "Responsável Técnico não cadastrado",
+        nome: "",
         cargo: isCoordinator ? "Gestor Master" : "Responsável Técnico",
         conselho: "",
         unidade: ""
