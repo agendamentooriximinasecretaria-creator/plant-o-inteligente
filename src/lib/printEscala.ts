@@ -367,11 +367,7 @@ export async function gerarPdfEscala(
     if (r1?.assinaturaBase64) {
       try {
         doc.addImage(r1.assinaturaBase64, "PNG", marginSide + 5, assY - 14, lineLen - 10, 12);
-      } catch { /* ignora */ }
-    } else {
-      doc.setFontSize(6);
-      doc.setTextColor(150);
-      doc.text("Assinatura não cadastrada", xL, assY - 5, { align: "center" });
+    } catch { /* ignora */ }
     }
     doc.setLineWidth(0.3);
     doc.setDrawColor(0);
