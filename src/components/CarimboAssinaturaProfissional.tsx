@@ -19,6 +19,7 @@ import {
 interface Props {
   profissionalId: string;
   isMaster?: boolean;
+  isMyProfile?: boolean;
   compact?: boolean;
 }
 
@@ -255,12 +256,10 @@ const TABS = [
 
 type TabId = typeof TABS[number]["id"];
 
-export default function CarimboAssinaturaProfissional({ profissionalId, isMaster, compact }: Props) {
+export default function CarimboAssinaturaProfissional({ profissionalId, isMaster, isMyProfile, compact }: Props) {
   const sb = supabase as any;
   const qc = useQueryClient();
-  const { isMaster: myIsMaster, isCoordinator: myIsCoordinator, professionalId: myAuthProfId } = useAuth();
-  const isOwnProfile = profissionalId === myAuthProfId;
-
+  const { isMaster: myIsMaster, isCoordinator: myIsCoordinator, user } = useAuth();
   const [stamp, setStamp] = useState<StampRow>(emptyStamp(profissionalId));
   const [assinaturaUrl, setAssinaturaUrl] = useState<string | null>(null);
   const [carimboUrl, setCarimboUrl] = useState<string | null>(null);
@@ -276,12 +275,18 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
     queryKey: ["prof-for-stamp", profissionalId],
     queryFn: async () => {
       const { data } = await supabase.from("professionals")
-        .select("nome,profissao,especialidade,conselho,registro,documento_conselho,documento_numero,unidade_principal_id,setor_principal_id")
+        .select("nome,profissao,especialidade,conselho,registro,documento_conselho,documento_numero,unidade_principal_id,setor_principal_id,user_id")
         .eq("id", profissionalId).maybeSingle();
       return data as any;
     },
     enabled: !!profissionalId,
   });
+
+  const isOwnProfile = useMemo(() => {
+    if (isMyProfile) return true;
+    if (!user?.id || !professional?.user_id) return false;
+    return user.id === professional.user_id;
+  }, [user?.id, professional?.user_id, isMyProfile]);
 
   const { data: unidade } = useQuery({
     queryKey: ["unit-for-stamp", professional?.unidade_principal_id],
@@ -349,6 +354,17 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
       }
     }
   }, [existing, profissionalId, isOwnProfile, myIsMaster, myIsCoordinator]);
+
+
+  useEffect(() => {
+    if (isOwnProfile) {
+      if (myIsMaster && tipoAssinante !== "gestor_master") {
+        setTipoAssinante("gestor_master");
+      } else if (myIsCoordinator && tipoAssinante !== "coordenador") {
+        setTipoAssinante("coordenador");
+      }
+    }
+  }, [isOwnProfile, myIsMaster, myIsCoordinator, tipoAssinante]);
 
   useEffect(() => {
     let cancel = false;
@@ -560,14 +576,25 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
                     </span>
                   )}
                 </div>
-                <select 
-                  value={tipoAssinante} 
-                  onChange={e => setTipoAssinante(e.target.value as TipoAssinante)} 
-                  disabled={disabledByLock || (isOwnProfile && (myIsMaster || myIsCoordinator))} 
-                  className={inputCls}
-                >
-                  {TIPOS_ASSINANTE.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
+                {isOwnProfile && (myIsMaster || myIsCoordinator) ? (
+                  <div className="relative">
+                    <input 
+                      value={TIPOS_ASSINANTE.find(t => t.value === tipoAssinante)?.label || (myIsMaster ? "Gestor Master" : "Coordenador(a)")} 
+                      readOnly 
+                      className={`${inputCls} pr-10 font-medium border-primary/20 bg-primary/5`} 
+                    />
+                    <ShieldCheck className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
+                  </div>
+                ) : (
+                  <select 
+                    value={tipoAssinante} 
+                    onChange={e => setTipoAssinante(e.target.value as TipoAssinante)} 
+                    disabled={disabledByLock} 
+                    className={inputCls}
+                  >
+                    {TIPOS_ASSINANTE.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                )}
                 {isOwnProfile && (myIsMaster || myIsCoordinator) && (
                   <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
                     <Info className="h-3 w-3" /> Definido permanentemente com base no seu nível de acesso.

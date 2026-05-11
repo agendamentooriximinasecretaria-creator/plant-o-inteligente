@@ -186,7 +186,7 @@ export default function MeuPerfilPage() {
 
       {/* Carimbo e Assinatura Profissional */}
       {myProfId ? (
-        <CarimboAssinaturaProfissional profissionalId={myProfId} isMaster={isMaster} />
+        <CarimboAssinaturaProfissional profissionalId={myProfId} isMaster={isMaster} isMyProfile={true} />
       ) : isManagerRole ? (
         <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/5 via-card to-accent/5 p-6 shadow-sm">
           <div className="flex items-start gap-4">
