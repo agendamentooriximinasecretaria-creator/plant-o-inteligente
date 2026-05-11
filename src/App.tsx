@@ -30,6 +30,7 @@ import MeusDocumentosPage from "@/pages/MeusDocumentosPage";
 import ValidarAssinaturaPage from "@/pages/ValidarAssinaturaPage";
 import ValidarDocumentoPage from "@/pages/ValidarDocumentoPage";
 import DocumentosOficiaisPage from "@/pages/DocumentosOficiaisPage";
+import MigrationSupabasePage from "@/pages/MigrationSupabasePage";
 
 const queryClient = new QueryClient();
 
