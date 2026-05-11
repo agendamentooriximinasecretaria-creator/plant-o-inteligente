@@ -308,41 +308,46 @@ export default function RelatoriosPage() {
     return `${fmt(filtros.dataIni)} a ${fmt(filtros.dataFim)}`;
   }, [filtros]);
 
-  const buildCab = () => ({
-    instituicao: {
-      nome: instituicao?.nome || 'Secretaria Municipal de Saúde de Oriximiná',
-      cnpj: instituicao?.cnpj || '05.131.081/0001-82',
-      endereco: instituicao?.endereco || undefined,
-    },
-    nomeRelatorio: modalReport?.nome || 'Relatório',
-    periodoLabel,
-    filtros: filtrosAplicados,
-    emitidoPor: profileName || 'Gestor',
-    totalRegistros: preview?.rows.length || 0,
-    totalHoras: preview?.totalHoras ?? null,
-    incluirAssinatura: filtros.incluirAssinatura,
-    sistema: 'GestorPlantão SMS Oriximiná',
-  });
+  const buildCab = async (): Promise<RelatorioPrintCab> => {
+    const gestorStamp = currentProfId ? await fetchStampData(currentProfId) : null;
+    const rtStamp = await fetchRTForUnidade(filtros.unidadeId);
+    
+    if (filtros.incluirAssinatura && !gestorStamp) {
+      toast.info("Atenção: seu carimbo não está cadastrado. Cadastre em Configurações > Meu Carimbo.", { duration: 6000 });
+    }
+
+    return {
+      instituicao: {
+        nome: instituicao?.nome || 'Secretaria Municipal de Saúde de Oriximiná',
+        cnpj: instituicao?.cnpj || '05.131.081/0001-82',
+        endereco: instituicao?.endereco || undefined,
+      },
+      nomeRelatorio: modalReport?.nome || 'Relatório',
+      periodoLabel,
+      filtros: filtrosAplicados,
+      emitidoPor: profileName || 'Gestor',
+      totalRegistros: preview?.rows.length || 0,
+      totalHoras: preview?.totalHoras ?? null,
+      incluirAssinatura: filtros.incluirAssinatura,
+      responsavel: gestorStamp || undefined,
+      responsavelTecnico: rtStamp || undefined,
+      sistema: 'GestorPlantão SMS Oriximiná',
+    };
+  };
 
   // ===== Ações =====
-  const acaoVisualizar = () => {
+  const acaoVisualizar = async () => {
     if (!modalReport || !preview) return;
-    if (filtros.incluirAssinatura && !currentStamp) {
-      toast.error("Cadastre seu carimbo e assinatura antes de gerar documentos com assinatura.");
-      return;
-    }
-    const ok = abrirVisualizacaoRelatorio(buildCab(), preview.columns, preview.rows, false);
+    const cab = await buildCab();
+    const ok = abrirVisualizacaoRelatorio(cab, preview.columns, preview.rows, false);
     if (!ok) toast.error('Bloqueio de pop-up. Permita janelas para visualizar.');
     else logAudit(`Relatório visualizado: ${modalReport.nome}`, 'relatorios', { reportId: modalReport.id });
   };
 
-  const acaoImprimir = () => {
+  const acaoImprimir = async () => {
     if (!modalReport || !preview) return;
-    if (filtros.incluirAssinatura && !currentStamp) {
-      toast.error("Cadastre seu carimbo e assinatura antes de gerar documentos com assinatura.");
-      return;
-    }
-    const ok = abrirVisualizacaoRelatorio(buildCab(), preview.columns, preview.rows, true);
+    const cab = await buildCab();
+    const ok = abrirVisualizacaoRelatorio(cab, preview.columns, preview.rows, true);
     if (!ok) toast.error('Bloqueio de pop-up. Permita janelas para imprimir.');
     else logAudit(`Relatório impresso: ${modalReport.nome}`, 'relatorios', { reportId: modalReport.id });
   };
