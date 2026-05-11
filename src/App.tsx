@@ -140,6 +140,7 @@ const App = () => (
                 <Route path="/usuarios" element={<MasterOnly><UsuariosPage /></MasterOnly>} />
                 <Route path="/configuracoes" element={<MasterOnly><ConfiguracoesPage /></MasterOnly>} />
                 <Route path="/auditoria" element={<MasterOnly><AuditoriaPage /></MasterOnly>} />
+                <Route path="/migracao-supabase" element={<MasterOnly><MigrationSupabasePage /></MasterOnly>} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
