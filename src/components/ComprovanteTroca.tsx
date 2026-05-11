@@ -7,6 +7,7 @@ import jsPDF from "jspdf";
 import { LOGO_SMS_PATH, getLogoSmsDataUrl } from "@/lib/logoSMS";
 import SignDocumentDialog from "@/components/SignDocumentDialog";
 import { listSignatures, type SignatureRecord } from "@/lib/eSignature";
+import { fetchStampData, fetchRTForUnidade } from "@/lib/pdfStampUtils";
 
 interface Props {
   trocaId: string;
