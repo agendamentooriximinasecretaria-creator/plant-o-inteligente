@@ -58,8 +58,18 @@ const filtrosVazios: Filtros = {
 };
 
 export default function RelatoriosPage() {
-  const { profileName, isMaster, isCoordinator } = useAuth();
+  const { profileName, isMaster, isCoordinator, professionalId: currentProfId } = useAuth();
   const canRead = isMaster || isCoordinator;
+
+  const { data: currentStamp } = useQuery({
+    queryKey: ['my-stamp', currentProfId],
+    queryFn: async () => {
+      if (!currentProfId) return null;
+      const { data } = await supabase.from('professional_stamps').select('*').eq('profissional_id', currentProfId).eq('bloqueado', false).maybeSingle();
+      return data;
+    },
+    enabled: !!currentProfId
+  });
 
   const [exporting, setExporting] = useState('');
   const [chartReport, setChartReport] = useState<string | null>(null);
