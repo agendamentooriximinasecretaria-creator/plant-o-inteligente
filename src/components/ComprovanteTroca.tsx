@@ -181,7 +181,8 @@ export default function ComprovanteTroca({ trocaId, onClose }: Props) {
     y += 10;
     if (y > 230) { doc.addPage(); y = 20; }
     
-    const gestorStamp = user?.id ? await fetchStampData(user.id) : null; // Simplificação: busca do usuário logado
+    const { data: prof } = await supabase.from('professionals').select('id').eq('user_id', user?.id).maybeSingle();
+    const gestorStamp = prof?.id ? await fetchStampData(prof.id) : null;
     const rtStamp = await fetchRTForUnidade(shiftOrigem.unidade_id);
     
     const assY = Math.min(y + 35, doc.internal.pageSize.getHeight() - 25);
