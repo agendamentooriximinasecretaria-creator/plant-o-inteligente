@@ -1126,8 +1126,27 @@ export default function EscalaPage() {
     },
   });
 
+  useEffect(() => {
+    if (currentStamp && printOpen) {
+      setPrintForm(f => ({
+        ...f,
+        responsavelNome: currentStamp.metadata?.nome_profissional || profileName || user?.email || "",
+        responsavelCargo: currentStamp.cargo || (isMaster ? 'Gestor Master' : 'Coordenador'),
+        responsavelConselho: `${currentStamp.metadata?.conselho || ''} ${currentStamp.metadata?.registro || ''}`.trim()
+      }));
+    }
+  }, [currentStamp, printOpen, profileName, user?.email, isMaster]);
+
   const handlePrintAction = async (acao: 'view' | 'print' | 'pdf-open' | 'pdf-save') => {
     if (printBusy) return;
+
+    // Validação de Carimbo para Gestor/Coordenador
+    if (isMaster || isCoordinator) {
+      if (!currentStamp) {
+        toast.error("Cadastre seu carimbo e assinatura antes de imprimir ou publicar a escala.");
+        return;
+      }
+    }
 
     // Validações específicas por modelo
     if (printForm.modelo === 'por_profissional' && !printForm.profissionalId) {
@@ -2995,21 +3014,21 @@ export default function EscalaPage() {
                     <input type="text" value={printForm.responsavelNome}
                       placeholder="Nome do responsável"
                       onChange={e => setPrintForm(f => ({ ...f, responsavelNome: e.target.value }))}
-                      className={inputClass} />
+                      className={inputClass} disabled />
                   </div>
                   <div>
                     <label className="text-xs font-medium text-muted-foreground">Cargo/Função</label>
                     <input type="text" value={printForm.responsavelCargo}
                       placeholder="Coordenação"
                       onChange={e => setPrintForm(f => ({ ...f, responsavelCargo: e.target.value }))}
-                      className={inputClass} />
+                      className={inputClass} disabled />
                   </div>
                   <div>
                     <label className="text-xs font-medium text-muted-foreground">Conselho/Registro</label>
                     <input type="text" value={printForm.responsavelConselho}
                       placeholder="Ex.: COREN-PA 12345"
                       onChange={e => setPrintForm(f => ({ ...f, responsavelConselho: e.target.value }))}
-                      className={inputClass} />
+                      className={inputClass} disabled />
                   </div>
                 </div>
               </section>
