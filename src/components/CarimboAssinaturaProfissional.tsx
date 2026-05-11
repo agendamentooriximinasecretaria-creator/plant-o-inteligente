@@ -274,12 +274,17 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
     queryKey: ["prof-for-stamp", profissionalId],
     queryFn: async () => {
       const { data } = await supabase.from("professionals")
-        .select("nome,profissao,especialidade,conselho,registro,documento_conselho,documento_numero,unidade_principal_id,setor_principal_id")
+        .select("nome,profissao,especialidade,conselho,registro,documento_conselho,documento_numero,unidade_principal_id,setor_principal_id,user_id")
         .eq("id", profissionalId).maybeSingle();
       return data as any;
     },
     enabled: !!profissionalId,
   });
+
+  const isOwnProfile = useMemo(() => {
+    if (!user?.id || !professional?.user_id) return false;
+    return user.id === professional.user_id;
+  }, [user?.id, professional?.user_id]);
 
   const { data: unidade } = useQuery({
     queryKey: ["unit-for-stamp", professional?.unidade_principal_id],
