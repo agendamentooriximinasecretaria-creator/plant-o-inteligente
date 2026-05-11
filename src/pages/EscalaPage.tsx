@@ -117,6 +117,17 @@ function ShiftHistoryView({ shiftId }: { shiftId: string }) {
 }
 
 export default function EscalaPage() {
+  const { professionalId: currentProfId } = useAuth();
+  const { data: currentStamp } = useQuery({
+    queryKey: ['my-stamp', currentProfId],
+    queryFn: async () => {
+      if (!currentProfId) return null;
+      const { data } = await supabase.from('professional_stamps').select('*').eq('profissional_id', currentProfId).eq('bloqueado', false).maybeSingle();
+      return data;
+    },
+    enabled: !!currentProfId
+  });
+
   const sb = supabase as any;
   const [view, setView] = useState<'lista' | 'calendario' | 'grade' | 'consolidada'>('lista');
   // Mês visível no Calendário Mensal (independente dos filtros)
