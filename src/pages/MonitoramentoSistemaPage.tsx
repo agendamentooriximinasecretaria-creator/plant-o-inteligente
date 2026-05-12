@@ -83,7 +83,24 @@ export default function MonitoramentoSistemaPage() {
     }
   };
 
-  useEffect(() => { fetchStats(); }, []);
+  useEffect(() => { 
+    // Measure page load time
+    const loadTime = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+    if (loadTime) {
+      setMetrics(prev => ({ ...prev, pageLoadTime: Math.round(loadTime.duration) }));
+    }
+
+    // Measure Supabase latency
+    const measureSupabase = async () => {
+      const s = performance.now();
+      await supabase.from('profiles').select('id').limit(1);
+      const e = performance.now();
+      setMetrics(prev => ({ ...prev, supabaseLatency: Math.round(e - s) }));
+    };
+
+    measureSupabase();
+    fetchStats(); 
+  }, []);
 
   const totalRows = stats?.database?.tables?.reduce((acc: number, t: any) => acc + Number(t.row_count), 0) || 0;
   const heaviestTable = stats?.database?.tables?.sort((a: any, b: any) => {
@@ -93,18 +110,18 @@ export default function MonitoramentoSistemaPage() {
   })[0];
 
   return (
-    <div className="container mx-auto p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold font-display tracking-tight">Monitoramento do Sistema</h1>
-          <p className="text-muted-foreground mt-1">Gestão de infraestrutura, banco de dados e saúde da aplicação.</p>
+    <div className="container mx-auto p-4 md:p-8 space-y-8 animate-in fade-in duration-500 overflow-x-hidden">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 w-full">
+        <div className="max-w-full">
+          <h1 className="text-2xl md:text-3xl font-bold font-display tracking-tight text-foreground truncate block">Monitoramento do Sistema</h1>
+          <p className="text-muted-foreground mt-1 text-sm md:text-base">Gestão de infraestrutura, banco de dados e saúde da aplicação.</p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={fetchStats} disabled={loading} variant="outline" className="gap-2 border-primary/20 hover:bg-primary/5 shadow-sm">
+        <div className="flex flex-wrap gap-2 w-full md:w-auto">
+          <Button onClick={fetchStats} disabled={loading} variant="outline" className="flex-1 md:flex-none gap-2 border-primary/20 hover:bg-primary/5 shadow-sm">
             {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <RefreshCw className="h-4 w-4" />}
             Atualizar análise
           </Button>
-          <Button variant="outline" className="gap-2 border-border shadow-sm">
+          <Button variant="outline" className="flex-1 md:flex-none gap-2 border-border shadow-sm">
             <Download className="h-4 w-4" /> Relatório
           </Button>
         </div>
