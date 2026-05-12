@@ -585,6 +585,41 @@ export default function MonitoramentoSistemaPage() {
   );
 }
 
+function PerfCard({ title, value, icon: Icon, status, desc }: any) {
+  const statusColors: any = {
+    "Bom": "bg-success/10 text-success border-success/20",
+    "Atenção": "bg-warning/10 text-warning border-warning/20",
+    "Lento": "bg-warning/10 text-warning border-warning/20",
+    "Crítico": "bg-destructive/10 text-destructive border-destructive/20",
+    "Info": "bg-primary/10 text-primary border-primary/20",
+  };
+
+  return (
+    <Card className="border-border/60 shadow-sm overflow-hidden">
+      <CardContent className="p-4 flex items-start gap-4">
+        <div className="p-2.5 rounded-xl bg-muted/50 text-muted-foreground"><Icon className="h-5 w-5" /></div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">{title}</p>
+          <div className="flex items-baseline gap-2 mt-0.5">
+            <span className="text-xl font-bold tracking-tight truncate">{value}</span>
+            <Badge variant="outline" className={`text-[9px] px-1.5 py-0 h-4 ${statusColors[status] || statusColors.Info}`}>{status}</Badge>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1 truncate">{desc}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MetricPlaceholder({ label }: { label: string }) {
+  return (
+    <div className="p-3 rounded-xl border border-dashed border-muted-foreground/30 flex flex-col items-center gap-1">
+      <span className="text-[9px] font-bold uppercase tracking-widest">{label}</span>
+      <span className="text-xs font-mono">Não configurado</span>
+    </div>
+  );
+}
+
 function StatusCard({ title, value, icon: Icon, color, desc }: any) {
   return (
     <Card className="border-border/60 shadow-sm hover:shadow-md transition-shadow">
@@ -627,4 +662,5 @@ function CleanupAction({ title, desc, count, onConfirm }: any) {
     </Card>
   );
 }
+
 
