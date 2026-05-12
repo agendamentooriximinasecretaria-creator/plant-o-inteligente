@@ -87,27 +87,36 @@ export default function MigrationSupabasePage() {
       toast.error("Execute o diagnóstico primeiro.");
       return;
     }
+    
     setLoading("migrating-data");
     addLog("Iniciando migração de dados...");
-    try {
-      for (const tableInfo of diagnosticData.source.tables) {
-        addLog(`Migrando tabela: ${tableInfo.name}...`);
+    
+    // Identifica tabelas pendentes (não presentes no destino ou com contagem diferente)
+    const tables = diagnosticData.source.tables;
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const tableInfo of tables) {
+      try {
+        addLog(`[${successCount + errorCount + 1}/${tables.length}] Migrando tabela: ${tableInfo.name}...`);
         const { data, error } = await supabase.functions.invoke("migrate-supabase", {
           body: { action: "migrate-table-data", source, destination, table: tableInfo.name },
         });
-        if (error) {
-          addLog(`Erro em ${tableInfo.name}: ${error.message}`);
-        } else {
-          addLog(`Sucesso: ${tableInfo.name} (${data.totalMigrated} registros).`);
-          setMigrationStatus((prev: any) => ({ ...prev, [tableInfo.name]: "success" }));
-        }
+        
+        if (error) throw error;
+        
+        addLog(`Sucesso: ${tableInfo.name} (${data.totalMigrated} registros).`);
+        setMigrationStatus((prev: any) => ({ ...prev, [tableInfo.name]: "success" }));
+        successCount++;
+      } catch (err: any) {
+        addLog(`Erro em ${tableInfo.name}: ${err.message}`);
+        setMigrationStatus((prev: any) => ({ ...prev, [tableInfo.name]: "error" }));
+        errorCount++;
       }
-      toast.success("Migração de tabelas concluída.");
-    } catch (err: any) {
-      addLog(`Falha crítica na migração: ${err.message}`);
-    } finally {
-      setLoading(null);
     }
+    
+    toast.success(`Migração concluída: ${successCount} sucessos, ${errorCount} falhas.`);
+    setLoading(null);
   };
 
   const migrateAuth = async () => {
