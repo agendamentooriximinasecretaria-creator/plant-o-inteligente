@@ -34,6 +34,7 @@ const ValidarAssinaturaPage = lazy(() => import("@/pages/ValidarAssinaturaPage")
 const ValidarDocumentoPage = lazy(() => import("@/pages/ValidarDocumentoPage"));
 const DocumentosOficiaisPage = lazy(() => import("@/pages/DocumentosOficiaisPage"));
 const MigrationSupabasePage = lazy(() => import("@/pages/MigrationSupabasePage"));
+const MonitoramentoSistemaPage = lazy(() => import("@/pages/MonitoramentoSistemaPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
