@@ -155,6 +155,7 @@ const App = () => (
                   <Route path="/configuracoes" element={<MasterOnly><ConfiguracoesPage /></MasterOnly>} />
                   <Route path="/auditoria" element={<MasterOnly><AuditoriaPage /></MasterOnly>} />
                   <Route path="/migracao-supabase" element={<MasterOnly><MigrationSupabasePage /></MasterOnly>} />
+                  <Route path="/configuracoes/monitoramento" element={<MasterOnly><MonitoramentoSistemaPage /></MasterOnly>} />
                 </Route>
                 <Route path="*" element={<NotFound />} />
               </Routes>
