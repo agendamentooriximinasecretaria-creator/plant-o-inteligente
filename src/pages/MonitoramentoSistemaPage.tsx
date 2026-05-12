@@ -127,13 +127,15 @@ export default function MonitoramentoSistemaPage() {
       </div>
 
       <Tabs defaultValue="db" className="w-full">
-        <TabsList className="grid grid-cols-2 md:grid-cols-6 h-auto p-1 bg-muted/50">
+        <TabsList className="grid grid-cols-2 md:grid-cols-8 h-auto p-1 bg-muted/50">
           <TabsTrigger value="overview">Geral</TabsTrigger>
           <TabsTrigger value="db">Banco</TabsTrigger>
           <TabsTrigger value="storage">Storage</TabsTrigger>
           <TabsTrigger value="perf">Desempenho</TabsTrigger>
           <TabsTrigger value="hosting">Hospedagem</TabsTrigger>
+          <TabsTrigger value="supabase">Supabase</TabsTrigger>
           <TabsTrigger value="cleanup">Limpeza</TabsTrigger>
+          <TabsTrigger value="logs">Logs</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-6 space-y-6">
