@@ -183,15 +183,17 @@ export default function MigrationSupabasePage() {
     
     setLoading("finalizing");
     addLog("FINALIZANDO MIGRAÇÃO...");
-    addLog("Atualizando variáveis de ambiente do sistema...");
     
     try {
-      addLog("AVISO: Para concluir, você deve atualizar as Secrets do projeto no Lovable com os novos valores.");
-      addLog("VITE_SUPABASE_URL = " + destination.url);
-      addLog("VITE_SUPABASE_PUBLISHABLE_KEY = [Anon Key do Destino]");
-      addLog("SUPABASE_SERVICE_ROLE_KEY = " + destination.serviceRoleKey);
+      addLog("⚠️ IMPORTANTE: A migração de dados no banco foi concluída, mas o Lovable ainda está conectado ao Supabase antigo.");
+      addLog("Para completar a transição, você deve:");
+      addLog("1. Acessar 'Configurações do Projeto' > 'Secrets' no Lovable.");
+      addLog(`2. Atualizar VITE_SUPABASE_URL para: ${destination.url}`);
+      addLog("3. Atualizar VITE_SUPABASE_PUBLISHABLE_KEY com a Anon Key do seu novo projeto.");
+      addLog(`4. Atualizar SUPABASE_SERVICE_ROLE_KEY para: ${destination.serviceRoleKey}`);
+      addLog("5. Reiniciar o deploy do projeto.");
       
-      toast.success("Migração finalizada no banco. Atualize as chaves do projeto.");
+      toast.success("Dados migrados! Agora siga as instruções nos logs para trocar as chaves do projeto.", { duration: 10000 });
     } catch (err: any) {
       addLog(`Erro ao finalizar: ${err.message}`);
     } finally {
