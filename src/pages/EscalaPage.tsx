@@ -200,7 +200,7 @@ const ShiftRow = memo(({ shift, onDetail, onEdit, onPrint, onDelete, isDeleting,
 });
 
 export default function EscalaPage() {
-  const { professionalId: currentProfId } = useAuth();
+  const { isMaster, isCoordinator, isProfessional, profileName, user, professionalId: currentProfId } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const sb = supabase as any;
