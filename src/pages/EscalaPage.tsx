@@ -118,21 +118,18 @@ function ShiftHistoryView({ shiftId }: { shiftId: string }) {
   );
 }
 
+// -- Helpers (stable references) --
+const isFolgaShift = (s: any) => s.tipo_plantao === 'folga' || s.tipo_plantao === 'indisponibilidade';
+const getInitials = (name: string) => name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+
 export default function EscalaPage() {
   const { professionalId: currentProfId } = useAuth();
-  const { data: currentStamp } = useQuery({
-    queryKey: ['my-stamp', currentProfId],
-    queryFn: async () => {
-      if (!currentProfId) return null;
-      const { data } = await supabase.from('professional_stamps').select('*').eq('profissional_id', currentProfId).eq('bloqueado', false).maybeSingle();
-      return data;
-    },
-    enabled: !!currentProfId
-  });
-
+  const navigate = useNavigate();
+  const qc = useQueryClient();
   const sb = supabase as any;
+
+  // -- States --
   const [view, setView] = useState<'lista' | 'calendario' | 'grade' | 'consolidada'>('lista');
-  // Mês visível no Calendário Mensal (independente dos filtros)
   const [calMes, setCalMes] = useState<Date>(() => {
     const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), 1);
   });
@@ -2031,77 +2028,18 @@ export default function EscalaPage() {
                   </td></tr>
                 )}
                 {filtered.map((s: any) => (
-                  <tr key={s.id} className={`border-t border-border hover:bg-muted/40 transition-colors ${isFolga(s) ? 'bg-amber-50/40 dark:bg-amber-950/10' : ''} ${conflictIds.has(s.id) ? 'bg-destructive/5' : ''}`}>
-                    <td className="px-3 py-2 align-middle">
-                      <div className="flex items-center gap-2">
-                        {isFolga(s) && <Palmtree className="h-3.5 w-3.5 text-amber-600 shrink-0" />}
-                        {conflictIds.has(s.id) && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <AlertTriangle className="h-4 w-4 text-destructive shrink-0 cursor-help" />
-                              </TooltipTrigger>
-                              <TooltipContent>Conflito de horário detectado</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                        <span className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">{initials((s.professionals as any)?.nome || '')}</span>
-                        <p className="font-medium text-foreground truncate">{(s.professionals as any)?.nome}</p>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 align-middle text-xs text-muted-foreground">
-                      {PROFISSAO_LABELS[(s.professionals as any)?.profissao] || '—'}
-                    </td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-1.5">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="cursor-help">
-                                {sectorCapacity[s.setor_id]?.status === 'critico' ? '🔴' : sectorCapacity[s.setor_id]?.status === 'atencao' ? '🟡' : '🟢'}
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">
-                              <p className="text-xs">{sectorCapacity[s.setor_id]?.reason || 'Sem dados'}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        <div>
-                          <p className="text-foreground">{(s.sectors as any)?.nome}</p>
-                          <p className="text-xs text-muted-foreground">{(s.units as any)?.nome}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-3 text-foreground">{new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
-                    <td className="p-3"><div className="flex items-center gap-1 text-foreground"><Clock className="h-3.5 w-3.5 text-muted-foreground" />{s.hora_inicio} - {s.hora_fim}</div><p className="text-xs text-muted-foreground">{s.carga_horaria}h</p></td>
-                    <td className="p-3 text-foreground">
-                      {isFolga(s) ? <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400 text-xs font-medium"><Palmtree className="h-3 w-3" /> {s.tipo_plantao === 'folga' ? 'Folga' : 'Indisponível'}</span> : s.tipo_plantao}
-                    </td>
-                    <td className="p-3"><span className={`status-badge ${STATUS_CLASSES[s.status] || ''}`}>{STATUS_LABELS[s.status]}</span></td>
-                    <td className="px-3 py-2 align-middle">
-                      <div className="flex items-center justify-end gap-0.5">
-                        <button onClick={() => setDetailShift(s)} title="Ver detalhes" className="p-1.5 rounded hover:bg-muted"><Eye className="h-3.5 w-3.5 text-muted-foreground" /></button>
-                        <ContactActionButton
-                          profissional={{ nome: (s.professionals as any)?.nome || '', telefone: (professionals as any[]).find((p: any) => p.id === s.profissional_id)?.telefone }}
-                          contexto={{ tipo: 'plantao', data: new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR'), horario: `${s.hora_inicio} às ${s.hora_fim}`, setor: (s.sectors as any)?.nome, unidade: (s.units as any)?.nome }}
-                        />
-                        <button onClick={() => openEdit(s)} title="Editar plantão" className="p-1 rounded hover:bg-muted"><Edit className="h-4 w-4 text-muted-foreground" /></button>
-                        <button onClick={() => printShiftReceipt(s)} title="Imprimir comprovante" className="p-1 rounded hover:bg-muted"><Printer className="h-4 w-4 text-muted-foreground" /></button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild><button className="p-1 rounded hover:bg-destructive/10" disabled={deleteMutation.isPending}><Trash2 className="h-4 w-4 text-destructive" /></button></AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Excluir plantão?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                {(s.professionals as any)?.nome} — {new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR')} {s.hora_inicio}-{s.hora_fim}. Esta ação não pode ser desfeita.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter><AlertDialogCancel disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel><AlertDialogAction disabled={deleteMutation.isPending} onClick={(e) => { e.preventDefault(); if (!deleteMutation.isPending) deleteMutation.mutate(s); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{deleteMutation.isPending ? 'Excluindo...' : 'Excluir'}</AlertDialogAction></AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </td>
-                  </tr>
+                  <ShiftRow 
+                    key={s.id} 
+                    shift={s} 
+                    onDetail={setDetailShift}
+                    onEdit={openEdit}
+                    onPrint={printShiftReceipt}
+                    onDelete={(shift) => deleteMutation.mutate(shift)}
+                    isDeleting={deleteMutation.isPending}
+                    sectorCapacity={sectorCapacity[s.setor_id]}
+                    isConflict={conflictIds.has(s.id)}
+                    professionalTelefone={(professionals as any[]).find((p: any) => p.id === s.profissional_id)?.telefone}
+                  />
                 ))}
               </tbody>
               {filtered.length > 0 && (
