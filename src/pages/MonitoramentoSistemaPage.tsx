@@ -5,7 +5,7 @@ import {
   Database, HardDrive, Server, RefreshCw, 
   Loader2, AlertTriangle, CheckCircle, Info, 
   Trash2, ShieldAlert, Activity, FileText,
-  Clock, Gauge, Zap
+  Clock, Gauge, Zap, Download
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
