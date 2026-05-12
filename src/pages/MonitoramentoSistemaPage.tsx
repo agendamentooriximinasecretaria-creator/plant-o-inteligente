@@ -1,11 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Database, HardDrive, Server, RefreshCw, 
   Loader2, AlertTriangle, CheckCircle, Info, 
   Trash2, ShieldAlert, Activity, FileText,
-  Clock, Gauge, Zap, Download
+  Clock, Gauge, Zap, Download, LineChart, Shield,
+  Link2, Settings2, Network
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -16,6 +17,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { motion, AnimatePresence } from "framer-motion";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function MonitoramentoSistemaPage() {
   const qc = useQueryClient();
@@ -23,13 +26,33 @@ export default function MonitoramentoSistemaPage() {
   const [stats, setStats] = useState<any>(null);
   const [confirmCleanup, setConfirmCleanup] = useState<string | null>(null);
   const [cleanupText, setCleanupText] = useState("");
+  const [showExternalConfig, setShowExternalConfig] = useState(false);
+  
+  // Real performance metrics
+  const [metrics, setMetrics] = useState({
+    pageLoadTime: 0,
+    apiLatency: 0,
+    supabaseLatency: 0,
+    lastCheck: null as string | null,
+    online: navigator.onLine
+  });
 
   const fetchStats = async () => {
     setLoading(true);
+    const start = performance.now();
     try {
       const { data, error } = await supabase.functions.invoke("system-monitoring-check");
+      const end = performance.now();
+      
       if (error) throw error;
+      
       setStats(data);
+      setMetrics(prev => ({
+        ...prev,
+        apiLatency: Math.round(end - start),
+        lastCheck: new Date().toLocaleTimeString(),
+        online: navigator.onLine
+      }));
     } catch (e: any) {
       toast.error("Erro ao coletar métricas: " + e.message);
     } finally {
