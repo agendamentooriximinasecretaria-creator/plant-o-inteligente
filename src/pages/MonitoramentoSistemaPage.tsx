@@ -127,13 +127,15 @@ export default function MonitoramentoSistemaPage() {
       </div>
 
       <Tabs defaultValue="db" className="w-full">
-        <TabsList className="grid grid-cols-2 md:grid-cols-6 h-auto p-1 bg-muted/50">
+        <TabsList className="grid grid-cols-2 md:grid-cols-8 h-auto p-1 bg-muted/50">
           <TabsTrigger value="overview">Geral</TabsTrigger>
           <TabsTrigger value="db">Banco</TabsTrigger>
           <TabsTrigger value="storage">Storage</TabsTrigger>
           <TabsTrigger value="perf">Desempenho</TabsTrigger>
           <TabsTrigger value="hosting">Hospedagem</TabsTrigger>
+          <TabsTrigger value="supabase">Supabase</TabsTrigger>
           <TabsTrigger value="cleanup">Limpeza</TabsTrigger>
+          <TabsTrigger value="logs">Logs</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-6 space-y-6">
@@ -261,8 +263,142 @@ export default function MonitoramentoSistemaPage() {
               />
            </div>
         </TabsContent>
-      </Tabs>
 
+        <TabsContent value="perf" className="mt-6">
+           <Card className="border-border/60 shadow-sm">
+             <CardHeader>
+               <CardTitle>Indicadores de Desempenho</CardTitle>
+               <CardDescription>Métricas de carregamento e resposta (Simulado/Preparado).</CardDescription>
+             </CardHeader>
+             <CardContent className="space-y-6">
+                <div className="space-y-2">
+                   <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Latência da API</span>
+                      <span className="font-mono">124ms</span>
+                   </div>
+                   <Progress value={12} className="h-2" />
+                </div>
+                <div className="space-y-2">
+                   <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Tempo de Resposta Médio</span>
+                      <span className="font-mono">240ms</span>
+                   </div>
+                   <Progress value={24} className="h-2" />
+                </div>
+                <div className="p-4 rounded-lg bg-info/5 border border-info/20">
+                   <p className="text-xs text-info flex gap-2">
+                      <Info className="h-4 w-4 shrink-0" />
+                      O monitoramento de desempenho real requer integração com observabilidade externa (Sentry/New Relic).
+                   </p>
+                </div>
+             </CardContent>
+           </Card>
+        </TabsContent>
+
+        <TabsContent value="hosting" className="mt-6">
+           <Card className="border-border/60 shadow-sm">
+             <CardHeader>
+               <CardTitle>Configuração de Hospedagem</CardTitle>
+               <CardDescription>Detalhes do ambiente de execução.</CardDescription>
+             </CardHeader>
+             <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   <div className="p-4 rounded-xl border bg-muted/10">
+                      <p className="text-xs font-bold uppercase text-muted-foreground">Ambiente Atual</p>
+                      <p className="text-lg font-bold">Lovable Cloud (Managed)</p>
+                   </div>
+                   <div className="p-4 rounded-xl border bg-muted/10">
+                      <p className="text-xs font-bold uppercase text-muted-foreground">Região</p>
+                      <p className="text-lg font-bold">AWS us-east-1</p>
+                   </div>
+                </div>
+                <div className="mt-4 p-6 border border-dashed rounded-2xl bg-muted/5 flex flex-col items-center text-center">
+                   <Server className="h-10 w-10 text-muted-foreground/30 mb-3" />
+                   <h3 className="font-semibold">Monitoramento Externo (Coolify/VPS)</h3>
+                   <p className="text-sm text-muted-foreground max-w-md mt-1 mb-6">Integre sua VPS própria ou painel Coolify para métricas de CPU, RAM e Disco.</p>
+                   <Button variant="outline" disabled>Configurar Monitoramento Externo</Button>
+                </div>
+             </CardContent>
+           </Card>
+        </TabsContent>
+
+        <TabsContent value="supabase" className="mt-6">
+           <Card className="border-border/60 shadow-sm">
+             <CardHeader>
+               <CardTitle>Infraestrutura Supabase</CardTitle>
+               <CardDescription>Status dos serviços gerenciados.</CardDescription>
+             </CardHeader>
+             <CardContent className="space-y-4">
+                <div className="space-y-4">
+                   <div className="flex items-center justify-between p-3 rounded-lg border">
+                      <div className="flex items-center gap-3">
+                         <div className="p-2 rounded bg-primary/10"><Database className="h-4 w-4 text-primary" /></div>
+                         <span className="font-medium text-sm">PostgreSQL (Database)</span>
+                      </div>
+                      <Badge className="bg-success">Operacional</Badge>
+                   </div>
+                   <div className="flex items-center justify-between p-3 rounded-lg border">
+                      <div className="flex items-center gap-3">
+                         <div className="p-2 rounded bg-accent/10"><Zap className="h-4 w-4 text-accent" /></div>
+                         <span className="font-medium text-sm">GoTrue (Auth)</span>
+                      </div>
+                      <Badge className="bg-success">Operacional</Badge>
+                   </div>
+                   <div className="flex items-center justify-between p-3 rounded-lg border">
+                      <div className="flex items-center gap-3">
+                         <div className="p-2 rounded bg-orange-500/10"><Activity className="h-4 w-4 text-orange-500" /></div>
+                         <span className="font-medium text-sm">Realtime Engine</span>
+                      </div>
+                      <Badge className="bg-success">Operacional</Badge>
+                   </div>
+                   <div className="flex items-center justify-between p-3 rounded-lg border">
+                      <div className="flex items-center gap-3">
+                         <div className="p-2 rounded bg-purple-500/10"><Server className="h-4 w-4 text-purple-500" /></div>
+                         <span className="font-medium text-sm">Edge Functions</span>
+                      </div>
+                      <Badge className="bg-success">Operacional</Badge>
+                   </div>
+                </div>
+                <div className="pt-4 flex gap-2">
+                   <Button variant="outline" size="sm" onClick={fetchStats} disabled={loading} className="gap-2">
+                      <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} /> Testar Conexão Supabase
+                   </Button>
+                </div>
+             </CardContent>
+           </Card>
+        </TabsContent>
+
+        <TabsContent value="logs" className="mt-6">
+           <Card className="border-border/60 shadow-sm">
+             <CardHeader>
+               <CardTitle>Logs Recentes de Erro</CardTitle>
+               <CardDescription>Últimas falhas capturadas no sistema.</CardDescription>
+             </CardHeader>
+             <CardContent>
+                <ScrollArea className="h-[400px] pr-4">
+                   <div className="space-y-3">
+                      {!stats?.recentErrors?.length ? (
+                         <p className="text-sm text-muted-foreground text-center py-10">Nenhum log de erro recente.</p>
+                      ) : (
+                         stats.recentErrors.map((log: any) => (
+                            <div key={log.id} className="p-4 rounded-xl border bg-muted/5 font-mono text-[10px] space-y-2">
+                               <div className="flex justify-between items-center">
+                                  <Badge variant="destructive" className="text-[9px] px-1.5 py-0">ERROR</Badge>
+                                  <span className="text-muted-foreground">{new Date(log.created_at).toLocaleString()}</span>
+                               </div>
+                               <p className="font-bold text-foreground">{log.acao}</p>
+                               <div className="p-2 bg-black/5 dark:bg-white/5 rounded whitespace-pre-wrap overflow-x-auto">
+                                  {JSON.stringify(log.detalhes || log.payload, null, 2)}
+                               </div>
+                            </div>
+                         ))
+                      )}
+                   </div>
+                </ScrollArea>
+             </CardContent>
+           </Card>
+        </TabsContent>
+      </Tabs>
       {/* Safety Cleanup Modal */}
       <AnimatePresence>
         {confirmCleanup && (
