@@ -88,16 +88,11 @@ export default function TrocasPage() {
     },
   });
 
-  useEffect(() => {
-    const channel = supabase
-      .channel('swaps-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'shift_swaps' }, () => {
-        refetchSwaps();
-        qc.invalidateQueries({ queryKey: ['swap-histories'] });
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [refetchSwaps, qc]);
+  useRealtimeInvalidation({
+    tables: ["shift_swaps", "swap_history"],
+    invalidate: [["swaps"], ["swap-histories"]],
+    channelId: "swaps-realtime",
+  });
 
   const { data: swapHistories = [] } = useQuery({
     queryKey: ['swap-histories'],

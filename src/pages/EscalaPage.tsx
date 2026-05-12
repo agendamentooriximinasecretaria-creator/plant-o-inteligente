@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, memo, useCallback } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,6 +24,7 @@ import { abrirEscalaMensalOficial, gerarPdfEscalaMensalOficial, type MensalProfi
 import { fetchStampData, fetchRTForUnidade, fetchGestorMasterForUnidade, type StampData } from "@/lib/pdfStampUtils";
 import { imprimirComprovantePlantao, type ComprovantePlantaoData } from "@/lib/printComprovantePlantao";
 import SignActionButton from "@/components/SignActionButton";
+import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 
 const STATUS_LABELS: Record<string, string> = {
   agendado: 'Agendado', confirmado: 'Confirmado', pendente: 'Pendente',
@@ -233,31 +234,13 @@ export default function EscalaPage() {
     return diff / 60;
   }
 
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    let pending = 0;
-    const scheduleRefetch = () => {
-      pending++;
-      if (timer) return;
-      timer = setTimeout(() => {
-        const batched = pending;
-        pending = 0;
-        timer = null;
-        refetchShifts();
-        if (batched <= 2) {
-          toast.info('📅 Escala atualizada', { duration: 2000, position: 'bottom-right' });
-        }
-      }, 600);
-    };
-    const shiftsChannel = supabase
-      .channel('escala-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts' }, scheduleRefetch)
-      .subscribe();
-    return () => {
-      if (timer) clearTimeout(timer);
-      supabase.removeChannel(shiftsChannel);
-    };
-  }, [refetchShifts]);
+  // Realtime cross-invalidation using the optimized hook
+  useRealtimeInvalidation({
+    tables: ["shifts"],
+    invalidate: [["shifts"]],
+    channelId: "escala-realtime",
+    debounceMs: 600,
+  });
 
   const { data: activeSwaps = [] } = useQuery({
     queryKey: ['active-swaps-for-escala'],
