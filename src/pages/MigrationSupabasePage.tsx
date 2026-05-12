@@ -47,10 +47,28 @@ export default function MigrationSupabasePage() {
   };
 
   const validateCredentials = (creds: { url: string; serviceRoleKey: string; anonKey?: string }, type: 'origem' | 'destino') => {
-    if (!creds.url || !creds.url.startsWith('https://')) {
-      toast.error(`URL da ${type} inválida. Certifique-se de que começa com https://`);
+    if (!creds.url) {
+      toast.error(`URL da ${type} é obrigatória.`);
       return false;
     }
+
+    try {
+      const url = new URL(creds.url);
+      if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+        toast.error(`Protocolo da URL da ${type} inválido. Use http:// ou https://`);
+        return false;
+      }
+      
+      if (url.protocol === 'http:') {
+        toast.info(`Nota: Você está usando uma conexão não segura (HTTP) para a ${type}. Recomendado usar HTTPS para produção.`, {
+          duration: 5000,
+        });
+      }
+    } catch (e) {
+      toast.error(`URL da ${type} malformatada. Use o formato http://host ou https://host`);
+      return false;
+    }
+
     if (!creds.serviceRoleKey || !creds.serviceRoleKey.startsWith('eyJ')) {
       toast.error(`Service Role Key da ${type} inválida. Deve ser uma chave JWT começando com eyJ.`);
       return false;
@@ -305,7 +323,7 @@ export default function MigrationSupabasePage() {
               <Input 
                 value={destination.url} 
                 onChange={e => setDestination(s => ({ ...s, url: e.target.value.trim().replace(/\/$/, "") }))}
-                placeholder="https://xyz.supabase.co"
+                placeholder="https://seu-projeto.supabase.co ou http://seu-ip"
                 className="font-mono text-[10px]"
               />
             </div>
