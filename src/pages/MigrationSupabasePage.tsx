@@ -122,12 +122,12 @@ export default function MigrationSupabasePage() {
           addLog(`❌ Falha no Destino: ${msg}`);
           
           if (data.destination.type === 'tls_error') {
-            addLog(\"⚠️ AVISO: O uso de HTTPS com certificado inválido não é aceitável para produção.\");
+            addLog("⚠️ AVISO: O uso de HTTPS com certificado inválido não é aceitável para produção.");
           }
         }
       }
     } catch (err: any) {
-      let msg = err.error || err.message || \"Erro desconhecido\";
+      let msg = err.error || err.message || "Erro desconhecido";
       if (err.type === 'tls_error') {
         msg = `Erro de infraestrutura TLS: O endpoint de destino possui um certificado não confiável.`;
         toast.error(msg);
