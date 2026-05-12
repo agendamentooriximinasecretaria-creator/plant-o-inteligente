@@ -2,7 +2,7 @@ import { memo, useMemo, useCallback } from "react";
 import {
   LayoutDashboard, Calendar, ArrowLeftRight, Users, Building2,
   FileText, Bell, Settings, Shield, LogOut, Activity,
-  UserCog, UserCircle, Ban, FolderLock, Database
+  UserCog, UserCircle, Ban, FolderLock, Database, LineChart
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
