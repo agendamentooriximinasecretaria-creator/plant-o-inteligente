@@ -102,7 +102,12 @@ export default function MigrationSupabasePage() {
       toast.error(`Service Role Key da ${type} inválida. Deve ser uma chave JWT começando com eyJ.`);
       return false;
     }
-    if (type === 'destino' && (!creds.anonKey || !creds.anonKey.startsWith('eyJ'))) {
+    
+    // For self-hosted, anonKey might be optional or empty if not using it for API calls
+    // But our migration tool might need a public key for some client-side tests if they existed.
+    // However, the current logic uses serviceRoleKey for everything via Edge Function.
+    // We only require anonKey if it's provided and needs validation.
+    if (type === 'destino' && creds.anonKey && !creds.anonKey.startsWith('eyJ')) {
       toast.error(`Anon Key do destino inválida. Deve ser uma chave JWT começando com eyJ.`);
       return false;
     }
@@ -137,15 +142,18 @@ export default function MigrationSupabasePage() {
       if (data.source.ok && data.destination.ok) {
         toast.success("Conexão validada em ambos os projetos!");
         addLog("✅ Conexões OK: Origem respondeu, Destino respondeu.");
+        if (destination.url.includes('sslip.io') || !destination.url.includes('supabase.co')) {
+          addLog("ℹ️ Detectado destino Self-Hosted. Validações de Project ID ignoradas.");
+        }
         setCurrentStep(1);
       } else {
         if (!data.source.ok) {
-          const msg = formatError(data.source);
+          const msg = formatError(data.source) || "Erro desconhecido na Origem";
           toast.error(`Falha na Origem: ${msg}`);
           addLog(`❌ Falha na Origem: ${msg}`);
         }
         if (!data.destination.ok) {
-          const msg = formatError(data.destination);
+          const msg = formatError(data.destination) || "Erro desconhecido no Destino";
           toast.error(`Falha no Destino: ${msg}`);
           addLog(`❌ Falha no Destino: ${msg}`);
           
@@ -286,7 +294,7 @@ export default function MigrationSupabasePage() {
     addLog("2. Atualize os seguintes campos exatamente com estes valores:");
     addLog("");
     addLog(`• VITE_SUPABASE_URL: ${destination.url}`);
-    addLog(`• VITE_SUPABASE_ANON_KEY: ${destination.anonKey}`);
+    addLog(`• VITE_SUPABASE_ANON_KEY: ${destination.anonKey || "[Use a Anon Key do novo projeto]"}`);
     addLog(`• SUPABASE_SERVICE_ROLE_KEY: [Copie do seu novo painel Supabase]`);
     addLog("");
     addLog("🔒 NOTA: A Service Role Key deve ser copiada de Project Settings > API no novo projeto.");
