@@ -118,9 +118,82 @@ function ShiftHistoryView({ shiftId }: { shiftId: string }) {
   );
 }
 
-// -- Helpers (stable references) --
-const isFolgaShift = (s: any) => s.tipo_plantao === 'folga' || s.tipo_plantao === 'indisponibilidade';
-const getInitials = (name: string) => name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+// -- Components --
+const ShiftRow = memo(({ shift, onDetail, onEdit, onPrint, onDelete, isDeleting, sectorCapacity, isConflict, professionalTelefone }: any) => {
+  return (
+    <tr className={`border-t border-border hover:bg-muted/40 transition-colors ${isFolgaShift(shift) ? 'bg-amber-50/40 dark:bg-amber-950/10' : ''} ${isConflict ? 'bg-destructive/5' : ''}`}>
+      <td className="px-3 py-2 align-middle">
+        <div className="flex items-center gap-2">
+          {isFolgaShift(shift) && <Palmtree className="h-3.5 w-3.5 text-amber-600 shrink-0" />}
+          {isConflict && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <AlertTriangle className="h-4 w-4 text-destructive shrink-0 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>Conflito de horário detectado</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          <span className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">{getInitials((shift.professionals as any)?.nome || '')}</span>
+          <p className="font-medium text-foreground truncate">{(shift.professionals as any)?.nome}</p>
+        </div>
+      </td>
+      <td className="px-3 py-2 align-middle text-xs text-muted-foreground">
+        {PROFISSAO_LABELS[(shift.professionals as any)?.profissao] || '—'}
+      </td>
+      <td className="p-3">
+        <div className="flex items-center gap-1.5">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-help">
+                  {sectorCapacity?.status === 'critico' ? '🔴' : sectorCapacity?.status === 'atencao' ? '🟡' : '🟢'}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p className="text-xs">{sectorCapacity?.reason || 'Sem dados'}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <div>
+            <p className="text-foreground">{(shift.sectors as any)?.nome}</p>
+            <p className="text-xs text-muted-foreground">{(shift.units as any)?.nome}</p>
+          </div>
+        </div>
+      </td>
+      <td className="p-3 text-foreground">{new Date(shift.data + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
+      <td className="p-3"><div className="flex items-center gap-1 text-foreground"><Clock className="h-3.5 w-3.5 text-muted-foreground" />{shift.hora_inicio} - {shift.hora_fim}</div><p className="text-xs text-muted-foreground">{shift.carga_horaria}h</p></td>
+      <td className="p-3 text-foreground">
+        {isFolgaShift(shift) ? <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400 text-xs font-medium"><Palmtree className="h-3 w-3" /> {shift.tipo_plantao === 'folga' ? 'Folga' : 'Indisponível'}</span> : shift.tipo_plantao}
+      </td>
+      <td className="p-3"><span className={`status-badge ${STATUS_CLASSES[shift.status] || ''}`}>{STATUS_LABELS[shift.status]}</span></td>
+      <td className="px-3 py-2 align-middle">
+        <div className="flex items-center justify-end gap-0.5">
+          <button onClick={() => onDetail(shift)} title="Ver detalhes" className="p-1.5 rounded hover:bg-muted"><Eye className="h-3.5 w-3.5 text-muted-foreground" /></button>
+          <ContactActionButton
+            profissional={{ nome: (shift.professionals as any)?.nome || '', telefone: professionalTelefone }}
+            contexto={{ tipo: 'plantao', data: new Date(shift.data + 'T12:00:00').toLocaleDateString('pt-BR'), horario: `${shift.hora_inicio} às ${shift.hora_fim}`, setor: (shift.sectors as any)?.nome, unidade: (shift.units as any)?.nome }}
+          />
+          <button onClick={() => onEdit(shift)} title="Editar plantão" className="p-1 rounded hover:bg-muted"><Edit className="h-4 w-4 text-muted-foreground" /></button>
+          <button onClick={() => onPrint(shift)} title="Imprimir comprovante" className="p-1 rounded hover:bg-muted"><Printer className="h-4 w-4 text-muted-foreground" /></button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild><button className="p-1 rounded hover:bg-destructive/10" disabled={isDeleting}><Trash2 className="h-4 w-4 text-destructive" /></button></AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir plantão?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {(shift.professionals as any)?.nome} — {new Date(shift.data + 'T12:00:00').toLocaleDateString('pt-BR')} {shift.hora_inicio}-{shift.hora_fim}. Esta ação não pode ser desfeita.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter><AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel><AlertDialogAction disabled={isDeleting} onClick={(e) => { e.preventDefault(); onDelete(shift); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{isDeleting ? 'Excluindo...' : 'Excluir'}</AlertDialogAction></AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </td>
+    </tr>
+  );
+});
 
 export default function EscalaPage() {
   const { professionalId: currentProfId } = useAuth();
@@ -178,7 +251,15 @@ export default function EscalaPage() {
   const [notifyTarget, setNotifyTarget] = useState<any>(null);
   const [notifyMsg, setNotifyMsg] = useState("");
   const [historyTarget, setHistoryTarget] = useState<any>(null);
-  const qc = useQueryClient();
+  const { data: currentStamp } = useQuery({
+    queryKey: ['my-stamp', currentProfId],
+    queryFn: async () => {
+      if (!currentProfId) return null;
+      const { data } = await supabase.from('professional_stamps').select('*').eq('profissional_id', currentProfId).eq('bloqueado', false).maybeSingle();
+      return data;
+    },
+    enabled: !!currentProfId
+  });
 
   const { data: shifts = [], isLoading, refetch: refetchShifts } = useQuery({
     queryKey: ['shifts'],
@@ -756,7 +837,6 @@ export default function EscalaPage() {
     onError: (e: Error) => toast.error(`Falha ao solicitar troca: ${e.message}`),
   });
 
-  const navigate = useNavigate();
 
   // ============================================================
   // Ações secundárias da Escala (Imprimir, Exportar, Copiar, Validar, Publicar, Enviar)
