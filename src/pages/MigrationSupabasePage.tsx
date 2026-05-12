@@ -115,14 +115,13 @@ export default function MigrationSupabasePage() {
       });
 
       if (error) {
-        // Handle Edge Function invocation errors (like 400 or TLS from function itself)
-        const errorData = error.message ? JSON.parse(error.message) : error;
-        throw errorData;
+        handleEdgeError(error, "Erro de conexão com a função de migração");
+        return;
       }
       
       const formatError = (res: any) => {
         if (res.type === 'tls_error') {
-          return `ERRO TLS: O certificado HTTPS do servidor é inválido ou não confiável (UnknownIssuer). A migração exige um certificado válido para produção.`;
+          return `ERRO TLS: Certificado HTTPS inválido ou não confiável. A migração exige certificado válido para produção.`;
         }
         if (res.type === 'api_error' && res.error.includes('PGRST301')) {
           return `ERRO DE AUTENTICAÇÃO: Service Role Key inválida ou expirada.`;
@@ -151,14 +150,7 @@ export default function MigrationSupabasePage() {
         }
       }
     } catch (err: any) {
-      let msg = err.error || err.message || "Erro desconhecido";
-      if (err.type === 'tls_error') {
-        msg = `Erro de infraestrutura TLS: O endpoint de destino possui um certificado não confiável.`;
-        toast.error(msg);
-      } else {
-        toast.error(`Erro crítico no teste: ${msg}`);
-      }
-      addLog(`❌ Erro no teste: ${msg}`);
+      handleEdgeError(err, "Erro crítico no teste");
     } finally {
       setLoading(null);
     }
