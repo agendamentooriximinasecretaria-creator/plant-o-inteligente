@@ -1758,9 +1758,8 @@ export default function EscalaPage() {
     // Validação acontece via useEffect debouncado quando o form mudar.
   };
 
-  const initials = (nome?: string) => (nome || '').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-
-  const isFolga = (s: any) => s?.tipo_plantao === 'folga' || s?.tipo_plantao === 'indisponibilidade';
+  const initials = getInitials;
+  const isFolga = isFolgaShift;
 
   // Data for WeeklyGrid
   const gridProfissionais: ProfRow[] = useMemo(() => {
