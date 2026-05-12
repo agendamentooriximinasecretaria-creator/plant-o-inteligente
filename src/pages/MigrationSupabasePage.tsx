@@ -498,7 +498,7 @@ export default function MigrationSupabasePage() {
                     <span>Próximos Passos Obrigatórios:</span>
                   </div>
                   <ul className="text-sm space-y-2 text-muted-foreground list-disc pl-5">
-                    <li>Vá em <b>Cloud > Variables</b> no editor do Lovable.</li>
+                    <li>Vá em <b>Cloud &gt; Variables</b> no editor do Lovable.</li>
                     <li>Copie a <b>Nova URL</b> e a <b>Nova Anon Key</b> do log acima.</li>
                     <li>Busque a <b>Service Role Key</b> no seu novo painel Supabase.</li>
                     <li>Salve as alterações e aguarde o reinício do sistema.</li>
