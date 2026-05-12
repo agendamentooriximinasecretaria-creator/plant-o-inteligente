@@ -47,10 +47,24 @@ export default function MigrationSupabasePage() {
   };
 
   const handleEdgeError = (err: any, fallbackTitle: string) => {
-    let msg = err.error || err.message || "Erro desconhecido";
-    if (err.type === 'tls_error') {
-      msg = `Erro TLS: Certificado do servidor de destino não é confiável.`;
+    let errorData = err;
+    
+    // Try to parse error message if it's a JSON string (typical for Supabase function errors)
+    if (err.message && (err.message.startsWith('{') || err.message.startsWith('['))) {
+      try {
+        errorData = JSON.parse(err.message);
+      } catch (e) {
+        // Not JSON, keep original
+      }
     }
+
+    let msg = errorData.error || errorData.message || "Erro desconhecido";
+    
+    if (errorData.type === 'tls_error') {
+      msg = `Erro TLS: Certificado do servidor de destino não é confiável (UnknownIssuer).`;
+      addLog("⚠️ A migração definitiva exige certificado válido. Usar HTTPS inválido não é aceitável para produção.");
+    }
+    
     toast.error(`${fallbackTitle}: ${msg}`);
     addLog(`❌ ${fallbackTitle}: ${msg}`);
     return msg;
