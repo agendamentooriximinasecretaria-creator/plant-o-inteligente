@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
-import { Building2, Shield, Bell, Mail, Webhook, ArrowLeftRight, Save, TestTube, Power, Loader2, Eye, EyeOff, Clock, FileText } from "lucide-react";
+import { Building2, Shield, Bell, Mail, Webhook, ArrowLeftRight, Save, TestTube, Power, Loader2, Eye, EyeOff, Clock, FileText, Activity, LineChart } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { ShiftTypesManager } from "@/components/ShiftTypesManager";
