@@ -90,25 +90,51 @@ export default function MigrationSupabasePage() {
         body: { action: "test-connections", source, destination },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Handle Edge Function invocation errors (like 400 or TLS from function itself)
+        const errorData = error.message ? JSON.parse(error.message) : error;
+        throw errorData;
+      }
       
+      const formatError = (res: any) => {
+        if (res.type === 'tls_error') {
+          return `ERRO TLS: O certificado HTTPS do servidor é inválido ou não confiável (UnknownIssuer). A migração exige um certificado válido para produção.`;
+        }
+        if (res.type === 'api_error' && res.error.includes('PGRST301')) {
+          return `ERRO DE AUTENTICAÇÃO: Service Role Key inválida ou expirada.`;
+        }
+        return res.error;
+      };
+
       if (data.source.ok && data.destination.ok) {
         toast.success("Conexão validada em ambos os projetos!");
         addLog("✅ Conexões OK: Origem respondeu, Destino respondeu.");
         setCurrentStep(1);
       } else {
         if (!data.source.ok) {
-          toast.error(`Falha na Origem: ${data.source.error}`);
-          addLog(`❌ Falha na Origem: ${data.source.error}`);
+          const msg = formatError(data.source);
+          toast.error(`Falha na Origem: ${msg}`);
+          addLog(`❌ Falha na Origem: ${msg}`);
         }
         if (!data.destination.ok) {
-          toast.error(`Falha no Destino: ${data.destination.error}`);
-          addLog(`❌ Falha no Destino: ${data.destination.error}`);
+          const msg = formatError(data.destination);
+          toast.error(`Falha no Destino: ${msg}`);
+          addLog(`❌ Falha no Destino: ${msg}`);
+          
+          if (data.destination.type === 'tls_error') {
+            addLog(\"⚠️ AVISO: O uso de HTTPS com certificado inválido não é aceitável para produção.\");
+          }
         }
       }
     } catch (err: any) {
-      toast.error(`Erro crítico no teste: ${err.message}`);
-      addLog(`❌ Erro no teste: ${err.message}`);
+      let msg = err.error || err.message || \"Erro desconhecido\";
+      if (err.type === 'tls_error') {
+        msg = `Erro de infraestrutura TLS: O endpoint de destino possui um certificado não confiável.`;
+        toast.error(msg);
+      } else {
+        toast.error(`Erro crítico no teste: ${msg}`);
+      }
+      addLog(`❌ Erro no teste: ${msg}`);
     } finally {
       setLoading(null);
     }
