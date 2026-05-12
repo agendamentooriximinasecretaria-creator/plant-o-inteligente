@@ -169,7 +169,7 @@ export default function MonitoramentoSistemaPage() {
         <StatusCard title="Alertas" value={stats?.recentErrors?.length || 0} icon={ShieldAlert} color={(stats?.recentErrors?.length || 0) > 0 ? "text-destructive" : "text-success"} desc="Riscos detectados" />
       </div>
 
-      <Tabs defaultValue="cleanup" className="w-full">
+      <Tabs defaultValue="overview" className="w-full">
         <TabsList className="flex flex-wrap h-auto p-1 bg-muted/50 mb-6 gap-1">
           <TabsTrigger value="overview" className="flex-1 min-w-[100px]">Geral</TabsTrigger>
           <TabsTrigger value="db" className="flex-1 min-w-[100px]">Banco</TabsTrigger>
