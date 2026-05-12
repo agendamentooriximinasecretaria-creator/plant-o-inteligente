@@ -263,7 +263,7 @@ export default function MonitoramentoSistemaPage() {
               />
            </div>
         </TabsContent>
-      </Tabs>
+
         <TabsContent value="perf" className="mt-6">
            <Card className="border-border/60 shadow-sm">
              <CardHeader>
@@ -398,6 +398,7 @@ export default function MonitoramentoSistemaPage() {
              </CardContent>
            </Card>
         </TabsContent>
+      </Tabs>
       {/* Safety Cleanup Modal */}
       <AnimatePresence>
         {confirmCleanup && (
