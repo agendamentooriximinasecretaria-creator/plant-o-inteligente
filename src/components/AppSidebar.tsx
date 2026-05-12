@@ -71,6 +71,7 @@ export const AppSidebar = memo(function AppSidebar() {
       systemItems.push({ title: "Configurações", url: "/configuracoes", icon: Settings });
       systemItems.push({ title: "Auditoria", url: "/auditoria", icon: Shield });
       systemItems.push({ title: "Migração Supabase", url: "/migracao-supabase", icon: Database });
+      systemItems.push({ title: "Monitoramento", url: "/configuracoes/monitoramento", icon: LineChart });
     }
 
     const groups = [
