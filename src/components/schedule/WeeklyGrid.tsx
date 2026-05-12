@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, memo, useCallback } from "react";
 import { addDays, startOfWeek, format, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
@@ -39,7 +39,7 @@ interface WeeklyGridProps {
   onCreateClick: (dateStr: string) => void;
 }
 
-export function WeeklyGrid({
+export const WeeklyGrid = memo(function WeeklyGrid({
   profissionais,
   coberturaMinima,
   onCellClick,
@@ -246,4 +246,4 @@ export function WeeklyGrid({
       </div>
     </div>
   );
-}
+});
