@@ -46,6 +46,30 @@ export default function MigrationSupabasePage() {
     setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev]);
   };
 
+  const handleEdgeError = (err: any, fallbackTitle: string) => {
+    let errorData = err;
+    
+    // Try to parse error message if it's a JSON string (typical for Supabase function errors)
+    if (err.message && (err.message.startsWith('{') || err.message.startsWith('['))) {
+      try {
+        errorData = JSON.parse(err.message);
+      } catch (e) {
+        // Not JSON, keep original
+      }
+    }
+
+    let msg = errorData.error || errorData.message || "Erro desconhecido";
+    
+    if (errorData.type === 'tls_error') {
+      msg = `Erro TLS: Certificado do servidor de destino não é confiável (UnknownIssuer).`;
+      addLog("⚠️ A migração definitiva exige certificado válido. Usar HTTPS inválido não é aceitável para produção.");
+    }
+    
+    toast.error(`${fallbackTitle}: ${msg}`);
+    addLog(`❌ ${fallbackTitle}: ${msg}`);
+    return msg;
+  };
+
   const validateCredentials = (creds: { url: string; serviceRoleKey: string; anonKey?: string }, type: 'origem' | 'destino') => {
     if (!creds.url) {
       toast.error(`URL da ${type} é obrigatória.`);
@@ -90,25 +114,43 @@ export default function MigrationSupabasePage() {
         body: { action: "test-connections", source, destination },
       });
 
-      if (error) throw error;
+      if (error) {
+        handleEdgeError(error, "Erro de conexão com a função de migração");
+        return;
+      }
       
+      const formatError = (res: any) => {
+        if (res.type === 'tls_error') {
+          return `ERRO TLS: Certificado HTTPS inválido ou não confiável. A migração exige certificado válido para produção.`;
+        }
+        if (res.type === 'api_error' && res.error.includes('PGRST301')) {
+          return `ERRO DE AUTENTICAÇÃO: Service Role Key inválida ou expirada.`;
+        }
+        return res.error;
+      };
+
       if (data.source.ok && data.destination.ok) {
         toast.success("Conexão validada em ambos os projetos!");
         addLog("✅ Conexões OK: Origem respondeu, Destino respondeu.");
         setCurrentStep(1);
       } else {
         if (!data.source.ok) {
-          toast.error(`Falha na Origem: ${data.source.error}`);
-          addLog(`❌ Falha na Origem: ${data.source.error}`);
+          const msg = formatError(data.source);
+          toast.error(`Falha na Origem: ${msg}`);
+          addLog(`❌ Falha na Origem: ${msg}`);
         }
         if (!data.destination.ok) {
-          toast.error(`Falha no Destino: ${data.destination.error}`);
-          addLog(`❌ Falha no Destino: ${data.destination.error}`);
+          const msg = formatError(data.destination);
+          toast.error(`Falha no Destino: ${msg}`);
+          addLog(`❌ Falha no Destino: ${msg}`);
+          
+          if (data.destination.type === 'tls_error') {
+            addLog("⚠️ AVISO: O uso de HTTPS com certificado inválido não é aceitável para produção.");
+          }
         }
       }
     } catch (err: any) {
-      toast.error(`Erro crítico no teste: ${err.message}`);
-      addLog(`❌ Erro no teste: ${err.message}`);
+      handleEdgeError(err, "Erro crítico no teste");
     } finally {
       setLoading(null);
     }
@@ -128,8 +170,7 @@ export default function MigrationSupabasePage() {
       addLog(`✅ Diagnóstico concluído: ${data.source.tables.length} tabelas, ${data.source.usersCount} usuários.`);
       toast.success("Diagnóstico concluído.");
     } catch (err: any) {
-      toast.error(`Falha no diagnóstico: ${err.message}`);
-      addLog(`❌ Erro no diagnóstico: ${err.message}`);
+      handleEdgeError(err, "Falha no diagnóstico");
     } finally {
       setLoading(null);
     }
@@ -148,8 +189,7 @@ export default function MigrationSupabasePage() {
       addLog(`✅ Sincronização de usuários concluída (${successCount} sucessos).`);
       toast.success("Usuários sincronizados.");
     } catch (err: any) {
-      addLog(`❌ Erro na sincronização de usuários: ${err.message}`);
-      toast.error("Erro na sincronização de usuários.");
+      handleEdgeError(err, "Erro na sincronização de usuários");
     } finally {
       setLoading(null);
     }
@@ -166,8 +206,7 @@ export default function MigrationSupabasePage() {
       addLog(`✅ Storage sincronizado (${data.results.length} buckets).`);
       toast.success("Storage sincronizado.");
     } catch (err: any) {
-      addLog(`❌ Erro no Storage: ${err.message}`);
-      toast.error("Erro no Storage.");
+      handleEdgeError(err, "Erro no Storage");
     } finally {
       setLoading(null);
     }
@@ -184,6 +223,7 @@ export default function MigrationSupabasePage() {
       return data.totalMigrated;
     } catch (err: any) {
       setMigrationStatus(prev => ({ ...prev, [tableName]: "error" }));
+      handleEdgeError(err, `Erro na tabela ${tableName}`);
       throw err;
     }
   };

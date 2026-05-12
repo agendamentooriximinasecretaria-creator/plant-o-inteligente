@@ -11,6 +11,17 @@ interface SupabaseConfig {
   serviceRoleKey: string;
 }
 
+// Helper to identify TLS/SSL related errors
+function isTLSError(error: any): boolean {
+  const msg = String(error?.message || error || "").toLowerCase();
+  return (
+    msg.includes("invalid peer certificate") || 
+    msg.includes("unknownissuer") || 
+    msg.includes("handshakefailure") ||
+    msg.includes("cert")
+  );
+}
+
 // Helper to create a dedicated client for migration tasks
 async function getClient(config: SupabaseConfig) {
   return createClient(config.url, config.serviceRoleKey, {
@@ -70,20 +81,30 @@ serve(async (req) => {
     if (action === 'test-connections') {
       console.log(`[ACTION] test-connections requested by ${user.id}`);
       
-      // Test source connectivity (using profiles as a probe)
-      const { error: sErr } = await sourceClient.from('profiles').select('count', { count: 'exact', head: true }).limit(1);
-      const sOk = !sErr;
+      const testConnection = async (client: any) => {
+        try {
+          const { error } = await client.from('profiles').select('count', { count: 'exact', head: true }).limit(1);
+          if (error) {
+            // PGRST301 (JWT expired/invalid) or PGRST107 (Schema not found) mean connection failed.
+            // 42P01 (relation does not exist) is actually OK for destination connection test if schema is empty.
+            if (error.code === '42P01') return { ok: true, error: null };
+            return { ok: false, error: `${error.code}: ${error.message}`, type: 'api_error' };
+          }
+          return { ok: true, error: null };
+        } catch (e: any) {
+          if (isTLSError(e)) {
+            return { ok: false, error: e.message, type: 'tls_error' };
+          }
+          return { ok: false, error: e.message, type: 'connection_error' };
+        }
+      };
 
-      // Test destination connectivity (probe using a meta check)
-      const { error: dErr } = await destClient.from('profiles').select('count', { count: 'exact', head: true }).limit(1);
-      
-      // PGRST301 (JWT expired/invalid) or PGRST107 (Schema not found) mean connection failed.
-      // 42P01 (relation does not exist) is actually OK for destination connection test if schema is empty.
-      const dOk = !dErr || (dErr.code === '42P01');
+      const sourceResult = await testConnection(sourceClient);
+      const destResult = await testConnection(destClient);
 
       return new Response(JSON.stringify({ 
-        source: { ok: sOk, error: sErr ? `${sErr.code}: ${sErr.message}` : null },
-        destination: { ok: dOk, error: dErr && dErr.code !== '42P01' ? `${dErr.code}: ${dErr.message}` : null }
+        source: sourceResult,
+        destination: destResult
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -284,10 +305,22 @@ serve(async (req) => {
 
   } catch (error) {
     console.error(`[MIGRATION_ERROR] ${error.message}`);
+    
+    let errorType = 'internal_error';
+    let errorMessage = error.message;
+
+    if (isTLSError(error)) {
+      errorType = 'tls_error';
+      errorMessage = `Erro de Certificado TLS: O servidor de destino possui um certificado inválido ou não confiável (${error.message}). A migração exige HTTPS válido para produção.`;
+    }
+
     return new Response(JSON.stringify({ 
-      error: error.message,
+      error: errorMessage,
+      type: errorType,
       timestamp: new Date().toISOString(),
-      details: "Verifique as permissões de Service Role Key e conectividade de rede."
+      details: errorType === 'tls_error' 
+        ? "O endpoint HTTPS do destino está com certificado não confiável (Self-signed, expirado ou cadeia incompleta)."
+        : "Verifique as credenciais e a conectividade de rede."
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,
