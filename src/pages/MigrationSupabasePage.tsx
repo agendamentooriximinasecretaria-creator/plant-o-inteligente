@@ -412,7 +412,7 @@ export default function MigrationSupabasePage() {
               <CardHeader>
                 <CardTitle>Schema Migration SQL</CardTitle>
                 <CardDescription>
-                  Código SQL para recriar a estrutura no destino.
+                  Código SQL básico para recriar a estrutura. <b>Atenção:</b> Você deve executar este SQL no Editor SQL do seu novo projeto ANTES de migrar os dados.
                 </CardDescription>
               </CardHeader>
               <CardContent>
