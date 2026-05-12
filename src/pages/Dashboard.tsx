@@ -270,10 +270,10 @@ export default function Dashboard() {
     return Object.entries(map).map(([k, v]) => ({ name: PROFISSAO_LABELS[k as keyof typeof PROFISSAO_LABELS] || k, ...v, fill: "hsl(var(--primary))" }));
   }, [shifts]);
 
-  const activeToday = todayShifts.filter((s: any) => {
-    const now = new Date().toTimeString().slice(0, 5);
-    return s.hora_inicio <= now && s.hora_fim >= now;
-  });
+  const activeToday = useMemo(() => {
+    const nowStr = new Date().toTimeString().slice(0, 5);
+    return todayShifts.filter((s: any) => s.hora_inicio <= nowStr && s.hora_fim >= nowStr);
+  }, [todayShifts]);
 
   const getInitials = (name: string) => name.split(" ").map(w => w[0]).join("").substring(0, 2).toUpperCase();
   const avatarColors = ["bg-primary", "bg-success", "bg-warning", "bg-accent", "bg-info"];
