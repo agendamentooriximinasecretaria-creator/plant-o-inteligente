@@ -413,7 +413,7 @@ export default function MigrationSupabasePage() {
                 id="d-anon" 
                 type="password"
                 value={destination.anonKey} 
-                onChange={e => setDestination(s => ({ ...s, anonKey: e.target.value }))}
+                onChange={e => setDestination(s => ({ ...s, anonKey: e.target.value.trim() }))}
                 placeholder="eyJhbGciOiJIUzI1Ni..."
                 disabled={currentStep > 0}
               />
