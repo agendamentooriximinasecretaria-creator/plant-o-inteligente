@@ -47,10 +47,28 @@ export default function MigrationSupabasePage() {
   };
 
   const validateCredentials = (creds: { url: string; serviceRoleKey: string; anonKey?: string }, type: 'origem' | 'destino') => {
-    if (!creds.url || !creds.url.startsWith('https://')) {
-      toast.error(`URL da ${type} inválida. Certifique-se de que começa com https://`);
+    if (!creds.url) {
+      toast.error(`URL da ${type} é obrigatória.`);
       return false;
     }
+
+    try {
+      const url = new URL(creds.url);
+      if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+        toast.error(`Protocolo da URL da ${type} inválido. Use http:// ou https://`);
+        return false;
+      }
+      
+      if (url.protocol === 'http:') {
+        toast.info(`Nota: Você está usando uma conexão não segura (HTTP) para a ${type}. Recomendado usar HTTPS para produção.`, {
+          duration: 5000,
+        });
+      }
+    } catch (e) {
+      toast.error(`URL da ${type} malformatada. Use o formato http://host ou https://host`);
+      return false;
+    }
+
     if (!creds.serviceRoleKey || !creds.serviceRoleKey.startsWith('eyJ')) {
       toast.error(`Service Role Key da ${type} inválida. Deve ser uma chave JWT começando com eyJ.`);
       return false;
@@ -219,23 +237,17 @@ export default function MigrationSupabasePage() {
     addLog("");
     addLog("Siga exatamente estas instruções para ativar o novo projeto:");
     addLog("");
-    addLog("1. No editor do Lovable, clique no botão 'Cloud' (topo direito).");
-    addLog("2. Acesse a aba 'Variables' ou 'Secrets'.");
-    addLog("3. Atualize os seguintes campos com os novos valores:");
+    addLog("1. No painel do Lovable Cloud, acesse a aba 'Variables' ou 'Secrets'.");
+    addLog("2. Atualize os seguintes campos exatamente com estes valores:");
     addLog("");
-    addLog(`   • VITE_SUPABASE_URL (URL do Novo Projeto):`);
-    addLog(`     ${destination.url}`);
+    addLog(`• VITE_SUPABASE_URL: ${destination.url}`);
+    addLog(`• VITE_SUPABASE_ANON_KEY: ${destination.anonKey}`);
+    addLog(`• SUPABASE_SERVICE_ROLE_KEY: [Copie do seu novo painel Supabase]`);
     addLog("");
-    addLog(`   • VITE_SUPABASE_PUBLISHABLE_KEY (Nova Anon Key):`);
-    addLog(`     ${destination.anonKey}`);
+    addLog("🔒 NOTA: A Service Role Key deve ser copiada de Project Settings > API no novo projeto.");
     addLog("");
-    addLog(`   • SUPABASE_SERVICE_ROLE_KEY:`);
-    addLog(`     [Copie a Service Role Key do seu novo painel Supabase]`);
+    addLog("3. Salve as alterações para concluir a transição de infraestrutura.");
     addLog("");
-    addLog("🔒 NOTA DE SEGURANÇA: A Service Role Key nunca é exibida aqui por proteção.");
-    addLog("Busque-a em: Project Settings > API > service_role (secret).");
-    addLog("");
-    addLog("4. Clique em 'Save' e o sistema reiniciará usando a nova infraestrutura.");
     addLog("");
     
     toast.success("Migração finalizada! Siga as instruções no log para a troca de chaves.", { duration: 10000 });
@@ -305,7 +317,7 @@ export default function MigrationSupabasePage() {
               <Input 
                 value={destination.url} 
                 onChange={e => setDestination(s => ({ ...s, url: e.target.value.trim().replace(/\/$/, "") }))}
-                placeholder="https://xyz.supabase.co"
+                placeholder="https://seu-projeto.supabase.co ou http://seu-ip"
                 className="font-mono text-[10px]"
               />
             </div>
