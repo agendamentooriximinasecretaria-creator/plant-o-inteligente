@@ -398,7 +398,7 @@ export default function MigrationSupabasePage() {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-[10px] text-muted-foreground font-mono">Estrutura SQL do Banco (Schema Public)</p>
-                      <Button variant="ghost" size="xs" onClick={() => {
+                      <Button variant="ghost" size="sm" className="h-7" onClick={() => {
                         if (diagnosticData.schemaSql) {
                           navigator.clipboard.writeText(diagnosticData.schemaSql);
                           toast.success("SQL copiado!");
