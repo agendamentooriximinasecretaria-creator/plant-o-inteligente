@@ -87,27 +87,36 @@ export default function MigrationSupabasePage() {
       toast.error("Execute o diagnóstico primeiro.");
       return;
     }
+    
     setLoading("migrating-data");
     addLog("Iniciando migração de dados...");
-    try {
-      for (const tableInfo of diagnosticData.source.tables) {
-        addLog(`Migrando tabela: ${tableInfo.name}...`);
+    
+    // Identifica tabelas pendentes (não presentes no destino ou com contagem diferente)
+    const tables = diagnosticData.source.tables;
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const tableInfo of tables) {
+      try {
+        addLog(`[${successCount + errorCount + 1}/${tables.length}] Migrando tabela: ${tableInfo.name}...`);
         const { data, error } = await supabase.functions.invoke("migrate-supabase", {
           body: { action: "migrate-table-data", source, destination, table: tableInfo.name },
         });
-        if (error) {
-          addLog(`Erro em ${tableInfo.name}: ${error.message}`);
-        } else {
-          addLog(`Sucesso: ${tableInfo.name} (${data.totalMigrated} registros).`);
-          setMigrationStatus((prev: any) => ({ ...prev, [tableInfo.name]: "success" }));
-        }
+        
+        if (error) throw error;
+        
+        addLog(`Sucesso: ${tableInfo.name} (${data.totalMigrated} registros).`);
+        setMigrationStatus((prev: any) => ({ ...prev, [tableInfo.name]: "success" }));
+        successCount++;
+      } catch (err: any) {
+        addLog(`Erro em ${tableInfo.name}: ${err.message}`);
+        setMigrationStatus((prev: any) => ({ ...prev, [tableInfo.name]: "error" }));
+        errorCount++;
       }
-      toast.success("Migração de tabelas concluída.");
-    } catch (err: any) {
-      addLog(`Falha crítica na migração: ${err.message}`);
-    } finally {
-      setLoading(null);
     }
+    
+    toast.success(`Migração concluída: ${successCount} sucessos, ${errorCount} falhas.`);
+    setLoading(null);
   };
 
   const migrateAuth = async () => {
@@ -174,15 +183,17 @@ export default function MigrationSupabasePage() {
     
     setLoading("finalizing");
     addLog("FINALIZANDO MIGRAÇÃO...");
-    addLog("Atualizando variáveis de ambiente do sistema...");
     
     try {
-      addLog("AVISO: Para concluir, você deve atualizar as Secrets do projeto no Lovable com os novos valores.");
-      addLog("VITE_SUPABASE_URL = " + destination.url);
-      addLog("VITE_SUPABASE_PUBLISHABLE_KEY = [Anon Key do Destino]");
-      addLog("SUPABASE_SERVICE_ROLE_KEY = " + destination.serviceRoleKey);
+      addLog("⚠️ IMPORTANTE: A migração de dados no banco foi concluída, mas o Lovable ainda está conectado ao Supabase antigo.");
+      addLog("Para completar a transição, você deve:");
+      addLog("1. Acessar 'Configurações do Projeto' > 'Secrets' no Lovable.");
+      addLog(`2. Atualizar VITE_SUPABASE_URL para: ${destination.url}`);
+      addLog("3. Atualizar VITE_SUPABASE_PUBLISHABLE_KEY com a Anon Key do seu novo projeto.");
+      addLog(`4. Atualizar SUPABASE_SERVICE_ROLE_KEY para: ${destination.serviceRoleKey}`);
+      addLog("5. Reiniciar o deploy do projeto.");
       
-      toast.success("Migração finalizada no banco. Atualize as chaves do projeto.");
+      toast.success("Dados migrados! Agora siga as instruções nos logs para trocar as chaves do projeto.", { duration: 10000 });
     } catch (err: any) {
       addLog(`Erro ao finalizar: ${err.message}`);
     } finally {
@@ -306,8 +317,8 @@ export default function MigrationSupabasePage() {
         <Tabs defaultValue="tables" className="w-full">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="tables">Tabelas ({diagnosticData.source.tables.length})</TabsTrigger>
-            <TabsTrigger value="auth">Usuários</TabsTrigger>
-            <TabsTrigger value="storage">Storage</TabsTrigger>
+            <TabsTrigger value="auth">Usuários ({diagnosticData.source.usersCount})</TabsTrigger>
+            <TabsTrigger value="storage">Storage ({diagnosticData.source.storageBuckets.length})</TabsTrigger>
             <TabsTrigger value="sql">Schema SQL</TabsTrigger>
           </TabsList>
           
@@ -401,7 +412,7 @@ export default function MigrationSupabasePage() {
               <CardHeader>
                 <CardTitle>Schema Migration SQL</CardTitle>
                 <CardDescription>
-                  Código SQL para recriar a estrutura no destino.
+                  Código SQL básico para recriar a estrutura. <b>Atenção:</b> Você deve executar este SQL no Editor SQL do seu novo projeto ANTES de migrar os dados.
                 </CardDescription>
               </CardHeader>
               <CardContent>
