@@ -315,8 +315,8 @@ export default function MigrationSupabasePage() {
         <Tabs defaultValue="tables" className="w-full">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="tables">Tabelas ({diagnosticData.source.tables.length})</TabsTrigger>
-            <TabsTrigger value="auth">Usuários</TabsTrigger>
-            <TabsTrigger value="storage">Storage</TabsTrigger>
+            <TabsTrigger value="auth">Usuários ({diagnosticData.source.usersCount})</TabsTrigger>
+            <TabsTrigger value="storage">Storage ({diagnosticData.source.storageBuckets.length})</TabsTrigger>
             <TabsTrigger value="sql">Schema SQL</TabsTrigger>
           </TabsList>
           
