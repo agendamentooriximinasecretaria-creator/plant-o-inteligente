@@ -1,3 +1,4 @@
+import { memo, useMemo, useCallback } from "react";
 import {
   LayoutDashboard, Calendar, ArrowLeftRight, Users, Building2,
   FileText, Bell, Settings, Shield, LogOut, Activity,
@@ -11,7 +12,6 @@ import {
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
   SidebarHeader, SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
-import { useMemo } from "react";
 
 interface MenuItem {
   title: string;
@@ -19,7 +19,7 @@ interface MenuItem {
   icon: React.ElementType;
 }
 
-export function AppSidebar() {
+export const AppSidebar = memo(function AppSidebar() {
   const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
@@ -96,9 +96,9 @@ export function AppSidebar() {
   const roleLabel = role === "gestor_master" ? "Gestor Master" : role === "coordenador" ? "Coordenador" : "Profissional";
   const initials = displayName.split(" ").map(w => w[0]).join("").substring(0, 2).toUpperCase();
 
-  const handleMenuClick = () => {
+  const handleMenuClick = useCallback(() => {
     if (isMobile) setOpenMobile(false);
-  };
+  }, [isMobile, setOpenMobile]);
 
   const renderGroup = (label: string, items: MenuItem[]) => (
     <SidebarGroup key={label}>
@@ -178,4 +178,4 @@ export function AppSidebar() {
       </SidebarFooter>
     </Sidebar>
   );
-}
+});

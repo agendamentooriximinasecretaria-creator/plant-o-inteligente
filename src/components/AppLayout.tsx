@@ -1,3 +1,4 @@
+import { memo, useEffect, useCallback } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Bell } from "lucide-react";
@@ -5,13 +6,12 @@ import { Outlet, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useEffect } from "react";
 import { toast } from "sonner";
 import { CommandPalette } from "@/components/CommandPalette";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useTheme } from "@/hooks/useTheme";
 
-export function AppLayout() {
+export const AppLayout = memo(function AppLayout() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { user, professionalId } = useAuth();
@@ -76,8 +76,8 @@ export function AppLayout() {
             <div className="flex items-center gap-1">
               <ThemeToggle />
               <button
-                onClick={() => navigate("/notificacoes")}
-                className="relative p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                onClick={useCallback(() => navigate("/notificacoes"), [navigate])}
+                className="relative p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 aria-label="Notificações"
               >
                 <Bell className="h-[18px] w-[18px]" strokeWidth={1.8} />
@@ -96,4 +96,4 @@ export function AppLayout() {
       </div>
     </SidebarProvider>
   );
-}
+});

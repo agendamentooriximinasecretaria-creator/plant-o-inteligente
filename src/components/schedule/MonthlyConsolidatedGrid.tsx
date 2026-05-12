@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, memo } from "react";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertTriangle } from "lucide-react";
 
 export interface MonthlyShift {
@@ -90,7 +90,7 @@ function siglaFallback(tipo: string): string {
   }
 }
 
-export function MonthlyConsolidatedGrid({ shifts, tipos, initialMonth }: Props) {
+export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ shifts, tipos, initialMonth }: Props) {
   const today = new Date();
   const defaultMonth = initialMonth || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   const [mes, setMes] = useState<string>(defaultMonth);
@@ -288,4 +288,4 @@ export function MonthlyConsolidatedGrid({ shifts, tipos, initialMonth }: Props) 
       </div>
     </div>
   );
-}
+});
