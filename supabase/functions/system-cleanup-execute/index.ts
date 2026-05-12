@@ -23,7 +23,7 @@ serve(async (req) => {
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser(authHeader.replace('Bearer ', ''))
     if (userError || !user) throw new Error('Não autorizado')
 
-    // Role check
+    // Role check - STRICT Master
     const { data: profile } = await supabaseClient
       .from('profiles')
       .select('role')
@@ -31,58 +31,134 @@ serve(async (req) => {
       .single()
 
     if (profile?.role !== 'gestor_master') {
-      throw new Error('Acesso negado: Apenas Gestor Master pode executar limpeza')
+      throw new Error('Acesso negado. Apenas Master pode executar limpeza.')
     }
 
-    const { type, payload } = await req.json()
-    if (!type) throw new Error('Tipo de limpeza não informado')
+    const { cleanup_type, confirmation_text, dry_run, filters } = await req.json()
+    
+    if (!dry_run && confirmation_text !== 'LIMPAR') {
+      throw new Error('Confirmação inválida. Digite LIMPAR para confirmar.')
+    }
 
-    let result = { success: false, items_count: 0 }
+    let result: any = { success: true, dry_run: !!dry_run, cleanup_type }
+    let estimatedItems = 0
+    let risk = 'baixo'
+    let message = ''
 
-    // SAFE CLEANUP LOGIC
-    if (type === 'logs') {
-      const days = payload?.days || 90
-      const dateLimit = new Date()
-      dateLimit.setDate(dateLimit.getDate() - days)
-      
-      const { count, error } = await supabaseClient
+    const olderThanDays = filters?.older_than_days || 90
+    const dateLimit = new Date()
+    dateLimit.setDate(dateLimit.getDate() - olderThanDays)
+    const dateLimitIso = dateLimit.toISOString()
+
+    // 1. Logs Informativos (logs_old)
+    if (cleanup_type === 'logs_old') {
+      const query = supabaseClient
         .from('audit_logs')
-        .delete({ count: 'exact' })
-        .lt('created_at', dateLimit.toISOString())
-        .not('acao', 'ilike', '%Prontuário%') // Safety: Never delete patient record changes
-        .not('acao', 'ilike', '%Documento%') // Safety: Keep document related logs
-        .eq('status', 'sucesso') // Only delete successful logs, keep errors for auditing
+        .select('*', { count: 'exact', head: true })
+        .lt('created_at', dateLimitIso)
+        .eq('status', 'sucesso')
+        .not('acao', 'ilike', '%Prontuário%')
+        .not('acao', 'ilike', '%Documento%')
+        .not('acao', 'ilike', '%Exclusão%')
 
-      if (error) throw error
-      result = { success: true, items_count: count || 0 }
-    } else if (type === 'notifications') {
-      const dateLimit = new Date()
-      dateLimit.setDate(dateLimit.getDate() - 30)
-      
-      const { count, error } = await supabaseClient
+      if (dry_run) {
+        const { count } = await query
+        result.estimated_items = count || 0
+        result.risk = 'baixo'
+        result.message = `${count || 0} logs informativos antigos encontrados.`
+        result.safe_to_clean = true
+      } else {
+        const { count, error } = await supabaseClient
+          .from('audit_logs')
+          .delete({ count: 'exact' })
+          .lt('created_at', dateLimitIso)
+          .eq('status', 'sucesso')
+          .not('acao', 'ilike', '%Prontuário%')
+          .not('acao', 'ilike', '%Documento%')
+          .not('acao', 'ilike', '%Exclusão%')
+        
+        if (error) throw error
+        result.deleted_items = count || 0
+        result.message = 'Limpeza de logs informativos concluída.'
+      }
+    } 
+    // 2. Notificações (notifications_old)
+    else if (cleanup_type === 'notifications_old') {
+      const query = supabaseClient
         .from('notifications')
-        .delete({ count: 'exact' })
-        .lt('created_at', dateLimit.toISOString())
-        .eq('lida', true) // Only delete read notifications
+        .select('*', { count: 'exact', head: true })
+        .lt('created_at', dateLimitIso)
+        .eq('lida', true)
 
-      if (error) throw error
-      result = { success: true, items_count: count || 0 }
-    } else {
-      throw new Error('Tipo de limpeza inválido ou não suportado')
+      if (dry_run) {
+        const { count } = await query
+        result.estimated_items = count || 0
+        result.risk = 'baixo'
+        result.message = `${count || 0} notificações lidas antigas encontradas.`
+        result.safe_to_clean = true
+      } else {
+        const { count, error } = await supabaseClient
+          .from('notifications')
+          .delete({ count: 'exact' })
+          .lt('created_at', dateLimitIso)
+          .eq('lida', true)
+        
+        if (error) throw error
+        result.deleted_items = count || 0
+        result.message = 'Limpeza de notificações concluída.'
+      }
+    }
+    // 3. Monitoramento Snapshots (monitoring_snapshots_old)
+    else if (cleanup_type === 'monitoring_snapshots_old') {
+      const query = supabaseClient
+        .from('system_monitoring_snapshots')
+        .select('*', { count: 'exact', head: true })
+        .lt('created_at', dateLimitIso)
+
+      if (dry_run) {
+        const { count } = await query
+        result.estimated_items = count || 0
+        result.risk = 'baixo'
+        result.message = `${count || 0} snapshots de monitoramento antigos encontrados.`
+        result.safe_to_clean = true
+      } else {
+        const { count, error } = await supabaseClient
+          .from('system_monitoring_snapshots')
+          .delete({ count: 'exact' })
+          .lt('created_at', dateLimitIso)
+        
+        if (error) throw error
+        result.deleted_items = count || 0
+        result.message = 'Limpeza de snapshots de monitoramento concluída.'
+      }
+    }
+    // 4. Arquivos Órfãos (orphan_files) - Analysis Only for now or complex logic
+    else if (cleanup_type === 'orphan_files') {
+      // Comparison logic: List storage, find orphans.
+      // For this task, we return a simulated check or simplified logic.
+      if (dry_run) {
+        result.estimated_items = 0 // Needs real comparison
+        result.risk = 'médio'
+        result.message = 'Análise de arquivos órfãos requer comparação entre Storage e Banco.'
+        result.safe_to_clean = false
+      } else {
+        throw new Error('Limpeza de arquivos órfãos requer seleção manual.')
+      }
+    }
+    else {
+      throw new Error('Tipo de limpeza inválido ou não suportado.')
     }
 
-    // Audit the cleanup with full details
-    await supabaseClient.from('system_cleanup_logs').insert({
+    // AUDIT LOG
+    if (!dry_run) {
+      await supabaseClient.from('system_cleanup_logs').insert({
         created_by: user.id,
-        cleanup_type: type,
-        items_count: result.items_count,
+        cleanup_type: cleanup_type,
+        items_count: result.deleted_items || 0,
         status: 'Sucesso',
-        details: {
-          requested_at: new Date().toISOString(),
-          payload,
-          client_info: req.headers.get('x-client-info')
-        }
-    })
+        details: { filters, result }
+      })
+    }
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -90,8 +166,7 @@ serve(async (req) => {
     })
 
   } catch (error: any) {
-    console.error('Cleanup execute error:', error.message)
-    return new Response(JSON.stringify({ error: error.message || "Erro ao executar limpeza" }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,
     })
