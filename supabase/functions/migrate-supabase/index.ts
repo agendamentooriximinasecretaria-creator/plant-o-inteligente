@@ -134,22 +134,35 @@ serve(async (req) => {
       const batchSize = 500;
 
       while (true) {
-        // Fallback pagination if ID is not available/consistent
-        const { data: rows, error: fetchErr } = await sourceClient
-          .from(table)
-          .select('*')
-          .range(offset, offset + batchSize - 1)
-          .order('created_at', { ascending: true, nullsFirst: true }); // Try to be consistent
+        let query = sourceClient.from(table).select('*').range(offset, offset + batchSize - 1);
+        
+        // Try ordering by id or created_at for stable pagination
+        query = query.order('id', { ascending: true }).order('created_at', { ascending: true, nullsFirst: true });
 
-        if (fetchErr) throw fetchErr;
-        if (!rows || rows.length === 0) break;
-
-        const { error: insertErr } = await destClient.from(table).upsert(rows);
-        if (insertErr) throw insertErr;
-
-        totalMigrated += rows.length;
+        const { data: rows, error: fetchErr } = await query;
+        if (fetchErr) {
+          // Fallback if id/created_at doesn't exist
+          const { data: rowsFallback, error: fetchErr2 } = await sourceClient
+            .from(table)
+            .select('*')
+            .range(offset, offset + batchSize - 1);
+          
+          if (fetchErr2) throw fetchErr2;
+          if (!rowsFallback || rowsFallback.length === 0) break;
+          
+          const { error: insertErr } = await destClient.from(table).upsert(rowsFallback);
+          if (insertErr) throw insertErr;
+          totalMigrated += rowsFallback.length;
+          if (rowsFallback.length < batchSize) break;
+        } else {
+          if (!rows || rows.length === 0) break;
+          const { error: insertErr } = await destClient.from(table).upsert(rows);
+          if (insertErr) throw insertErr;
+          totalMigrated += rows.length;
+          if (rows.length < batchSize) break;
+        }
+        
         offset += batchSize;
-        if (rows.length < batchSize) break;
       }
 
       return new Response(JSON.stringify({ table, totalMigrated, success: true }), {
