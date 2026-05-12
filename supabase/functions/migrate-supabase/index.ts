@@ -13,7 +13,7 @@ interface SupabaseConfig {
 
 // Helper to identify TLS/SSL related errors
 function isTLSError(error: any): boolean {
-  const msg = String(error?.message || error || \"\").toLowerCase();
+  const msg = String(error?.message || error || "").toLowerCase();
   return (
     msg.includes(\"invalid peer certificate\") || 
     msg.includes(\"unknownissuer\") || 
@@ -319,8 +319,8 @@ serve(async (req) => {
       type: errorType,
       timestamp: new Date().toISOString(),
       details: errorType === 'tls_error' 
-        ? \"O endpoint HTTPS do destino está com certificado não confiável (Self-signed, expirado ou cadeia incompleta).\"
-        : \"Verifique as credenciais e a conectividade de rede.\"
+        ? "O endpoint HTTPS do destino está com certificado não confiável (Self-signed, expirado ou cadeia incompleta)."
+        : "Verifique as credenciais e a conectividade de rede."
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,
