@@ -402,7 +402,7 @@ export default function MigrationSupabasePage() {
                 id="d-role" 
                 type="password"
                 value={destination.serviceRoleKey} 
-                onChange={e => setDestination(s => ({ ...s, serviceRoleKey: e.target.value }))}
+                onChange={e => setDestination(s => ({ ...s, serviceRoleKey: e.target.value.trim() }))}
                 placeholder="eyJhbGciOiJIUzI1Ni..."
                 disabled={currentStep > 0}
               />
