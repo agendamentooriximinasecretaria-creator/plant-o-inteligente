@@ -18,6 +18,7 @@ function isTLSError(error: any): boolean {
     msg.includes("invalid peer certificate") || 
     msg.includes("unknownissuer") || 
     msg.includes("handshakefailure") ||
+    msg.includes("expired") ||
     msg.includes("cert")
   );
 }

@@ -61,8 +61,10 @@ export default function MigrationSupabasePage() {
     let msg = errorData.error || errorData.message || "Erro desconhecido";
     
     if (errorData.type === 'tls_error') {
-      msg = `Erro TLS: Certificado do servidor de destino não é confiável (UnknownIssuer).`;
-      addLog("⚠️ A migração definitiva exige certificado válido. Usar HTTPS inválido não é aceitável para produção.");
+      msg = `Erro de Infraestrutura TLS: O endpoint de destino possui um certificado não confiável (Self-signed, expirado ou cadeia incompleta).`;
+      addLog("⚠️ BLOQUEIO DE SEGURANÇA: O certificado HTTPS do destino não é confiável.");
+      addLog("ℹ️ A migração exige um certificado SSL/TLS válido e emitido por uma autoridade certificadora (CA) reconhecida para garantir a integridade dos dados.");
+      addLog("❌ Ambientes de produção não devem ignorar validações de segurança TLS.");
     }
     
     toast.error(`${fallbackTitle}: ${msg}`);
@@ -84,8 +86,11 @@ export default function MigrationSupabasePage() {
       }
       
       if (url.protocol === 'http:') {
-        toast.info(`Nota: Você está usando uma conexão não segura (HTTP) para a ${type}. Recomendado usar HTTPS para produção.`, {
-          duration: 5000,
+        addLog("⚠️ AVISO: Você está usando uma conexão não segura (HTTP).");
+        addLog("ℹ️ Ambientes HTTP são permitidos apenas para compatibilidade controlada (ex: instâncias locais/dev).");
+        addLog("❌ IMPORTANTE: Certifique-se de migrar para HTTPS com certificado válido antes do corte definitivo para produção.");
+        toast.info(`Nota: Conexão HTTP detectada. Use HTTPS para produção.`, {
+          duration: 7000,
         });
       }
     } catch (e) {
@@ -121,7 +126,7 @@ export default function MigrationSupabasePage() {
       
       const formatError = (res: any) => {
         if (res.type === 'tls_error') {
-          return `ERRO TLS: Certificado HTTPS inválido ou não confiável. A migração exige certificado válido para produção.`;
+          return `ERRO DE INFRAESTRUTURA TLS: O certificado HTTPS é inválido ou não confiável (UnknownIssuer/Expired).`;
         }
         if (res.type === 'api_error' && res.error.includes('PGRST301')) {
           return `ERRO DE AUTENTICAÇÃO: Service Role Key inválida ou expirada.`;
