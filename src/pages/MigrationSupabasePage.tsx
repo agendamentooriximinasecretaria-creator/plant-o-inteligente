@@ -243,6 +243,17 @@ export default function MigrationSupabasePage() {
   };
 
   const finalizeMigration = async () => {
+    // 1. Validação de Integridade: Impedir se houver erros em qualquer tabela migrada
+    const tablesWithErrors = Object.entries(migrationStatus)
+      .filter(([_, status]) => status === "error")
+      .map(([name]) => name);
+
+    if (tablesWithErrors.length > 0) {
+      toast.error(`Existem erros nas tabelas: ${tablesWithErrors.join(", ")}. Corrija antes de finalizar.`);
+      addLog(`❌ Falha na finalização: Erros detectados em ${tablesWithErrors.length} tabelas.`);
+      return;
+    }
+
     if (confirmText !== "CONFIRMAR MIGRAÇÃO DEFINITIVA") {
       toast.error("Digite a frase de confirmação exatamente como solicitada.");
       return;
@@ -250,29 +261,42 @@ export default function MigrationSupabasePage() {
     
     setLoading("finalizing");
     addLog("--------------------------------------------------");
-    addLog("CONSOLIDANDO INFORMAÇÕES DE TRANSIÇÃO");
+    addLog("📋 CONSOLIDANDO CHECKLIST DE TRANSIÇÃO");
     addLog("--------------------------------------------------");
     
     try {
-      addLog("✅ DADOS MIGRADOS NO BANCO DE DESTINO.");
-      addLog("⚠️ AGORA VOCÊ DEVE ATUALIZAR AS CONFIGURAÇÕES NO LOVABLE.");
-      addLog("Valores para configurar na aba 'Cloud' do Lovable:");
-      addLog("");
-      addLog(`VITE_SUPABASE_URL = ${destination.url}`);
-      addLog(`VITE_SUPABASE_PUBLISHABLE_KEY = ${destination.anonKey}`);
-      addLog(`SUPABASE_SERVICE_ROLE_KEY = ${destination.serviceRoleKey}`);
-      addLog("");
-      addLog("Como fazer:");
-      addLog("1. No editor do Lovable, clique no botão 'Cloud' (canto superior direito).");
-      addLog("2. Vá em 'Variables' (ou 'Secrets').");
-      addLog("3. Atualize cada um dos 3 valores acima com os novos dados.");
-      addLog("4. Após salvar, o sistema irá reiniciar usando o novo banco.");
-      addLog("5. IMPORTANTE: Verifique se as Edge Functions precisam ser redeployadas no novo projeto.");
+      // Causa raiz do bug relatado: Possível confusão de mapeamento entre URL e Keys.
+      // Correção: Instruções explícitas, separadas e sem expor a service role por segurança.
       
-      toast.success("Migração lógica finalizada. Siga os logs para completar a troca física.", { duration: 20000 });
+      const instructions = [
+        "✅ ETAPA 1: DADOS, USUÁRIOS E ARQUIVOS SINCRONIZADOS.",
+        "⚠️ ETAPA 2: CONFIGURAÇÃO MANUAL NO LOVABLE CLOUD (Obrigatório)",
+        "",
+        "No painel do Lovable (botão 'Cloud' no canto superior direito),",
+        "acesse 'Variables' / 'Secrets' e atualize os seguintes campos:",
+        "",
+        `• VITE_SUPABASE_URL (Nova URL do Projeto):`,
+        `  ${destination.url}`,
+        "",
+        `• VITE_SUPABASE_PUBLISHABLE_KEY (Nova Anon Key):`,
+        `  ${destination.anonKey}`,
+        "",
+        `• SUPABASE_SERVICE_ROLE_KEY (Nova Service Role Key):`,
+        `  [Copie do seu novo painel Supabase > Project Settings > API]`,
+        "",
+        "⚠️ DICA DE SEGURANÇA: Jamais use a URL no lugar da Key.",
+        "A URL começa com 'https://' e a Key começa sempre com 'eyJ...'",
+        "",
+        "✅ ETAPA 3: REINICIAR SERVIDOR",
+        "Após salvar as variáveis, o Lovable irá reiniciar para aplicar as novas conexões.",
+      ];
+
+      instructions.forEach(line => addLog(line));
+      
+      toast.success("Migração lógica concluída! Siga o checklist nos logs para a troca definitiva.", { duration: 15000 });
       setCurrentStep(3);
     } catch (err: any) {
-      addLog(`Erro ao finalizar: ${err.message}`);
+      addLog(`❌ Erro ao processar finalização: ${err.message}`);
     } finally {
       setLoading(null);
     }
