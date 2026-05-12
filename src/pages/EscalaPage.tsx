@@ -118,6 +118,10 @@ function ShiftHistoryView({ shiftId }: { shiftId: string }) {
   );
 }
 
+// -- Helpers (stable references) --
+const isFolgaShift = (s: any) => s.tipo_plantao === 'folga' || s.tipo_plantao === 'indisponibilidade';
+const getInitials = (name: string) => name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+
 // -- Components --
 const ShiftRow = memo(({ shift, onDetail, onEdit, onPrint, onDelete, isDeleting, sectorCapacity, isConflict, professionalTelefone }: any) => {
   return (
