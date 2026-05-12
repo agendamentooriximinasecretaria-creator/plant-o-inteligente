@@ -49,6 +49,171 @@ function useDebounced<T>(value: T, delay = 300): T {
   return v;
 }
 
+// -- Components --
+const SwapCard = memo(({ swap, i, professionals, isMaster, notifyingId, onImpact, onPrint, onNotificar, onComprovante, onAnexos, onReview, updateSwapLoading, pendingStatuses, expandedHistory, onToggleHistory, swapHistories }: any) => {
+  const isAdmin = swap.tipo === 'administrativa';
+  const style = statusStyles[swap.status as SwapStatus] || statusStyles.solicitada;
+  const Icon = style.icon;
+  const history = swapHistories.filter((h: any) => h.swap_id === swap.id);
+  const isPending = pendingStatuses.includes(swap.status);
+  const isExpanded = expandedHistory[swap.id];
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
+      className={`bg-card rounded-xl border p-4 sm:p-5 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elevated)] transition-all ${isPending ? `ring-1 ${style.ring}` : 'border-border'}`}>
+      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          <div className={`p-2.5 rounded-lg shrink-0 ${isAdmin ? 'bg-[hsl(var(--chart-4))]/10' : 'bg-primary/10'}`}>
+            {isAdmin ? <Zap className="h-5 w-5 text-[hsl(var(--chart-4))]" /> : <ArrowLeftRight className="h-5 w-5 text-primary" />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              {isAdmin && (
+                <span className="status-badge bg-[hsl(var(--chart-4))]/10 text-[hsl(var(--chart-4))]">
+                  <Zap className="h-3 w-3 mr-1" />Administrativa
+                </span>
+              )}
+              <span className="font-semibold text-foreground text-sm">{isAdmin ? 'Gestor Master' : (swap.solicitante as any)?.nome || '—'}</span>
+              {!isAdmin && (swap.solicitante as any)?.nome && (
+                <ContactActionButton profissional={{ nome: (swap.solicitante as any)?.nome, telefone: professionals.find((p: any) => p.id === swap.solicitante_id)?.telefone }} contexto={{ tipo: 'troca' }} />
+              )}
+              <ArrowLeftRight className="h-3 w-3 text-muted-foreground" />
+              <span className="font-semibold text-foreground text-sm">{(swap.destinatario as any)?.nome || 'Cobertura aberta'}</span>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1.5">{swap.motivo}</p>
+
+            {swap.shifts && (
+              <div className="mt-2.5 inline-flex items-center gap-1.5 text-xs bg-muted/50 px-2 py-1 rounded-md border border-border/50">
+                <CalIcon className="h-3 w-3 text-muted-foreground" />
+                <span className="text-foreground font-medium">
+                  {new Date((swap.shifts as any).data + 'T12:00:00').toLocaleDateString('pt-BR')}
+                </span>
+                <span className="text-muted-foreground">·</span>
+                <span className="text-muted-foreground font-mono">{(swap.shifts as any).hora_inicio?.slice(0,5)}–{(swap.shifts as any).hora_fim?.slice(0,5)}</span>
+                <span className="text-muted-foreground">·</span>
+                <span className="text-muted-foreground">{(swap.shifts as any).units?.nome || ''}</span>
+                <span className="text-muted-foreground">·</span>
+                <span className="text-muted-foreground">{(swap.shifts as any).sectors?.nome || ''}</span>
+              </div>
+            )}
+
+            <p className="text-xs text-muted-foreground mt-2">Criado em {new Date(swap.created_at).toLocaleString('pt-BR')}</p>
+            {swap.observacao_rejeicao && (
+              <div className="mt-2 p-2 rounded-md bg-destructive/5 border border-destructive/20">
+                <p className="text-xs text-destructive"><strong>Motivo da recusa:</strong> {swap.observacao_rejeicao}</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
+          <span className={`status-badge ${style.class} border`}>
+            <Icon className="h-3.5 w-3.5 mr-1" />{SWAP_STATUS_LABELS[swap.status as SwapStatus] || swap.status}
+          </span>
+
+          <button onClick={() => onImpact(swap)}
+            className="px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium hover:bg-muted transition-colors inline-flex items-center gap-1"
+            title="Ver impacto da troca">
+            <Activity className="h-3 w-3" /> Impacto
+          </button>
+
+          <button onClick={() => onPrint(swap)}
+            className="px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium hover:bg-muted transition-colors inline-flex items-center gap-1"
+            title="Imprimir solicitação">
+            <Printer className="h-3 w-3" /> Imprimir
+          </button>
+
+          {isMaster && (
+            <button onClick={() => onNotificar(swap)} disabled={notifyingId === swap.id}
+              className="px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium hover:bg-muted transition-colors inline-flex items-center gap-1 disabled:opacity-50"
+              title="Notificar profissional">
+              <BellRing className="h-3 w-3" /> {notifyingId === swap.id ? 'Enviando…' : 'Notificar'}
+            </button>
+          )}
+
+          {['aprovada', 'concluida'].includes(swap.status) && (
+            <button onClick={() => onComprovante(swap.id)} className="px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors inline-flex items-center gap-1">
+              <FileText className="h-3 w-3" /> Comprovante
+            </button>
+          )}
+          <button onClick={() => onAnexos(swap.id)} className="px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors inline-flex items-center gap-1" title="Anexos justificativos">
+            <Paperclip className="h-3 w-3" /> Anexos
+          </button>
+          <SignActionButton
+            compact
+            signLabel="Assinar"
+            document={{
+              document_type: 'troca',
+              document_id: swap.id,
+              document_title: `Troca de plantão ${swap.id.slice(0, 8)}`,
+              content: JSON.stringify({
+                id: swap.id,
+                tipo: swap.tipo,
+                status: swap.status,
+                motivo: swap.motivo,
+                solicitante: (swap.solicitante as any)?.nome,
+                destinatario: (swap.destinatario as any)?.nome,
+                shift: swap.shifts ? {
+                  data: (swap.shifts as any).data,
+                  hora_inicio: (swap.shifts as any).hora_inicio,
+                  hora_fim: (swap.shifts as any).hora_fim,
+                  setor: ((swap.shifts as any).sectors as any)?.nome,
+                  unidade: ((swap.shifts as any).units as any)?.nome,
+                } : null,
+              }),
+            }}
+          />
+          {isPending && isMaster && (
+            <>
+              <button onClick={() => onReview(swap, 'aprovar')} disabled={updateSwapLoading}
+                className="px-3 py-1.5 rounded-lg bg-success text-success-foreground text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 inline-flex items-center gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Aprovar
+              </button>
+              <button onClick={() => onReview(swap, 'rejeitar')} disabled={updateSwapLoading}
+                className="px-3 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 inline-flex items-center gap-1">
+                <XCircle className="h-3.5 w-3.5" /> Recusar
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {history.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-border">
+          <button onClick={() => onToggleHistory(swap.id)}
+            className="flex items-center gap-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors">
+            <History className="h-3 w-3" />
+            Histórico ({history.length})
+            <ChevronDown className={`h-3 w-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+          </button>
+          <AnimatePresence>
+            {isExpanded && (
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                <ul className="mt-2 space-y-2.5">
+                  {history.map((h: any) => (
+                    <li key={h.id} className="flex gap-2.5 text-[11px] bg-muted/30 p-2 rounded-lg border border-border/40">
+                      <div className="mt-0.5 h-1.5 w-1.5 rounded-full bg-primary/40 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-foreground leading-snug font-medium">{h.acao}</p>
+                        <div className="flex items-center gap-1.5 mt-1 text-muted-foreground">
+                          <span className="font-semibold">{h.usuario}</span>
+                          <span>•</span>
+                          <span>{new Date(h.created_at).toLocaleString('pt-BR')}</span>
+                        </div>
+                        {h.detalhes && <p className="mt-1 text-muted-foreground italic border-l-2 border-primary/20 pl-2">{h.detalhes}</p>}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+    </motion.div>
+  );
+});
+
 export default function TrocasPage() {
   const qc = useQueryClient();
   const { isMaster } = useAuth();
