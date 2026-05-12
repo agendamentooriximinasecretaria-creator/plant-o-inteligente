@@ -15,10 +15,10 @@ interface SupabaseConfig {
 function isTLSError(error: any): boolean {
   const msg = String(error?.message || error || "").toLowerCase();
   return (
-    msg.includes(\"invalid peer certificate\") || 
-    msg.includes(\"unknownissuer\") || 
-    msg.includes(\"handshakefailure\") ||
-    msg.includes(\"cert\")
+    msg.includes("invalid peer certificate") || 
+    msg.includes("unknownissuer") || 
+    msg.includes("handshakefailure") ||
+    msg.includes("cert")
   );
 }
 
