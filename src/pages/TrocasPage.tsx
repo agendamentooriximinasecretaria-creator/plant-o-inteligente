@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, memo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { invalidateCrossSwaps } from "@/lib/queryInvalidation";
@@ -25,6 +25,7 @@ import { MoreActionsMenu } from "@/components/MoreActionsMenu";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { CardListSkeleton } from "@/components/PageSkeleton";
+import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 
 const statusStyles: Record<SwapStatus, { class: string; icon: typeof Clock; ring: string }> = {
   solicitada: { class: 'bg-info/10 text-info border-info/20', icon: Clock, ring: 'ring-info/30' },
