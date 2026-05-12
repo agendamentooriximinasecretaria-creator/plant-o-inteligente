@@ -845,7 +845,7 @@ export default function EscalaPage() {
   // ============================================================
   // Ações secundárias da Escala (Imprimir, Exportar, Copiar, Validar, Publicar, Enviar)
   // ============================================================
-  const { isMaster, isCoordinator, isProfessional, profileName, user } = useAuth();
+  
   const canManage = isMaster || isCoordinator;
 
   const [copySemanaOpen, setCopySemanaOpen] = useState(false);
