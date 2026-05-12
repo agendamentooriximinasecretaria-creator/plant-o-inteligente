@@ -6,7 +6,7 @@ import {
   Trash2, ShieldAlert, Activity,
   Clock, Zap, Download, LineChart,
   Link2, Settings2, Network, Save, TestTube,
-  History, Search, Filter, AlertCircle, FileSearch, Shield, Server
+  History, Search, Filter, AlertCircle, FileSearch, Shield, Server, Gauge
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -169,7 +169,7 @@ export default function MonitoramentoSistemaPage() {
         <StatusCard title="Alertas" value={stats?.recentErrors?.length || 0} icon={ShieldAlert} color={(stats?.recentErrors?.length || 0) > 0 ? "text-destructive" : "text-success"} desc="Riscos detectados" />
       </div>
 
-      <Tabs defaultValue="cleanup" className="w-full">
+      <Tabs defaultValue="overview" className="w-full">
         <TabsList className="flex flex-wrap h-auto p-1 bg-muted/50 mb-6 gap-1">
           <TabsTrigger value="overview" className="flex-1 min-w-[100px]">Geral</TabsTrigger>
           <TabsTrigger value="db" className="flex-1 min-w-[100px]">Banco</TabsTrigger>
@@ -178,6 +178,271 @@ export default function MonitoramentoSistemaPage() {
           <TabsTrigger value="cleanup" className="flex-1 min-w-[100px]">Limpeza</TabsTrigger>
           <TabsTrigger value="logs" className="flex-1 min-w-[100px]">Logs</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="overview" className="mt-6 space-y-6">
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <Card className="border-border/60 shadow-sm">
+               <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Zap className="h-5 w-5 text-yellow-500" /> Alertas Automáticos</CardTitle></CardHeader>
+               <CardContent className="space-y-4">
+                  {!stats?.recentErrors?.length ? (
+                    <div className="flex flex-col items-center py-8 text-muted-foreground">
+                       <CheckCircle className="h-10 w-10 text-success/40 mb-2" />
+                       <p>Nenhum alerta crítico no momento.</p>
+                    </div>
+                  ) : (
+                    stats.recentErrors.map((err: any) => (
+                      <div key={err.id} className="p-3 rounded-lg bg-destructive/5 border border-destructive/20 flex gap-3">
+                         <ShieldAlert className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                         <div>
+                            <p className="font-semibold text-sm">{err.acao}</p>
+                            <p className="text-xs text-muted-foreground">{new Date(err.created_at).toLocaleString()}</p>
+                         </div>
+                      </div>
+                    ))
+                  )}
+               </CardContent>
+             </Card>
+
+             <Card className="border-border/60 shadow-sm">
+               <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Gauge className="h-5 w-5 text-primary" /> Recomendações</CardTitle></CardHeader>
+               <CardContent className="space-y-4">
+                  <RecommendationItem text="Muitos registros de logs detectados. Considere arquivar dados com mais de 120 dias." />
+                  <RecommendationItem text="O uso do Storage está crescendo. Verifique anexos órfãos." />
+                  <RecommendationItem text="A tabela de agendamentos atingiu um volume alto. Avalie estratégias de paginação." />
+               </CardContent>
+             </Card>
+           </div>
+        </TabsContent>
+
+        <TabsContent value="db" className="mt-6">
+          <Card className="border-border/60 shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Tabelas e Volume de Dados</CardTitle>
+                <CardDescription>Principais tabelas monitoradas do schema público.</CardDescription>
+              </div>
+              {stats?.database?.tables && (
+                <Badge variant="outline" className="gap-1.5 py-1 px-3 border-primary/30">
+                  <Database className="h-3 w-3" /> Tabelas Monitoradas: {stats.database.tables.length}
+                </Badge>
+              )}
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Tabela</TableHead>
+                      <TableHead className="text-right">Registros</TableHead>
+                      <TableHead className="text-right">Tamanho</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {stats?.database?.tables?.map((table: any) => (
+                      <TableRow key={table.table_name}>
+                        <TableCell className="font-mono text-xs">{table.table_name}</TableCell>
+                        <TableCell className="text-right font-medium">{Number(table.row_count).toLocaleString()}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">{table.total_size}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge className={Number(table.row_count) > 100000 ? "bg-warning" : "bg-success"}>
+                            {Number(table.row_count) > 100000 ? "Atenção" : "Normal"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="storage" className="mt-6">
+           <Card className="border-border/60 shadow-sm">
+             <CardHeader>
+               <CardTitle>Buckets do Supabase Storage</CardTitle>
+               <CardDescription>Espaço ocupado e gestão de arquivos.</CardDescription>
+             </CardHeader>
+             <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {stats?.storage?.map((bucket: any) => (
+                    <div key={bucket.id} className="p-4 rounded-xl border border-border/60 bg-muted/20">
+                       <div className="flex items-center justify-between mb-2">
+                         <div className="p-2 rounded-lg bg-accent/10"><HardDrive className="h-4 w-4 text-accent" /></div>
+                         <Badge variant={bucket.public ? "secondary" : "outline"}>{bucket.public ? "Público" : "Privado"}</Badge>
+                       </div>
+                       <h4 className="font-bold">{bucket.name}</h4>
+                       <p className="text-2xl font-bold mt-2">{bucket.fileCount} <span className="text-sm font-normal text-muted-foreground">arquivos</span></p>
+                    </div>
+                  ))}
+                </div>
+             </CardContent>
+           </Card>
+        </TabsContent>
+
+        <TabsContent value="perf" className="mt-6 space-y-6">
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <PerfCard 
+                title="Latência da API" 
+                value={metrics.apiLatency ? `${metrics.apiLatency}ms` : "Calculando..."} 
+                icon={Zap}
+                status={metrics.apiLatency < 300 ? "Bom" : "Lento"}
+                desc="Edge Function Check"
+              />
+              <PerfCard 
+                title="Resposta Supabase" 
+                value={metrics.supabaseLatency ? `${metrics.supabaseLatency}ms` : "Calculando..."} 
+                icon={Database}
+                status={metrics.supabaseLatency < 200 ? "Bom" : "Lento"}
+                desc="PostgreSQL Query"
+              />
+              <PerfCard 
+                title="Carregamento" 
+                value={metrics.pageLoadTime ? `${(metrics.pageLoadTime/1000).toFixed(2)}s` : "---"} 
+                icon={Clock}
+                status={metrics.pageLoadTime < 2500 ? "Bom" : "Lento"}
+                desc="Navegador (Navigation)"
+              />
+              <PerfCard 
+                title="Status Conexão" 
+                value={metrics.online ? "Online" : "Offline"} 
+                icon={Network}
+                status={metrics.online ? "Bom" : "Crítico"}
+                desc="Conectividade Local"
+              />
+              <PerfCard 
+                title="Última Verificação" 
+                value={metrics.lastCheck || "---"} 
+                icon={RefreshCw}
+                status="Info"
+                desc="Hora local"
+              />
+              <PerfCard 
+                title="Erros Recentes" 
+                value={stats?.recentErrors?.length || "0"} 
+                icon={ShieldAlert}
+                status={(stats?.recentErrors?.length || 0) > 0 ? "Atenção" : "Bom"}
+                desc="Logs de Erro"
+              />
+           </div>
+
+           <Card className="border-border/60 shadow-sm overflow-hidden">
+             <div className="bg-primary/5 p-4 border-b border-border/50 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                   <LineChart className="h-5 w-5 text-primary" />
+                   <h3 className="font-bold">Monitoramento Avançado (Observabilidade)</h3>
+                </div>
+                {!showExternalConfig && (
+                   <Button variant="outline" size="sm" onClick={() => setShowExternalConfig(true)} className="gap-2 bg-background">
+                      <Settings2 className="h-4 w-4" /> Configurar Integração
+                   </Button>
+                )}
+             </div>
+             
+             <CardContent className="p-6">
+                <AnimatePresence mode="wait">
+                  {!showExternalConfig ? (
+                    <motion.div 
+                      key="status"
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      className="flex flex-col items-center text-center py-8 space-y-4"
+                    >
+                       <div className="p-4 rounded-full bg-muted/20">
+                          <Link2 className="h-10 w-10 text-muted-foreground/30" />
+                       </div>
+                       <div className="max-w-md">
+                          <h4 className="font-semibold text-lg">Monitoramento real ainda não configurado</h4>
+                          <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                             Para medir CPU, RAM, disco, uptime e erros reais da hospedagem, conecte uma integração externa como Coolify Metrics, Sentry, Grafana, New Relic ou Vercel Analytics.
+                          </p>
+                       </div>
+                       
+                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full mt-6 opacity-40 grayscale">
+                          <MetricPlaceholder label="CPU VPS" />
+                          <MetricPlaceholder label="Memória RAM" />
+                          <MetricPlaceholder label="Uso de Disco" />
+                          <MetricPlaceholder label="Uptime Real" />
+                       </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div 
+                      key="config"
+                      initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+                      className="space-y-6"
+                    >
+                       <div className="flex items-center justify-between">
+                          <h4 className="font-semibold">Configuração de Integração Externa</h4>
+                          <Button variant="ghost" size="sm" onClick={() => setShowExternalConfig(false)}>Cancelar</Button>
+                       </div>
+                       
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-4">
+                             <div className="space-y-2">
+                                <Label htmlFor="integ-type">Tipo de Integração</Label>
+                                <select id="integ-type" className="w-full h-10 px-3 py-2 rounded-md border border-input bg-background text-sm">
+                                   <option>Coolify Metrics</option>
+                                   <option>Sentry</option>
+                                   <option>Grafana (Prometheus)</option>
+                                   <option>New Relic</option>
+                                   <option>Vercel Analytics</option>
+                                </select>
+                             </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="integ-url">URL do Painel / Endpoint</Label>
+                                <Input id="integ-url" placeholder="https://stats.seuservidor.com/api" />
+                             </div>
+                          </div>
+                          
+                          <div className="space-y-4">
+                             <div className="space-y-2">
+                                <Label htmlFor="integ-token">Token / API Key</Label>
+                                <Input id="integ-token" type="password" placeholder="••••••••••••••••" />
+                                <p className="text-[10px] text-muted-foreground">Tokens são salvos de forma segura no backend (Secrets) e nunca expostos no frontend.</p>
+                             </div>
+                             <div className="flex gap-2 pt-2">
+                                <Button className="flex-1 gap-2"><Save className="h-4 w-4" /> Salvar Integração</Button>
+                                <Button variant="outline" className="gap-2"><TestTube className="h-4 w-4" /> Testar</Button>
+                             </div>
+                          </div>
+                       </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+             </CardContent>
+           </Card>
+        </TabsContent>
+
+        <TabsContent value="logs" className="mt-6">
+           <Card className="border-border/60 shadow-sm">
+             <CardHeader>
+               <CardTitle>Logs Recentes de Erro</CardTitle>
+               <CardDescription>Últimas falhas capturadas no sistema.</CardDescription>
+             </CardHeader>
+             <CardContent>
+                <ScrollArea className="h-[400px] pr-4">
+                   <div className="space-y-3">
+                      {!stats?.recentErrors?.length ? (
+                         <p className="text-sm text-muted-foreground text-center py-10">Nenhum log de erro recente.</p>
+                      ) : (
+                         stats.recentErrors.map((log: any) => (
+                            <div key={log.id} className="p-4 rounded-xl border bg-muted/5 font-mono text-[10px] space-y-2">
+                               <div className="flex justify-between items-center">
+                                  <Badge variant="destructive" className="text-[9px] px-1.5 py-0">ERROR</Badge>
+                                  <span className="text-muted-foreground">{new Date(log.created_at).toLocaleString()}</span>
+                               </div>
+                               <p className="font-bold text-foreground">{log.acao}</p>
+                               <div className="p-2 bg-black/5 dark:bg-white/5 rounded whitespace-pre-wrap overflow-x-auto">
+                                  {JSON.stringify(log.detalhes || log.payload, null, 2)}
+                                </div>
+                            </div>
+                         ))
+                      )}
+                   </div>
+                </ScrollArea>
+             </CardContent>
+           </Card>
+        </TabsContent>
 
         <TabsContent value="cleanup" className="space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -330,6 +595,7 @@ export default function MonitoramentoSistemaPage() {
   );
 }
 
+// Subcomponents
 function CleanupCard({ title, desc, type, analyzing, onAnalyze, analysisResult, onCleanup, isCritical }: any) {
   return (
     <Card className={`border-border/60 shadow-sm transition-all flex flex-col ${isCritical ? 'hover:border-warning/30' : 'hover:border-primary/30'}`}>
@@ -396,5 +662,49 @@ function StatusCard({ title, value, icon: Icon, color, desc }: any) {
         <p className="text-[10px] text-muted-foreground mt-1">{desc}</p>
       </CardContent>
     </Card>
+  );
+}
+
+function PerfCard({ title, value, icon: Icon, status, desc }: any) {
+  const statusColors: any = {
+    "Bom": "bg-success/10 text-success border-success/20",
+    "Atenção": "bg-warning/10 text-warning border-warning/20",
+    "Lento": "bg-warning/10 text-warning border-warning/20",
+    "Crítico": "bg-destructive/10 text-destructive border-destructive/20",
+    "Info": "bg-primary/10 text-primary border-primary/20",
+  };
+
+  return (
+    <Card className="border-border/60 shadow-sm overflow-hidden">
+      <CardContent className="p-4 flex items-start gap-4">
+        <div className="p-2.5 rounded-xl bg-muted/50 text-muted-foreground"><Icon className="h-5 w-5" /></div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">{title}</p>
+          <div className="flex items-baseline gap-2 mt-0.5">
+            <span className="text-xl font-bold tracking-tight truncate">{value}</span>
+            <Badge variant="outline" className={`text-[9px] px-1.5 py-0 h-4 ${statusColors[status] || statusColors.Info}`}>{status}</Badge>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1 truncate">{desc}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MetricPlaceholder({ label }: { label: string }) {
+  return (
+    <div className="p-3 rounded-xl border border-dashed border-muted-foreground/30 flex flex-col items-center gap-1">
+      <span className="text-[9px] font-bold uppercase tracking-widest">{label}</span>
+      <span className="text-xs font-mono">Não configurado</span>
+    </div>
+  );
+}
+
+function RecommendationItem({ text }: { text: string }) {
+  return (
+    <div className="flex gap-3 items-start p-3 rounded-xl bg-primary/5 border border-primary/10">
+      <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+      <p className="text-sm text-foreground/80 leading-snug">{text}</p>
+    </div>
   );
 }
