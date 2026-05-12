@@ -35,7 +35,16 @@ const ValidarDocumentoPage = lazy(() => import("@/pages/ValidarDocumentoPage"));
 const DocumentosOficiaisPage = lazy(() => import("@/pages/DocumentosOficiaisPage"));
 const MigrationSupabasePage = lazy(() => import("@/pages/MigrationSupabasePage"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes by default
+      gcTime: 1000 * 60 * 30, // 30 minutes
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 function AuthLoadingScreen() {
   return (
