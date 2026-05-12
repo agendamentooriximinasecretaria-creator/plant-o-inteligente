@@ -391,7 +391,7 @@ export default function MigrationSupabasePage() {
               <Input 
                 id="d-url" 
                 value={destination.url} 
-                onChange={e => setDestination(s => ({ ...s, url: e.target.value }))}
+                onChange={e => setDestination(s => ({ ...s, url: e.target.value.trim().replace(/\/$/, "") }))}
                 placeholder="https://sua-instancia.supabase.co"
                 disabled={currentStep > 0}
               />
