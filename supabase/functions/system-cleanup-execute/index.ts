@@ -18,19 +18,30 @@ serve(async (req) => {
 
     // Auth validation
     const authHeader = req.headers.get('Authorization')
-    const { data: { user } } = await supabaseClient.auth.getUser(authHeader?.replace('Bearer ', '') || '')
-    if (!user) throw new Error('Não autorizado')
+    if (!authHeader) throw new Error('Não autorizado')
+    
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(authHeader.replace('Bearer ', ''))
+    if (userError || !user) throw new Error('Não autorizado')
 
     // Role check
-    const { data: profile } = await supabaseClient.from('profiles').select('role').eq('user_id', user.id).single()
-    if (profile?.role !== 'gestor_master') throw new Error('Acesso negado')
+    const { data: profile } = await supabaseClient
+      .from('profiles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single()
+
+    if (profile?.role !== 'gestor_master') {
+      throw new Error('Acesso negado: Apenas Gestor Master pode executar limpeza')
+    }
 
     const { type, payload } = await req.json()
+    if (!type) throw new Error('Tipo de limpeza não informado')
 
     let result = { success: false, items_count: 0 }
 
+    // SAFE CLEANUP LOGIC
     if (type === 'logs') {
-      const days = payload.days || 90
+      const days = payload?.days || 90
       const dateLimit = new Date()
       dateLimit.setDate(dateLimit.getDate() - days)
       
@@ -38,7 +49,9 @@ serve(async (req) => {
         .from('audit_logs')
         .delete({ count: 'exact' })
         .lt('created_at', dateLimit.toISOString())
-        .neq('acao', 'Alteração de Prontuário') // Security: Don't delete critical logs
+        .not('acao', 'ilike', '%Prontuário%') // Safety: Never delete patient record changes
+        .not('acao', 'ilike', '%Documento%') // Safety: Keep document related logs
+        .eq('status', 'sucesso') // Only delete successful logs, keep errors for auditing
 
       if (error) throw error
       result = { success: true, items_count: count || 0 }
@@ -50,19 +63,25 @@ serve(async (req) => {
         .from('notifications')
         .delete({ count: 'exact' })
         .lt('created_at', dateLimit.toISOString())
-        .eq('lida', true)
+        .eq('lida', true) // Only delete read notifications
 
       if (error) throw error
       result = { success: true, items_count: count || 0 }
+    } else {
+      throw new Error('Tipo de limpeza inválido ou não suportado')
     }
 
-    // Audit the cleanup
+    // Audit the cleanup with full details
     await supabaseClient.from('system_cleanup_logs').insert({
         created_by: user.id,
         cleanup_type: type,
         items_count: result.items_count,
         status: 'Sucesso',
-        details: payload
+        details: {
+          requested_at: new Date().toISOString(),
+          payload,
+          client_info: req.headers.get('x-client-info')
+        }
     })
 
     return new Response(JSON.stringify(result), {
@@ -71,7 +90,8 @@ serve(async (req) => {
     })
 
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('Cleanup execute error:', error.message)
+    return new Response(JSON.stringify({ error: error.message || "Erro ao executar limpeza" }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,
     })

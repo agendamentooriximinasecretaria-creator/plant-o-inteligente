@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
-import { Building2, Shield, Bell, Mail, Webhook, ArrowLeftRight, Save, TestTube, Power, Loader2, Eye, EyeOff, Clock, FileText } from "lucide-react";
+import { Building2, Shield, Bell, Mail, Webhook, ArrowLeftRight, Save, TestTube, Power, Loader2, Eye, EyeOff, Clock, FileText, Activity, LineChart } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { ShiftTypesManager } from "@/components/ShiftTypesManager";
@@ -211,6 +211,28 @@ export default function ConfiguracoesPage() {
               </button>
               <button onClick={() => { saveSetting.mutate({ key: 'webhook', value: { url: webhookUrl, ativo: false, status: 'inativo' } }); setWebhookAtivo(false); }} className="flex items-center gap-2 border border-destructive/30 text-destructive px-4 py-2 rounded-lg text-sm font-medium hover:bg-destructive/10"><Power className="h-4 w-4" /> Desativar</button>
             </div>
+          </div>
+        </motion.div>
+
+        {/* Monitoramento do Sistema (Gestor Master Only) */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }} className={sectionClass}>
+          <div className="flex items-start gap-3 mb-4">
+            <div className="p-2 rounded-lg bg-primary/10"><Activity className="h-5 w-5 text-primary" /></div>
+            <div className="flex-1">
+              <h3 className="font-display font-semibold text-foreground">Monitoramento do Sistema</h3>
+              <p className="text-sm text-muted-foreground">Acompanhe a saúde do banco de dados, storage e infraestrutura.</p>
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3">
+             <div className="flex-1 p-3 rounded-lg bg-muted/20 border border-border/50">
+                <p className="text-xs text-muted-foreground">Métricas em tempo real, auditoria de logs e limpeza segura de dados temporários.</p>
+             </div>
+             <button 
+               onClick={() => window.location.href = '/configuracoes/monitoramento'} 
+               className="flex items-center justify-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/20 transition-colors"
+             >
+               <LineChart className="h-4 w-4" /> Acessar Monitoramento
+             </button>
           </div>
         </motion.div>
 
