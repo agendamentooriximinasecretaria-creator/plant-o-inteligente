@@ -214,6 +214,28 @@ export default function ConfiguracoesPage() {
           </div>
         </motion.div>
 
+        {/* Monitoramento do Sistema (Gestor Master Only) */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }} className={sectionClass}>
+          <div className="flex items-start gap-3 mb-4">
+            <div className="p-2 rounded-lg bg-primary/10"><Activity className="h-5 w-5 text-primary" /></div>
+            <div className="flex-1">
+              <h3 className="font-display font-semibold text-foreground">Monitoramento do Sistema</h3>
+              <p className="text-sm text-muted-foreground">Acompanhe a saúde do banco de dados, storage e infraestrutura.</p>
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3">
+             <div className="flex-1 p-3 rounded-lg bg-muted/20 border border-border/50">
+                <p className="text-xs text-muted-foreground">Métricas em tempo real, auditoria de logs e limpeza segura de dados temporários.</p>
+             </div>
+             <button 
+               onClick={() => window.location.href = '/configuracoes/monitoramento'} 
+               className="flex items-center justify-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/20 transition-colors"
+             >
+               <LineChart className="h-4 w-4" /> Acessar Monitoramento
+             </button>
+          </div>
+        </motion.div>
+
         {/* Gmail SMTP */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className={sectionClass}>
           <div className="flex items-start gap-3 mb-4"><div className="p-2 rounded-lg bg-primary/10"><Mail className="h-5 w-5 text-primary" /></div><div className="flex-1">
