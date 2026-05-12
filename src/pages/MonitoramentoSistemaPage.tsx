@@ -6,7 +6,7 @@ import {
   Trash2, ShieldAlert, Activity,
   Clock, Zap, Download, LineChart,
   Link2, Settings2, Network, Save, TestTube,
-  History, Search, Filter, AlertCircle, FileSearch, Shield
+  History, Search, Filter, AlertCircle, FileSearch, Shield, Server
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
