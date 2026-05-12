@@ -25,13 +25,15 @@ export default function MigrationSupabasePage() {
   const [destination, setDestination] = useState({
     url: "",
     serviceRoleKey: "",
+    anonKey: "",
   });
 
   const [diagnosticData, setDiagnosticData] = useState<any>(null);
   const [loading, setLoading] = useState<string | null>(null);
-  const [migrationStatus, setMigrationStatus] = useState<any>({});
+  const [migrationStatus, setMigrationStatus] = useState<Record<string, "pending" | "migrating" | "success" | "error">>({});
   const [logs, setLogs] = useState<string[]>([]);
   const [confirmText, setConfirmText] = useState("");
+  const [currentStep, setCurrentStep] = useState(0);
 
   const addLog = (msg: string) => {
     setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev]);
