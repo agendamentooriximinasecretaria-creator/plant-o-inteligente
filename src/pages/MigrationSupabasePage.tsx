@@ -217,6 +217,7 @@ export default function MigrationSupabasePage() {
       return data.totalMigrated;
     } catch (err: any) {
       setMigrationStatus(prev => ({ ...prev, [tableName]: "error" }));
+      handleEdgeError(err, `Erro na tabela ${tableName}`);
       throw err;
     }
   };
