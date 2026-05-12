@@ -304,33 +304,134 @@ export default function MonitoramentoSistemaPage() {
            </div>
         </TabsContent>
 
-        <TabsContent value="perf" className="mt-6">
-           <Card className="border-border/60 shadow-sm">
-             <CardHeader>
-               <CardTitle>Indicadores de Desempenho</CardTitle>
-               <CardDescription>Métricas de carregamento e resposta (Simulado/Preparado).</CardDescription>
-             </CardHeader>
-             <CardContent className="space-y-6">
-                <div className="space-y-2">
-                   <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Latência da API</span>
-                      <span className="font-mono">124ms</span>
-                   </div>
-                   <Progress value={12} className="h-2" />
+        <TabsContent value="perf" className="mt-6 space-y-6">
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <PerfCard 
+                title="Latência da API" 
+                value={metrics.apiLatency ? `${metrics.apiLatency}ms` : "Calculando..."} 
+                icon={Zap}
+                status={metrics.apiLatency < 300 ? "Bom" : "Lento"}
+                desc="Edge Function Check"
+              />
+              <PerfCard 
+                title="Resposta Supabase" 
+                value={metrics.supabaseLatency ? `${metrics.supabaseLatency}ms` : "Calculando..."} 
+                icon={Database}
+                status={metrics.supabaseLatency < 200 ? "Bom" : "Lento"}
+                desc="PostgreSQL Query"
+              />
+              <PerfCard 
+                title="Carregamento" 
+                value={metrics.pageLoadTime ? `${(metrics.pageLoadTime/1000).toFixed(2)}s` : "---"} 
+                icon={Clock}
+                status={metrics.pageLoadTime < 2500 ? "Bom" : "Lento"}
+                desc="Navegador (Navigation)"
+              />
+              <PerfCard 
+                title="Status Conexão" 
+                value={metrics.online ? "Online" : "Offline"} 
+                icon={Network}
+                status={metrics.online ? "Bom" : "Crítico"}
+                desc="Conectividade Local"
+              />
+              <PerfCard 
+                title="Última Verificação" 
+                value={metrics.lastCheck || "---"} 
+                icon={RefreshCw}
+                status="Info"
+                desc="Hora local"
+              />
+              <PerfCard 
+                title="Erros Recentes" 
+                value={stats?.recentErrors?.length || "0"} 
+                icon={ShieldAlert}
+                status={(stats?.recentErrors?.length || 0) > 0 ? "Atenção" : "Bom"}
+                desc="Logs de Erro"
+              />
+           </div>
+
+           <Card className="border-border/60 shadow-sm overflow-hidden">
+             <div className="bg-primary/5 p-4 border-b border-border/50 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                   <LineChart className="h-5 w-5 text-primary" />
+                   <h3 className="font-bold">Monitoramento Avançado (Observabilidade)</h3>
                 </div>
-                <div className="space-y-2">
-                   <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Tempo de Resposta Médio</span>
-                      <span className="font-mono">240ms</span>
-                   </div>
-                   <Progress value={24} className="h-2" />
-                </div>
-                <div className="p-4 rounded-lg bg-info/5 border border-info/20">
-                   <p className="text-xs text-info flex gap-2">
-                      <Info className="h-4 w-4 shrink-0" />
-                      O monitoramento de desempenho real requer integração com observabilidade externa (Sentry/New Relic).
-                   </p>
-                </div>
+                {!showExternalConfig && (
+                   <Button variant="outline" size="sm" onClick={() => setShowExternalConfig(true)} className="gap-2 bg-background">
+                      <Settings2 className="h-4 w-4" /> Configurar Integração
+                   </Button>
+                )}
+             </div>
+             
+             <CardContent className="p-6">
+                <AnimatePresence mode="wait">
+                  {!showExternalConfig ? (
+                    <motion.div 
+                      key="status"
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      className="flex flex-col items-center text-center py-8 space-y-4"
+                    >
+                       <div className="p-4 rounded-full bg-muted/20">
+                          <Link2 className="h-10 w-10 text-muted-foreground/30" />
+                       </div>
+                       <div className="max-w-md">
+                          <h4 className="font-semibold text-lg">Monitoramento real ainda não configurado</h4>
+                          <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                             Para medir CPU, RAM, disco, uptime e erros reais da hospedagem, conecte uma integração externa como Coolify Metrics, Sentry, Grafana, New Relic ou Vercel Analytics.
+                          </p>
+                       </div>
+                       
+                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full mt-6 opacity-40 grayscale">
+                          <MetricPlaceholder label="CPU VPS" />
+                          <MetricPlaceholder label="Memória RAM" />
+                          <MetricPlaceholder label="Uso de Disco" />
+                          <MetricPlaceholder label="Uptime Real" />
+                       </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div 
+                      key="config"
+                      initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+                      className="space-y-6"
+                    >
+                       <div className="flex items-center justify-between">
+                          <h4 className="font-semibold">Configuração de Integração Externa</h4>
+                          <Button variant="ghost" size="sm" onClick={() => setShowExternalConfig(false)}>Cancelar</Button>
+                       </div>
+                       
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-4">
+                             <div className="space-y-2">
+                                <Label htmlFor="integ-type">Tipo de Integração</Label>
+                                <select id="integ-type" className="w-full h-10 px-3 py-2 rounded-md border border-input bg-background text-sm">
+                                   <option>Coolify Metrics</option>
+                                   <option>Sentry</option>
+                                   <option>Grafana (Prometheus)</option>
+                                   <option>New Relic</option>
+                                   <option>Vercel Analytics</option>
+                                </select>
+                             </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="integ-url">URL do Painel / Endpoint</Label>
+                                <Input id="integ-url" placeholder="https://stats.seuservidor.com/api" />
+                             </div>
+                          </div>
+                          
+                          <div className="space-y-4">
+                             <div className="space-y-2">
+                                <Label htmlFor="integ-token">Token / API Key</Label>
+                                <Input id="integ-token" type="password" placeholder="••••••••••••••••" />
+                                <p className="text-[10px] text-muted-foreground">Tokens são salvos de forma segura no backend (Secrets) e nunca expostos no frontend.</p>
+                             </div>
+                             <div className="flex gap-2 pt-2">
+                                <Button className="flex-1 gap-2"><Save className="h-4 w-4" /> Salvar Integração</Button>
+                                <Button variant="outline" className="gap-2"><TestTube className="h-4 w-4" /> Testar</Button>
+                             </div>
+                          </div>
+                       </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
              </CardContent>
            </Card>
         </TabsContent>
