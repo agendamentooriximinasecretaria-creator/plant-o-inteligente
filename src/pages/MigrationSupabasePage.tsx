@@ -370,7 +370,7 @@ export default function MigrationSupabasePage() {
                 id="s-role" 
                 type="password"
                 value={source.serviceRoleKey} 
-                onChange={e => setSource(s => ({ ...s, serviceRoleKey: e.target.value }))}
+                onChange={e => setSource(s => ({ ...s, serviceRoleKey: e.target.value.trim() }))}
                 placeholder="eyJhbGciOiJIUzI1Ni..."
                 disabled={currentStep > 0}
               />
