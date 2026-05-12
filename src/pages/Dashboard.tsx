@@ -9,7 +9,7 @@ import {
   ChevronRight, Shield, UserX,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, memo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
@@ -24,17 +24,17 @@ const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.04 } } };
 
 const RATIO_LIMITS: Record<string, number> = { enfermeiro: 8, tecnico_enfermagem: 10, fisioterapeuta: 10, medico: 12 };
 
-function RealtimeClock() {
+const RealtimeClock = memo(function RealtimeClock() {
   const [now, setNow] = useState(new Date());
-  useEffect(() => { const id = setInterval(() => setNow(new Date()), 30_000); return () => clearInterval(id); }, []);
+  useEffect(() => { const id = setInterval(() => setNow(new Date()), 60_000); return () => clearInterval(id); }, []);
   return (
     <span className="font-mono text-xs tracking-wider text-muted-foreground tabular-nums">
       {now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
     </span>
   );
-}
+});
 
-function KpiCard({ label, value, icon: Icon, color, trend, onClick }: {
+const KpiCard = memo(function KpiCard({ label, value, icon: Icon, color, trend, onClick }: {
   label: string; value: string | number; icon: React.ElementType;
   color: string; trend?: number; onClick?: () => void;
 }) {
@@ -71,7 +71,7 @@ function KpiCard({ label, value, icon: Icon, color, trend, onClick }: {
       <div className={`h-0.5 ${c.bar} rounded-full mt-3 opacity-40`} />
     </motion.div>
   );
-}
+});
 
 export default function Dashboard() {
   const navigate = useNavigate();
