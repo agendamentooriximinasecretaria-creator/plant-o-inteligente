@@ -34,6 +34,7 @@ const ValidarAssinaturaPage = lazy(() => import("@/pages/ValidarAssinaturaPage")
 const ValidarDocumentoPage = lazy(() => import("@/pages/ValidarDocumentoPage"));
 const DocumentosOficiaisPage = lazy(() => import("@/pages/DocumentosOficiaisPage"));
 const MigrationSupabasePage = lazy(() => import("@/pages/MigrationSupabasePage"));
+const MonitoramentoSistemaPage = lazy(() => import("@/pages/MonitoramentoSistemaPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -154,6 +155,7 @@ const App = () => (
                   <Route path="/configuracoes" element={<MasterOnly><ConfiguracoesPage /></MasterOnly>} />
                   <Route path="/auditoria" element={<MasterOnly><AuditoriaPage /></MasterOnly>} />
                   <Route path="/migracao-supabase" element={<MasterOnly><MigrationSupabasePage /></MasterOnly>} />
+                  <Route path="/configuracoes/monitoramento" element={<MasterOnly><MonitoramentoSistemaPage /></MasterOnly>} />
                 </Route>
                 <Route path="*" element={<NotFound />} />
               </Routes>

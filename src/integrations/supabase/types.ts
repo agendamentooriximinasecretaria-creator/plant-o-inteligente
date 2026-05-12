@@ -1448,6 +1448,156 @@ export type Database = {
           },
         ]
       }
+      system_cleanup_logs: {
+        Row: {
+          cleanup_type: string
+          created_at: string
+          created_by: string | null
+          details: Json
+          error_message: string | null
+          id: string
+          items_count: number | null
+          status: string
+        }
+        Insert: {
+          cleanup_type: string
+          created_at?: string
+          created_by?: string | null
+          details?: Json
+          error_message?: string | null
+          id?: string
+          items_count?: number | null
+          status: string
+        }
+        Update: {
+          cleanup_type?: string
+          created_at?: string
+          created_by?: string | null
+          details?: Json
+          error_message?: string | null
+          id?: string
+          items_count?: number | null
+          status?: string
+        }
+        Relationships: []
+      }
+      system_monitoring_alerts: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          recommendation: string | null
+          resolved: boolean | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          source: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          recommendation?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity: string
+          source?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          recommendation?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          source?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
+      system_monitoring_settings: {
+        Row: {
+          api_url: string | null
+          config: Json
+          coolify_url: string | null
+          created_at: string
+          hosting_type: string | null
+          id: string
+          monitoring_enabled: boolean | null
+          public_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          api_url?: string | null
+          config?: Json
+          coolify_url?: string | null
+          created_at?: string
+          hosting_type?: string | null
+          id?: string
+          monitoring_enabled?: boolean | null
+          public_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          api_url?: string | null
+          config?: Json
+          coolify_url?: string | null
+          created_at?: string
+          hosting_type?: string | null
+          id?: string
+          monitoring_enabled?: boolean | null
+          public_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      system_monitoring_snapshots: {
+        Row: {
+          alertas_count: number | null
+          created_at: string
+          created_by: string | null
+          db_status: string
+          hosting_status: string
+          id: string
+          payload: Json
+          status_geral: string
+          storage_status: string
+          total_arquivos: number | null
+          total_registros: number | null
+        }
+        Insert: {
+          alertas_count?: number | null
+          created_at?: string
+          created_by?: string | null
+          db_status: string
+          hosting_status: string
+          id?: string
+          payload?: Json
+          status_geral: string
+          storage_status: string
+          total_arquivos?: number | null
+          total_registros?: number | null
+        }
+        Update: {
+          alertas_count?: number | null
+          created_at?: string
+          created_by?: string | null
+          db_status?: string
+          hosting_status?: string
+          id?: string
+          payload?: Json
+          status_geral?: string
+          storage_status?: string
+          total_arquivos?: number | null
+          total_registros?: number | null
+        }
+        Relationships: []
+      }
       system_settings: {
         Row: {
           id: string
@@ -1662,6 +1812,7 @@ export type Database = {
         Returns: number
       }
       get_my_professional_id: { Args: never; Returns: string }
+      get_system_stats: { Args: never; Returns: Json }
       get_table_ddl: { Args: { target_table: string }; Returns: string }
       get_tables_info: {
         Args: never
