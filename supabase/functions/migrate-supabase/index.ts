@@ -84,19 +84,25 @@ serve(async (req) => {
       
       const testConnection = async (client: any) => {
         try {
+          // Attempt a simple query. For self-hosted, we use the health-check approach.
           const { error } = await client.from('profiles').select('count', { count: 'exact', head: true }).limit(1);
+          
           if (error) {
             // PGRST301 (JWT expired/invalid) or PGRST107 (Schema not found) mean connection failed.
             // 42P01 (relation does not exist) is actually OK for destination connection test if schema is empty.
             if (error.code === '42P01') return { ok: true, error: null };
+            
+            // PGRST301 means the service role key is invalid or not correctly mapped in the JWT secret of the self-hosted instance
             return { ok: false, error: `${error.code}: ${error.message}`, type: 'api_error' };
           }
           return { ok: true, error: null };
         } catch (e: any) {
+          // Deno client error (network/TLS)
+          const errorMessage = e.message || String(e);
           if (isTLSError(e)) {
-            return { ok: false, error: e.message, type: 'tls_error' };
+            return { ok: false, error: errorMessage, type: 'tls_error' };
           }
-          return { ok: false, error: e.message, type: 'connection_error' };
+          return { ok: false, error: errorMessage, type: 'connection_error' };
         }
       };
 
