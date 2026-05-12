@@ -46,6 +46,16 @@ export default function MigrationSupabasePage() {
     setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev]);
   };
 
+  const handleEdgeError = (err: any, fallbackTitle: string) => {
+    let msg = err.error || err.message || "Erro desconhecido";
+    if (err.type === 'tls_error') {
+      msg = `Erro TLS: Certificado do servidor de destino não é confiável.`;
+    }
+    toast.error(`${fallbackTitle}: ${msg}`);
+    addLog(`❌ ${fallbackTitle}: ${msg}`);
+    return msg;
+  };
+
   const validateCredentials = (creds: { url: string; serviceRoleKey: string; anonKey?: string }, type: 'origem' | 'destino') => {
     if (!creds.url) {
       toast.error(`URL da ${type} é obrigatória.`);
@@ -154,8 +164,7 @@ export default function MigrationSupabasePage() {
       addLog(`✅ Diagnóstico concluído: ${data.source.tables.length} tabelas, ${data.source.usersCount} usuários.`);
       toast.success("Diagnóstico concluído.");
     } catch (err: any) {
-      toast.error(`Falha no diagnóstico: ${err.message}`);
-      addLog(`❌ Erro no diagnóstico: ${err.message}`);
+      handleEdgeError(err, "Falha no diagnóstico");
     } finally {
       setLoading(null);
     }
@@ -174,8 +183,7 @@ export default function MigrationSupabasePage() {
       addLog(`✅ Sincronização de usuários concluída (${successCount} sucessos).`);
       toast.success("Usuários sincronizados.");
     } catch (err: any) {
-      addLog(`❌ Erro na sincronização de usuários: ${err.message}`);
-      toast.error("Erro na sincronização de usuários.");
+      handleEdgeError(err, "Erro na sincronização de usuários");
     } finally {
       setLoading(null);
     }
@@ -192,8 +200,7 @@ export default function MigrationSupabasePage() {
       addLog(`✅ Storage sincronizado (${data.results.length} buckets).`);
       toast.success("Storage sincronizado.");
     } catch (err: any) {
-      addLog(`❌ Erro no Storage: ${err.message}`);
-      toast.error("Erro no Storage.");
+      handleEdgeError(err, "Erro no Storage");
     } finally {
       setLoading(null);
     }
