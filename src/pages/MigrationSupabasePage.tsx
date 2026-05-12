@@ -39,7 +39,25 @@ export default function MigrationSupabasePage() {
     setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev]);
   };
 
+  const validateCredentials = (creds: { url: string; serviceRoleKey: string; anonKey?: string }, type: 'origem' | 'destino') => {
+    if (!creds.url || !creds.url.startsWith('https://')) {
+      toast.error(`URL da ${type} inválida.`);
+      return false;
+    }
+    if (!creds.serviceRoleKey || !creds.serviceRoleKey.startsWith('eyJ')) {
+      toast.error(`Service Role Key da ${type} parece inválida (deve começar com eyJ).`);
+      return false;
+    }
+    if (type === 'destino' && (!creds.anonKey || !creds.anonKey.startsWith('eyJ'))) {
+      toast.error(`Anon Key do destino parece inválida.`);
+      return false;
+    }
+    return true;
+  };
+
   const testConnections = async () => {
+    if (!validateCredentials(source, 'origem') || !validateCredentials(destination, 'destino')) return;
+    
     setLoading("testing");
     addLog("Testando conexões...");
     try {
@@ -52,9 +70,16 @@ export default function MigrationSupabasePage() {
       if (data.source.ok && data.destination.ok) {
         toast.success("Conexões estabelecidas com sucesso!");
         addLog("Conexões estabelecidas: Origem OK, Destino OK.");
+        setCurrentStep(1);
       } else {
-        if (!data.source.ok) toast.error(`Erro na origem: ${data.source.error}`);
-        if (!data.destination.ok) toast.error(`Erro no destino: ${data.destination.error}`);
+        if (!data.source.ok) {
+          toast.error(`Erro na origem: ${data.source.error}`);
+          addLog(`Erro na origem: ${data.source.error}`);
+        }
+        if (!data.destination.ok) {
+          toast.error(`Erro no destino: ${data.destination.error}`);
+          addLog(`Erro no destino: ${data.destination.error}`);
+        }
       }
     } catch (err: any) {
       toast.error(`Falha no teste: ${err.message}`);
