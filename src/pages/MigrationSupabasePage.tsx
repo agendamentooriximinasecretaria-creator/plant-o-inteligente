@@ -206,21 +206,33 @@ export default function MigrationSupabasePage() {
   };
 
   const finalizeMigration = async () => {
-    if (confirmText !== "CONFIRMAR MIGRAÇÃO DEFINITIVA") return;
+    if (confirmText !== "CONFIRMAR MIGRAÇÃO DEFINITIVA") {
+      toast.error("Digite o texto de confirmação corretamente.");
+      return;
+    }
     
     setLoading("finalizing");
-    addLog("FINALIZANDO MIGRAÇÃO...");
+    addLog("CONSOLIDANDO INSTRUÇÕES FINAIS...");
     
     try {
-      addLog("⚠️ IMPORTANTE: A migração de dados no banco foi concluída, mas o Lovable ainda está conectado ao Supabase antigo.");
-      addLog("Para completar a transição, você deve:");
-      addLog("1. Acessar 'Configurações do Projeto' > 'Secrets' no Lovable.");
-      addLog(`2. Atualizar VITE_SUPABASE_URL para: ${destination.url}`);
-      addLog("3. Atualizar VITE_SUPABASE_PUBLISHABLE_KEY com a Anon Key do seu novo projeto.");
-      addLog(`4. Atualizar SUPABASE_SERVICE_ROLE_KEY para: ${destination.serviceRoleKey}`);
-      addLog("5. Reiniciar o deploy do projeto.");
+      addLog("✅ Migração concluída com sucesso!");
+      addLog("⚠️ IMPORTANTE: O sistema Lovable ainda está operando no Supabase antigo.");
+      addLog("Para efetivar a troca definitiva, siga EXATAMENTE os passos abaixo:");
       
-      toast.success("Dados migrados! Agora siga as instruções nos logs para trocar as chaves do projeto.", { duration: 10000 });
+      addLog("------------------------------------------------------------------");
+      addLog(`1. VITE_SUPABASE_URL = ${destination.url}`);
+      addLog(`2. VITE_SUPABASE_PUBLISHABLE_KEY = ${destination.anonKey}`);
+      addLog(`3. SUPABASE_SERVICE_ROLE_KEY = ${destination.serviceRoleKey}`);
+      addLog("------------------------------------------------------------------");
+      
+      addLog("Passo a passo no Lovable Cloud:");
+      addLog("A) Abra a aba 'Cloud' no Lovable.");
+      addLog("B) Clique em 'Variables' ou 'Secrets'.");
+      addLog("C) Atualize as 3 variáveis acima com os novos valores.");
+      addLog("D) Clique em 'Restart Dev Server' ou aguarde o novo deploy.");
+      
+      toast.success("Migração finalizada! Siga as instruções nos logs para a troca de chaves.", { duration: 15000 });
+      setCurrentStep(5);
     } catch (err: any) {
       addLog(`Erro ao finalizar: ${err.message}`);
     } finally {
