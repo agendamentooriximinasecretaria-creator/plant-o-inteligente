@@ -159,7 +159,21 @@ export default function UsuariosPage() {
       const { data, error } = await sb.functions.invoke("user-admin", {
         body: { action: "delete_user", user_id: target.user_id },
       });
-      if (error) throw error;
+      if (error) {
+        // supabase.functions.invoke esconde o corpo em erros não-2xx; tente extrair a mensagem real
+        let detail = error.message;
+        try {
+          const ctx: any = (error as any).context;
+          if (ctx && typeof ctx.json === "function") {
+            const body = await ctx.json();
+            if (body?.error) detail = body.error;
+          } else if (ctx && typeof ctx.text === "function") {
+            const txt = await ctx.text();
+            try { const parsed = JSON.parse(txt); if (parsed?.error) detail = parsed.error; } catch { if (txt) detail = txt; }
+          }
+        } catch { /* ignore */ }
+        throw new Error(detail || "Falha ao excluir usuário.");
+      }
       if (data?.error) throw new Error(data.error);
       await logAudit('Usuário excluído', 'usuarios', { user_id: target.user_id, alvo_email: target.email, alvo_nome: target.nome });
     },
