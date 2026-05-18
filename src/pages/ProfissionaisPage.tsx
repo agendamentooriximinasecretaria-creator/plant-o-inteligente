@@ -685,7 +685,7 @@ export default function ProfissionaisPage() {
           </DialogHeader>
 
           <form onSubmit={e => { e.preventDefault(); saveMutation.mutate(form); }} className="flex-1 flex flex-col min-h-0">
-            <ScrollArea className="flex-1 px-6 py-4 overflow-x-hidden">
+            <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden px-6 py-4">
               <Tabs defaultValue="dados-basicos" className="w-full">
                 <TabsList className="grid grid-cols-3 md:grid-cols-6 mb-6 h-auto p-1 bg-muted/50 gap-1 sticky top-0 z-10">
                   <TabsTrigger value="dados-basicos" className="text-xs py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
@@ -890,13 +890,13 @@ export default function ProfissionaisPage() {
                 {/* ABA 6: Carimbo Digital */}
                 {editingId && (
                   <TabsContent value="carimbo" className="mt-0 min-w-0">
-                    <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+                    <div className="bg-card border border-border rounded-xl shadow-sm min-w-0 overflow-x-hidden">
                       <CarimboAssinaturaProfissional profissionalId={editingId} isMaster={isMaster} />
                     </div>
                   </TabsContent>
                 )}
               </Tabs>
-            </ScrollArea>
+            </div>
 
             <div className="px-6 py-4 border-t border-border bg-card flex items-center justify-between">
               <div className="text-xs text-muted-foreground hidden sm:block">
