@@ -890,7 +890,7 @@ export default function ProfissionaisPage() {
                 {/* ABA 6: Carimbo Digital */}
                 {editingId && (
                   <TabsContent value="carimbo" className="mt-0 min-w-0">
-                    <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+                    <div className="bg-card border border-border rounded-xl shadow-sm min-w-0 overflow-x-hidden">
                       <CarimboAssinaturaProfissional profissionalId={editingId} isMaster={isMaster} />
                     </div>
                   </TabsContent>
