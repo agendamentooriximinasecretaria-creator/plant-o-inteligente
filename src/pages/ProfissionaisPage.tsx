@@ -896,7 +896,7 @@ export default function ProfissionaisPage() {
                   </TabsContent>
                 )}
               </Tabs>
-            </ScrollArea>
+            </div>
 
             <div className="px-6 py-4 border-t border-border bg-card flex items-center justify-between">
               <div className="text-xs text-muted-foreground hidden sm:block">
