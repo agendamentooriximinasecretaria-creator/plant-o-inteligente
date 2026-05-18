@@ -6,7 +6,7 @@ import { logAudit } from "@/lib/auditLog";
 import {
   Search, Plus, User2, Edit, Calendar as CalIcon, X, MoreHorizontal,
   Printer, MessageSquare, FileCheck2, History, AlertTriangle, Filter,
-  Upload, Download, Trash2, BadgeCheck,
+  Upload, Download, Trash2, BadgeCheck, Mail,
 } from "lucide-react";
 import { MoreActionsMenu } from "@/components/MoreActionsMenu";
 import { ContactActionButton } from "@/components/ContactActionButton";
