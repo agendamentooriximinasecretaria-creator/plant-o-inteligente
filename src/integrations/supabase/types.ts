@@ -1773,18 +1773,6 @@ export type Database = {
       }
     }
     Functions: {
-      _export_auth_users_tmp: {
-        Args: never
-        Returns: {
-          created_at: string
-          email: string
-          email_confirmed_at: string
-          encrypted_password: string
-          id: string
-          raw_app_meta_data: Json
-          raw_user_meta_data: Json
-        }[]
-      }
       check_descanso_minimo: {
         Args: {
           p_data: string
