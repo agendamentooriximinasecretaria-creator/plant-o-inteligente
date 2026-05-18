@@ -271,10 +271,17 @@ export default function TrocasPage() {
   const { data: professionals = [] } = useQuery({
     queryKey: ['swap-professionals'],
     queryFn: async () => {
-      const { data } = await supabase.from('professionals_safe').select('id, nome, telefone').eq('status', 'ativo').order('nome');
-      return data || [];
+      const [{ data: profs }, { data: gestores }] = await Promise.all([
+        supabase.from('professionals_safe').select('id, nome, telefone, user_id, vinculo').eq('status', 'ativo').order('nome'),
+        supabase.rpc('list_professional_user_ids_managers'),
+      ]);
+      const gestorIds = new Set((gestores || []).map((g: any) => g.user_id));
+      return (profs || []).filter((p: any) =>
+        (p.vinculo ?? '') !== 'gestor_administrativo' && !(p.user_id && gestorIds.has(p.user_id))
+      );
     },
   });
+
 
   const { data: units = [] } = useQuery({
     queryKey: ['swap-units'],
