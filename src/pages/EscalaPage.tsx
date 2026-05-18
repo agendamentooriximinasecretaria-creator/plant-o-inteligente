@@ -346,12 +346,19 @@ export default function EscalaPage() {
   const { data: professionals = [] } = useQuery({
     queryKey: ['professionals'],
     queryFn: async () => {
-      const { data } = await supabase.from('professionals_safe')
-        .select('id, nome, profissao, especialidade, telefone, email, status, setor_principal_id, unidade_principal_id, user_id, competencias, registro, conselho, documento_validade, vinculo')
-        .eq('status', 'ativo').order('nome');
-      return data || [];
+      const [{ data: profs }, { data: gestores }] = await Promise.all([
+        supabase.from('professionals_safe')
+          .select('id, nome, profissao, especialidade, telefone, email, status, setor_principal_id, unidade_principal_id, user_id, competencias, registro, conselho, documento_validade, vinculo')
+          .eq('status', 'ativo').order('nome'),
+        supabase.rpc('list_professional_user_ids_managers'),
+      ]);
+      const gestorIds = new Set((gestores || []).map((g: any) => g.user_id));
+      return (profs || []).filter((p: any) =>
+        (p.vinculo ?? '') !== 'gestor_administrativo' && !(p.user_id && gestorIds.has(p.user_id))
+      );
     },
   });
+
   const { data: units = [] } = useQuery({ queryKey: ['units'], queryFn: async () => { const { data } = await supabase.from('units').select('*').order('nome'); return data || []; } });
   const { data: sectors = [] } = useQuery({ queryKey: ['sectors'], queryFn: async () => { const { data } = await supabase.from('sectors').select('*').order('nome'); return data || []; } });
 
