@@ -838,6 +838,7 @@ export type Database = {
       }
       professionals: {
         Row: {
+          acesso_email_enviado_em: string | null
           avatar_url: string | null
           cargo: string | null
           competencias: string[] | null
@@ -867,6 +868,7 @@ export type Database = {
           vinculo: string | null
         }
         Insert: {
+          acesso_email_enviado_em?: string | null
           avatar_url?: string | null
           cargo?: string | null
           competencias?: string[] | null
@@ -896,6 +898,7 @@ export type Database = {
           vinculo?: string | null
         }
         Update: {
+          acesso_email_enviado_em?: string | null
           avatar_url?: string | null
           cargo?: string | null
           competencias?: string[] | null

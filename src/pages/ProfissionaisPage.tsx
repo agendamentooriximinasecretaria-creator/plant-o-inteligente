@@ -6,7 +6,7 @@ import { logAudit } from "@/lib/auditLog";
 import {
   Search, Plus, User2, Edit, Calendar as CalIcon, X, MoreHorizontal,
   Printer, MessageSquare, FileCheck2, History, AlertTriangle, Filter,
-  Upload, Download, Trash2, BadgeCheck,
+  Upload, Download, Trash2, BadgeCheck, Mail,
 } from "lucide-react";
 import { MoreActionsMenu } from "@/components/MoreActionsMenu";
 import { ContactActionButton } from "@/components/ContactActionButton";
@@ -115,7 +115,7 @@ export default function ProfissionaisPage() {
       // Sensitive fields are fetched on-demand when opening the edit modal.
       const { data, error } = await supabase
         .from('professionals')
-        .select('id, nome, profissao, cargo, especialidade, conselho, registro, telefone, email, status, vinculo, unidade_principal_id, setor_principal_id, competencias, documento_conselho, documento_numero, documento_validade, avatar_url, units:unidade_principal_id(nome), sectors:setor_principal_id(nome)')
+        .select('id, nome, profissao, cargo, especialidade, conselho, registro, telefone, email, status, vinculo, unidade_principal_id, setor_principal_id, competencias, documento_conselho, documento_numero, documento_validade, avatar_url, acesso_email_enviado_em, units:unidade_principal_id(nome), sectors:setor_principal_id(nome)')
         .order('nome');
       if (error) throw error;
       return data;
@@ -356,6 +356,36 @@ export default function ProfissionaisPage() {
     window.open(`https://wa.me/55${tel}?text=${msg}`, '_blank');
   };
 
+  const [enviandoAcessoId, setEnviandoAcessoId] = useState<string | null>(null);
+  const enviarAcessoEmail = async (p: any) => {
+    if (!p.email) {
+      toast.error('Profissional não possui e-mail cadastrado.');
+      return;
+    }
+    const ok = await confirm({
+      title: 'Enviar dados de acesso?',
+      description: `Será enviado um e-mail para ${p.email} com o link e o login de acesso ao sistema.`,
+      confirmText: 'Enviar e-mail',
+      cancelText: 'Cancelar',
+    });
+    if (!ok) return;
+    setEnviandoAcessoId(p.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('enviar-acesso-profissional', {
+        body: { professional_id: p.id, site_url: window.location.origin },
+      });
+      if (error || (data as any)?.error) {
+        throw new Error((data as any)?.error || error?.message || 'Falha no envio');
+      }
+      toast.success('E-mail enviado com sucesso.');
+      qc.invalidateQueries({ queryKey: ['professionals'] });
+    } catch (e: any) {
+      toast.error(`Não foi possível enviar o e-mail: ${e?.message || 'erro desconhecido'}`);
+    } finally {
+      setEnviandoAcessoId(null);
+    }
+  };
+
   const validarDocumentos = (p: any) => {
     const di = docInfo(p.documento_validade);
     if (!p.documento_conselho && !p.documento_numero && !p.documento_validade) {
@@ -590,6 +620,14 @@ export default function ProfissionaisPage() {
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => enviarMensagem(p)}>
                               <MessageSquare className="h-4 w-4 mr-2" /> Enviar mensagem
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              disabled={!p.email || enviandoAcessoId === p.id}
+                              onClick={(e) => { e.preventDefault(); enviarAcessoEmail(p); }}
+                              title={!p.email ? 'Profissional sem e-mail cadastrado' : (p.acesso_email_enviado_em ? `Último envio: ${new Date(p.acesso_email_enviado_em).toLocaleString('pt-BR')}` : 'Enviar dados de acesso por e-mail')}
+                            >
+                              <Mail className="h-4 w-4 mr-2" />
+                              {enviandoAcessoId === p.id ? 'Enviando…' : 'Enviar acesso por e-mail'}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => validarDocumentos(p)}>
                               <FileCheck2 className="h-4 w-4 mr-2" /> Validar documentos
