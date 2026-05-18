@@ -621,6 +621,13 @@ export default function ProfissionaisPage() {
                             <DropdownMenuItem onClick={() => enviarMensagem(p)}>
                               <MessageSquare className="h-4 w-4 mr-2" /> Enviar mensagem
                             </DropdownMenuItem>
+                            <DropdownMenuItem
+                              disabled={!p.email || enviandoAcessoId === p.id}
+                              onClick={(e) => { e.preventDefault(); enviarAcessoEmail(p); }}
+                              title={!p.email ? 'Profissional sem e-mail cadastrado' : (p.acesso_email_enviado_em ? `Último envio: ${new Date(p.acesso_email_enviado_em).toLocaleString('pt-BR')}` : 'Enviar dados de acesso por e-mail')}
+                            >
+                              <Mail className="h-4 w-4 mr-2" />
+                              {enviandoAcessoId === p.id ? 'Enviando…' : 'Enviar acesso por e-mail'}
                             <DropdownMenuItem onClick={() => validarDocumentos(p)}>
                               <FileCheck2 className="h-4 w-4 mr-2" /> Validar documentos
                             </DropdownMenuItem>
