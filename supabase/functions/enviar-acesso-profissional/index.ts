@@ -138,19 +138,19 @@ ${empresa}`;
       }
     }
 
-    // 2) Fallback SMTP Gmail
+    // 2) Fallback SMTP Gmail (force port 465 implicit TLS — mais estável no edge runtime)
     if (!canal) {
       const senha = Deno.env.get("GMAIL_SMTP_PASSWORD");
       const remetente = cfg.gmail_smtp?.email_remetente || Deno.env.get("GMAIL_SMTP_USER");
       const servidor = cfg.gmail_smtp?.servidor || "smtp.gmail.com";
-      const porta = Number(cfg.gmail_smtp?.porta || 587);
       if (senha && remetente) {
+        let client: SMTPClient | null = null;
         try {
-          const client = new SMTPClient({
+          client = new SMTPClient({
             connection: {
               hostname: servidor,
-              port: porta,
-              tls: porta === 465,
+              port: 465,
+              tls: true,
               auth: { username: remetente, password: senha },
             },
           });
@@ -161,10 +161,11 @@ ${empresa}`;
             content: textBody,
             html: htmlBody,
           });
-          await client.close();
           canal = "smtp";
         } catch (e) {
           lastError = `SMTP falhou: ${e instanceof Error ? e.message : String(e)}`;
+        } finally {
+          try { await client?.close(); } catch { /* ignore */ }
         }
       } else if (!lastError) {
         lastError =
