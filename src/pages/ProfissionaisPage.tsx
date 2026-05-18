@@ -628,6 +628,7 @@ export default function ProfissionaisPage() {
                             >
                               <Mail className="h-4 w-4 mr-2" />
                               {enviandoAcessoId === p.id ? 'Enviando…' : 'Enviar acesso por e-mail'}
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => validarDocumentos(p)}>
                               <FileCheck2 className="h-4 w-4 mr-2" /> Validar documentos
                             </DropdownMenuItem>
