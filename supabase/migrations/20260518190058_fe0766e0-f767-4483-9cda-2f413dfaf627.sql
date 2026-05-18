@@ -1,0 +1,1 @@
+ALTER TABLE public.professionals ADD COLUMN IF NOT EXISTS acesso_email_enviado_em timestamptz;
