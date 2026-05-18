@@ -356,6 +356,36 @@ export default function ProfissionaisPage() {
     window.open(`https://wa.me/55${tel}?text=${msg}`, '_blank');
   };
 
+  const [enviandoAcessoId, setEnviandoAcessoId] = useState<string | null>(null);
+  const enviarAcessoEmail = async (p: any) => {
+    if (!p.email) {
+      toast.error('Profissional não possui e-mail cadastrado.');
+      return;
+    }
+    const ok = await confirm({
+      title: 'Enviar dados de acesso?',
+      description: `Será enviado um e-mail para ${p.email} com o link e o login de acesso ao sistema.`,
+      confirmText: 'Enviar e-mail',
+      cancelText: 'Cancelar',
+    });
+    if (!ok) return;
+    setEnviandoAcessoId(p.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('enviar-acesso-profissional', {
+        body: { professional_id: p.id, site_url: window.location.origin },
+      });
+      if (error || (data as any)?.error) {
+        throw new Error((data as any)?.error || error?.message || 'Falha no envio');
+      }
+      toast.success('E-mail enviado com sucesso.');
+      qc.invalidateQueries({ queryKey: ['professionals'] });
+    } catch (e: any) {
+      toast.error(`Não foi possível enviar o e-mail: ${e?.message || 'erro desconhecido'}`);
+    } finally {
+      setEnviandoAcessoId(null);
+    }
+  };
+
   const validarDocumentos = (p: any) => {
     const di = docInfo(p.documento_validade);
     if (!p.documento_conselho && !p.documento_numero && !p.documento_validade) {
