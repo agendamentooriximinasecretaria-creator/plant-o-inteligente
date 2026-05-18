@@ -1847,6 +1847,12 @@ export type Database = {
           unidade_principal_id: string
         }[]
       }
+      list_professional_user_ids_managers: {
+        Args: never
+        Returns: {
+          user_id: string
+        }[]
+      }
       validate_generated_document: {
         Args: { _code: string }
         Returns: {
