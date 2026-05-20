@@ -19,6 +19,8 @@ const roleLabels: Record<string, string> = {
   profissional: "Profissional de Saúde",
 };
 
+import { sugerirRoleAcesso } from "@/lib/clinicalCatalogs";
+
 export default function UsuariosPage() {
   const sb = supabase as any;
   const qc = useQueryClient();
@@ -48,12 +50,24 @@ export default function UsuariosPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("professionals")
-        .select("id, nome, user_id, telefone")
+        .select("id, nome, email, user_id, telefone, profissao, cargo, unidade_principal_id")
         .order("nome", { ascending: true });
       if (error) throw error;
       return data || [];
     },
   });
+
+  const selectProfessional = (proId: string) => {
+    const p = professionals.find((x: any) => x.id === proId);
+    if (!p) { setForm(f => ({ ...f, professional_id: "" })); return; }
+    setForm(f => ({
+      ...f,
+      professional_id: p.id,
+      nome: p.nome || f.nome,
+      email: p.email || "",
+      role: sugerirRoleAcesso(p.profissao, p.cargo),
+    }));
+  };
 
   const professionalMap = useMemo(
     () => Object.fromEntries(professionals.map((p: any) => [p.id, p.nome])),
