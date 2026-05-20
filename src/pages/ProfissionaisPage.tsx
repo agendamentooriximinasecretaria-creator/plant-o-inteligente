@@ -31,6 +31,12 @@ import { CardListSkeleton } from "@/components/PageSkeleton";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useAuth } from "@/hooks/useAuth";
 import CarimboAssinaturaProfissional from "@/components/CarimboAssinaturaProfissional";
+import {
+  PROFISSAO_OPTIONS, PROFISSAO_LABELS, CARGO_OPTIONS,
+  CONSELHO_BY_PROFISSAO, REGISTRO_PLACEHOLDER_BY_CONSELHO,
+  ESPECIALIDADE_BY_PROFISSAO, COMPETENCIAS_BY_PROFISSAO,
+  type ProfissaoValue,
+} from "@/lib/clinicalCatalogs";
 
 function useDebounced<T>(value: T, delay = 300): T {
   const [v, setV] = useState(value);
@@ -39,33 +45,6 @@ function useDebounced<T>(value: T, delay = 300): T {
 }
 
 const norm = (s: any) => (s ?? '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
-const PROFISSAO_OPTIONS = [
-  { value: 'medico', label: 'Médico(a)' },
-  { value: 'enfermeiro', label: 'Enfermeiro(a)' },
-  { value: 'fisioterapeuta', label: 'Fisioterapeuta' },
-  { value: 'tecnico_enfermagem', label: 'Téc. Enfermagem' },
-  { value: 'biomedico', label: 'Biomédico(a)' },
-  { value: 'psicologo', label: 'Psicólogo(a)' },
-  { value: 'terapeuta_ocupacional', label: 'Terapeuta Ocupacional' },
-  { value: 'nutricionista', label: 'Nutricionista' },
-  { value: 'fonoaudiologo', label: 'Fonoaudiólogo(a)' },
-  { value: 'farmaceutico', label: 'Farmacêutico(a)' },
-  { value: 'outro', label: 'Outro' },
-] as const;
-
-type ProfissaoValue = typeof PROFISSAO_OPTIONS[number]['value'];
-
-const PROFISSAO_LABELS: Record<string, string> = Object.fromEntries(PROFISSAO_OPTIONS.map(p => [p.value, p.label]));
-
-const COMPETENCIAS_POR_PROFISSAO: Record<string, string[]> = {
-  medico: ['Clínica Geral', 'Emergência', 'UTI', 'Pediatria', 'Cirurgia', 'Obstetrícia', 'Cardiologia'],
-  enfermeiro: ['UTI Neonatal', 'Triagem', 'Emergência', 'Curativos', 'Centro Cirúrgico', 'Ventilação Mecânica', 'Hemodiálise'],
-  fisioterapeuta: ['Respiratória', 'Motora', 'Neurológica', 'Pediátrica', 'Aquática', 'Cardiovascular'],
-  tecnico_enfermagem: ['UTI', 'Emergência', 'Centro Cirúrgico', 'Hemodiálise', 'Enfermaria', 'Triagem'],
-  biomedico: ['Análises Clínicas', 'Hemoterapia', 'Imunologia', 'Microbiologia'],
-  farmaceutico: ['Hospitalar', 'Clínica', 'Manipulação', 'Oncologia'],
-};
 
 const LIMITE_HORAS_MENSAL = CLT_LIMITE_MENSAL;
 
@@ -722,7 +701,10 @@ export default function ProfissionaisPage() {
             </div>
           </DialogHeader>
 
-          <form onSubmit={e => { e.preventDefault(); saveMutation.mutate(form); }} className="flex-1 flex flex-col min-h-0">
+          {/* IMPORTANTE: usamos <div> em vez de <form> para evitar que botões
+              internos (uploads, toggles, abas do carimbo etc.) disparem submit
+              acidental. O salvamento só ocorre no clique explícito do botão "Salvar". */}
+          <div className="flex-1 flex flex-col min-h-0">
             <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden px-6 py-4">
               <Tabs defaultValue="dados-basicos" className="w-full">
                 <TabsList className="grid grid-cols-3 md:grid-cols-6 mb-6 h-auto p-1 bg-muted/50 gap-1 sticky top-0 z-10">
@@ -787,38 +769,136 @@ export default function ProfissionaisPage() {
 
                 {/* ABA 2: Profissional */}
                 <TabsContent value="profissional" className="space-y-6 mt-0 min-w-0">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    <div>
-                      <Label className="text-sm font-semibold mb-1.5 block">Profissão <span className="text-destructive">*</span></Label>
-                      <select required value={form.profissao} onChange={e => setForm(f => ({ ...f, profissao: e.target.value as ProfissaoValue, competencias: [] }))} className={inputClass}>
-                        {PROFISSAO_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold mb-1.5 block">Cargo / Função</Label>
-                      <input value={form.cargo} onChange={e => setForm(f => ({ ...f, cargo: e.target.value }))} className={inputClass} placeholder="Ex: Plantonista, Coordenador..." />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold mb-1.5 block">Especialidade</Label>
-                      <input value={form.especialidade} onChange={e => setForm(f => ({ ...f, especialidade: e.target.value }))} className={inputClass} placeholder="Ex: Pediatria, Terapia Intensiva..." />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold mb-1.5 block">Conselho Profissional</Label>
-                      <input value={form.conselho} onChange={e => setForm(f => ({ ...f, conselho: e.target.value }))} className={inputClass} placeholder="Ex: CRM, COREN..." />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold mb-1.5 block">Registro (Número)</Label>
-                      <input value={form.registro} onChange={e => setForm(f => ({ ...f, registro: e.target.value }))} className={inputClass} placeholder="Ex: 12345" />
-                    </div>
-                  </div>
+                  {(() => {
+                    const especialidades = ESPECIALIDADE_BY_PROFISSAO[form.profissao] || [];
+                    const cargoOutro = !!form.cargo && !CARGO_OPTIONS.includes(form.cargo);
+                    const espOutro = !!form.especialidade && especialidades.length > 0 && !especialidades.includes(form.especialidade);
+                    const conselhoSugerido = CONSELHO_BY_PROFISSAO[form.profissao] || '';
+                    const registroPh = REGISTRO_PLACEHOLDER_BY_CONSELHO[(form.conselho || '').toUpperCase()] || 'Ex: 12345';
+                    return (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                        <div>
+                          <Label className="text-sm font-semibold mb-1.5 block">Profissão <span className="text-destructive">*</span></Label>
+                          <select required value={form.profissao} onChange={e => {
+                            const novaProf = e.target.value as ProfissaoValue;
+                            setForm(f => ({
+                              ...f,
+                              profissao: novaProf,
+                              competencias: [],
+                              especialidade: '',
+                              // só sugere conselho se ainda estiver vazio ou for o sugerido anterior
+                              conselho: (!f.conselho || f.conselho === CONSELHO_BY_PROFISSAO[f.profissao])
+                                ? (CONSELHO_BY_PROFISSAO[novaProf] || '')
+                                : f.conselho,
+                            }));
+                          }} className={inputClass}>
+                            {PROFISSAO_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                          </select>
+                        </div>
 
-                  {COMPETENCIAS_POR_PROFISSAO[form.profissao] && (
+                        <div>
+                          <Label className="text-sm font-semibold mb-1.5 block">Cargo / Função</Label>
+                          <select
+                            value={cargoOutro ? '__outro__' : form.cargo}
+                            onChange={e => {
+                              const v = e.target.value;
+                              setForm(f => ({ ...f, cargo: v === '__outro__' ? ' ' : v }));
+                            }}
+                            className={inputClass}
+                          >
+                            <option value="">Selecione...</option>
+                            {CARGO_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                            <option value="__outro__">Outro (digitar)</option>
+                          </select>
+                          {cargoOutro && (
+                            <input
+                              autoFocus
+                              value={form.cargo.trim()}
+                              onChange={e => setForm(f => ({ ...f, cargo: e.target.value }))}
+                              className={`${inputClass} mt-2`}
+                              placeholder="Digite o cargo / função"
+                            />
+                          )}
+                        </div>
+
+                        <div>
+                          <Label className="text-sm font-semibold mb-1.5 block">Especialidade</Label>
+                          {especialidades.length > 0 ? (
+                            <>
+                              <select
+                                value={espOutro ? '__outro__' : form.especialidade}
+                                onChange={e => {
+                                  const v = e.target.value;
+                                  setForm(f => ({ ...f, especialidade: v === '__outro__' ? ' ' : v }));
+                                }}
+                                className={inputClass}
+                              >
+                                <option value="">Selecione...</option>
+                                {especialidades.map(esp => <option key={esp} value={esp}>{esp}</option>)}
+                                <option value="__outro__">Outro (digitar)</option>
+                              </select>
+                              {espOutro && (
+                                <input
+                                  autoFocus
+                                  value={form.especialidade.trim()}
+                                  onChange={e => setForm(f => ({ ...f, especialidade: e.target.value }))}
+                                  className={`${inputClass} mt-2`}
+                                  placeholder="Digite a especialidade"
+                                />
+                              )}
+                            </>
+                          ) : (
+                            <input
+                              value={form.especialidade}
+                              onChange={e => setForm(f => ({ ...f, especialidade: e.target.value }))}
+                              className={inputClass}
+                              placeholder="Ex: Pediatria, Terapia Intensiva..."
+                            />
+                          )}
+                        </div>
+
+                        <div>
+                          <Label className="text-sm font-semibold mb-1.5 block">Conselho Profissional</Label>
+                          <input
+                            value={form.conselho}
+                            onChange={e => setForm(f => ({ ...f, conselho: e.target.value.toUpperCase() }))}
+                            className={inputClass}
+                            placeholder={conselhoSugerido ? `Sugerido: ${conselhoSugerido}` : 'Ex: CRM, COREN...'}
+                          />
+                          {conselhoSugerido && form.conselho !== conselhoSugerido && (
+                            <button
+                              type="button"
+                              onClick={() => setForm(f => ({ ...f, conselho: conselhoSugerido }))}
+                              className="mt-1 text-[11px] text-primary hover:underline"
+                            >
+                              Usar sugerido ({conselhoSugerido})
+                            </button>
+                          )}
+                        </div>
+
+                        <div>
+                          <Label className="text-sm font-semibold mb-1.5 block">Registro (Número)</Label>
+                          <input
+                            value={form.registro}
+                            onChange={e => setForm(f => ({ ...f, registro: e.target.value }))}
+                            className={inputClass}
+                            placeholder={registroPh}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {COMPETENCIAS_BY_PROFISSAO[form.profissao]?.length > 0 && (
                     <div className="bg-muted/30 border border-border rounded-xl p-5">
                       <Label className="text-sm font-bold text-foreground mb-4 block flex items-center gap-2">
                         <BadgeCheck className="h-4 w-4 text-primary" /> Competências / Certificações ({PROFISSAO_LABELS[form.profissao]})
                       </Label>
                       <div className="flex flex-wrap gap-2">
-                        {COMPETENCIAS_POR_PROFISSAO[form.profissao].map(comp => {
+                        {[
+                          ...COMPETENCIAS_BY_PROFISSAO[form.profissao],
+                          ...form.competencias.filter(c => !COMPETENCIAS_BY_PROFISSAO[form.profissao].includes(c)),
+                        ].map(comp => {
                           const isSelected = form.competencias.includes(comp);
                           return (
                             <button key={comp} type="button" onClick={() => toggleCompetencia(comp)}
@@ -831,10 +911,25 @@ export default function ProfissionaisPage() {
                             </button>
                           );
                         })}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nova = window.prompt('Nova competência / certificação:');
+                            const limpa = (nova || '').trim();
+                            if (!limpa) return;
+                            if (form.competencias.includes(limpa)) return;
+                            setForm(f => ({ ...f, competencias: [...f.competencias, limpa] }));
+                          }}
+                          className="text-xs px-3 py-1.5 rounded-full border border-dashed border-primary/50 text-primary hover:bg-primary/5 flex items-center gap-1.5"
+                        >
+                          <Plus className="h-3 w-3" /> Adicionar personalizada
+                        </button>
                       </div>
                     </div>
                   )}
                 </TabsContent>
+
+
 
                 {/* ABA 3: Unidade e Setor */}
                 <TabsContent value="unidade" className="space-y-6 mt-0 min-w-0">
@@ -944,7 +1039,7 @@ export default function ProfissionaisPage() {
                 <button type="button" onClick={closeModal} className="px-5 py-2 rounded-lg border border-border text-sm font-semibold text-foreground hover:bg-muted transition-colors">
                   Cancelar
                 </button>
-                <button type="submit" disabled={saveMutation.isPending} className="px-6 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-all shadow-md flex items-center gap-2">
+                <button type="button" onClick={() => { if (!saveMutation.isPending) saveMutation.mutate(form); }} disabled={saveMutation.isPending} className="px-6 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-all shadow-md flex items-center gap-2">
                   {saveMutation.isPending ? (
                     <>
                       <div className="h-3 w-3 border-2 border-primary-foreground border-t-transparent animate-spin rounded-full" />
@@ -959,7 +1054,7 @@ export default function ProfissionaisPage() {
                 </button>
               </div>
             </div>
-          </form>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -19,6 +19,8 @@ const roleLabels: Record<string, string> = {
   profissional: "Profissional de Saúde",
 };
 
+import { sugerirRoleAcesso } from "@/lib/clinicalCatalogs";
+
 export default function UsuariosPage() {
   const sb = supabase as any;
   const qc = useQueryClient();
@@ -48,12 +50,24 @@ export default function UsuariosPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("professionals")
-        .select("id, nome, user_id, telefone")
+        .select("id, nome, email, user_id, telefone, profissao, cargo, unidade_principal_id")
         .order("nome", { ascending: true });
       if (error) throw error;
       return data || [];
     },
   });
+
+  const selectProfessional = (proId: string) => {
+    const p = professionals.find((x: any) => x.id === proId);
+    if (!p) { setForm(f => ({ ...f, professional_id: "" })); return; }
+    setForm(f => ({
+      ...f,
+      professional_id: p.id,
+      nome: p.nome || f.nome,
+      email: p.email || "",
+      role: sugerirRoleAcesso(p.profissao, p.cargo),
+    }));
+  };
 
   const professionalMap = useMemo(
     () => Object.fromEntries(professionals.map((p: any) => [p.id, p.nome])),
@@ -62,10 +76,22 @@ export default function UsuariosPage() {
 
   const createUser = useMutation({
     mutationFn: async () => {
+      // Anti-duplicidade (validação client-side antes de chamar o backend)
+      const emailNorm = form.email.trim().toLowerCase();
+      if (!emailNorm) throw new Error("Informe um e-mail válido.");
+      const emailDup = (users as any[]).find((u) => (u.email || "").toLowerCase() === emailNorm);
+      if (emailDup) throw new Error("Este e-mail já está sendo usado por outro usuário.");
+      if (form.role === "profissional") {
+        if (!form.professional_id) throw new Error("Selecione um profissional para vincular.");
+        const proDup = (users as any[]).find((u) => u.profissional_id === form.professional_id);
+        if (proDup) throw new Error("Este profissional já possui usuário de acesso vinculado.");
+      }
+
       const { data, error } = await sb.functions.invoke("user-admin", {
         body: {
           action: "create_user",
           ...form,
+          email: emailNorm,
           professional_id: form.role === "profissional" ? form.professional_id : null,
         },
       });
@@ -74,7 +100,7 @@ export default function UsuariosPage() {
       if (data?.error) throw new Error(data.error);
       // NEVER log password
       await logAudit('Usuário criado', 'usuarios', {
-        email: form.email,
+        email: emailNorm,
         nome: form.nome,
         role: form.role,
         professional_id: form.role === "profissional" ? form.professional_id : null,
@@ -450,16 +476,25 @@ export default function UsuariosPage() {
                 <select
                   required
                   value={form.professional_id}
-                  onChange={(e) => setForm((f) => ({ ...f, professional_id: e.target.value }))}
+                  onChange={(e) => selectProfessional(e.target.value)}
                   className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value="">Selecione...</option>
                   {availableProfessionals.map((p: any) => (
-                    <option key={p.id} value={p.id}>{p.nome}</option>
+                    <option key={p.id} value={p.id}>{p.nome}{p.email ? '' : ' (sem e-mail)'}</option>
                   ))}
                 </select>
+                {form.professional_id && !(professionals.find((p: any) => p.id === form.professional_id)?.email) && (
+                  <p className="mt-1.5 text-[11px] text-warning">
+                    Este profissional ainda não possui e-mail cadastrado. Informe um e-mail abaixo para criar o acesso.
+                  </p>
+                )}
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Nome, e-mail e perfil são preenchidos automaticamente a partir do cadastro do profissional.
+                </p>
               </div>
             )}
+
 
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setOpen(false)} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted">
