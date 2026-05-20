@@ -76,10 +76,22 @@ export default function UsuariosPage() {
 
   const createUser = useMutation({
     mutationFn: async () => {
+      // Anti-duplicidade (validação client-side antes de chamar o backend)
+      const emailNorm = form.email.trim().toLowerCase();
+      if (!emailNorm) throw new Error("Informe um e-mail válido.");
+      const emailDup = (users as any[]).find((u) => (u.email || "").toLowerCase() === emailNorm);
+      if (emailDup) throw new Error("Este e-mail já está sendo usado por outro usuário.");
+      if (form.role === "profissional") {
+        if (!form.professional_id) throw new Error("Selecione um profissional para vincular.");
+        const proDup = (users as any[]).find((u) => u.profissional_id === form.professional_id);
+        if (proDup) throw new Error("Este profissional já possui usuário de acesso vinculado.");
+      }
+
       const { data, error } = await sb.functions.invoke("user-admin", {
         body: {
           action: "create_user",
           ...form,
+          email: emailNorm,
           professional_id: form.role === "profissional" ? form.professional_id : null,
         },
       });
@@ -88,7 +100,7 @@ export default function UsuariosPage() {
       if (data?.error) throw new Error(data.error);
       // NEVER log password
       await logAudit('Usuário criado', 'usuarios', {
-        email: form.email,
+        email: emailNorm,
         nome: form.nome,
         role: form.role,
         professional_id: form.role === "profissional" ? form.professional_id : null,
