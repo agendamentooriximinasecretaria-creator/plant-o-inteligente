@@ -31,6 +31,12 @@ import { CardListSkeleton } from "@/components/PageSkeleton";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useAuth } from "@/hooks/useAuth";
 import CarimboAssinaturaProfissional from "@/components/CarimboAssinaturaProfissional";
+import {
+  PROFISSAO_OPTIONS, PROFISSAO_LABELS, CARGO_OPTIONS,
+  CONSELHO_BY_PROFISSAO, REGISTRO_PLACEHOLDER_BY_CONSELHO,
+  ESPECIALIDADE_BY_PROFISSAO, COMPETENCIAS_BY_PROFISSAO,
+  type ProfissaoValue,
+} from "@/lib/clinicalCatalogs";
 
 function useDebounced<T>(value: T, delay = 300): T {
   const [v, setV] = useState(value);
@@ -39,33 +45,6 @@ function useDebounced<T>(value: T, delay = 300): T {
 }
 
 const norm = (s: any) => (s ?? '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
-const PROFISSAO_OPTIONS = [
-  { value: 'medico', label: 'Médico(a)' },
-  { value: 'enfermeiro', label: 'Enfermeiro(a)' },
-  { value: 'fisioterapeuta', label: 'Fisioterapeuta' },
-  { value: 'tecnico_enfermagem', label: 'Téc. Enfermagem' },
-  { value: 'biomedico', label: 'Biomédico(a)' },
-  { value: 'psicologo', label: 'Psicólogo(a)' },
-  { value: 'terapeuta_ocupacional', label: 'Terapeuta Ocupacional' },
-  { value: 'nutricionista', label: 'Nutricionista' },
-  { value: 'fonoaudiologo', label: 'Fonoaudiólogo(a)' },
-  { value: 'farmaceutico', label: 'Farmacêutico(a)' },
-  { value: 'outro', label: 'Outro' },
-] as const;
-
-type ProfissaoValue = typeof PROFISSAO_OPTIONS[number]['value'];
-
-const PROFISSAO_LABELS: Record<string, string> = Object.fromEntries(PROFISSAO_OPTIONS.map(p => [p.value, p.label]));
-
-const COMPETENCIAS_POR_PROFISSAO: Record<string, string[]> = {
-  medico: ['Clínica Geral', 'Emergência', 'UTI', 'Pediatria', 'Cirurgia', 'Obstetrícia', 'Cardiologia'],
-  enfermeiro: ['UTI Neonatal', 'Triagem', 'Emergência', 'Curativos', 'Centro Cirúrgico', 'Ventilação Mecânica', 'Hemodiálise'],
-  fisioterapeuta: ['Respiratória', 'Motora', 'Neurológica', 'Pediátrica', 'Aquática', 'Cardiovascular'],
-  tecnico_enfermagem: ['UTI', 'Emergência', 'Centro Cirúrgico', 'Hemodiálise', 'Enfermaria', 'Triagem'],
-  biomedico: ['Análises Clínicas', 'Hemoterapia', 'Imunologia', 'Microbiologia'],
-  farmaceutico: ['Hospitalar', 'Clínica', 'Manipulação', 'Oncologia'],
-};
 
 const LIMITE_HORAS_MENSAL = CLT_LIMITE_MENSAL;
 
