@@ -769,38 +769,136 @@ export default function ProfissionaisPage() {
 
                 {/* ABA 2: Profissional */}
                 <TabsContent value="profissional" className="space-y-6 mt-0 min-w-0">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    <div>
-                      <Label className="text-sm font-semibold mb-1.5 block">Profissão <span className="text-destructive">*</span></Label>
-                      <select required value={form.profissao} onChange={e => setForm(f => ({ ...f, profissao: e.target.value as ProfissaoValue, competencias: [] }))} className={inputClass}>
-                        {PROFISSAO_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold mb-1.5 block">Cargo / Função</Label>
-                      <input value={form.cargo} onChange={e => setForm(f => ({ ...f, cargo: e.target.value }))} className={inputClass} placeholder="Ex: Plantonista, Coordenador..." />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold mb-1.5 block">Especialidade</Label>
-                      <input value={form.especialidade} onChange={e => setForm(f => ({ ...f, especialidade: e.target.value }))} className={inputClass} placeholder="Ex: Pediatria, Terapia Intensiva..." />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold mb-1.5 block">Conselho Profissional</Label>
-                      <input value={form.conselho} onChange={e => setForm(f => ({ ...f, conselho: e.target.value }))} className={inputClass} placeholder="Ex: CRM, COREN..." />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold mb-1.5 block">Registro (Número)</Label>
-                      <input value={form.registro} onChange={e => setForm(f => ({ ...f, registro: e.target.value }))} className={inputClass} placeholder="Ex: 12345" />
-                    </div>
-                  </div>
+                  {(() => {
+                    const especialidades = ESPECIALIDADE_BY_PROFISSAO[form.profissao] || [];
+                    const cargoOutro = !!form.cargo && !CARGO_OPTIONS.includes(form.cargo);
+                    const espOutro = !!form.especialidade && especialidades.length > 0 && !especialidades.includes(form.especialidade);
+                    const conselhoSugerido = CONSELHO_BY_PROFISSAO[form.profissao] || '';
+                    const registroPh = REGISTRO_PLACEHOLDER_BY_CONSELHO[(form.conselho || '').toUpperCase()] || 'Ex: 12345';
+                    return (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                        <div>
+                          <Label className="text-sm font-semibold mb-1.5 block">Profissão <span className="text-destructive">*</span></Label>
+                          <select required value={form.profissao} onChange={e => {
+                            const novaProf = e.target.value as ProfissaoValue;
+                            setForm(f => ({
+                              ...f,
+                              profissao: novaProf,
+                              competencias: [],
+                              especialidade: '',
+                              // só sugere conselho se ainda estiver vazio ou for o sugerido anterior
+                              conselho: (!f.conselho || f.conselho === CONSELHO_BY_PROFISSAO[f.profissao])
+                                ? (CONSELHO_BY_PROFISSAO[novaProf] || '')
+                                : f.conselho,
+                            }));
+                          }} className={inputClass}>
+                            {PROFISSAO_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                          </select>
+                        </div>
 
-                  {COMPETENCIAS_POR_PROFISSAO[form.profissao] && (
+                        <div>
+                          <Label className="text-sm font-semibold mb-1.5 block">Cargo / Função</Label>
+                          <select
+                            value={cargoOutro ? '__outro__' : form.cargo}
+                            onChange={e => {
+                              const v = e.target.value;
+                              setForm(f => ({ ...f, cargo: v === '__outro__' ? ' ' : v }));
+                            }}
+                            className={inputClass}
+                          >
+                            <option value="">Selecione...</option>
+                            {CARGO_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                            <option value="__outro__">Outro (digitar)</option>
+                          </select>
+                          {cargoOutro && (
+                            <input
+                              autoFocus
+                              value={form.cargo.trim()}
+                              onChange={e => setForm(f => ({ ...f, cargo: e.target.value }))}
+                              className={`${inputClass} mt-2`}
+                              placeholder="Digite o cargo / função"
+                            />
+                          )}
+                        </div>
+
+                        <div>
+                          <Label className="text-sm font-semibold mb-1.5 block">Especialidade</Label>
+                          {especialidades.length > 0 ? (
+                            <>
+                              <select
+                                value={espOutro ? '__outro__' : form.especialidade}
+                                onChange={e => {
+                                  const v = e.target.value;
+                                  setForm(f => ({ ...f, especialidade: v === '__outro__' ? ' ' : v }));
+                                }}
+                                className={inputClass}
+                              >
+                                <option value="">Selecione...</option>
+                                {especialidades.map(esp => <option key={esp} value={esp}>{esp}</option>)}
+                                <option value="__outro__">Outro (digitar)</option>
+                              </select>
+                              {espOutro && (
+                                <input
+                                  autoFocus
+                                  value={form.especialidade.trim()}
+                                  onChange={e => setForm(f => ({ ...f, especialidade: e.target.value }))}
+                                  className={`${inputClass} mt-2`}
+                                  placeholder="Digite a especialidade"
+                                />
+                              )}
+                            </>
+                          ) : (
+                            <input
+                              value={form.especialidade}
+                              onChange={e => setForm(f => ({ ...f, especialidade: e.target.value }))}
+                              className={inputClass}
+                              placeholder="Ex: Pediatria, Terapia Intensiva..."
+                            />
+                          )}
+                        </div>
+
+                        <div>
+                          <Label className="text-sm font-semibold mb-1.5 block">Conselho Profissional</Label>
+                          <input
+                            value={form.conselho}
+                            onChange={e => setForm(f => ({ ...f, conselho: e.target.value.toUpperCase() }))}
+                            className={inputClass}
+                            placeholder={conselhoSugerido ? `Sugerido: ${conselhoSugerido}` : 'Ex: CRM, COREN...'}
+                          />
+                          {conselhoSugerido && form.conselho !== conselhoSugerido && (
+                            <button
+                              type="button"
+                              onClick={() => setForm(f => ({ ...f, conselho: conselhoSugerido }))}
+                              className="mt-1 text-[11px] text-primary hover:underline"
+                            >
+                              Usar sugerido ({conselhoSugerido})
+                            </button>
+                          )}
+                        </div>
+
+                        <div>
+                          <Label className="text-sm font-semibold mb-1.5 block">Registro (Número)</Label>
+                          <input
+                            value={form.registro}
+                            onChange={e => setForm(f => ({ ...f, registro: e.target.value }))}
+                            className={inputClass}
+                            placeholder={registroPh}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {COMPETENCIAS_BY_PROFISSAO[form.profissao]?.length > 0 && (
                     <div className="bg-muted/30 border border-border rounded-xl p-5">
                       <Label className="text-sm font-bold text-foreground mb-4 block flex items-center gap-2">
                         <BadgeCheck className="h-4 w-4 text-primary" /> Competências / Certificações ({PROFISSAO_LABELS[form.profissao]})
                       </Label>
                       <div className="flex flex-wrap gap-2">
-                        {COMPETENCIAS_POR_PROFISSAO[form.profissao].map(comp => {
+                        {[
+                          ...COMPETENCIAS_BY_PROFISSAO[form.profissao],
+                          ...form.competencias.filter(c => !COMPETENCIAS_BY_PROFISSAO[form.profissao].includes(c)),
+                        ].map(comp => {
                           const isSelected = form.competencias.includes(comp);
                           return (
                             <button key={comp} type="button" onClick={() => toggleCompetencia(comp)}
@@ -813,10 +911,25 @@ export default function ProfissionaisPage() {
                             </button>
                           );
                         })}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nova = window.prompt('Nova competência / certificação:');
+                            const limpa = (nova || '').trim();
+                            if (!limpa) return;
+                            if (form.competencias.includes(limpa)) return;
+                            setForm(f => ({ ...f, competencias: [...f.competencias, limpa] }));
+                          }}
+                          className="text-xs px-3 py-1.5 rounded-full border border-dashed border-primary/50 text-primary hover:bg-primary/5 flex items-center gap-1.5"
+                        >
+                          <Plus className="h-3 w-3" /> Adicionar personalizada
+                        </button>
                       </div>
                     </div>
                   )}
                 </TabsContent>
+
+
 
                 {/* ABA 3: Unidade e Setor */}
                 <TabsContent value="unidade" className="space-y-6 mt-0 min-w-0">
