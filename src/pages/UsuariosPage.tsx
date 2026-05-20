@@ -476,16 +476,25 @@ export default function UsuariosPage() {
                 <select
                   required
                   value={form.professional_id}
-                  onChange={(e) => setForm((f) => ({ ...f, professional_id: e.target.value }))}
+                  onChange={(e) => selectProfessional(e.target.value)}
                   className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value="">Selecione...</option>
                   {availableProfessionals.map((p: any) => (
-                    <option key={p.id} value={p.id}>{p.nome}</option>
+                    <option key={p.id} value={p.id}>{p.nome}{p.email ? '' : ' (sem e-mail)'}</option>
                   ))}
                 </select>
+                {form.professional_id && !(professionals.find((p: any) => p.id === form.professional_id)?.email) && (
+                  <p className="mt-1.5 text-[11px] text-warning">
+                    Este profissional ainda não possui e-mail cadastrado. Informe um e-mail abaixo para criar o acesso.
+                  </p>
+                )}
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Nome, e-mail e perfil são preenchidos automaticamente a partir do cadastro do profissional.
+                </p>
               </div>
             )}
+
 
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setOpen(false)} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted">
