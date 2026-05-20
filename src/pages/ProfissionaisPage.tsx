@@ -701,7 +701,10 @@ export default function ProfissionaisPage() {
             </div>
           </DialogHeader>
 
-          <form onSubmit={e => { e.preventDefault(); saveMutation.mutate(form); }} className="flex-1 flex flex-col min-h-0">
+          {/* IMPORTANTE: usamos <div> em vez de <form> para evitar que botões
+              internos (uploads, toggles, abas do carimbo etc.) disparem submit
+              acidental. O salvamento só ocorre no clique explícito do botão "Salvar". */}
+          <div className="flex-1 flex flex-col min-h-0">
             <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden px-6 py-4">
               <Tabs defaultValue="dados-basicos" className="w-full">
                 <TabsList className="grid grid-cols-3 md:grid-cols-6 mb-6 h-auto p-1 bg-muted/50 gap-1 sticky top-0 z-10">
