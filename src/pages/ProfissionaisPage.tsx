@@ -1054,7 +1054,7 @@ export default function ProfissionaisPage() {
                 </button>
               </div>
             </div>
-          </form>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
