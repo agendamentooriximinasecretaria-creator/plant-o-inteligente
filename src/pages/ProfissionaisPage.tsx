@@ -1039,7 +1039,7 @@ export default function ProfissionaisPage() {
                 <button type="button" onClick={closeModal} className="px-5 py-2 rounded-lg border border-border text-sm font-semibold text-foreground hover:bg-muted transition-colors">
                   Cancelar
                 </button>
-                <button type="submit" disabled={saveMutation.isPending} className="px-6 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-all shadow-md flex items-center gap-2">
+                <button type="button" onClick={() => { if (!saveMutation.isPending) saveMutation.mutate(form); }} disabled={saveMutation.isPending} className="px-6 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-all shadow-md flex items-center gap-2">
                   {saveMutation.isPending ? (
                     <>
                       <div className="h-3 w-3 border-2 border-primary-foreground border-t-transparent animate-spin rounded-full" />
