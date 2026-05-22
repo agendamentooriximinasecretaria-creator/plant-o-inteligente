@@ -46,6 +46,8 @@ export interface MensalProfissional {
   id: string;
   nome: string;
   profissao?: string;
+  unidade?: string;
+  setor?: string;
   conselho?: string;         // ex: "CRM 12345" (opcional)
   porDia: Record<number, MensalShift[]>;
   totalHoras: number;
