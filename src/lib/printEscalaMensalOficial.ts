@@ -90,19 +90,19 @@ function getCategoryColor(tipo: string, status: string): { bg: [number, number, 
   const t = (tipo || "").toLowerCase();
   const s = (status || "").toLowerCase();
 
-  if (s === "cancelado") return { bg: [254, 226, 226], hex: "#fee2e2", text: [153, 27, 27] };
-  if (s === "pendente") return { bg: [254, 249, 195], hex: "#fef9c3", text: [133, 77, 14] };
+  if (s === "cancelado") return { bg: [254, 226, 226], hex: "#fef2f2", text: [185, 28, 28] }; // rose-50
+  if (s === "pendente") return { bg: [254, 249, 195], hex: "#fffbeb", text: [180, 83, 9] }; // amber-50
 
-  if (t.includes("férias") || t.includes("ferias")) return { bg: [204, 251, 241], hex: "#ccfbf1", text: [15, 118, 110] };
-  if (t.includes("licença") || t.includes("licenca") || t.includes("lp")) return { bg: [207, 250, 254], hex: "#cffafe", text: [14, 116, 144] };
-  if (t.includes("atestado")) return { bg: [255, 228, 230], hex: "#ffe4e6", text: [190, 18, 60] };
-  if (t.includes("folga") || t.includes("indispon")) return { bg: [255, 247, 237], hex: "#fff7ed", text: [194, 65, 12] };
-  if (t.includes("sobreaviso")) return { bg: [241, 245, 249], hex: "#f1f5f9", text: [51, 65, 85] };
-  if (t.includes("24")) return { bg: [209, 250, 229], hex: "#d1fae5", text: [6, 95, 70] };
-  if (t.includes("manh")) return { bg: [254, 243, 199], hex: "#fef3c7", text: [146, 64, 14] };
-  if (t.includes("tarde")) return { bg: [255, 237, 213], hex: "#ffedd5", text: [154, 52, 18] };
-  if (t.includes("not")) return { bg: [237, 233, 254], hex: "#ede9fe", text: [91, 33, 182] };
-  if (t.includes("diurn")) return { bg: [224, 242, 254], hex: "#e0f2fe", text: [7, 89, 133] };
+  if (t.includes("férias") || t.includes("ferias")) return { bg: [204, 251, 241], hex: "#f0fdfa", text: [15, 118, 110] }; // teal-50
+  if (t.includes("licença") || t.includes("licenca") || t.includes("lp")) return { bg: [207, 250, 254], hex: "#ecfeff", text: [14, 116, 144] }; // cyan-50
+  if (t.includes("atestado")) return { bg: [255, 228, 230], hex: "#fff1f2", text: [190, 18, 60] }; // rose-50
+  if (t.includes("folga") || t.includes("indispon")) return { bg: [248, 250, 252], hex: "#f8fafc", text: [100, 116, 139] }; // slate-50
+  if (t.includes("sobreaviso")) return { bg: [241, 245, 249], hex: "#f1f5f9", text: [51, 65, 85] }; // slate-100
+  if (t.includes("24")) return { bg: [209, 250, 229], hex: "#ecfdf5", text: [6, 95, 70] }; // emerald-50
+  if (t.includes("manh")) return { bg: [254, 243, 199], hex: "#fffbeb", text: [146, 64, 14] }; // amber-50
+  if (t.includes("tarde")) return { bg: [255, 237, 213], hex: "#fff7ed", text: [154, 52, 18] }; // orange-50
+  if (t.includes("not")) return { bg: [237, 233, 254], hex: "#f5f3ff", text: [91, 33, 182] }; // violet-50
+  if (t.includes("diurn")) return { bg: [224, 242, 254], hex: "#f0f9ff", text: [7, 89, 133] }; // sky-50
 
   return { bg: [255, 255, 255], hex: "#ffffff", text: [0, 0, 0] };
 }
@@ -280,46 +280,46 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
 
   /* Bloco título da tabela */
   .tabela-titulo {
-    border: 1.2px solid #111; border-bottom: none;
-    padding: 4px 8px; display:flex; align-items:center; gap:8px;
-    background: #f5f5f5;
+    border: 1.5px solid #111; border-bottom: none;
+    padding: 6px 12px; display:flex; align-items:center; gap:12px;
+    background: #f8fafc;
   }
-  .tabela-titulo .logo-mini { width: 28px; height: 28px; object-fit: contain; }
+  .tabela-titulo .logo-mini { width: 32px; height: 32px; object-fit: contain; }
   .tabela-titulo .center { flex:1; text-align:center; }
-  .tabela-titulo .center .t1 { font-size: 11px; font-weight: 800; letter-spacing:.5px; }
-  .tabela-titulo .center .t2 { font-size: 10px; font-weight: 700; margin-top: 1px; }
+  .tabela-titulo .center .t1 { font-size: 13px; font-weight: 900; letter-spacing:.8px; color: #1e293b; }
+  .tabela-titulo .center .t2 { font-size: 11px; font-weight: 700; margin-top: 2px; color: #475569; }
 
   /* Tabela */
-  table.escala { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  table.escala { width: 100%; border-collapse: collapse; table-layout: fixed; border: 1.5px solid #111; }
   table.escala th, table.escala td {
-    border: 0.6px solid #111; padding: 2px 1px; text-align: center; vertical-align: middle;
-    font-size: 8.5px; line-height: 1.05;
+    border: 1px solid #111; padding: 3px 2px; text-align: center; vertical-align: middle;
+    font-size: 9px; line-height: 1.1;
   }
-  table.escala thead th { background: #e8e8e8; font-weight: 700; }
+  table.escala thead th { background: #f1f5f9; font-weight: 800; color: #0f172a; border-bottom: 2px solid #111; }
   table.escala th.nome, table.escala td.nome {
-    text-align: left; padding-left: 5px; font-size: 9px; min-width: 130px; width: 130px;
-    font-weight: 600;
+    text-align: left; padding-left: 8px; font-size: 9.5px; min-width: 150px; width: 150px;
+    font-weight: 800; color: #0f172a;
   }
-  table.escala td.nome .cons { font-weight: 400; color: #555; font-size: 7.5px; display:block; }
-  table.escala th.dia { padding: 1px 0; }
-  table.escala th.dia .d { font-weight: 800; font-size: 9px; }
-  table.escala th.dia .dw { font-size: 7px; color: #444; }
-  table.escala th.fds, table.escala td.fds { background: #f1f1f1; }
-  table.escala td.dia { font-weight: 700; font-size: 9px; }
-  table.escala td.cancel { color:#b00020; text-decoration: line-through; }
-  table.escala td.pend { color:#9a6b00; }
+  table.escala td.nome .cons { font-weight: 600; color: #64748b; font-size: 8px; display:block; margin-top: 1px; }
+  table.escala th.dia { padding: 2px 0; }
+  table.escala th.dia .d { font-weight: 900; font-size: 10px; }
+  table.escala th.dia .dw { font-size: 7.5px; color: #334155; font-weight: 700; }
+  table.escala th.fds, table.escala td.fds { background: #f8fafc; }
+  table.escala td.dia { font-weight: 800; font-size: 9.5px; }
+  table.escala td.cancel { color:#dc2626; text-decoration: line-through; }
+  table.escala td.pend { color:#b45309; }
   table.escala th.total, table.escala td.total {
-    background:#f1f5f9; font-weight: 800; min-width: 42px; width: 50px; font-size: 9px;
+    background:#f1f5f9; font-weight: 900; min-width: 45px; width: 55px; font-size: 10px; color: #0f172a;
   }
-  table.escala td.empty { text-align:center; padding: 14px; color:#777; font-style: italic; }
+  table.escala td.empty { text-align:center; padding: 20px; color:#64748b; font-style: italic; font-size: 11px; }
   
   /* Cabeçalhos de grupo */
   .group-header { background: #f8fafc; }
-  .group-header td { text-align: left !important; padding: 3px 8px !important; font-weight: 800 !important; border-bottom: 1.2px solid #111 !important; }
-  .group-header.unidade { background: #e2e8f0; font-size: 10px; }
-  .group-header.setor { background: #f1f5f9; font-size: 9px; padding-left: 15px !important; }
-  .group-header.profissao { background: #fff; font-size: 8.5px; color: #444; padding-left: 25px !important; border-bottom: 0.5px solid #aaa !important; }
-  .row-prof td.nome { padding-left: 35px !important; }
+  .group-header td { text-align: left !important; padding: 5px 12px !important; font-weight: 900 !important; border-bottom: 2px solid #111 !important; border-top: 1.5px solid #111 !important; }
+  .group-header.unidade { background: #cbd5e1; font-size: 12px; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; }
+  .group-header.setor { background: #e2e8f0; font-size: 10.5px; padding-left: 20px !important; color: #1e293b; border-bottom: 1.5px solid #111 !important; }
+  .group-header.profissao { background: #f1f5f9; font-size: 9.5px; color: #475569; padding-left: 30px !important; border-bottom: 1px solid #111 !important; font-style: italic; }
+  .row-prof td.nome { padding-left: 40px !important; }
 
   /* Legenda */
   .legenda { margin-top: 6px; padding: 4px 6px; border: 0.6px solid #555; font-size: 9px; }
@@ -332,13 +332,13 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
   .obs-rodape p { margin: 1px 0; }
 
   /* Assinatura lado a lado */
-  .ass-wrap { display:flex; justify-content: space-between; margin-top: 24px; gap: 40px; padding: 0 40px; }
-  .ass-box { text-align:center; min-width: 280px; flex: 1; display: flex; flex-direction: column; align-items: center; }
-  .ass-img { height: 50px; object-fit: contain; margin-bottom: -5px; }
-  .ass-img-placeholder { height: 50px; }
-  .ass-line { border-top: 1px solid #111; margin-bottom: 3px; width: 100%; }
-  .ass-nome { font-size: 10px; font-weight: 700; }
-  .ass-cargo, .ass-cons, .ass-unid { font-size: 9px; color:#333; }
+  .ass-wrap { display:flex; justify-content: space-between; margin-top: 32px; gap: 60px; padding: 0 60px; }
+  .ass-box { text-align:center; min-width: 300px; flex: 1; display: flex; flex-direction: column; align-items: center; }
+  .ass-img { height: 60px; object-fit: contain; margin-bottom: -8px; }
+  .ass-img-placeholder { height: 60px; }
+  .ass-line { border-top: 1.5px solid #111; margin-bottom: 5px; width: 100%; }
+  .ass-nome { font-size: 11px; font-weight: 900; color: #0f172a; text-transform: uppercase; }
+  .ass-cargo, .ass-cons, .ass-unid { font-size: 9.5px; color:#334155; font-weight: 600; }
 
   /* Rodapé de emissão (não aparece no papel se não quiser) */
   .doc-footer { margin-top: 10px; font-size: 8px; color:#777; text-align:center; border-top: 0.4px dashed #ccc; padding-top: 3px; }
