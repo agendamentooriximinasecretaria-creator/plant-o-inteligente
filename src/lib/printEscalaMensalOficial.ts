@@ -632,7 +632,8 @@ export async function gerarPdfEscalaMensalOficial(
           if (sigla !== "—") {
             const rowIndex = data.row.index;
             const dia = ci;
-            const prof = profs[rowIndex];
+            const prof = profsInBody[rowIndex];
+            if (!prof) return; // É uma linha de cabeçalho de grupo
             const lista = prof.porDia[dia] || [];
             if (lista.length > 0) {
               const color = getCategoryColor(lista[0].tipo || "", lista[0].status || "");
