@@ -33,7 +33,7 @@ interface Props {
 
 const DIA_SEMANA_ABREV = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
 
-// Categorização por tipo de plantão -> classe de cor (suave)
+// Categorização por tipo de plantão -> classe de cor (mais profissional e suave)
 function categoryFromTipo(tipo: string): "diurno" | "noturno" | "manha" | "tarde" | "24h" | "sobreaviso" | "folga" | "ferias" | "lp" | "atestado" | "outro" {
   const t = (tipo || "").toLowerCase();
   if (t.includes("férias") || t.includes("ferias")) return "ferias";
@@ -50,16 +50,16 @@ function categoryFromTipo(tipo: string): "diurno" | "noturno" | "manha" | "tarde
 }
 
 const CAT_CLASS: Record<string, string> = {
-  diurno: "bg-sky-100 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-900",
-  noturno: "bg-violet-100 text-violet-800 dark:bg-violet-950/40 dark:text-violet-300 border-violet-200 dark:border-violet-900",
-  manha: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-900",
-  tarde: "bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-300 border-orange-200 dark:border-orange-900",
-  "24h": "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900",
-  sobreaviso: "bg-slate-200 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300 border-slate-300 dark:border-slate-700",
-  folga: "bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300 border-orange-200 dark:border-orange-900",
-  ferias: "bg-teal-100 text-teal-800 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-900",
-  lp: "bg-cyan-100 text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-300 border-cyan-200 dark:border-cyan-900",
-  atestado: "bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200 dark:border-rose-900",
+  diurno: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800",
+  noturno: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-300 dark:border-indigo-800",
+  manha: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800",
+  tarde: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800",
+  "24h": "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800",
+  sobreaviso: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800/40 dark:text-slate-400 dark:border-slate-700",
+  folga: "bg-slate-50 text-slate-400 border-slate-100 dark:bg-slate-900/10 dark:text-slate-500 dark:border-slate-800",
+  ferias: "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/20 dark:text-teal-300 dark:border-teal-800",
+  lp: "bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-900/20 dark:text-cyan-300 dark:border-cyan-800",
+  atestado: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-300 dark:border-rose-800",
   outro: "bg-muted text-foreground border-border",
 };
 
@@ -198,22 +198,24 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
   }, [tipos]);
 
   return (
-    <div className="bg-card rounded-xl border border-border/60 shadow-[var(--shadow-card)] overflow-hidden print:border-none print:shadow-none print:m-0">
+    <div className="bg-card rounded-xl border border-border/60 shadow-lg overflow-hidden print:border-none print:shadow-none print:m-0">
       <style>{`
         @media print {
           .print-no-break { page-break-inside: avoid; }
           .print-header { display: table-header-group; }
           .print-footer { display: table-footer-group; }
-          table { width: 100% !important; border-collapse: collapse !important; }
-          th, td { border: 1px solid #ddd !important; }
+          table { width: 100% !important; border-collapse: collapse !important; table-layout: fixed !important; }
+          th, td { border: 1px solid #111 !important; padding: 2px !important; }
           .bg-muted\\/50 { background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; }
-          .bg-primary\\/5 { background-color: #f8fafc !important; -webkit-print-color-adjust: exact; }
-          .bg-muted\\/30 { background-color: #f8fafc !important; -webkit-print-color-adjust: exact; }
+          .bg-primary\\/5 { background-color: #e2e8f0 !important; -webkit-print-color-adjust: exact; border-bottom: 2px solid #111 !important; }
+          .bg-muted\\/30 { background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; border-bottom: 1.5px solid #111 !important; }
+          .bg-muted\\/10 { background-color: #ffffff !important; -webkit-print-color-adjust: exact; border-bottom: 1px solid #ccc !important; }
           .bg-card { background-color: #fff !important; }
           .text-primary { color: #000 !important; }
-          .text-muted-foreground { color: #666 !important; }
+          .text-muted-foreground { color: #444 !important; }
+          .row-prof td { border-bottom: 0.5px solid #eee !important; }
           button, input[type="month"], .no-print { display: none !important; }
-          @page { size: landscape; margin: 10mm; }
+          @page { size: landscape; margin: 8mm; }
         }
       `}</style>
       {/* Cabeçalho com navegador de mês */}
@@ -240,10 +242,10 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
 
       {/* Tabela */}
       <div className="overflow-x-auto">
-        <table className="w-full text-[11px] border-collapse">
+        <table className="w-full text-[11px] border-collapse table-fixed">
           <thead>
-            <tr className="bg-muted/50 sticky top-0 z-10">
-              <th className="text-left font-semibold text-foreground p-2 border-b border-border sticky left-0 bg-muted/80 backdrop-blur z-20 min-w-[180px]">
+            <tr className="bg-slate-50 dark:bg-slate-900/50 sticky top-0 z-30">
+              <th className="text-left font-bold text-slate-700 dark:text-slate-200 p-3 border-b-2 border-slate-200 dark:border-slate-800 sticky left-0 bg-slate-50 dark:bg-slate-900 backdrop-blur z-40 w-[200px] shadow-[1px_0_0_0_rgba(0,0,0,0.1)]">
                 Profissional
               </th>
               {dias.map((d) => {
@@ -251,13 +253,13 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
                 const dow = dt.getDay();
                 const isFds = dow === 0 || dow === 6;
                 return (
-                  <th key={d} className={`p-1 border-b border-border text-center font-medium ${isFds ? "bg-muted text-muted-foreground" : "text-foreground"}`}>
-                    <div className="text-[11px] leading-none">{d}</div>
-                    <div className="text-[9px] mt-0.5 text-muted-foreground">{DIA_SEMANA_ABREV[dow]}</div>
+                  <th key={d} className={`p-1.5 border-b-2 border-slate-200 dark:border-slate-800 text-center font-bold ${isFds ? "bg-slate-100/80 text-slate-500" : "text-slate-600"}`}>
+                    <div className="text-[12px] leading-none mb-0.5">{d}</div>
+                    <div className="text-[8px] uppercase tracking-tighter opacity-70">{DIA_SEMANA_ABREV[dow]}</div>
                   </th>
                 );
               })}
-              <th className="text-center font-semibold text-foreground p-2 border-b border-border bg-muted/80 sticky right-0 z-20 min-w-[60px]">
+              <th className="text-center font-bold text-slate-700 dark:text-slate-200 p-3 border-b-2 border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 sticky right-0 z-40 w-[70px] shadow-[-1px_0_0_0_rgba(0,0,0,0.1)]">
                 Total
               </th>
             </tr>
@@ -265,7 +267,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
           <tbody>
             {groupedData.length === 0 ? (
               <tr>
-                <td colSpan={dias.length + 2} className="p-10 text-center text-muted-foreground text-sm">
+                <td colSpan={dias.length + 2} className="p-12 text-center text-muted-foreground text-sm">
                   Nenhum plantão encontrado para os filtros aplicados neste mês.
                 </td>
               </tr>
@@ -273,17 +275,20 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
               groupedData.map((item) => {
                 if (item.type === 'header-unidade') {
                   return (
-                    <tr key={item.key} className="bg-primary/5 print:bg-slate-100">
-                      <td colSpan={dias.length + 2} className="p-2 border-b border-border font-bold text-[11px] text-primary uppercase tracking-wider">
-                        Unidade: {item.label}
+                    <tr key={item.key} className="bg-slate-200/80 dark:bg-slate-800/80 print:bg-slate-200">
+                      <td colSpan={dias.length + 2} className="p-3 border-y border-slate-300 dark:border-slate-700 font-black text-[12px] text-slate-800 dark:text-slate-100 uppercase tracking-widest shadow-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="w-1.5 h-4 bg-primary rounded-full"></span>
+                          Unidade: {item.label}
+                        </div>
                       </td>
                     </tr>
                   );
                 }
                 if (item.type === 'header-setor') {
                   return (
-                    <tr key={item.key} className="bg-muted/30 print:bg-slate-50">
-                      <td colSpan={dias.length + 2} className="p-1.5 pl-4 border-b border-border font-bold text-[10px] text-foreground/80 uppercase">
+                    <tr key={item.key} className="bg-slate-100 dark:bg-slate-900/40 print:bg-slate-100">
+                      <td colSpan={dias.length + 2} className="p-2.5 pl-6 border-b border-slate-200 dark:border-slate-800 font-extrabold text-[11px] text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                         Setor: {item.label}
                       </td>
                     </tr>
@@ -291,8 +296,8 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
                 }
                 if (item.type === 'header-profissao') {
                   return (
-                    <tr key={item.key} className="bg-muted/10 print:bg-white">
-                      <td colSpan={dias.length + 2} className="p-1 pl-6 border-b border-border/60 font-semibold text-[9px] text-muted-foreground uppercase">
+                    <tr key={item.key} className="bg-white/50 dark:bg-transparent print:bg-white">
+                      <td colSpan={dias.length + 2} className="p-1.5 pl-10 border-b border-slate-100 dark:border-slate-900/50 font-bold text-[10px] text-slate-500 dark:text-slate-400 uppercase italic">
                         {item.label}
                       </td>
                     </tr>
@@ -301,10 +306,10 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
 
                 const row = item.row!;
                 return (
-                  <tr key={item.key} className="border-b border-border/40 hover:bg-muted/30 transition-colors print:break-inside-avoid">
-                    <td className="p-2 pl-8 sticky left-0 bg-card z-10 border-r border-border/60 print:relative print:bg-transparent">
-                      <p className="font-medium text-foreground truncate max-w-[170px]" title={row.nome}>{row.nome}</p>
-                      {row.profissao && <p className="text-[10px] text-muted-foreground truncate">{row.profissao}</p>}
+                  <tr key={item.key} className="row-prof border-b border-slate-100 dark:border-slate-900 hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors print:break-inside-avoid">
+                    <td className="p-3 pl-12 sticky left-0 bg-card dark:bg-background z-20 border-r border-slate-100 dark:border-slate-900 print:relative print:bg-transparent shadow-[1px_0_0_0_rgba(0,0,0,0.05)]">
+                      <p className="font-bold text-slate-800 dark:text-slate-200 truncate leading-tight" title={row.nome}>{row.nome}</p>
+                      {row.profissao && <p className="text-[9px] text-slate-500 uppercase tracking-tighter mt-0.5">{row.profissao}</p>}
                     </td>
                     {dias.map((d) => {
                       const lista = row.porDia.get(d) || [];
@@ -328,19 +333,19 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
                         .map((l) => `${l.tipo_plantao || "?"} ${(l.hora_inicio || "").slice(0, 5)}-${(l.hora_fim || "").slice(0, 5)}${l.status ? ` · ${l.status}` : ""}`)
                         .join("\n");
                       return (
-                        <td key={d} className="p-0.5 text-center align-middle">
+                        <td key={d} className="p-0.5 text-center align-middle relative">
                           <div
-                            className={`inline-flex items-center justify-center min-w-[26px] h-6 px-1 rounded border text-[10px] font-semibold gap-0.5 ${hasConflict ? 'ring-1 ring-destructive border-destructive bg-destructive/10 text-destructive' : cls}`}
+                            className={`inline-flex items-center justify-center min-w-[28px] h-7 px-1.5 rounded-md border shadow-sm text-[10px] font-bold gap-0.5 transition-transform hover:scale-110 z-10 relative ${hasConflict ? 'ring-2 ring-destructive border-destructive bg-destructive/10 text-destructive' : cls}`}
                             title={tooltip}
                           >
-                            {hasConflict && <AlertTriangle className="h-2.5 w-2.5 shrink-0" />}
+                            {hasConflict && <AlertTriangle className="h-3 w-3 shrink-0" />}
                             {siglas.join("/")}
                           </div>
                         </td>
                       );
                     })}
-                    <td className="p-2 text-center font-semibold text-foreground sticky right-0 bg-card z-10 border-l border-border/60 print:relative print:bg-transparent">
-                      {row.horas}h
+                    <td className="p-3 text-center font-black text-slate-900 dark:text-white sticky right-0 bg-slate-50 dark:bg-slate-900 z-20 border-l border-slate-100 dark:border-slate-800 print:relative print:bg-transparent shadow-[-1px_0_0_0_rgba(0,0,0,0.05)]">
+                      <span className="bg-primary/10 text-primary px-2 py-1 rounded text-[12px]">{row.horas}h</span>
                     </td>
                   </tr>
                 );
