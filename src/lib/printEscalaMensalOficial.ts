@@ -530,26 +530,62 @@ export async function gerarPdfEscalaMensalOficial(
     { content: "Total", styles: { halign: "center" as const, fontStyle: "bold" as const } }
   ]];
 
-  const body = profs.map((p) => {
-    const conselhoText = p.conselho && p.conselho !== "Não inf." ? p.conselho : "Não informado";
-    const nomeCol = {
-      content: `${p.nome}\n${p.profissao || ""}\n${conselhoText}`,
-      styles: { halign: "left" as const, fontSize: 6.5, cellPadding: 1 }
-    };
+  // Agrupa profissionais por Unidade -> Setor -> Profissão
+  const tree = new Map<string, Map<string, Map<string, MensalProfissional[]>>>();
+  for (const p of profs) {
+    const u = p.unidade || cab.instituicao.unidade || "Unidade não informada";
+    const s = p.setor || "Setor não informado";
+    const prof = p.profissao || "Outras Profissões";
+    if (!tree.has(u)) tree.set(u, new Map());
+    const unidadeMap = tree.get(u)!;
+    if (!unidadeMap.has(s)) unidadeMap.set(s, new Map());
+    const setorMap = unidadeMap.get(s)!;
+    if (!setorMap.has(prof)) setorMap.set(prof, []);
+    setorMap.get(prof)!.push(p);
+  }
 
-    const diaCols = Array.from({ length: totalDias }, (_, i) => {
-      const d = i + 1;
-      const lista = p.porDia[d] || [];
-      if (lista.length === 0) return "—";
-      
-      const siglas = lista.map((s) => s.sigla).join("/");
-      return siglas;
-    });
+  const body: any[] = [];
+  const profsInBody: (MensalProfissional | null)[] = []; // Para mapear row index -> profissional
 
-    const total = opts.incluirTotalHoras ? `${p.totalHoras}h` : `${p.totalPlantoes}`;
-    
-    return [nomeCol, ...diaCols, { content: total, styles: { halign: "center" as const, fontStyle: "bold" as const, fontSize: 8 } }];
-  });
+  const sortedUnidades = Array.from(tree.keys()).sort();
+  for (const u of sortedUnidades) {
+    body.push([{ content: `UNIDADE: ${u.toUpperCase()}`, colSpan: totalDias + 2, styles: { fillColor: [226, 232, 240], fontStyle: "bold", halign: "left" } }]);
+    profsInBody.push(null);
+
+    const unidadeMap = tree.get(u)!;
+    const sortedSetores = Array.from(unidadeMap.keys()).sort();
+    for (const s of sortedSetores) {
+      body.push([{ content: `SETOR: ${s.toUpperCase()}`, colSpan: totalDias + 2, styles: { fillColor: [241, 245, 249], fontStyle: "bold", halign: "left" } }]);
+      profsInBody.push(null);
+
+      const setorMap = unidadeMap.get(s)!;
+      const sortedProfissoes = Array.from(setorMap.keys()).sort();
+      for (const pName of sortedProfissoes) {
+        body.push([{ content: pName.toUpperCase(), colSpan: totalDias + 2, styles: { fillColor: [255, 255, 255], fontStyle: "bold", halign: "left", textColor: [100, 100, 100], fontSize: 6.5 } }]);
+        profsInBody.push(null);
+
+        const sortedList = setorMap.get(pName)!.sort((a, b) => a.nome.localeCompare(b.nome));
+        for (const p of sortedList) {
+          const conselhoText = p.conselho && p.conselho !== "Não inf." ? p.conselho : "Não informado";
+          const nomeCol = {
+            content: `${p.nome}\n${p.profissao || ""}\n${conselhoText}`,
+            styles: { halign: "left" as const, fontSize: 6.5, cellPadding: 1 }
+          };
+
+          const diaCols = Array.from({ length: totalDias }, (_, i) => {
+            const d = i + 1;
+            const lista = p.porDia[d] || [];
+            if (lista.length === 0) return "—";
+            return lista.map((s) => s.sigla).join("/");
+          });
+
+          const total = opts.incluirTotalHoras ? `${p.totalHoras}h` : `${p.totalPlantoes}`;
+          body.push([nomeCol, ...diaCols, { content: total, styles: { halign: "center" as const, fontStyle: "bold" as const, fontSize: 8 } }]);
+          profsInBody.push(p);
+        }
+      }
+    }
+  }
 
   // Cálculo de larguras
   const availW = pageW - (margin * 2);
