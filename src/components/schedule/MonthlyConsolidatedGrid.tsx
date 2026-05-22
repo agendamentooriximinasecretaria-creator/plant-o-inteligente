@@ -111,28 +111,69 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
     return found?.sigla || siglaFallback(tipo);
   };
 
-  // Agrupa por profissional + dia (filtra apenas o mês exibido)
-  const matriz = useMemo(() => {
-    const map = new Map<string, { id: string; nome: string; profissao?: string; porDia: Map<number, MonthlyShift[]>; horas: number }>();
+  // Agrupa por Unidade -> Setor -> Profissão -> Profissional (filtra apenas o mês exibido)
+  const groupedData = useMemo(() => {
+    type ProfRow = { id: string; nome: string; profissao?: string; porDia: Map<number, MonthlyShift[]>; horas: number };
+    const tree = new Map<string, Map<string, Map<string, Map<string, ProfRow>>>>();
+
     for (const s of shifts) {
       if (!s.data) continue;
       const [y, m, d] = s.data.split("-").map(Number);
       if (y !== year || m - 1 !== monthIdx) continue;
-      const key = s.profissional_id;
-      let row = map.get(key);
+
+      const unidade = s.unidade_nome || "Unidade não informada";
+      const setor = s.setor_nome || "Setor não informado";
+      const profissao = s.profissao || "Outras Profissões";
+      const profId = s.profissional_id;
+
+      if (!tree.has(unidade)) tree.set(unidade, new Map());
+      const unidadeMap = tree.get(unidade)!;
+
+      if (!unidadeMap.has(setor)) unidadeMap.set(setor, new Map());
+      const setorMap = unidadeMap.get(setor)!;
+
+      if (!setorMap.has(profissao)) setorMap.set(profissao, new Map());
+      const profissaoMap = setorMap.get(profissao)!;
+
+      let row = profissaoMap.get(profId);
       if (!row) {
-        row = { id: key, nome: s.profissional_nome || "Sem nome", profissao: s.profissao, porDia: new Map(), horas: 0 };
-        map.set(key, row);
+        row = { id: profId, nome: s.profissional_nome || "Sem nome", profissao: s.profissao, porDia: new Map(), horas: 0 };
+        profissaoMap.set(profId, row);
       }
+
       const arr = row.porDia.get(d) || [];
       arr.push(s);
       row.porDia.set(d, arr);
+
       const carga = Number(s.carga_horaria || 0);
       if (s.status !== "cancelado" && !["folga", "indisponibilidade"].includes((s.tipo_plantao || "").toLowerCase())) {
         row.horas += carga;
       }
     }
-    return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+
+    // Converte para array ordenado para renderização
+    const result: { type: 'header-unidade' | 'header-setor' | 'header-profissao' | 'row', label?: string, row?: ProfRow, key: string }[] = [];
+
+    const sortedUnidades = Array.from(tree.keys()).sort();
+    for (const u of sortedUnidades) {
+      result.push({ type: 'header-unidade', label: u, key: `u-${u}` });
+      const unidadeMap = tree.get(u)!;
+      const sortedSetores = Array.from(unidadeMap.keys()).sort();
+      for (const s of sortedSetores) {
+        result.push({ type: 'header-setor', label: s, key: `s-${u}-${s}` });
+        const setorMap = unidadeMap.get(s)!;
+        const sortedProfissoes = Array.from(setorMap.keys()).sort();
+        for (const p of sortedProfissoes) {
+          result.push({ type: 'header-profissao', label: p, key: `p-${u}-${s}-${p}` });
+          const profissaoMap = setorMap.get(p)!;
+          const sortedProfs = Array.from(profissaoMap.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+          for (const row of sortedProfs) {
+            result.push({ type: 'row', row, key: `r-${u}-${s}-${p}-${row.id}` });
+          }
+        }
+      }
+    }
+    return result;
   }, [shifts, year, monthIdx]);
 
   const navMes = (delta: number) => {
