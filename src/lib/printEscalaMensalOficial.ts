@@ -147,32 +147,75 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
     return `<th class="dia ${fds ? "fds" : ""}"><div class="d">${d}</div><div class="dw">${DIAS_SEM_ABREV[dow]}</div></th>`;
   }).join("");
 
-  const linhasTr = profs.length === 0
-    ? `<tr><td colspan="${totalDias + 2}" class="empty">Nenhum profissional/plantão para os filtros selecionados.</td></tr>`
-    : profs.map((p) => {
-        const cells = Array.from({ length: totalDias }, (_, i) => {
-          const d = i + 1;
-          const lista = p.porDia[d] || [];
-          const dow = diaSemana(cab.ano, cab.mes, d);
-          const fds = dow === 0 || dow === 6;
-          if (lista.length === 0) return `<td class="dia ${fds ? "fds" : ""}">—</td>`;
+  // Agrupa profissionais por Unidade -> Setor -> Profissão
+  const tree = new Map<string, Map<string, Map<string, MensalProfissional[]>>>();
+  for (const p of profs) {
+    const u = p.unidade || cab.instituicao.unidade || "Unidade não informada";
+    const s = p.setor || "Setor não informado";
+    const prof = p.profissao || "Outras Profissões";
+
+    if (!tree.has(u)) tree.set(u, new Map());
+    const unidadeMap = tree.get(u)!;
+
+    if (!unidadeMap.has(s)) unidadeMap.set(s, new Map());
+    const setorMap = unidadeMap.get(s)!;
+
+    if (!setorMap.has(prof)) setorMap.set(prof, []);
+    setorMap.get(prof)!.push(p);
+  }
+
+  let linhasTr = "";
+  if (profs.length === 0) {
+    linhasTr = `<tr><td colspan="${totalDias + 2}" class="empty">Nenhum profissional/plantão para os filtros selecionados.</td></tr>`;
+  } else {
+    const sortedUnidades = Array.from(tree.keys()).sort();
+    for (const u of sortedUnidades) {
+      const unidadeMap = tree.get(u)!;
+      // Header de Unidade
+      linhasTr += `<tr class="group-header unidade"><td colspan="${totalDias + 2}">UNIDADE: ${escapeHtml(u)}</td></tr>`;
+      
+      const sortedSetores = Array.from(unidadeMap.keys()).sort();
+      for (const s of sortedSetores) {
+        // Header de Setor
+        linhasTr += `<tr class="group-header setor"><td colspan="${totalDias + 2}">SETOR: ${escapeHtml(s)}</td></tr>`;
+        
+        const setorMap = unidadeMap.get(s)!;
+        const sortedProfissoes = Array.from(setorMap.keys()).sort();
+        for (const pName of sortedProfissoes) {
+          // Header de Profissão
+          linhasTr += `<tr class="group-header profissao"><td colspan="${totalDias + 2}">${escapeHtml(pName)}</td></tr>`;
           
-          const siglas = lista.map((s) => s.sigla).join("/");
-          const tipoBase = lista[0].tipo || "";
-          const statusBase = lista[0].status || "";
-          const color = getCategoryColor(tipoBase, statusBase);
-          
-          const tooltip = lista.map((l) => `${l.tipo || l.sigla} ${(l.hora_inicio || "").slice(0, 5)}-${(l.hora_fim || "").slice(0, 5)}`).join(" | ");
-          return `<td class="dia ${fds ? "fds" : ""}" style="background-color: ${color.hex}; color: rgb(${color.text.join(",")})" title="${escapeHtml(tooltip)}">${escapeHtml(siglas)}</td>`;
-        }).join("");
-        const total = opts.incluirTotalHoras ? `${p.totalHoras}h` : `${p.totalPlantoes}`;
-        const conselho = p.conselho && p.conselho !== "Não inf." ? `<span class="cons">${escapeHtml(p.conselho)}</span>` : `<span class="cons" style="color:#999;font-style:italic">Não informado</span>`;
-        return `<tr>
-          <td class="nome">${escapeHtml(p.nome)}${conselho}</td>
-          ${cells}
-          <td class="total">${escapeHtml(total)}</td>
-        </tr>`;
-      }).join("");
+          const sortedList = setorMap.get(pName)!.sort((a, b) => a.nome.localeCompare(b.nome));
+          for (const p of sortedList) {
+            const cells = Array.from({ length: totalDias }, (_, i) => {
+              const d = i + 1;
+              const lista = p.porDia[d] || [];
+              const dow = diaSemana(cab.ano, cab.mes, d);
+              const fds = dow === 0 || dow === 6;
+              if (lista.length === 0) return `<td class="dia ${fds ? "fds" : ""}">—</td>`;
+              
+              const siglas = lista.map((s) => s.sigla).join("/");
+              const tipoBase = lista[0].tipo || "";
+              const statusBase = lista[0].status || "";
+              const color = getCategoryColor(tipoBase, statusBase);
+              
+              const tooltip = lista.map((l) => `${l.tipo || l.sigla} ${(l.hora_inicio || "").slice(0, 5)}-${(l.hora_fim || "").slice(0, 5)}`).join(" | ");
+              return `<td class="dia ${fds ? "fds" : ""}" style="background-color: ${color.hex}; color: rgb(${color.text.join(",")})" title="${escapeHtml(tooltip)}">${escapeHtml(siglas)}</td>`;
+            }).join("");
+            
+            const total = opts.incluirTotalHoras ? `${p.totalHoras}h` : `${p.totalPlantoes}`;
+            const conselho = p.conselho && p.conselho !== "Não inf." ? `<span class="cons">${escapeHtml(p.conselho)}</span>` : `<span class="cons" style="color:#999;font-style:italic">Não informado</span>`;
+            
+            linhasTr += `<tr class="row-prof">
+              <td class="nome">${escapeHtml(p.nome)}${conselho}</td>
+              ${cells}
+              <td class="total">${escapeHtml(total)}</td>
+            </tr>`;
+          }
+        }
+      }
+    }
+  }
 
   const legendaTipos = tipos.map((t) => {
     const horario = t.start && t.end ? `${t.start} às ${t.end}` : (t.nome || "");
