@@ -271,22 +271,36 @@ export default function RelatoriosPage() {
         return { columns: ['Setor', 'Qtd. Plantões', 'Horas Totais'], rows: Object.values(bySetor).map(s => [s.nome, String(s.count), `${s.horas.toFixed(1)}h`]), totalHoras };
       }
       case 'escala_mensal': {
-        // Usa o mês do filtro (dataIni) ou mês corrente
         const ref = filtros.dataIni ? new Date(filtros.dataIni + 'T12:00:00') : new Date();
         const year = ref.getFullYear();
         const month = ref.getMonth();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
-        const cols = ['Profissional', ...Array.from({ length: daysInMonth }, (_, i) => String(i + 1))];
-        const profMap: Record<string, { nome: string; days: Record<number, string> }> = {};
+        const cols = ['Profissional', 'Setor', ...Array.from({ length: daysInMonth }, (_, i) => String(i + 1))];
+        
+        // Agrupa por profissional + setor para evitar duplicidade e manter organização
+        const profSetorMap: Record<string, { nome: string; setor: string; days: Record<number, string> }> = {};
+        
         filteredShifts.forEach((s: any) => {
           const d = new Date(s.data + 'T12:00:00');
           if (d.getMonth() === month && d.getFullYear() === year) {
             const nome = (s.professionals as any)?.nome || '?';
-            if (!profMap[s.profissional_id]) profMap[s.profissional_id] = { nome, days: {} };
-            profMap[s.profissional_id].days[d.getDate()] = (s.sectors as any)?.nome?.substring(0, 3) || '✓';
+            const setor = (s.sectors as any)?.nome || 'Sem Setor';
+            const key = `${s.profissional_id}_${s.setor_id}`;
+            
+            if (!profSetorMap[key]) {
+              profSetorMap[key] = { nome, setor, days: {} };
+            }
+            profSetorMap[key].days[d.getDate()] = s.tipo_plantao?.substring(0, 3) || '✓';
           }
         });
-        const rows = Object.values(profMap).map(p => [p.nome, ...Array.from({ length: daysInMonth }, (_, i) => p.days[i + 1] || '')]);
+        
+        const rows = Object.values(profSetorMap)
+          .sort((a, b) => a.setor.localeCompare(b.setor) || a.nome.localeCompare(b.nome))
+          .map(p => [
+            p.nome, 
+            p.setor, 
+            ...Array.from({ length: daysInMonth }, (_, i) => p.days[i + 1] || '')
+          ]);
         return { columns: cols, rows };
       }
       case 'analise_trocas': {
