@@ -312,6 +312,14 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
     background:#f1f5f9; font-weight: 800; min-width: 42px; width: 50px; font-size: 9px;
   }
   table.escala td.empty { text-align:center; padding: 14px; color:#777; font-style: italic; }
+  
+  /* Cabeçalhos de grupo */
+  .group-header { background: #f8fafc; }
+  .group-header td { text-align: left !important; padding: 3px 8px !important; font-weight: 800 !important; border-bottom: 1.2px solid #111 !important; }
+  .group-header.unidade { background: #e2e8f0; font-size: 10px; }
+  .group-header.setor { background: #f1f5f9; font-size: 9px; padding-left: 15px !important; }
+  .group-header.profissao { background: #fff; font-size: 8.5px; color: #444; padding-left: 25px !important; border-bottom: 0.5px solid #aaa !important; }
+  .row-prof td.nome { padding-left: 35px !important; }
 
   /* Legenda */
   .legenda { margin-top: 6px; padding: 4px 6px; border: 0.6px solid #555; font-size: 9px; }
