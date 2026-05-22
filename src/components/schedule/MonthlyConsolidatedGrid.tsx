@@ -244,22 +244,23 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
       <div className="overflow-x-auto">
         <table className="w-full text-[11px] border-collapse table-fixed">
           <thead>
-            <tr className="bg-slate-100 dark:bg-slate-900/90 sticky top-0 z-30">
-              <th className="text-left font-bold text-slate-800 dark:text-slate-200 p-4 border-b-2 border-slate-300 dark:border-slate-700 sticky left-0 bg-slate-100 dark:bg-slate-900 z-40 w-[220px] shadow-[2px_0_4px_rgba(0,0,0,0.05)] text-sm">
+            <tr className="bg-slate-200/80 dark:bg-slate-900/90 sticky top-0 z-30">
+              <th className="text-left font-bold text-slate-900 dark:text-slate-100 p-4 border-b-2 border-slate-400 dark:border-slate-700 sticky left-0 bg-slate-200 dark:bg-slate-900 z-40 w-[220px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] text-sm">
                 Profissional
               </th>
               {dias.map((d) => {
                 const dt = new Date(year, monthIdx, d);
                 const dow = dt.getDay();
                 const isFds = dow === 0 || dow === 6;
+                const isLastInWeek = dow === 6; // Sábado
                 return (
-                  <th key={d} className={`p-2 border-b-2 border-slate-300 dark:border-slate-700 text-center font-bold text-xs ${isFds ? "bg-slate-200/50 text-slate-600" : "text-slate-700"}`}>
+                  <th key={d} className={`p-2 border-b-2 border-slate-400 dark:border-slate-700 text-center font-bold text-xs border-r border-slate-200 dark:border-slate-800 ${isFds ? "bg-slate-300/50 text-slate-800" : "text-slate-700"} ${isLastInWeek ? "border-r-2 border-r-slate-400 dark:border-r-slate-600" : ""}`}>
                     <div className="text-base leading-none mb-1">{d}</div>
-                    <div className="text-[10px] uppercase tracking-wider opacity-60">{DIA_SEMANA_ABREV[dow]}</div>
+                    <div className="text-[10px] uppercase tracking-wider opacity-80">{DIA_SEMANA_ABREV[dow]}</div>
                   </th>
                 );
               })}
-              <th className="text-center font-bold text-slate-800 dark:text-slate-200 p-4 border-b-2 border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 sticky right-0 z-40 w-[80px] shadow-[-2px_0_4px_rgba(0,0,0,0.05)] text-sm">
+              <th className="text-center font-bold text-slate-900 dark:text-slate-100 p-4 border-b-2 border-slate-400 dark:border-slate-700 bg-slate-200 dark:bg-slate-900 sticky right-0 z-40 w-[80px] shadow-[-2px_0_4px_rgba(0,0,0,0.1)] text-sm border-l-2 border-l-slate-400">
                 Total
               </th>
             </tr>
@@ -285,7 +286,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
                 if (item.type === 'header-setor') {
                   return (
                     <tr key={item.key} className="bg-slate-100 dark:bg-slate-900/50">
-                      <td colSpan={dias.length + 2} className="px-6 py-3 border-b border-slate-200 dark:border-slate-800 font-extrabold text-sm text-slate-700 dark:text-slate-300 tracking-wide">
+                      <td colSpan={dias.length + 2} className="px-6 py-3 border-y-2 border-slate-300 dark:border-slate-700 font-extrabold text-sm text-slate-700 dark:text-slate-300 tracking-wide">
                         <div className="flex items-center gap-3">
                           <span className="w-1.5 h-6 bg-primary rounded-full"></span>
                           SETOR: {item.label}
@@ -297,7 +298,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
                 if (item.type === 'header-profissao') {
                   return (
                     <tr key={item.key} className="bg-white dark:bg-transparent">
-                      <td colSpan={dias.length + 2} className="px-8 py-2 border-b border-slate-50 dark:border-slate-900 font-bold text-[11px] text-slate-400 dark:text-slate-600 uppercase tracking-widest italic">
+                      <td colSpan={dias.length + 2} className="px-8 py-2 border-b border-slate-200 dark:border-slate-800 font-bold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-widest italic">
                         {item.label}
                       </td>
                     </tr>
@@ -306,8 +307,8 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
 
                 const row = item.row!;
                 return (
-                  <tr key={item.key} className="border-b border-slate-50 dark:border-slate-900 hover:bg-slate-50/80 dark:hover:bg-slate-800/20 transition-all print:break-inside-avoid">
-                    <td className="px-4 py-3 sticky left-0 bg-white dark:bg-background z-20 border-r border-slate-100 dark:border-slate-900 print:relative shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
+                  <tr key={item.key} className="border-b border-slate-200 dark:border-slate-800 even:bg-slate-50/50 dark:even:bg-slate-800/10 hover:bg-slate-100/80 dark:hover:bg-slate-800/40 transition-all print:break-inside-avoid group">
+                    <td className="px-4 py-3 sticky left-0 bg-white dark:bg-background z-20 border-r-2 border-slate-300 dark:border-slate-700 print:relative shadow-[2px_0_4px_rgba(0,0,0,0.05)] group-hover:bg-slate-100 dark:group-hover:bg-slate-800 transition-colors">
                       <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm leading-snug">{row.nome}</div>
                       <div className="text-[10px] text-slate-500 font-medium uppercase mt-0.5 tracking-tight">{row.profissao}</div>
                     </td>
@@ -315,7 +316,8 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
                       const lista = row.porDia.get(d) || [];
                       const dt = new Date(year, monthIdx, d);
                       const isFds = dt.getDay() === 0 || dt.getDay() === 6;
-                      const cellClass = `p-1 text-center align-middle ${isFds ? "bg-slate-50/50" : ""}`;
+                      const isLastInWeek = dt.getDay() === 6;
+                      const cellClass = `p-1 text-center align-middle border-r border-slate-100 dark:border-slate-800/50 ${isFds ? "bg-slate-100/30" : ""} ${isLastInWeek ? "border-r-2 border-r-slate-300 dark:border-r-slate-700" : ""}`;
                       
                       if (lista.length === 0) {
                         return <td key={d} className={cellClass}>
