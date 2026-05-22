@@ -6,6 +6,8 @@ export interface MonthlyShift {
   profissional_id: string;
   profissional_nome: string;
   profissao?: string;
+  unidade_nome?: string;
+  setor_nome?: string;
   data: string; // YYYY-MM-DD
   tipo_plantao?: string;
   hora_inicio?: string;
