@@ -198,7 +198,24 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
   }, [tipos]);
 
   return (
-    <div className="bg-card rounded-xl border border-border/60 shadow-[var(--shadow-card)] overflow-hidden">
+    <div className="bg-card rounded-xl border border-border/60 shadow-[var(--shadow-card)] overflow-hidden print:border-none print:shadow-none print:m-0">
+      <style>{`
+        @media print {
+          .print-no-break { page-break-inside: avoid; }
+          .print-header { display: table-header-group; }
+          .print-footer { display: table-footer-group; }
+          table { width: 100% !important; border-collapse: collapse !important; }
+          th, td { border: 1px solid #ddd !important; }
+          .bg-muted\\/50 { background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; }
+          .bg-primary\\/5 { background-color: #f8fafc !important; -webkit-print-color-adjust: exact; }
+          .bg-muted\\/30 { background-color: #f8fafc !important; -webkit-print-color-adjust: exact; }
+          .bg-card { background-color: #fff !important; }
+          .text-primary { color: #000 !important; }
+          .text-muted-foreground { color: #666 !important; }
+          button, input[type="month"], .no-print { display: none !important; }
+          @page { size: landscape; margin: 10mm; }
+        }
+      `}</style>
       {/* Cabeçalho com navegador de mês */}
       <div className="flex items-center justify-between gap-3 p-4 border-b border-border/60">
         <div className="flex items-center gap-2">
