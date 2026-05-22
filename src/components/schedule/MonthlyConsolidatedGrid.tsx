@@ -1,5 +1,5 @@
 import { useMemo, useState, memo } from "react";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertTriangle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertTriangle, Info } from "lucide-react";
 
 export interface MonthlyShift {
   id: string;
