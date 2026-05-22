@@ -315,14 +315,15 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
   
   /* Cabeçalhos de grupo */
   .group-header { background: #f8fafc; }
-  .group-header td { text-align: left !important; padding: 5px 12px !important; font-weight: 900 !important; border-bottom: 2px solid #111 !important; border-top: 1.5px solid #111 !important; }
-  .group-header.unidade { background: #cbd5e1; font-size: 12px; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; }
-  .group-header.setor { background: #e2e8f0; font-size: 10.5px; padding-left: 20px !important; color: #1e293b; border-bottom: 1.5px solid #111 !important; }
-  .group-header.profissao { background: #f1f5f9; font-size: 9.5px; color: #475569; padding-left: 30px !important; border-bottom: 1px solid #111 !important; font-style: italic; }
-  .row-prof td.nome { padding-left: 40px !important; }
+  .group-header td { text-align: left !important; padding: 6px 12px !important; font-weight: 900 !important; border-bottom: 2px solid #111 !important; border-top: 1.5px solid #111 !important; }
+  .group-header.unidade { background: #1e293b; font-size: 13px; color: #ffffff; text-transform: uppercase; letter-spacing: 2px; }
+  .group-header.setor { background: #f1f5f9; font-size: 11px; padding-left: 20px !important; color: #0f172a; border-bottom: 1.5px solid #111 !important; }
+  .group-header.setor td::before { content: "SETOR: "; color: #64748b; font-weight: 700; font-size: 9px; }
+  .group-header.profissao { background: #ffffff; font-size: 10px; color: #64748b; padding-left: 30px !important; border-bottom: 1px solid #ddd !important; font-style: italic; }
+  .row-prof td.nome { padding-left: 35px !important; }
 
   /* Legenda */
-  .legenda { margin-top: 6px; padding: 4px 6px; border: 0.6px solid #555; font-size: 9px; }
+  .legenda { margin-top: 10px; padding: 8px; border: 1px solid #111; font-size: 9px; background: #f8fafc; }
   .legenda b { display:inline-block; min-width: 16px; }
   .legenda .lg-item { display:inline-block; margin-right: 12px; white-space:nowrap; }
   .legenda .lg-title { font-weight: 700; margin-right: 6px; text-transform: uppercase; }
