@@ -271,22 +271,36 @@ export default function RelatoriosPage() {
         return { columns: ['Setor', 'Qtd. Plantões', 'Horas Totais'], rows: Object.values(bySetor).map(s => [s.nome, String(s.count), `${s.horas.toFixed(1)}h`]), totalHoras };
       }
       case 'escala_mensal': {
-        // Usa o mês do filtro (dataIni) ou mês corrente
         const ref = filtros.dataIni ? new Date(filtros.dataIni + 'T12:00:00') : new Date();
         const year = ref.getFullYear();
         const month = ref.getMonth();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
-        const cols = ['Profissional', ...Array.from({ length: daysInMonth }, (_, i) => String(i + 1))];
-        const profMap: Record<string, { nome: string; days: Record<number, string> }> = {};
+        const cols = ['Profissional', 'Setor', ...Array.from({ length: daysInMonth }, (_, i) => String(i + 1))];
+        
+        // Agrupa por profissional + setor para evitar duplicidade e manter organização
+        const profSetorMap: Record<string, { nome: string; setor: string; days: Record<number, string> }> = {};
+        
         filteredShifts.forEach((s: any) => {
           const d = new Date(s.data + 'T12:00:00');
           if (d.getMonth() === month && d.getFullYear() === year) {
             const nome = (s.professionals as any)?.nome || '?';
-            if (!profMap[s.profissional_id]) profMap[s.profissional_id] = { nome, days: {} };
-            profMap[s.profissional_id].days[d.getDate()] = (s.sectors as any)?.nome?.substring(0, 3) || '✓';
+            const setor = (s.sectors as any)?.nome || 'Sem Setor';
+            const key = `${s.profissional_id}_${s.setor_id}`;
+            
+            if (!profSetorMap[key]) {
+              profSetorMap[key] = { nome, setor, days: {} };
+            }
+            profSetorMap[key].days[d.getDate()] = s.tipo_plantao?.substring(0, 3) || '✓';
           }
         });
-        const rows = Object.values(profMap).map(p => [p.nome, ...Array.from({ length: daysInMonth }, (_, i) => p.days[i + 1] || '')]);
+        
+        const rows = Object.values(profSetorMap)
+          .sort((a, b) => a.setor.localeCompare(b.setor) || a.nome.localeCompare(b.nome))
+          .map(p => [
+            p.nome, 
+            p.setor, 
+            ...Array.from({ length: daysInMonth }, (_, i) => p.days[i + 1] || '')
+          ]);
         return { columns: cols, rows };
       }
       case 'analise_trocas': {
@@ -682,22 +696,42 @@ export default function RelatoriosPage() {
                   <div className="col-span-2 sm:col-span-4"><div className="text-[11px] text-muted-foreground">Geração</div><div className="text-xs text-foreground">{new Date().toLocaleString('pt-BR')} · {profileName || 'Gestor'}</div></div>
                 </div>
 
-                {/* Tabela amostra (até 5 linhas) */}
+                {/* Tabela amostra (até 10 linhas) */}
                 {preview && preview.rows.length > 0 && (
-                  <div className="mt-3 overflow-x-auto border border-border rounded-lg bg-background">
-                    <table className="w-full text-[11px]">
-                      <thead className="bg-muted/60">
-                        <tr>{preview.columns.slice(0, 6).map(c => <th key={c} className="px-2 py-1.5 text-left font-semibold text-muted-foreground">{c}</th>)}</tr>
+                  <div className="mt-4 overflow-x-auto border border-border rounded-xl bg-background shadow-sm">
+                    <table className="w-full text-[11px] border-collapse">
+                      <thead className="bg-slate-50 dark:bg-slate-900">
+                        <tr>
+                          {preview.columns.map((c, i) => {
+                            const isDay = !isNaN(Number(c));
+                            return (
+                              <th key={i} className={`px-2 py-2 text-left font-bold text-slate-700 dark:text-slate-300 border-b border-border ${isDay ? 'text-center min-w-[30px]' : ''}`}>
+                                {c}
+                              </th>
+                            );
+                          })}
+                        </tr>
                       </thead>
                       <tbody>
-                        {preview.rows.slice(0, 5).map((r, idx) => (
-                          <tr key={idx} className="border-t border-border">
-                            {r.slice(0, 6).map((c, j) => <td key={j} className="px-2 py-1 text-foreground truncate max-w-[160px]">{c}</td>)}
+                        {preview.rows.slice(0, 10).map((r, idx) => (
+                          <tr key={idx} className="border-t border-border hover:bg-muted/30 transition-colors">
+                            {r.map((c, j) => {
+                              const isDay = !isNaN(Number(preview.columns[j]));
+                              return (
+                                <td key={j} className={`px-2 py-1.5 text-foreground border-r border-border/40 last:border-r-0 ${isDay ? 'text-center font-bold text-primary' : 'truncate max-w-[150px]'}`}>
+                                  {c}
+                                </td>
+                              );
+                            })}
                           </tr>
                         ))}
                       </tbody>
                     </table>
-                    {preview.rows.length > 5 && <p className="text-[10px] text-muted-foreground p-1.5">Mostrando 5 de {preview.rows.length} registros…</p>}
+                    {preview.rows.length > 10 && (
+                      <div className="bg-slate-50 dark:bg-slate-900/50 p-2 text-center text-[10px] text-muted-foreground font-medium italic border-t border-border">
+                        Mostrando amostra de 10 de {preview.rows.length} registros totais. Use a visualização completa para ver tudo.
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

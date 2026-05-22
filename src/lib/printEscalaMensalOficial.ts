@@ -96,13 +96,13 @@ function getCategoryColor(tipo: string, status: string): { bg: [number, number, 
   if (t.includes("férias") || t.includes("ferias")) return { bg: [204, 251, 241], hex: "#f0fdfa", text: [15, 118, 110] }; // teal-50
   if (t.includes("licença") || t.includes("licenca") || t.includes("lp")) return { bg: [207, 250, 254], hex: "#ecfeff", text: [14, 116, 144] }; // cyan-50
   if (t.includes("atestado")) return { bg: [255, 228, 230], hex: "#fff1f2", text: [190, 18, 60] }; // rose-50
-  if (t.includes("folga") || t.includes("indispon")) return { bg: [248, 250, 252], hex: "#f8fafc", text: [100, 116, 139] }; // slate-50
-  if (t.includes("sobreaviso")) return { bg: [241, 245, 249], hex: "#f1f5f9", text: [51, 65, 85] }; // slate-100
-  if (t.includes("24")) return { bg: [209, 250, 229], hex: "#ecfdf5", text: [6, 95, 70] }; // emerald-50
-  if (t.includes("manh")) return { bg: [254, 243, 199], hex: "#fffbeb", text: [146, 64, 14] }; // amber-50
-  if (t.includes("tarde")) return { bg: [255, 237, 213], hex: "#fff7ed", text: [154, 52, 18] }; // orange-50
-  if (t.includes("not")) return { bg: [237, 233, 254], hex: "#f5f3ff", text: [91, 33, 182] }; // violet-50
-  if (t.includes("diurn")) return { bg: [224, 242, 254], hex: "#f0f9ff", text: [7, 89, 133] }; // sky-50
+  if (t.includes("folga") || t.includes("indispon")) return { bg: [248, 250, 252], hex: "#f8fafc", text: [148, 163, 184] }; // slate-400 equivalent
+  if (t.includes("sobreaviso")) return { bg: [241, 245, 249], hex: "#f1f5f9", text: [71, 85, 105] }; // slate-600 equivalent
+  if (t.includes("24")) return { bg: [209, 250, 229], hex: "#ecfdf5", text: [5, 150, 105] }; // emerald-600 equivalent
+  if (t.includes("manh")) return { bg: [254, 243, 199], hex: "#fffbeb", text: [180, 83, 9] }; // amber-700 equivalent
+  if (t.includes("tarde")) return { bg: [255, 237, 213], hex: "#fff7ed", text: [194, 65, 12] }; // orange-700 equivalent
+  if (t.includes("not")) return { bg: [238, 242, 255], hex: "#eef2ff", text: [67, 56, 202] }; // indigo-700 equivalent
+  if (t.includes("diurn")) return { bg: [239, 246, 255], hex: "#eff6ff", text: [29, 78, 216] }; // blue-700 equivalent
 
   return { bg: [255, 255, 255], hex: "#ffffff", text: [0, 0, 0] };
 }
@@ -315,14 +315,15 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
   
   /* Cabeçalhos de grupo */
   .group-header { background: #f8fafc; }
-  .group-header td { text-align: left !important; padding: 5px 12px !important; font-weight: 900 !important; border-bottom: 2px solid #111 !important; border-top: 1.5px solid #111 !important; }
-  .group-header.unidade { background: #cbd5e1; font-size: 12px; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; }
-  .group-header.setor { background: #e2e8f0; font-size: 10.5px; padding-left: 20px !important; color: #1e293b; border-bottom: 1.5px solid #111 !important; }
-  .group-header.profissao { background: #f1f5f9; font-size: 9.5px; color: #475569; padding-left: 30px !important; border-bottom: 1px solid #111 !important; font-style: italic; }
-  .row-prof td.nome { padding-left: 40px !important; }
+  .group-header td { text-align: left !important; padding: 6px 12px !important; font-weight: 900 !important; border-bottom: 2px solid #111 !important; border-top: 1.5px solid #111 !important; }
+  .group-header.unidade { background: #1e293b; font-size: 13px; color: #ffffff; text-transform: uppercase; letter-spacing: 2px; }
+  .group-header.setor { background: #f1f5f9; font-size: 11px; padding-left: 20px !important; color: #0f172a; border-bottom: 1.5px solid #111 !important; }
+  .group-header.setor td::before { content: "SETOR: "; color: #64748b; font-weight: 700; font-size: 9px; }
+  .group-header.profissao { background: #ffffff; font-size: 10px; color: #64748b; padding-left: 30px !important; border-bottom: 1px solid #ddd !important; font-style: italic; }
+  .row-prof td.nome { padding-left: 35px !important; }
 
   /* Legenda */
-  .legenda { margin-top: 6px; padding: 4px 6px; border: 0.6px solid #555; font-size: 9px; }
+  .legenda { margin-top: 10px; padding: 8px; border: 1px solid #111; font-size: 9px; background: #f8fafc; }
   .legenda b { display:inline-block; min-width: 16px; }
   .legenda .lg-item { display:inline-block; margin-right: 12px; white-space:nowrap; }
   .legenda .lg-title { font-weight: 700; margin-right: 6px; text-transform: uppercase; }

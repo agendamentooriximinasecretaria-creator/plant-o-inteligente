@@ -96,10 +96,12 @@ export function buildRelatorioHtml(
   .info { font-size: 11px; color: #333; margin: 8px 0 0; display:grid; grid-template-columns: repeat(2, 1fr); gap: 2px 14px; }
   .filtros { margin-top: 6px; font-size: 11px; color: #333; }
   .filtros span { display:inline-block; margin-right: 12px; }
-  table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 10.5px; }
-  th, td { border: 1px solid #cbd5e1; padding: 5px 6px; text-align: left; vertical-align: top; }
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 10.5px; table-layout: fixed; }
+  th, td { border: 1px solid #cbd5e1; padding: 4px 4px; text-align: center; vertical-align: middle; }
   th { background: #f1f5f9; color: #0f172a; font-weight: 700; font-size: 10.5px; }
-  tr:nth-child(even) td { background: #fafafa; }
+  th:first-child, td:first-child { text-align: left; padding-left: 8px; width: 160px; min-width: 160px; }
+  th:nth-child(2), td:nth-child(2) { text-align: left; width: 120px; min-width: 120px; }
+  tr:nth-child(even) td { background: #f8fafc; }
   .totais { margin-top: 14px; font-size: 11px; display:flex; gap:24px; flex-wrap: wrap; }
   .totais b { color: #0e7490; }
   .assinaturas { margin-top: 48px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; font-size: 11px; }

@@ -1,5 +1,5 @@
 import { useMemo, useState, memo } from "react";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertTriangle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertTriangle, Info } from "lucide-react";
 
 export interface MonthlyShift {
   id: string;
@@ -244,8 +244,8 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
       <div className="overflow-x-auto">
         <table className="w-full text-[11px] border-collapse table-fixed">
           <thead>
-            <tr className="bg-slate-50 dark:bg-slate-900/50 sticky top-0 z-30">
-              <th className="text-left font-bold text-slate-700 dark:text-slate-200 p-3 border-b-2 border-slate-200 dark:border-slate-800 sticky left-0 bg-slate-50 dark:bg-slate-900 backdrop-blur z-40 w-[200px] shadow-[1px_0_0_0_rgba(0,0,0,0.1)]">
+            <tr className="bg-slate-100 dark:bg-slate-900/90 sticky top-0 z-30">
+              <th className="text-left font-bold text-slate-800 dark:text-slate-200 p-4 border-b-2 border-slate-300 dark:border-slate-700 sticky left-0 bg-slate-100 dark:bg-slate-900 z-40 w-[220px] shadow-[2px_0_4px_rgba(0,0,0,0.05)] text-sm">
                 Profissional
               </th>
               {dias.map((d) => {
@@ -253,13 +253,13 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
                 const dow = dt.getDay();
                 const isFds = dow === 0 || dow === 6;
                 return (
-                  <th key={d} className={`p-1.5 border-b-2 border-slate-200 dark:border-slate-800 text-center font-bold ${isFds ? "bg-slate-100/80 text-slate-500" : "text-slate-600"}`}>
-                    <div className="text-[12px] leading-none mb-0.5">{d}</div>
-                    <div className="text-[8px] uppercase tracking-tighter opacity-70">{DIA_SEMANA_ABREV[dow]}</div>
+                  <th key={d} className={`p-2 border-b-2 border-slate-300 dark:border-slate-700 text-center font-bold text-xs ${isFds ? "bg-slate-200/50 text-slate-600" : "text-slate-700"}`}>
+                    <div className="text-base leading-none mb-1">{d}</div>
+                    <div className="text-[10px] uppercase tracking-wider opacity-60">{DIA_SEMANA_ABREV[dow]}</div>
                   </th>
                 );
               })}
-              <th className="text-center font-bold text-slate-700 dark:text-slate-200 p-3 border-b-2 border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 sticky right-0 z-40 w-[70px] shadow-[-1px_0_0_0_rgba(0,0,0,0.1)]">
+              <th className="text-center font-bold text-slate-800 dark:text-slate-200 p-4 border-b-2 border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 sticky right-0 z-40 w-[80px] shadow-[-2px_0_4px_rgba(0,0,0,0.05)] text-sm">
                 Total
               </th>
             </tr>
@@ -267,37 +267,37 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
           <tbody>
             {groupedData.length === 0 ? (
               <tr>
-                <td colSpan={dias.length + 2} className="p-12 text-center text-muted-foreground text-sm">
-                  Nenhum plantão encontrado para os filtros aplicados neste mês.
+                <td colSpan={dias.length + 2} className="p-16 text-center text-muted-foreground text-base italic">
+                  Nenhum plantão encontrado para este período.
                 </td>
               </tr>
             ) : (
               groupedData.map((item) => {
                 if (item.type === 'header-unidade') {
                   return (
-                    <tr key={item.key} className="bg-slate-200/80 dark:bg-slate-800/80 print:bg-slate-200">
-                      <td colSpan={dias.length + 2} className="p-3 border-y border-slate-300 dark:border-slate-700 font-black text-[12px] text-slate-800 dark:text-slate-100 uppercase tracking-widest shadow-sm">
-                        <div className="flex items-center gap-2">
-                          <span className="w-1.5 h-4 bg-primary rounded-full"></span>
-                          Unidade: {item.label}
-                        </div>
+                    <tr key={item.key} className="bg-slate-800 dark:bg-slate-950">
+                      <td colSpan={dias.length + 2} className="px-6 py-4 border-b border-slate-700 font-black text-sm text-slate-100 uppercase tracking-[0.2em]">
+                        {item.label}
                       </td>
                     </tr>
                   );
                 }
                 if (item.type === 'header-setor') {
                   return (
-                    <tr key={item.key} className="bg-slate-100 dark:bg-slate-900/40 print:bg-slate-100">
-                      <td colSpan={dias.length + 2} className="p-2.5 pl-6 border-b border-slate-200 dark:border-slate-800 font-extrabold text-[11px] text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                        Setor: {item.label}
+                    <tr key={item.key} className="bg-slate-100 dark:bg-slate-900/50">
+                      <td colSpan={dias.length + 2} className="px-6 py-3 border-b border-slate-200 dark:border-slate-800 font-extrabold text-sm text-slate-700 dark:text-slate-300 tracking-wide">
+                        <div className="flex items-center gap-3">
+                          <span className="w-1.5 h-6 bg-primary rounded-full"></span>
+                          SETOR: {item.label}
+                        </div>
                       </td>
                     </tr>
                   );
                 }
                 if (item.type === 'header-profissao') {
                   return (
-                    <tr key={item.key} className="bg-white/50 dark:bg-transparent print:bg-white">
-                      <td colSpan={dias.length + 2} className="p-1.5 pl-10 border-b border-slate-100 dark:border-slate-900/50 font-bold text-[10px] text-slate-500 dark:text-slate-400 uppercase italic">
+                    <tr key={item.key} className="bg-white dark:bg-transparent">
+                      <td colSpan={dias.length + 2} className="px-8 py-2 border-b border-slate-50 dark:border-slate-900 font-bold text-[11px] text-slate-400 dark:text-slate-600 uppercase tracking-widest italic">
                         {item.label}
                       </td>
                     </tr>
@@ -306,19 +306,23 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
 
                 const row = item.row!;
                 return (
-                  <tr key={item.key} className="row-prof border-b border-slate-100 dark:border-slate-900 hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors print:break-inside-avoid">
-                    <td className="p-3 pl-12 sticky left-0 bg-card dark:bg-background z-20 border-r border-slate-100 dark:border-slate-900 print:relative print:bg-transparent shadow-[1px_0_0_0_rgba(0,0,0,0.05)]">
-                      <p className="font-bold text-slate-800 dark:text-slate-200 truncate leading-tight" title={row.nome}>{row.nome}</p>
-                      {row.profissao && <p className="text-[9px] text-slate-500 uppercase tracking-tighter mt-0.5">{row.profissao}</p>}
+                  <tr key={item.key} className="border-b border-slate-50 dark:border-slate-900 hover:bg-slate-50/80 dark:hover:bg-slate-800/20 transition-all print:break-inside-avoid">
+                    <td className="px-4 py-3 sticky left-0 bg-white dark:bg-background z-20 border-r border-slate-100 dark:border-slate-900 print:relative shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
+                      <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm leading-snug">{row.nome}</div>
+                      <div className="text-[10px] text-slate-500 font-medium uppercase mt-0.5 tracking-tight">{row.profissao}</div>
                     </td>
                     {dias.map((d) => {
                       const lista = row.porDia.get(d) || [];
+                      const dt = new Date(year, monthIdx, d);
+                      const isFds = dt.getDay() === 0 || dt.getDay() === 6;
+                      const cellClass = `p-1 text-center align-middle ${isFds ? "bg-slate-50/50" : ""}`;
+                      
                       if (lista.length === 0) {
-                        const dt = new Date(year, monthIdx, d);
-                        const dow = dt.getDay();
-                        const isFds = dow === 0 || dow === 6;
-                        return <td key={d} className={`p-1 text-center align-middle ${isFds ? "bg-muted/30" : ""}`}>—</td>;
+                        return <td key={d} className={cellClass}>
+                          <div className="text-[9px] text-slate-300">—</div>
+                        </td>;
                       }
+
                       const siglas = lista.map((l) => tipoToSigla(l.tipo_plantao));
                       const hasConflict = lista.length > 1 && lista.some((s1, i) =>
                         lista.some((s2, j) =>
@@ -332,10 +336,11 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
                       const tooltip = (hasConflict ? "⚠️ CONFLITO DE HORÁRIO\n" : "") + lista
                         .map((l) => `${l.tipo_plantao || "?"} ${(l.hora_inicio || "").slice(0, 5)}-${(l.hora_fim || "").slice(0, 5)}${l.status ? ` · ${l.status}` : ""}`)
                         .join("\n");
+
                       return (
-                        <td key={d} className="p-0.5 text-center align-middle relative">
+                        <td key={d} className={`${cellClass} relative`}>
                           <div
-                            className={`inline-flex items-center justify-center min-w-[28px] h-7 px-1.5 rounded-md border shadow-sm text-[10px] font-bold gap-0.5 transition-transform hover:scale-110 z-10 relative ${hasConflict ? 'ring-2 ring-destructive border-destructive bg-destructive/10 text-destructive' : cls}`}
+                            className={`inline-flex items-center justify-center min-w-[32px] h-8 px-2 rounded-lg border shadow-sm text-[11px] font-bold transition-all hover:scale-105 z-10 relative ${hasConflict ? 'ring-2 ring-destructive border-destructive bg-destructive/10 text-destructive' : cls}`}
                             title={tooltip}
                           >
                             {hasConflict && <AlertTriangle className="h-3 w-3 shrink-0" />}
@@ -344,8 +349,8 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
                         </td>
                       );
                     })}
-                    <td className="p-3 text-center font-black text-slate-900 dark:text-white sticky right-0 bg-slate-50 dark:bg-slate-900 z-20 border-l border-slate-100 dark:border-slate-800 print:relative print:bg-transparent shadow-[-1px_0_0_0_rgba(0,0,0,0.05)]">
-                      <span className="bg-primary/10 text-primary px-2 py-1 rounded text-[12px]">{row.horas}h</span>
+                    <td className="px-4 py-3 text-center sticky right-0 bg-slate-50 dark:bg-slate-900 z-20 border-l border-slate-100 dark:border-slate-800 print:relative shadow-[-2px_0_4px_rgba(0,0,0,0.05)]">
+                      <span className="font-mono font-bold text-slate-700 dark:text-slate-300 text-xs">{row.horas.toFixed(1)}h</span>
                     </td>
                   </tr>
                 );
@@ -355,30 +360,39 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
         </table>
       </div>
 
-      {/* Legenda */}
-      <div className="border-t border-border/60 p-3 bg-muted/20">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px]">
-          <span className="font-semibold text-foreground mr-1">Legenda:</span>
+      {/* Legenda Profissional */}
+      <div className="border-t border-border/60 p-5 bg-slate-50/50 dark:bg-slate-900/40">
+        <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+          <Info className="h-3 w-3" />
+          Legenda de Plantões e Horários
+        </h4>
+        <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
           {legendaTipos.map((t) => {
             const cls = CAT_CLASS[categoryFromTipo(t.value)] || CAT_CLASS.outro;
-            const horario = t.start && t.end ? `${t.start} às ${t.end}` : t.value;
             return (
-              <span key={t.value} className="inline-flex items-center gap-1.5">
-                <span className={`inline-flex items-center justify-center min-w-[22px] h-5 px-1 rounded border text-[10px] font-bold ${cls}`}>
+              <div key={t.value} className="flex items-center gap-3 group">
+                <div className={`flex items-center justify-center min-w-[32px] h-8 px-2 rounded-lg border shadow-sm text-[11px] font-bold ${cls}`}>
                   {t.sigla}
-                </span>
-                <span className="text-muted-foreground">= {horario}</span>
-              </span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 leading-tight">{t.value}</span>
+                  {t.start && t.end && <span className="text-[10px] text-slate-400 font-medium tracking-tight">{t.start} — {t.end}</span>}
+                </div>
+              </div>
             );
           })}
-          <span className="inline-flex items-center gap-1.5">
-            <span className={`inline-flex items-center justify-center min-w-[22px] h-5 px-1 rounded border text-[10px] font-bold ${STATUS_OVERLAY.pendente}`}>!</span>
-            <span className="text-muted-foreground">= Pendente</span>
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className={`inline-flex items-center justify-center min-w-[22px] h-5 px-1 rounded border text-[10px] font-bold ${STATUS_OVERLAY.cancelado}`}>X</span>
-            <span className="text-muted-foreground">= Cancelado</span>
-          </span>
+          <div className="flex items-center gap-3">
+            <div className={`flex items-center justify-center min-w-[32px] h-8 px-2 rounded-lg border shadow-sm text-[11px] font-bold ${STATUS_OVERLAY.pendente}`}>
+              !
+            </div>
+            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Pendente</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className={`flex items-center justify-center min-w-[32px] h-8 px-2 rounded-lg border shadow-sm text-[11px] font-bold ${STATUS_OVERLAY.cancelado}`}>
+              X
+            </div>
+            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Cancelado</span>
+          </div>
         </div>
       </div>
     </div>
