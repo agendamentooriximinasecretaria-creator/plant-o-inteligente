@@ -1122,6 +1122,8 @@ export default function EscalaPage() {
           nome: prof.nome || '—',
           profissao: PROFISSAO_LABELS[prof.profissao] || prof.profissao || '',
           conselho,
+          unidade: (s.units as any)?.nome || '',
+          setor: (s.sectors as any)?.nome || '',
           porDia: {},
           totalHoras: 0,
           totalPlantoes: 0,
