@@ -6,6 +6,8 @@ export interface MonthlyShift {
   profissional_id: string;
   profissional_nome: string;
   profissao?: string;
+  unidade_nome?: string;
+  setor_nome?: string;
   data: string; // YYYY-MM-DD
   tipo_plantao?: string;
   hora_inicio?: string;
@@ -109,28 +111,69 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
     return found?.sigla || siglaFallback(tipo);
   };
 
-  // Agrupa por profissional + dia (filtra apenas o mês exibido)
-  const matriz = useMemo(() => {
-    const map = new Map<string, { id: string; nome: string; profissao?: string; porDia: Map<number, MonthlyShift[]>; horas: number }>();
+  // Agrupa por Unidade -> Setor -> Profissão -> Profissional (filtra apenas o mês exibido)
+  const groupedData = useMemo(() => {
+    type ProfRow = { id: string; nome: string; profissao?: string; porDia: Map<number, MonthlyShift[]>; horas: number };
+    const tree = new Map<string, Map<string, Map<string, Map<string, ProfRow>>>>();
+
     for (const s of shifts) {
       if (!s.data) continue;
       const [y, m, d] = s.data.split("-").map(Number);
       if (y !== year || m - 1 !== monthIdx) continue;
-      const key = s.profissional_id;
-      let row = map.get(key);
+
+      const unidade = s.unidade_nome || "Unidade não informada";
+      const setor = s.setor_nome || "Setor não informado";
+      const profissao = s.profissao || "Outras Profissões";
+      const profId = s.profissional_id;
+
+      if (!tree.has(unidade)) tree.set(unidade, new Map());
+      const unidadeMap = tree.get(unidade)!;
+
+      if (!unidadeMap.has(setor)) unidadeMap.set(setor, new Map());
+      const setorMap = unidadeMap.get(setor)!;
+
+      if (!setorMap.has(profissao)) setorMap.set(profissao, new Map());
+      const profissaoMap = setorMap.get(profissao)!;
+
+      let row = profissaoMap.get(profId);
       if (!row) {
-        row = { id: key, nome: s.profissional_nome || "Sem nome", profissao: s.profissao, porDia: new Map(), horas: 0 };
-        map.set(key, row);
+        row = { id: profId, nome: s.profissional_nome || "Sem nome", profissao: s.profissao, porDia: new Map(), horas: 0 };
+        profissaoMap.set(profId, row);
       }
+
       const arr = row.porDia.get(d) || [];
       arr.push(s);
       row.porDia.set(d, arr);
+
       const carga = Number(s.carga_horaria || 0);
       if (s.status !== "cancelado" && !["folga", "indisponibilidade"].includes((s.tipo_plantao || "").toLowerCase())) {
         row.horas += carga;
       }
     }
-    return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+
+    // Converte para array ordenado para renderização
+    const result: { type: 'header-unidade' | 'header-setor' | 'header-profissao' | 'row', label?: string, row?: ProfRow, key: string }[] = [];
+
+    const sortedUnidades = Array.from(tree.keys()).sort();
+    for (const u of sortedUnidades) {
+      result.push({ type: 'header-unidade', label: u, key: `u-${u}` });
+      const unidadeMap = tree.get(u)!;
+      const sortedSetores = Array.from(unidadeMap.keys()).sort();
+      for (const s of sortedSetores) {
+        result.push({ type: 'header-setor', label: s, key: `s-${u}-${s}` });
+        const setorMap = unidadeMap.get(s)!;
+        const sortedProfissoes = Array.from(setorMap.keys()).sort();
+        for (const p of sortedProfissoes) {
+          result.push({ type: 'header-profissao', label: p, key: `p-${u}-${s}-${p}` });
+          const profissaoMap = setorMap.get(p)!;
+          const sortedProfs = Array.from(profissaoMap.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+          for (const row of sortedProfs) {
+            result.push({ type: 'row', row, key: `r-${u}-${s}-${p}-${row.id}` });
+          }
+        }
+      }
+    }
+    return result;
   }, [shifts, year, monthIdx]);
 
   const navMes = (delta: number) => {
@@ -155,7 +198,24 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
   }, [tipos]);
 
   return (
-    <div className="bg-card rounded-xl border border-border/60 shadow-[var(--shadow-card)] overflow-hidden">
+    <div className="bg-card rounded-xl border border-border/60 shadow-[var(--shadow-card)] overflow-hidden print:border-none print:shadow-none print:m-0">
+      <style>{`
+        @media print {
+          .print-no-break { page-break-inside: avoid; }
+          .print-header { display: table-header-group; }
+          .print-footer { display: table-footer-group; }
+          table { width: 100% !important; border-collapse: collapse !important; }
+          th, td { border: 1px solid #ddd !important; }
+          .bg-muted\\/50 { background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; }
+          .bg-primary\\/5 { background-color: #f8fafc !important; -webkit-print-color-adjust: exact; }
+          .bg-muted\\/30 { background-color: #f8fafc !important; -webkit-print-color-adjust: exact; }
+          .bg-card { background-color: #fff !important; }
+          .text-primary { color: #000 !important; }
+          .text-muted-foreground { color: #666 !important; }
+          button, input[type="month"], .no-print { display: none !important; }
+          @page { size: landscape; margin: 10mm; }
+        }
+      `}</style>
       {/* Cabeçalho com navegador de mês */}
       <div className="flex items-center justify-between gap-3 p-4 border-b border-border/60">
         <div className="flex items-center gap-2">
@@ -203,58 +263,88 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
             </tr>
           </thead>
           <tbody>
-            {matriz.length === 0 ? (
+            {groupedData.length === 0 ? (
               <tr>
                 <td colSpan={dias.length + 2} className="p-10 text-center text-muted-foreground text-sm">
                   Nenhum plantão encontrado para os filtros aplicados neste mês.
                 </td>
               </tr>
             ) : (
-              matriz.map((row) => (
-                <tr key={row.id} className="border-b border-border/40 hover:bg-muted/30 transition-colors">
-                  <td className="p-2 sticky left-0 bg-card z-10 border-r border-border/60">
-                    <p className="font-medium text-foreground truncate max-w-[170px]" title={row.nome}>{row.nome}</p>
-                    {row.profissao && <p className="text-[10px] text-muted-foreground truncate">{row.profissao}</p>}
-                  </td>
-                  {dias.map((d) => {
-                    const lista = row.porDia.get(d) || [];
-                    if (lista.length === 0) {
-                      const dt = new Date(year, monthIdx, d);
-                      const dow = dt.getDay();
-                      const isFds = dow === 0 || dow === 6;
-                      return <td key={d} className={`p-1 text-center align-middle ${isFds ? "bg-muted/30" : ""}`}>—</td>;
-                    }
-                    // Pode haver 1+ plantões no mesmo dia: mostra siglas separadas por "/"
-                    const siglas = lista.map((l) => tipoToSigla(l.tipo_plantao));
-                    const hasConflict = lista.length > 1 && lista.some((s1, i) =>
-                      lista.some((s2, j) =>
-                        i !== j && s1.status !== 'cancelado' && s2.status !== 'cancelado' &&
-                        (s1.hora_inicio || '00:00') < (s2.hora_fim || '23:59') && (s2.hora_inicio || '00:00') < (s1.hora_fim || '23:59')
-                      )
-                    );
-                    const tipoBase = lista[0].tipo_plantao || "";
-                    const statusBase = lista[0].status || "";
-                    const cls = getCellClass(tipoBase, statusBase);
-                    const tooltip = (hasConflict ? "⚠️ CONFLITO DE HORÁRIO\n" : "") + lista
-                      .map((l) => `${l.tipo_plantao || "?"} ${(l.hora_inicio || "").slice(0, 5)}-${(l.hora_fim || "").slice(0, 5)}${l.status ? ` · ${l.status}` : ""}`)
-                      .join("\n");
-                    return (
-                      <td key={d} className="p-0.5 text-center align-middle">
-                        <div
-                          className={`inline-flex items-center justify-center min-w-[26px] h-6 px-1 rounded border text-[10px] font-semibold gap-0.5 ${hasConflict ? 'ring-1 ring-destructive border-destructive bg-destructive/10 text-destructive' : cls}`}
-                          title={tooltip}
-                        >
-                          {hasConflict && <AlertTriangle className="h-2.5 w-2.5 shrink-0" />}
-                          {siglas.join("/")}
-                        </div>
+              groupedData.map((item) => {
+                if (item.type === 'header-unidade') {
+                  return (
+                    <tr key={item.key} className="bg-primary/5 print:bg-slate-100">
+                      <td colSpan={dias.length + 2} className="p-2 border-b border-border font-bold text-[11px] text-primary uppercase tracking-wider">
+                        Unidade: {item.label}
                       </td>
-                    );
-                  })}
-                  <td className="p-2 text-center font-semibold text-foreground sticky right-0 bg-card z-10 border-l border-border/60">
-                    {row.horas}h
-                  </td>
-                </tr>
-              ))
+                    </tr>
+                  );
+                }
+                if (item.type === 'header-setor') {
+                  return (
+                    <tr key={item.key} className="bg-muted/30 print:bg-slate-50">
+                      <td colSpan={dias.length + 2} className="p-1.5 pl-4 border-b border-border font-bold text-[10px] text-foreground/80 uppercase">
+                        Setor: {item.label}
+                      </td>
+                    </tr>
+                  );
+                }
+                if (item.type === 'header-profissao') {
+                  return (
+                    <tr key={item.key} className="bg-muted/10 print:bg-white">
+                      <td colSpan={dias.length + 2} className="p-1 pl-6 border-b border-border/60 font-semibold text-[9px] text-muted-foreground uppercase">
+                        {item.label}
+                      </td>
+                    </tr>
+                  );
+                }
+
+                const row = item.row!;
+                return (
+                  <tr key={item.key} className="border-b border-border/40 hover:bg-muted/30 transition-colors print:break-inside-avoid">
+                    <td className="p-2 pl-8 sticky left-0 bg-card z-10 border-r border-border/60 print:relative print:bg-transparent">
+                      <p className="font-medium text-foreground truncate max-w-[170px]" title={row.nome}>{row.nome}</p>
+                      {row.profissao && <p className="text-[10px] text-muted-foreground truncate">{row.profissao}</p>}
+                    </td>
+                    {dias.map((d) => {
+                      const lista = row.porDia.get(d) || [];
+                      if (lista.length === 0) {
+                        const dt = new Date(year, monthIdx, d);
+                        const dow = dt.getDay();
+                        const isFds = dow === 0 || dow === 6;
+                        return <td key={d} className={`p-1 text-center align-middle ${isFds ? "bg-muted/30" : ""}`}>—</td>;
+                      }
+                      const siglas = lista.map((l) => tipoToSigla(l.tipo_plantao));
+                      const hasConflict = lista.length > 1 && lista.some((s1, i) =>
+                        lista.some((s2, j) =>
+                          i !== j && s1.status !== 'cancelado' && s2.status !== 'cancelado' &&
+                          (s1.hora_inicio || '00:00') < (s2.hora_fim || '23:59') && (s2.hora_inicio || '00:00') < (s1.hora_fim || '23:59')
+                        )
+                      );
+                      const tipoBase = lista[0].tipo_plantao || "";
+                      const statusBase = lista[0].status || "";
+                      const cls = getCellClass(tipoBase, statusBase);
+                      const tooltip = (hasConflict ? "⚠️ CONFLITO DE HORÁRIO\n" : "") + lista
+                        .map((l) => `${l.tipo_plantao || "?"} ${(l.hora_inicio || "").slice(0, 5)}-${(l.hora_fim || "").slice(0, 5)}${l.status ? ` · ${l.status}` : ""}`)
+                        .join("\n");
+                      return (
+                        <td key={d} className="p-0.5 text-center align-middle">
+                          <div
+                            className={`inline-flex items-center justify-center min-w-[26px] h-6 px-1 rounded border text-[10px] font-semibold gap-0.5 ${hasConflict ? 'ring-1 ring-destructive border-destructive bg-destructive/10 text-destructive' : cls}`}
+                            title={tooltip}
+                          >
+                            {hasConflict && <AlertTriangle className="h-2.5 w-2.5 shrink-0" />}
+                            {siglas.join("/")}
+                          </div>
+                        </td>
+                      );
+                    })}
+                    <td className="p-2 text-center font-semibold text-foreground sticky right-0 bg-card z-10 border-l border-border/60 print:relative print:bg-transparent">
+                      {row.horas}h
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
