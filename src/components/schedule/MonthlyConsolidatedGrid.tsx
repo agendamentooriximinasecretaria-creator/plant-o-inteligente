@@ -246,58 +246,88 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
             </tr>
           </thead>
           <tbody>
-            {matriz.length === 0 ? (
+            {groupedData.length === 0 ? (
               <tr>
                 <td colSpan={dias.length + 2} className="p-10 text-center text-muted-foreground text-sm">
                   Nenhum plantão encontrado para os filtros aplicados neste mês.
                 </td>
               </tr>
             ) : (
-              matriz.map((row) => (
-                <tr key={row.id} className="border-b border-border/40 hover:bg-muted/30 transition-colors">
-                  <td className="p-2 sticky left-0 bg-card z-10 border-r border-border/60">
-                    <p className="font-medium text-foreground truncate max-w-[170px]" title={row.nome}>{row.nome}</p>
-                    {row.profissao && <p className="text-[10px] text-muted-foreground truncate">{row.profissao}</p>}
-                  </td>
-                  {dias.map((d) => {
-                    const lista = row.porDia.get(d) || [];
-                    if (lista.length === 0) {
-                      const dt = new Date(year, monthIdx, d);
-                      const dow = dt.getDay();
-                      const isFds = dow === 0 || dow === 6;
-                      return <td key={d} className={`p-1 text-center align-middle ${isFds ? "bg-muted/30" : ""}`}>—</td>;
-                    }
-                    // Pode haver 1+ plantões no mesmo dia: mostra siglas separadas por "/"
-                    const siglas = lista.map((l) => tipoToSigla(l.tipo_plantao));
-                    const hasConflict = lista.length > 1 && lista.some((s1, i) =>
-                      lista.some((s2, j) =>
-                        i !== j && s1.status !== 'cancelado' && s2.status !== 'cancelado' &&
-                        (s1.hora_inicio || '00:00') < (s2.hora_fim || '23:59') && (s2.hora_inicio || '00:00') < (s1.hora_fim || '23:59')
-                      )
-                    );
-                    const tipoBase = lista[0].tipo_plantao || "";
-                    const statusBase = lista[0].status || "";
-                    const cls = getCellClass(tipoBase, statusBase);
-                    const tooltip = (hasConflict ? "⚠️ CONFLITO DE HORÁRIO\n" : "") + lista
-                      .map((l) => `${l.tipo_plantao || "?"} ${(l.hora_inicio || "").slice(0, 5)}-${(l.hora_fim || "").slice(0, 5)}${l.status ? ` · ${l.status}` : ""}`)
-                      .join("\n");
-                    return (
-                      <td key={d} className="p-0.5 text-center align-middle">
-                        <div
-                          className={`inline-flex items-center justify-center min-w-[26px] h-6 px-1 rounded border text-[10px] font-semibold gap-0.5 ${hasConflict ? 'ring-1 ring-destructive border-destructive bg-destructive/10 text-destructive' : cls}`}
-                          title={tooltip}
-                        >
-                          {hasConflict && <AlertTriangle className="h-2.5 w-2.5 shrink-0" />}
-                          {siglas.join("/")}
-                        </div>
+              groupedData.map((item) => {
+                if (item.type === 'header-unidade') {
+                  return (
+                    <tr key={item.key} className="bg-primary/5 print:bg-slate-100">
+                      <td colSpan={dias.length + 2} className="p-2 border-b border-border font-bold text-[11px] text-primary uppercase tracking-wider">
+                        Unidade: {item.label}
                       </td>
-                    );
-                  })}
-                  <td className="p-2 text-center font-semibold text-foreground sticky right-0 bg-card z-10 border-l border-border/60">
-                    {row.horas}h
-                  </td>
-                </tr>
-              ))
+                    </tr>
+                  );
+                }
+                if (item.type === 'header-setor') {
+                  return (
+                    <tr key={item.key} className="bg-muted/30 print:bg-slate-50">
+                      <td colSpan={dias.length + 2} className="p-1.5 pl-4 border-b border-border font-bold text-[10px] text-foreground/80 uppercase">
+                        Setor: {item.label}
+                      </td>
+                    </tr>
+                  );
+                }
+                if (item.type === 'header-profissao') {
+                  return (
+                    <tr key={item.key} className="bg-muted/10 print:bg-white">
+                      <td colSpan={dias.length + 2} className="p-1 pl-6 border-b border-border/60 font-semibold text-[9px] text-muted-foreground uppercase">
+                        {item.label}
+                      </td>
+                    </tr>
+                  );
+                }
+
+                const row = item.row!;
+                return (
+                  <tr key={item.key} className="border-b border-border/40 hover:bg-muted/30 transition-colors print:break-inside-avoid">
+                    <td className="p-2 pl-8 sticky left-0 bg-card z-10 border-r border-border/60 print:relative print:bg-transparent">
+                      <p className="font-medium text-foreground truncate max-w-[170px]" title={row.nome}>{row.nome}</p>
+                      {row.profissao && <p className="text-[10px] text-muted-foreground truncate">{row.profissao}</p>}
+                    </td>
+                    {dias.map((d) => {
+                      const lista = row.porDia.get(d) || [];
+                      if (lista.length === 0) {
+                        const dt = new Date(year, monthIdx, d);
+                        const dow = dt.getDay();
+                        const isFds = dow === 0 || dow === 6;
+                        return <td key={d} className={`p-1 text-center align-middle ${isFds ? "bg-muted/30" : ""}`}>—</td>;
+                      }
+                      const siglas = lista.map((l) => tipoToSigla(l.tipo_plantao));
+                      const hasConflict = lista.length > 1 && lista.some((s1, i) =>
+                        lista.some((s2, j) =>
+                          i !== j && s1.status !== 'cancelado' && s2.status !== 'cancelado' &&
+                          (s1.hora_inicio || '00:00') < (s2.hora_fim || '23:59') && (s2.hora_inicio || '00:00') < (s1.hora_fim || '23:59')
+                        )
+                      );
+                      const tipoBase = lista[0].tipo_plantao || "";
+                      const statusBase = lista[0].status || "";
+                      const cls = getCellClass(tipoBase, statusBase);
+                      const tooltip = (hasConflict ? "⚠️ CONFLITO DE HORÁRIO\n" : "") + lista
+                        .map((l) => `${l.tipo_plantao || "?"} ${(l.hora_inicio || "").slice(0, 5)}-${(l.hora_fim || "").slice(0, 5)}${l.status ? ` · ${l.status}` : ""}`)
+                        .join("\n");
+                      return (
+                        <td key={d} className="p-0.5 text-center align-middle">
+                          <div
+                            className={`inline-flex items-center justify-center min-w-[26px] h-6 px-1 rounded border text-[10px] font-semibold gap-0.5 ${hasConflict ? 'ring-1 ring-destructive border-destructive bg-destructive/10 text-destructive' : cls}`}
+                            title={tooltip}
+                          >
+                            {hasConflict && <AlertTriangle className="h-2.5 w-2.5 shrink-0" />}
+                            {siglas.join("/")}
+                          </div>
+                        </td>
+                      );
+                    })}
+                    <td className="p-2 text-center font-semibold text-foreground sticky right-0 bg-card z-10 border-l border-border/60 print:relative print:bg-transparent">
+                      {row.horas}h
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
