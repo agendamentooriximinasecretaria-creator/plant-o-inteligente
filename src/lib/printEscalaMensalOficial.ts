@@ -144,7 +144,8 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
     const d = i + 1;
     const dow = diaSemana(cab.ano, cab.mes, d);
     const fds = dow === 0 || dow === 6;
-    return `<th class="dia ${fds ? "fds" : ""}"><div class="d">${d}</div><div class="dw">${DIAS_SEM_ABREV[dow]}</div></th>`;
+    const isLastInWeek = dow === 6;
+    return `<th class="dia ${fds ? "fds" : ""} ${isLastInWeek ? "week-sep" : ""}"><div class="d">${d}</div><div class="dw">${DIAS_SEM_ABREV[dow]}</div></th>`;
   }).join("");
 
   // Agrupa profissionais por Unidade -> Setor -> Profissão
@@ -192,7 +193,10 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
               const lista = p.porDia[d] || [];
               const dow = diaSemana(cab.ano, cab.mes, d);
               const fds = dow === 0 || dow === 6;
-              if (lista.length === 0) return `<td class="dia ${fds ? "fds" : ""}">—</td>`;
+              const isLastInWeek = dow === 6;
+              const cellCls = `dia ${fds ? "fds" : ""} ${isLastInWeek ? "week-sep" : ""}`;
+
+              if (lista.length === 0) return `<td class="${cellCls}">—</td>`;
               
               const siglas = lista.map((s) => s.sigla).join("/");
               const tipoBase = lista[0].tipo || "";
@@ -200,13 +204,13 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
               const color = getCategoryColor(tipoBase, statusBase);
               
               const tooltip = lista.map((l) => `${l.tipo || l.sigla} ${(l.hora_inicio || "").slice(0, 5)}-${(l.hora_fim || "").slice(0, 5)}`).join(" | ");
-              return `<td class="dia ${fds ? "fds" : ""}" style="background-color: ${color.hex}; color: rgb(${color.text.join(",")})" title="${escapeHtml(tooltip)}">${escapeHtml(siglas)}</td>`;
+              return `<td class="${cellCls}" style="background-color: ${color.hex}; color: rgb(${color.text.join(",")})" title="${escapeHtml(tooltip)}">${escapeHtml(siglas)}</td>`;
             }).join("");
             
             const total = opts.incluirTotalHoras ? `${p.totalHoras}h` : `${p.totalPlantoes}`;
             const conselho = p.conselho && p.conselho !== "Não inf." ? `<span class="cons">${escapeHtml(p.conselho)}</span>` : `<span class="cons" style="color:#999;font-style:italic">Não informado</span>`;
             
-            linhasTr += `<tr class="row-prof">
+            linhasTr += `<tr class="row-prof" style="background-color: ${profs.indexOf(p) % 2 === 0 ? '#fff' : '#f9fafb'}">
               <td class="nome">${escapeHtml(p.nome)}${conselho}</td>
               ${cells}
               <td class="total">${escapeHtml(total)}</td>
@@ -290,34 +294,35 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
   .tabela-titulo .center .t2 { font-size: 11px; font-weight: 700; margin-top: 2px; color: #475569; }
 
   /* Tabela */
-  table.escala { width: 100%; border-collapse: collapse; table-layout: fixed; border: 1.5px solid #111; }
+  table.escala { width: 100%; border-collapse: collapse; table-layout: fixed; border: 2px solid #111; }
   table.escala th, table.escala td {
-    border: 1px solid #111; padding: 3px 2px; text-align: center; vertical-align: middle;
+    border: 1px solid #ccc; padding: 3px 2px; text-align: center; vertical-align: middle;
     font-size: 9px; line-height: 1.1;
   }
-  table.escala thead th { background: #f1f5f9; font-weight: 800; color: #0f172a; border-bottom: 2px solid #111; }
+  table.escala thead th { background: #e2e8f0; font-weight: 800; color: #000; border-bottom: 2px solid #111; border-right: 1px solid #aaa; }
   table.escala th.nome, table.escala td.nome {
     text-align: left; padding-left: 8px; font-size: 9.5px; min-width: 150px; width: 150px;
-    font-weight: 800; color: #0f172a;
+    font-weight: 800; color: #000; border-right: 2px solid #111;
   }
-  table.escala td.nome .cons { font-weight: 600; color: #64748b; font-size: 8px; display:block; margin-top: 1px; }
+  table.escala td.nome .cons { font-weight: 600; color: #444; font-size: 8px; display:block; margin-top: 1px; }
   table.escala th.dia { padding: 2px 0; }
   table.escala th.dia .d { font-weight: 900; font-size: 10px; }
-  table.escala th.dia .dw { font-size: 7.5px; color: #334155; font-weight: 700; }
-  table.escala th.fds, table.escala td.fds { background: #f8fafc; }
-  table.escala td.dia { font-weight: 800; font-size: 9.5px; }
+  table.escala th.dia .dw { font-size: 7.5px; color: #000; font-weight: 700; }
+  table.escala th.fds, table.escala td.fds { background: #f1f5f9; }
+  table.escala th.week-sep, table.escala td.week-sep { border-right: 2px solid #111; }
+  table.escala td.dia { font-weight: 800; font-size: 9.5px; border-right: 1px solid #eee; }
   table.escala td.cancel { color:#dc2626; text-decoration: line-through; }
   table.escala td.pend { color:#b45309; }
   table.escala th.total, table.escala td.total {
-    background:#f1f5f9; font-weight: 900; min-width: 45px; width: 55px; font-size: 10px; color: #0f172a;
+    background:#e2e8f0; font-weight: 900; min-width: 45px; width: 55px; font-size: 10px; color: #000; border-left: 2px solid #111;
   }
   table.escala td.empty { text-align:center; padding: 20px; color:#64748b; font-style: italic; font-size: 11px; }
   
   /* Cabeçalhos de grupo */
   .group-header { background: #f8fafc; }
-  .group-header td { text-align: left !important; padding: 6px 12px !important; font-weight: 900 !important; border-bottom: 2px solid #111 !important; border-top: 1.5px solid #111 !important; }
+  .group-header td { text-align: left !important; padding: 6px 12px !important; font-weight: 900 !important; border-bottom: 2px solid #111 !important; border-top: 2px solid #111 !important; }
   .group-header.unidade { background: #1e293b; font-size: 13px; color: #ffffff; text-transform: uppercase; letter-spacing: 2px; }
-  .group-header.setor { background: #f1f5f9; font-size: 11px; padding-left: 20px !important; color: #0f172a; border-bottom: 1.5px solid #111 !important; }
+  .group-header.setor { background: #e2e8f0; font-size: 11px; padding-left: 20px !important; color: #000; border-bottom: 1.5px solid #111 !important; }
   .group-header.setor td::before { content: "SETOR: "; color: #64748b; font-weight: 700; font-size: 9px; }
   .group-header.profissao { background: #ffffff; font-size: 10px; color: #64748b; padding-left: 30px !important; border-bottom: 1px solid #ddd !important; font-style: italic; }
   .row-prof td.nome { padding-left: 35px !important; }
