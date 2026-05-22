@@ -351,8 +351,8 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
                         </td>
                       );
                     })}
-                    <td className="px-4 py-3 text-center sticky right-0 bg-slate-50 dark:bg-slate-900 z-20 border-l border-slate-100 dark:border-slate-800 print:relative shadow-[-2px_0_4px_rgba(0,0,0,0.05)]">
-                      <span className="font-mono font-bold text-slate-700 dark:text-slate-300 text-xs">{row.horas.toFixed(1)}h</span>
+                    <td className="px-4 py-3 text-center sticky right-0 bg-slate-100 dark:bg-slate-900 z-20 border-l-2 border-l-slate-300 dark:border-l-slate-700 print:relative shadow-[-2px_0_4px_rgba(0,0,0,0.05)] group-hover:bg-slate-100 dark:group-hover:bg-slate-800 transition-colors">
+                      <span className="font-mono font-bold text-slate-800 dark:text-slate-100 text-xs">{row.horas.toFixed(1)}h</span>
                     </td>
                   </tr>
                 );
