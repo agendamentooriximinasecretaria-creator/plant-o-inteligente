@@ -395,8 +395,6 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
           </div>
         </div>
       </div>
-        </div>
-      </div>
     </div>
   );
 });
