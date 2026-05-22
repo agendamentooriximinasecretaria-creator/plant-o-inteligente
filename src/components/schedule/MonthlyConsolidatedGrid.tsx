@@ -360,30 +360,41 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
         </table>
       </div>
 
-      {/* Legenda */}
-      <div className="border-t border-border/60 p-3 bg-muted/20">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px]">
-          <span className="font-semibold text-foreground mr-1">Legenda:</span>
+      {/* Legenda Profissional */}
+      <div className="border-t border-border/60 p-5 bg-slate-50/50 dark:bg-slate-900/40">
+        <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+          <Info className="h-3 w-3" />
+          Legenda de Plantões e Horários
+        </h4>
+        <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
           {legendaTipos.map((t) => {
             const cls = CAT_CLASS[categoryFromTipo(t.value)] || CAT_CLASS.outro;
-            const horario = t.start && t.end ? `${t.start} às ${t.end}` : t.value;
             return (
-              <span key={t.value} className="inline-flex items-center gap-1.5">
-                <span className={`inline-flex items-center justify-center min-w-[22px] h-5 px-1 rounded border text-[10px] font-bold ${cls}`}>
+              <div key={t.value} className="flex items-center gap-3 group">
+                <div className={`flex items-center justify-center min-w-[32px] h-8 px-2 rounded-lg border shadow-sm text-[11px] font-bold ${cls}`}>
                   {t.sigla}
-                </span>
-                <span className="text-muted-foreground">= {horario}</span>
-              </span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 leading-tight">{t.value}</span>
+                  {t.start && t.end && <span className="text-[10px] text-slate-400 font-medium tracking-tight">{t.start} — {t.end}</span>}
+                </div>
+              </div>
             );
           })}
-          <span className="inline-flex items-center gap-1.5">
-            <span className={`inline-flex items-center justify-center min-w-[22px] h-5 px-1 rounded border text-[10px] font-bold ${STATUS_OVERLAY.pendente}`}>!</span>
-            <span className="text-muted-foreground">= Pendente</span>
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className={`inline-flex items-center justify-center min-w-[22px] h-5 px-1 rounded border text-[10px] font-bold ${STATUS_OVERLAY.cancelado}`}>X</span>
-            <span className="text-muted-foreground">= Cancelado</span>
-          </span>
+          <div className="flex items-center gap-3">
+            <div className={`flex items-center justify-center min-w-[32px] h-8 px-2 rounded-lg border shadow-sm text-[11px] font-bold ${STATUS_OVERLAY.pendente}`}>
+              !
+            </div>
+            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Pendente</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className={`flex items-center justify-center min-w-[32px] h-8 px-2 rounded-lg border shadow-sm text-[11px] font-bold ${STATUS_OVERLAY.cancelado}`}>
+              X
+            </div>
+            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Cancelado</span>
+          </div>
+        </div>
+      </div>
         </div>
       </div>
     </div>
