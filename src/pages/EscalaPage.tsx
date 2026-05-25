@@ -1225,10 +1225,12 @@ export default function EscalaPage() {
       );
     }
 
+    const showTotalSetting = settings.exibir_total_escala_consolidada !== false;
+
     return {
       incluirLogo: printForm.incluirLogo,
       incluirAssinatura: printForm.incluirAssinatura,
-      incluirTotalHoras: printForm.incluirTotalHoras,
+      incluirTotalHoras: showTotalSetting && printForm.incluirTotalHoras,
       incluirObservacoesRodape: printForm.incluirObservacoesRodape,
       totalLabel: printForm.totalLabel,
       responsavel: responsavel || {
