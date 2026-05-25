@@ -2211,6 +2211,7 @@ export default function EscalaPage() {
               profissional_id: s.profissional_id,
               profissional_nome: (s.professionals as any)?.nome || 'Sem nome',
               profissao: PROFISSAO_LABELS[(s.professionals as any)?.profissao] || (s.professionals as any)?.profissao || '',
+              cargo: (s.professionals as any)?.cargo || '',
               unidade_nome: (s.units as any)?.nome || '',
               setor_nome: (s.sectors as any)?.nome || '',
               data: s.data,
