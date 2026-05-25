@@ -1259,6 +1259,13 @@ export default function EscalaPage() {
       }));
     }
   }, [currentStamp, printOpen, profileName, user?.email, isMaster]);
+  
+  // Sincroniza configuração de exibição do total com o formulário de impressão
+  useEffect(() => {
+    if (settings.exibir_total_escala_consolidada !== undefined) {
+      setPrintForm(f => ({ ...f, incluirTotalHoras: settings.exibir_total_escala_consolidada !== false }));
+    }
+  }, [settings.exibir_total_escala_consolidada]);
 
   const handlePrintAction = async (acao: 'view' | 'print' | 'pdf-open' | 'pdf-save') => {
     if (printBusy) return;
