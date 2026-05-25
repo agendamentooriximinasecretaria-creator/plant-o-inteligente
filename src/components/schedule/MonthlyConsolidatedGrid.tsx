@@ -30,6 +30,7 @@ interface Props {
   /** Mês de referência YYYY-MM. Se não informado, usa o mês atual. */
   initialMonth?: string;
   showTotalHours?: boolean;
+  onCellClick?: (date: string, shifts: MonthlyShift[]) => void;
 }
 
 const DIA_SEMANA_ABREV = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
@@ -93,7 +94,7 @@ function siglaFallback(tipo: string): string {
   }
 }
 
-export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ shifts, tipos, initialMonth, showTotalHours = true }: Props) {
+export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ shifts, tipos, initialMonth, showTotalHours = true, onCellClick }: Props) {
   const today = new Date();
   const defaultMonth = initialMonth || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   const [mes, setMes] = useState<string>(defaultMonth);
@@ -343,7 +344,11 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
                         .join("\n");
 
                       return (
-                        <td key={d} className={`${cellClass} relative`}>
+                        <td 
+                          key={d} 
+                          className={`${cellClass} relative cursor-pointer hover:bg-slate-200/50 dark:hover:bg-slate-700/30 transition-colors`}
+                          onClick={() => onCellClick?.(`${year}-${String(monthIdx + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`, lista)}
+                        >
                           <div
                             className={`inline-flex items-center justify-center min-w-[32px] h-8 px-2 rounded-lg border shadow-sm text-[11px] font-bold transition-all hover:scale-105 z-10 relative ${hasConflict ? 'ring-2 ring-destructive border-destructive bg-destructive/10 text-destructive' : cls}`}
                             title={tooltip}

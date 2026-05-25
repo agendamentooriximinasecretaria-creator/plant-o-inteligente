@@ -2199,6 +2199,16 @@ export default function EscalaPage() {
             tipos={TIPOS_PLANTAO}
             initialMonth={filtros.dataIni ? filtros.dataIni.slice(0, 7) : undefined}
             showTotalHours={settings.exibir_total_escala_consolidada !== false}
+            onCellClick={(dateStr, cellShifts) => {
+              if (cellShifts.length > 0) {
+                // Se houver plantões, abre o detalhe do primeiro (padrão do sistema para simplificar)
+                const found = (shifts as any[]).find((s: any) => s.id === cellShifts[0].id);
+                if (found) setDetailShift(found);
+              } else {
+                // Se estiver vazio, abre menu para criar novo
+                openEmptyCellMenu(dateStr);
+              }
+            }}
           />
         </motion.div>
       ) : (
