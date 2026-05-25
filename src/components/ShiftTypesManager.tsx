@@ -228,10 +228,17 @@ export function ShiftTypesManager() {
                 <input type="number" min={0} value={form.ordem}
                   onChange={e => setForm(f => ({ ...f, ordem: Number(e.target.value) }))} className={inputClass} />
               </div>
-              <div className="col-span-2 flex items-center gap-2 pt-1">
-                <input type="checkbox" id="ativo" checked={form.ativo}
-                  onChange={e => setForm(f => ({ ...f, ativo: e.target.checked }))} className="rounded" />
-                <label htmlFor="ativo" className="text-sm text-foreground">Ativo (aparece no formulário)</label>
+              <div className="col-span-2 space-y-3 pt-1">
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="gera_adn" checked={form.gera_adicional_noturno}
+                    onChange={e => setForm(f => ({ ...f, gera_adicional_noturno: e.target.checked }))} className="rounded" />
+                  <label htmlFor="gera_adn" className="text-sm font-medium text-foreground">Gera Adicional Noturno (ADN)</label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="ativo" checked={form.ativo}
+                    onChange={e => setForm(f => ({ ...f, ativo: e.target.checked }))} className="rounded" />
+                  <label htmlFor="ativo" className="text-sm text-foreground">Ativo (aparece no formulário)</label>
+                </div>
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
