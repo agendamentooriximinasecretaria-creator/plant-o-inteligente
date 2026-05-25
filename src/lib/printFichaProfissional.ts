@@ -90,22 +90,6 @@ export function buildFichaProfissionalHtml(d: FichaProfissionalData): string {
 </body></html>`;
 }
 
-
-  <div class="section-title">Últimos Plantões</div>
-  <table>
-    <thead><tr><th>Data</th><th>Horário</th><th>Setor</th></tr></thead>
-    <tbody>${plantoesHtml}</tbody>
-  </table>
-
-  <div class="footer">
-    Emitido em ${fmtDateTime(new Date().toISOString())}${d.emitidoPor ? ` por ${d.emitidoPor}` : ""} · GestorPlantão SMS Oriximiná
-  </div>
-  <div class="privacy">Documento sem dados sensíveis. Não contém CPF, dados bancários ou endereço residencial.</div>
-
-  <script>window.onload=()=>{setTimeout(()=>window.print(),200);};</script>
-</body></html>`;
-}
-
 export function printFichaProfissional(d: FichaProfissionalData) {
   const html = buildFichaProfissionalHtml(d);
   const w = window.open("", "_blank", "width=900,height=1000");
