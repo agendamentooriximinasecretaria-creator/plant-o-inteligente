@@ -155,6 +155,8 @@ export default function ProfissionaisPage() {
         competencias: data.competencias.length > 0 ? data.competencias : null,
         limite_trocas_plantao_mes: data.limite_trocas_plantao_mes,
         limite_trocas_paciente_mes: data.limite_trocas_paciente_mes,
+        is_plantonista: data.is_plantonista,
+        recebe_adicional_noturno: data.recebe_adicional_noturno,
       };
       if (editingId) {
         const { error } = await supabase.from('professionals').update(payload).eq('id', editingId);
