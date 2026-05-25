@@ -12,6 +12,8 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   document: SignableDocument;
+  /** Mês/Competência inicial opcional (YYYY-MM). */
+  initialCompetence?: string;
   /** Callback após assinar com sucesso (recebe assinatura e bloco HTML pronto). */
   onSigned?: (sig: SignatureRecord, htmlBlock: string) => void;
 }
@@ -23,19 +25,21 @@ const ROLE_LABEL: Record<SignatureRole, string> = {
   institucional: 'Institucional',
 };
 
-export default function SignDocumentDialog({ open, onOpenChange, document, onSigned }: Props) {
+export default function SignDocumentDialog({ open, onOpenChange, document, initialCompetence, onSigned }: Props) {
   const { user, isMaster, isCoordinator } = useAuth();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [previous, setPrevious] = useState<SignatureRecord[]>([]);
   const [role, setRole] = useState<SignatureRole>('profissional');
+  const [competence, setCompetence] = useState(initialCompetence || "");
 
   useEffect(() => {
     if (!open) { setPassword(""); setConfirm(false); return; }
     setRole(isMaster ? 'gestor_master' : isCoordinator ? 'coordenador' : 'profissional');
+    setCompetence(initialCompetence || "");
     listSignatures(document.document_type, document.document_id).then(setPrevious).catch(() => setPrevious([]));
-  }, [open, document.document_type, document.document_id, isMaster, isCoordinator]);
+  }, [open, document.document_type, document.document_id, isMaster, isCoordinator, initialCompetence]);
 
   const activePrev = previous.find(s => s.status === 'ativa');
   const nextVersion = (previous[previous.length - 1]?.document_version || 0) + 1;
@@ -47,7 +51,11 @@ export default function SignDocumentDialog({ open, onOpenChange, document, onSig
     setLoading(true);
     try {
       const sig = await signDocument(
-        { ...document, document_version: nextVersion },
+        { 
+          ...document, 
+          document_version: nextVersion,
+          metadata: { ...document.metadata, competence }
+        },
         { password, role, previousSignatureId: activePrev?.id ?? null },
       );
       const html = renderSignatureBlock(sig);
@@ -81,6 +89,11 @@ export default function SignDocumentDialog({ open, onOpenChange, document, onSig
           <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs space-y-1">
             <div><strong>Documento:</strong> {document.document_title || document.document_type}</div>
             <div><strong>ID:</strong> {document.document_id}</div>
+            {competence && (
+              <div className="flex items-center gap-1 text-primary font-medium">
+                <strong>Competência:</strong> {competence.split('-').reverse().join('/')}
+              </div>
+            )}
             <div><strong>Versão a gerar:</strong> {nextVersion}</div>
             {activePrev && (
               <div className="text-amber-600 flex items-start gap-1 mt-1">
@@ -88,6 +101,20 @@ export default function SignDocumentDialog({ open, onOpenChange, document, onSig
                 <span>Existe uma assinatura ativa anterior (v{activePrev.document_version} por {activePrev.signer_name}). A nova substituirá como versão atual.</span>
               </div>
             )}
+          </div>
+
+          <div>
+            <label className={labelCls}>Mês/Competência da Assinatura</label>
+            <input 
+              type="month" 
+              value={competence} 
+              onChange={e => setCompetence(e.target.value)}
+              className={inputCls}
+              required
+            />
+            <p className="text-[10px] text-muted-foreground mt-1 italic">
+              Confirme o mês de referência desta escala/documento.
+            </p>
           </div>
 
           <div>

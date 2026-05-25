@@ -232,6 +232,7 @@ export default function EscalaPage() {
     periodo: '', dataIni: '', dataFim: '',
     soConflitos: false, soDescobertos: false,
     soPublicados: false, soRascunhos: false, soFolgas: false,
+    competencia: new Date().toISOString().slice(0, 7),
   };
   const [filtros, setFiltros] = useState<FiltrosEscala>(filtrosVazios);
   const [busca, setBusca] = useState("");

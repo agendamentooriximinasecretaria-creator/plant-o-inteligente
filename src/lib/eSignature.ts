@@ -156,12 +156,13 @@ export function renderSignatureBlock(sig: SignatureRecord, opts?: { baseUrl?: st
   const validateUrl = `${base}/validar/${sig.validation_code}`;
   const qr = `https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${encodeURIComponent(validateUrl)}`;
   const role = ROLE_LABEL[sig.signer_role];
+  const competence = sig.metadata?.competence ? ` · Competência: ${sig.metadata.competence.split('-').reverse().join('/')}` : '';
 
   return `
   <div style="margin-top:18px;padding:10px 12px;border:1px solid #888;border-radius:6px;font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.45;display:flex;gap:12px;align-items:center">
     <img src="${qr}" alt="QR validação" style="width:90px;height:90px;flex-shrink:0"/>
     <div>
-      <div><strong>Documento assinado eletronicamente</strong> por <strong>${sig.signer_name}</strong>, ${role} ${((sig.metadata as any)?.conselho || '')} ${((sig.metadata as any)?.registro || '')}, em ${dt}.</div>
+      <div><strong>Documento assinado eletronicamente</strong> por <strong>${sig.signer_name}</strong>, ${role} ${((sig.metadata as any)?.conselho || '')} ${((sig.metadata as any)?.registro || '')}${competence}, em ${dt}.</div>
       <div>Código de validação: <strong>${sig.validation_code}</strong></div>
       <div>Verifique em ${base}/validar/${sig.validation_code}</div>
       <div style="font-size:10px;color:#555;margin-top:2px">Hash SHA-256: ${sig.content_hash.slice(0, 32)}…</div>
