@@ -306,33 +306,36 @@ export default function ConfiguracoesPage() {
               }} 
               className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90"
             >
-              <button 
-                onClick={async () => {
-                  const emailTeste = prompt(\"Digite o e-mail para receber o teste:\");
-                  if (!emailTeste) return;
+              <Save className="h-4 w-4" /> Salvar
+            </button>
+            <button 
+              onClick={async () => {
+                const emailTeste = prompt("Digite o e-mail para receber o teste:");
+                if (!emailTeste) return;
+                
+                setTesting('smtp');
+                try {
+                  const { data, error } = await supabase.functions.invoke('testar-smtp', {
+                    body: { email_teste: emailTeste }
+                  });
                   
-                  setTesting('smtp');
-                  try {
-                    const { data, error } = await supabase.functions.invoke('testar-smtp', {
-                      body: { email_teste: emailTeste }
-                    });
-                    
-                    if (error) throw error;
-                    toast.success(data.message || 'E-mail de teste enviado!');
-                  } catch (e: any) {
-                    console.error('Erro no teste SMTP:', e);
-                    toast.error(e.message || 'Falha ao testar SMTP. Verifique as configurações e a senha.');
-                  } finally {
-                    setTesting('');
-                  }
-                }}
-                disabled={testing === 'smtp'}
-                className=\"flex items-center gap-2 border border-border px-4 py-2 rounded-lg text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50\"
-              >
-                {testing === 'smtp' ? <Loader2 className=\"h-4 w-4 animate-spin\" /> : <TestTube className=\"h-4 w-4\" />}
-                Testar Envio
-              </button>
-            </div>
+                  if (error) throw error;
+                  toast.success(data.message || 'E-mail de teste enviado!');
+                } catch (e: any) {
+                  console.error('Erro no teste SMTP:', e);
+                  toast.error(e.message || 'Falha ao testar SMTP. Verifique as configurações e a senha.');
+                } finally {
+                  setTesting('');
+                }
+              }}
+              disabled={testing === 'smtp'}
+              className="flex items-center gap-2 border border-border px-4 py-2 rounded-lg text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
+            >
+              {testing === 'smtp' ? <Loader2 className="h-4 w-4 animate-spin" /> : <TestTube className="h-4 w-4" />}
+              Testar Envio
+            </button>
+          </div>
+
 
         </motion.div>
 
