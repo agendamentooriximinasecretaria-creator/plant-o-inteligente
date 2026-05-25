@@ -911,6 +911,7 @@ export default function EscalaPage() {
     incluirObservacoes: boolean;
     incluirObservacoesRodape: boolean;
     incluirTotalHoras: boolean;
+    incluirADN: boolean;
     incluirAssinatura: boolean;
     incluirConselho: boolean;
     incluirLogo: boolean;
@@ -937,6 +938,7 @@ export default function EscalaPage() {
     incluirObservacoes: true,
     incluirObservacoesRodape: true,
     incluirTotalHoras: true,
+    incluirADN: true,
     incluirAssinatura: true,
     incluirConselho: true,
     incluirLogo: true,
