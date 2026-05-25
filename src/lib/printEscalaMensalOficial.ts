@@ -2,20 +2,17 @@
 // Modelo de impressão: "Escala Mensal Oficial"
 // ---------------------------------------------------------------
 // Layout inspirado na escala em papel hospitalar:
-//   - cabeçalho centralizado (Prefeitura > Secretaria > Unidade)
+//   - cabeçalho institucional unificado
 //   - tabela: Profissional × dias do mês (1..30/31) + Total
-//   - células com siglas (D, N, M, T, 24, SA, F, LP, FE, A...)
-//   - legenda automática a partir dos tipos de plantão configurados
-//   - assinatura no canto inferior direito
-//   - A4 landscape, CSS @media print sem sidebar/header/botões
-//
-// Sem dados sensíveis (CPF, banco, endereço residencial, observações privadas).
+//   - assinatura institucional padronizada
 // ===============================================================
 
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { getLogoSmsDataUrl, logoSmsImgHtml } from "./logoSMS";
 import type { StampData } from "./pdfStampUtils";
+import { DOCUMENT_CSS_BASE } from "./documentStyle";
+import { buildHeaderHtml, buildSignatureHtml, buildFooterHtml } from "./documentTemplates";
 
 export interface MensalInstituicao {
   prefeitura?: string;       // ex: "Prefeitura Municipal de Oriximiná"
@@ -84,6 +81,7 @@ export interface MensalOpts {
 
 const DIAS_PT_FULL = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
 const DIAS_SEM_ABREV = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
+
 
 // Categorização por tipo de plantão -> cores suaves (RGB para jsPDF e hex para HTML)
 function getCategoryColor(tipo: string, status: string): { bg: [number, number, number], hex: string, text: [number, number, number] } {
