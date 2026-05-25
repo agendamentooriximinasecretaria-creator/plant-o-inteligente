@@ -17,6 +17,7 @@ export interface ShiftType {
   cor: string;
   ordem: number;
   ativo: boolean;
+  gera_adicional_noturno: boolean;
 }
 
 const COR_OPTIONS = [
