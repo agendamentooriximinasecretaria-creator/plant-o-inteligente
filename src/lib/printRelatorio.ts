@@ -113,7 +113,9 @@ export function buildRelatorioHtml(
 
   ${footerHtml}
 </body>
+</html>`;
 }
+
 
 
 export function abrirVisualizacaoRelatorio(
