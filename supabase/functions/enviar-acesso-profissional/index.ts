@@ -96,90 +96,111 @@ serve(async (req) => {
 
     let canal = "";
     let lastError = "";
+    const tentativas: Array<{ canal: string; ok: boolean; erro?: string; detalhe?: string }> = [];
 
-    // 1) Webhook Make.com (se ativo)
-    const webhookUrl = cfg.webhook?.url;
-    const webhookAtivo = cfg.webhook?.ativo === true;
-    if (webhookAtivo && webhookUrl) {
+    // 1) SMTP (prioritário — envio real garantido)
+    const smtpCfg = cfg.gmail_smtp;
+    const remetente = smtpCfg?.email_remetente;
+    const senha = smtpCfg?.senha;
+    const servidor = smtpCfg?.servidor || "smtp.gmail.com";
+    const porta = Number(smtpCfg?.porta || 587);
+
+    if (senha && remetente && smtpCfg?.status === "ativo") {
+      console.log(`[SMTP] Tentando ${servidor}:${porta} como ${remetente} -> ${prof.email}`);
       try {
-        const resp = await fetch(webhookUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            tipo: "acesso_profissional",
-            destinatario: { nome: prof.nome, email: prof.email },
-            assunto: subject,
-            mensagem: textBody,
-            html: htmlBody,
-            link: siteUrl,
-            login: prof.email,
-          }),
+        const transporter = nodemailer.createTransport({
+          host: servidor,
+          port: porta,
+          secure: porta === 465,
+          auth: { user: remetente, pass: senha },
+          tls: { rejectUnauthorized: true },
+          connectionTimeout: 15000,
+          greetingTimeout: 10000,
+          socketTimeout: 20000,
         });
-        if (resp.ok) {
-          canal = "webhook";
-          console.log("E-mail enviado via Webhook Make.com com sucesso.");
+        await transporter.verify();
+        const info = await transporter.sendMail({
+          from: `"${empresa}" <${remetente}>`,
+          to: prof.email,
+          subject,
+          text: textBody,
+          html: htmlBody,
+        });
+        console.log("[SMTP] OK", { messageId: info.messageId, accepted: info.accepted, rejected: info.rejected });
+        if (info.accepted && info.accepted.length > 0) {
+          canal = "smtp";
+          tentativas.push({ canal: "smtp", ok: true, detalhe: `messageId=${info.messageId}` });
         } else {
-          lastError = `Webhook respondeu status ${resp.status}`;
-          console.error("Erro no Webhook:", lastError);
+          lastError = `SMTP rejeitou o destinatário: ${JSON.stringify(info.rejected || [])}`;
+          tentativas.push({ canal: "smtp", ok: false, erro: lastError });
         }
       } catch (e) {
-        lastError = `Webhook falhou: ${e instanceof Error ? e.message : String(e)}`;
-        console.error("Exceção no Webhook:", lastError);
+        let msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes("EAUTH") || msg.includes("535")) msg = "Falha de autenticação SMTP (verifique e-mail/senha de app).";
+        else if (msg.includes("ETIMEDOUT")) msg = "Timeout ao conectar no servidor SMTP.";
+        else if (msg.includes("ECONNREFUSED")) msg = "Servidor SMTP recusou a conexão (host/porta).";
+        else if (msg.includes("ENOTFOUND")) msg = "Servidor SMTP não encontrado (host inválido).";
+        lastError = `SMTP: ${msg}`;
+        tentativas.push({ canal: "smtp", ok: false, erro: lastError });
+        console.error("[SMTP] Erro:", e);
       }
+    } else {
+      const motivo = !smtpCfg ? "sem configuração" : smtpCfg?.status !== "ativo" ? "desativado" : "credenciais ausentes";
+      tentativas.push({ canal: "smtp", ok: false, erro: `SMTP não utilizado (${motivo}).` });
+      console.log(`[SMTP] Pulado: ${motivo}`);
     }
 
-    // 2) SMTP Gmail
+    // 2) Webhook Make.com (fallback)
     if (!canal) {
-      const smtpCfg = cfg.gmail_smtp;
-      const remetente = smtpCfg?.email_remetente;
-      const senha = smtpCfg?.senha;
-      const servidor = smtpCfg?.servidor || "smtp.gmail.com";
-      const porta = Number(smtpCfg?.porta || 587);
-
-      console.log(`Tentando envio SMTP: ${servidor}:${porta} por ${remetente}`);
-
-      if (senha && remetente && smtpCfg?.status === "ativo") {
+      const webhookUrl = cfg.webhook?.url;
+      const webhookAtivo = cfg.webhook?.ativo === true;
+      if (webhookAtivo && webhookUrl) {
+        console.log(`[Webhook] Tentando ${webhookUrl}`);
         try {
-          const transporter = nodemailer.createTransport({
-            host: servidor,
-            port: porta,
-            secure: porta === 465,
-            auth: { user: remetente, pass: senha },
-            tls: {
-              rejectUnauthorized: true
-            }
+          const resp = await fetch(webhookUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tipo: "acesso_profissional",
+              destinatario: { nome: prof.nome, email: prof.email },
+              assunto: subject,
+              mensagem: textBody,
+              html: htmlBody,
+              link: siteUrl,
+              login: prof.email,
+            }),
           });
-
-          console.log("Verificando conexão SMTP...");
-          await transporter.verify();
-          console.log("SMTP verificado. Enviando e-mail...");
-
-          const info = await transporter.sendMail({
-            from: `"${empresa}" <${remetente}>`,
-            to: prof.email,
-            subject,
-            text: textBody,
-            html: htmlBody,
-          });
-          
-          console.log("E-mail enviado via SMTP:", info.messageId);
-          canal = "smtp";
+          const respText = await resp.text().catch(() => "");
+          if (resp.ok) {
+            canal = "webhook";
+            tentativas.push({ canal: "webhook", ok: true, detalhe: `status=${resp.status}` });
+            console.log("[Webhook] OK status:", resp.status, "body:", respText.slice(0, 200));
+          } else {
+            lastError = `Webhook respondeu status ${resp.status}: ${respText.slice(0, 200)}`;
+            tentativas.push({ canal: "webhook", ok: false, erro: lastError });
+            console.error("[Webhook] Erro:", lastError);
+          }
         } catch (e) {
-          console.error("Erro SMTP detalhado:", e);
-          lastError = `Falha SMTP: ${e instanceof Error ? e.message : String(e)}`;
+          lastError = `Webhook falhou: ${e instanceof Error ? e.message : String(e)}`;
+          tentativas.push({ canal: "webhook", ok: false, erro: lastError });
+          console.error("[Webhook] Exceção:", e);
         }
       } else {
-        if (smtpCfg?.status !== "ativo") {
-          lastError = "E-mail SMTP desativado nas configurações.";
-          console.log("SMTP não está ativo.");
-        } else {
-          lastError = "Configuração SMTP incompleta (falta e-mail ou senha).";
-          console.log("Configuração SMTP incompleta.");
-        }
+        tentativas.push({ canal: "webhook", ok: false, erro: "Webhook não configurado/ativo." });
       }
     }
 
-    if (!canal) return json(502, { error: lastError || "Falha ao enviar." });
+    if (!canal) {
+      await admin.from("audit_logs").insert({
+        modulo: "profissionais",
+        acao: "envio_dados_acesso_falhou",
+        user_id: userData.user.id,
+        usuario_nome: userData.user.email || "sistema",
+        status: "erro",
+        detalhes: { professional_id: professionalId, destino: prof.email, tentativas, lastError },
+      });
+      return json(502, { error: lastError || "Falha ao enviar.", tentativas });
+    }
 
     // Audit + timestamp
     await admin
@@ -193,10 +214,10 @@ serve(async (req) => {
       user_id: userData.user.id,
       usuario_nome: userData.user.email || "sistema",
       status: "sucesso",
-      detalhes: { professional_id: professionalId, canal, destino: prof.email },
+      detalhes: { professional_id: professionalId, canal, destino: prof.email, tentativas },
     });
 
-    return json(200, { success: true, canal });
+    return json(200, { success: true, canal, destino: prof.email, tentativas });
   } catch (e) {
     console.error("enviar-acesso-profissional erro:", e);
     return json(500, { error: e instanceof Error ? e.message : "Erro interno" });
