@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import nodemailer from "https://esm.sh/nodemailer@6.9.13";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,7 +22,6 @@ function escapeHtml(s: string) {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-
   if (req.method !== "POST") return json(405, { error: "Método não permitido" });
 
   try {
@@ -66,28 +65,12 @@ serve(async (req) => {
     if (pErr || !prof) return json(404, { error: "Profissional não encontrado." });
     if (!prof.email) return json(400, { error: "Profissional não possui e-mail cadastrado." });
 
-    // Site URL (preferir custom domain do app)
-    const siteUrl =
-      body?.site_url ||
-      "https://gestorplantaosmsoriximina.lovable.app";
+    const siteUrl = body?.site_url || "https://gestorplantaosmsoriximina.lovable.app";
 
     const subject = "Acesso ao sistema de plantões";
     const empresa = "Gestão de Plantões - SMS Oriximiná";
     const greeting = `Olá, ${prof.nome}.`;
-    const textBody = `${greeting}
-
-Seu acesso ao sistema de plantões está disponível.
-
-Link de acesso:
-${siteUrl}
-
-Login / usuário:
-${prof.email}
-
-Caso ainda não tenha senha (ou tenha esquecido), acesse o link acima e utilize a opção "Esqueci minha senha" para definir uma nova.
-
-Atenciosamente,
-${empresa}`;
+    const textBody = `${greeting}\n\nSeu acesso ao sistema de plantões está disponível.\n\nLink de acesso:\n${siteUrl}\n\nLogin / usuário:\n${prof.email}\n\nCaso ainda não tenha senha (ou tenha esquecido), acesse o link acima e utilize a opção "Esqueci minha senha" para definir uma nova.\n\nAtenciosamente,\n${empresa}`;
 
     const htmlBody = `<!doctype html><html><body style="font-family:Arial,sans-serif;color:#0f172a;background:#ffffff;padding:24px">
   <div style="max-width:560px;margin:0 auto;border:1px solid #e2e8f0;border-radius:12px;padding:28px">
@@ -147,63 +130,35 @@ ${empresa}`;
       const servidor = smtpCfg?.servidor || "smtp.gmail.com";
       const porta = Number(smtpCfg?.porta || 587);
 
-      console.log(`Tentando envio via SMTP: ${remetente} em ${servidor}:${porta} (Status: ${smtpCfg?.status})`);
-
       if (senha && remetente && smtpCfg?.status === "ativo") {
-        let client: SMTPClient | null = null;
         try {
-          const useTls = porta === 465;
-          
-          console.log(`Conectando ao SMTP... (TLS: ${useTls})`);
-          
-          client = new SMTPClient({
-            connection: {
-              hostname: servidor,
-              port: porta,
-              tls: useTls,
-              auth: { username: remetente, password: senha },
-            },
-            debug: {
-              log: true,
-              send: true,
-              recv: true,
-            }
+          const transporter = nodemailer.createTransport({
+            host: servidor,
+            port: porta,
+            secure: porta === 465,
+            auth: { user: remetente, pass: senha },
           });
-          
-          console.log("Enviando mensagem...");
-          
-          await client.send({
-            from: `${empresa} <${remetente}>`,
+
+          await transporter.sendMail({
+            from: `"${empresa}" <${remetente}>`,
             to: prof.email,
             subject,
-            content: textBody,
+            text: textBody,
             html: htmlBody,
           });
           canal = "smtp";
-          console.log(`E-mail enviado com sucesso via SMTP para ${prof.email}`);
         } catch (e) {
-          lastError = `Falha na autenticação ou envio SMTP: ${e instanceof Error ? e.message : String(e)}`;
-          console.error("Erro detalhado SMTP:", e);
-        } finally {
-          try { await client?.close(); } catch { /* ignore */ }
+          lastError = `Falha SMTP: ${e instanceof Error ? e.message : String(e)}`;
         }
       } else {
-        if (smtpCfg?.status !== "ativo") {
-          lastError = "O serviço de e-mail SMTP está desativado nas configurações.";
-        } else if (!remetente || !senha) {
-          lastError = "Credenciais SMTP não configuradas ou incompletas.";
-        } else {
-          lastError = "Configuração SMTP inválida.";
-        }
+        if (smtpCfg?.status !== "ativo") lastError = "E-mail SMTP desativado.";
+        else lastError = "Configuração SMTP incompleta.";
       }
     }
 
-    if (!canal) {
-      console.error("enviar-acesso-profissional falhou:", lastError);
-      return json(502, { error: lastError || "Falha ao enviar e-mail." });
-    }
+    if (!canal) return json(502, { error: lastError || "Falha ao enviar." });
 
-    // Update timestamp + audit
+    // Audit + timestamp
     await admin
       .from("professionals")
       .update({ acesso_email_enviado_em: new Date().toISOString() })
