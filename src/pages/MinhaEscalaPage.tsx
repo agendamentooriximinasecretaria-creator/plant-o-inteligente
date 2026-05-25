@@ -157,7 +157,7 @@ export default function MinhaEscalaPage() {
               <th className="p-3 text-left">Unidade/Setor</th>
               <th className="p-3 text-left">Horário</th>
               <th className="p-3 text-left">Tipo</th>
-              <th className="p-3 text-left">Carga</th>
+              
               <th className="p-3 text-left">Status</th>
               <th className="p-3 text-left">Ações</th>
             </tr>
