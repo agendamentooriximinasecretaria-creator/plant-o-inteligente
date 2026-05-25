@@ -596,7 +596,10 @@ export async function gerarPdfEscalaMensalOficial(
   doc.setTextColor(0);
   const totalPlantoes = profs.reduce((acc, p) => acc + p.totalPlantoes, 0);
   const totalHorasGeral = profs.reduce((acc, p) => acc + p.totalHoras, 0);
-  doc.text(`Total de plantões: ${totalPlantoes}    Total de horas: ${totalHorasGeral}h`, margin, finalY + 5);
+  const resumoTxt = opts.incluirTotalHoras 
+    ? `Total de plantões: ${totalPlantoes}    Total de horas: ${totalHorasGeral}h`
+    : `Total de plantões: ${totalPlantoes}`;
+  doc.text(resumoTxt, margin, finalY + 5);
   finalY += 10;
 
   // ===== Rodapé — Carimbo e Assinatura =====

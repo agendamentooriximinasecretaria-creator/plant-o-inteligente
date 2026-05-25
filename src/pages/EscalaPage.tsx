@@ -1252,7 +1252,7 @@ export default function EscalaPage() {
     return {
       incluirLogo: printForm.incluirLogo,
       incluirAssinatura: printForm.incluirAssinatura,
-      incluirTotalHoras: showTotalSetting && printForm.incluirTotalHoras,
+      incluirTotalHoras: !isProfessional && showTotalSetting && printForm.incluirTotalHoras,
       incluirADN: showADNSetting && printForm.incluirADN,
       incluirObservacoesRodape: printForm.incluirObservacoesRodape,
       totalLabel: printForm.totalLabel,
@@ -2224,7 +2224,7 @@ export default function EscalaPage() {
             }))}
             tipos={TIPOS_PLANTAO}
             initialMonth={filtros.dataIni ? filtros.dataIni.slice(0, 7) : undefined}
-            showTotalHours={settings.exibir_total_escala_consolidada !== false}
+            showTotalHours={!isProfessional && settings.exibir_total_escala_consolidada !== false}
             showADN={settings.exibir_adn_escala_consolidada !== false}
             onCellClick={(dateStr, cellShifts) => {
               if (cellShifts.length > 0) {
@@ -3085,14 +3085,14 @@ export default function EscalaPage() {
                   ['somentePublicada', 'Somente escala publicada'],
                   ['incluirFolgas', 'Incluir folgas/indisponibilidades'],
                   ['incluirObservacoes', 'Incluir observações'],
-                  ['incluirTotalHoras', 'Incluir total de horas'],
+                  !isProfessional ? ['incluirTotalHoras', 'Incluir total de horas'] : null,
                   ['incluirAssinatura', 'Incluir campo de assinatura'],
                   ['incluirConselho', 'Incluir conselho/registro'],
-                ] as const) : ([
+                ].filter(Boolean) as any) : ([
                   ['somentePublicada', 'Somente escala publicada'],
                   ['incluirFolgas', 'Incluir folgas'],
                   ['incluirAfastamentos', 'Incluir afastamentos (FE/LP/A)'],
-                  settings.exibir_total_escala_consolidada !== false ? ['incluirTotalHoras', 'Mostrar total de horas (em vez de qtd. plantões)'] : null,
+                  (!isProfessional && settings.exibir_total_escala_consolidada !== false) ? ['incluirTotalHoras', 'Mostrar total de horas (em vez de qtd. plantões)'] : null,
                   settings.exibir_adn_escala_consolidada !== false ? ['incluirADN', 'Mostrar Adicional Noturno (ADN)'] : null,
                   ['incluirAssinatura', 'Incluir campo de assinatura'],
                   ['incluirConselho', 'Incluir conselho/registro'],
