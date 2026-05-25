@@ -113,26 +113,8 @@ export function buildRelatorioHtml(
 
   ${footerHtml}
 </body>
-</html>`;
 }
 
-
-  <table>
-    <thead><tr>${columns.map(c => `<th>${escapeHtml(c)}</th>`).join("")}</tr></thead>
-    <tbody>${trs}</tbody>
-  </table>
-
-  <div class="totais">
-    <div><b>Total de registros:</b> ${cab.totalRegistros}</div>
-    ${cab.totalHoras != null ? `<div><b>Total de horas:</b> ${Number(cab.totalHoras).toFixed(1)}h</div>` : ""}
-  </div>
-
-  ${assinaturas}
-
-  <div class="footer">Documento emitido pelo ${escapeHtml(sistema)} • ${escapeHtml(emissao)}</div>
-</body>
-</html>`;
-}
 
 export function abrirVisualizacaoRelatorio(
   cab: RelatorioPrintCab,
