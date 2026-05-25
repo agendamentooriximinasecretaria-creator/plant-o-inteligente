@@ -98,10 +98,14 @@ export default function RelatoriosPage() {
   const { data: units = [] } = useQuery({ queryKey: ['units-rep'], queryFn: async () => { const { data } = await supabase.from('units').select('id, nome').order('nome'); return data || []; } });
   const { data: sectors = [] } = useQuery({ queryKey: ['sectors-rep'], queryFn: async () => { const { data } = await supabase.from('sectors').select('id, nome, unidade_id').order('nome'); return data || []; } });
   const { data: shiftTypes = [] } = useQuery({ queryKey: ['shift-types-rep'], queryFn: async () => { const { data } = await supabase.from('shift_types').select('sigla, nome').eq('ativo', true).order('ordem'); return data || []; } });
-  const { data: instituicao } = useQuery({
-    queryKey: ['institucional'],
-    queryFn: async () => { const { data } = await supabase.from('system_settings').select('value').eq('key', 'institucional').maybeSingle(); return (data?.value as any) || null; }
+  const { data: settings = {} } = useQuery({
+    queryKey: ['system-settings'],
+    queryFn: async () => {
+      const { data } = await supabase.from('system_settings').select('*');
+      return Object.fromEntries((data || []).map(s => [s.key, s.value]));
+    },
   });
+  const instituicao = settings.institucional as any || null;
   const { data: gmailSetting } = useQuery({
     queryKey: ['gmail-smtp'],
     queryFn: async () => { const { data } = await supabase.from('system_settings').select('value').eq('key', 'gmail_smtp').maybeSingle(); return (data?.value as any) || null; }
@@ -275,10 +279,13 @@ export default function RelatoriosPage() {
         const year = ref.getFullYear();
         const month = ref.getMonth();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const showTotal = settings.exibir_total_escala_consolidada !== false;
+        
         const cols = ['Profissional', 'Setor', ...Array.from({ length: daysInMonth }, (_, i) => String(i + 1))];
+        if (showTotal) cols.push('Total');
         
         // Agrupa por profissional + setor para evitar duplicidade e manter organização
-        const profSetorMap: Record<string, { nome: string; setor: string; days: Record<number, string> }> = {};
+        const profSetorMap: Record<string, { nome: string; setor: string; days: Record<number, string>; totalHoras: number }> = {};
         
         filteredShifts.forEach((s: any) => {
           const d = new Date(s.data + 'T12:00:00');
@@ -288,20 +295,29 @@ export default function RelatoriosPage() {
             const key = `${s.profissional_id}_${s.setor_id}`;
             
             if (!profSetorMap[key]) {
-              profSetorMap[key] = { nome, setor, days: {} };
+              profSetorMap[key] = { nome, setor, days: {}, totalHoras: 0 };
             }
             profSetorMap[key].days[d.getDate()] = s.tipo_plantao?.substring(0, 3) || '✓';
+            
+            if (isPlantaoContabilizavel(s)) {
+              profSetorMap[key].totalHoras += Number(s.carga_horaria || 0);
+            }
           }
         });
         
         const rows = Object.values(profSetorMap)
           .sort((a, b) => a.setor.localeCompare(b.setor) || a.nome.localeCompare(b.nome))
-          .map(p => [
-            p.nome, 
-            p.setor, 
-            ...Array.from({ length: daysInMonth }, (_, i) => p.days[i + 1] || '')
-          ]);
-        return { columns: cols, rows };
+          .map(p => {
+            const row = [
+              p.nome, 
+              p.setor, 
+              ...Array.from({ length: daysInMonth }, (_, i) => p.days[i + 1] || '')
+            ];
+            if (showTotal) row.push(`${p.totalHoras}h`);
+            return row;
+          });
+        const totalGeral = Object.values(profSetorMap).reduce((a, b) => a + b.totalHoras, 0);
+        return { columns: cols, rows, totalHoras: showTotal ? totalGeral : null };
       }
       case 'analise_trocas': {
         const total = filteredSwaps.length;
