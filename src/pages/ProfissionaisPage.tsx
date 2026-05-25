@@ -57,6 +57,8 @@ const emptyForm = {
   competencias: [] as string[],
   limite_trocas_plantao_mes: 3,
   limite_trocas_paciente_mes: 5,
+  is_plantonista: false,
+  recebe_adicional_noturno: false,
 };
 
 export default function ProfissionaisPage() {
