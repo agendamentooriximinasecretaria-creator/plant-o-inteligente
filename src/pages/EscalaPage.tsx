@@ -2198,10 +2198,12 @@ export default function EscalaPage() {
               hora_fim: s.hora_fim,
               carga_horaria: Number(s.carga_horaria || 0),
               status: s.status,
+              recebe_adn: (s.professionals as any)?.recebe_adicional_noturno,
             }))}
             tipos={TIPOS_PLANTAO}
             initialMonth={filtros.dataIni ? filtros.dataIni.slice(0, 7) : undefined}
             showTotalHours={settings.exibir_total_escala_consolidada !== false}
+            showADN={settings.exibir_adn_escala_consolidada !== false}
             onCellClick={(dateStr, cellShifts) => {
               if (cellShifts.length > 0) {
                 // Se houver plantões, abre o detalhe do primeiro (padrão do sistema para simplificar)
@@ -3069,6 +3071,7 @@ export default function EscalaPage() {
                   ['incluirFolgas', 'Incluir folgas'],
                   ['incluirAfastamentos', 'Incluir afastamentos (FE/LP/A)'],
                   settings.exibir_total_escala_consolidada !== false ? ['incluirTotalHoras', 'Mostrar total de horas (em vez de qtd. plantões)'] : null,
+                  settings.exibir_adn_escala_consolidada !== false ? ['incluirADN', 'Mostrar Adicional Noturno (ADN)'] : null,
                   ['incluirAssinatura', 'Incluir campo de assinatura'],
                   ['incluirConselho', 'Incluir conselho/registro'],
                   ['incluirLogo', 'Incluir logo da instituição'],
