@@ -153,6 +153,8 @@ ${empresa}`;
         try {
           const useTls = porta === 465;
           
+          console.log(`Conectando ao SMTP... (TLS: ${useTls})`);
+          
           client = new SMTPClient({
             connection: {
               hostname: servidor,
@@ -160,7 +162,14 @@ ${empresa}`;
               tls: useTls,
               auth: { username: remetente, password: senha },
             },
+            debug: {
+              log: true,
+              send: true,
+              recv: true,
+            }
           });
+          
+          console.log("Enviando mensagem...");
           
           await client.send({
             from: `${empresa} <${remetente}>`,
