@@ -448,7 +448,8 @@ export async function gerarPdfEscalaMensalOficial(
   const head = [[
     { content: "Profissional", styles: { halign: "left" as const, fontStyle: "bold" as const } },
     ...headDias,
-    ...(opts.incluirTotalHoras ? [{ content: "Total", styles: { halign: "center" as const, fontStyle: "bold" as const } }] : [])
+    ...(opts.incluirTotalHoras ? [{ content: "Total", styles: { halign: "center" as const, fontStyle: "bold" as const } }] : []),
+    ...(opts.incluirADN ? [{ content: "ADN", styles: { halign: "center" as const, fontStyle: "bold" as const, fillColor: [238, 242, 255] } }] : [])
   ]];
 
   const totalCols = totalDias + (opts.incluirTotalHoras ? 2 : 1);
@@ -506,7 +507,8 @@ export async function gerarPdfEscalaMensalOficial(
           body.push([
             nomeCol, 
             ...diaCols, 
-            ...(opts.incluirTotalHoras ? [{ content: total, styles: { halign: "center" as const, fontStyle: "bold" as const, fontSize: 8 } }] : [])
+            ...(opts.incluirTotalHoras ? [{ content: total, styles: { halign: "center" as const, fontStyle: "bold" as const, fontSize: 8 } }] : []),
+            ...(opts.incluirADN ? [{ content: p.elegivelADN ? `${p.totalADN}h` : "—", styles: { halign: "center" as const, fontStyle: "bold" as const, fontSize: 8, fillColor: [238, 242, 255] } }] : [])
           ]);
           profsInBody.push(p);
         }
@@ -518,7 +520,8 @@ export async function gerarPdfEscalaMensalOficial(
   const availW = pageW - (margin * 2);
   const nomeW = 45; // Espaço um pouco maior para nome + profissão + conselho
   const totalW = opts.incluirTotalHoras ? 12 : 0;
-  const diaW = (availW - nomeW - totalW) / totalDias;
+  const adnW = opts.incluirADN ? 12 : 0;
+  const diaW = (availW - nomeW - totalW - adnW) / totalDias;
 
   autoTable(doc, {
     head,
@@ -546,7 +549,8 @@ export async function gerarPdfEscalaMensalOficial(
     },
     columnStyles: {
       0: { cellWidth: nomeW },
-      [totalDias + 1]: { cellWidth: totalW }
+      [totalDias + (opts.incluirTotalHoras ? 1 : 0) + (opts.incluirADN ? 1 : 0)]: { cellWidth: adnW },
+      [totalDias + (opts.incluirTotalHoras ? 1 : 0)]: { cellWidth: totalW }
     },
     didParseCell: (data) => {
       const ci = data.column.index;
