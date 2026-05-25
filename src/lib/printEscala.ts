@@ -171,25 +171,6 @@ function buildHtml(
 }
 
 
-  <table>
-    <thead>
-      <tr>${colunas.map((c) => `<th>${escapeHtml(c)}</th>`).join("")}</tr>
-    </thead>
-    <tbody>${trs || `<tr><td colspan="${colunas.length}" style="text-align:center;color:#777">Nenhum plantão no período/filtros selecionados.</td></tr>`}</tbody>
-  </table>
-
-  <div class="totais">
-    <div><b>Total de plantões:</b> ${totalPlantoes}</div>
-    ${opts.incluirTotalHoras ? `<div><b>Total de horas:</b> ${totalHoras}h</div>` : ""}
-  </div>
-
-  ${assinaturas}
-
-  <div class="footer">Documento emitido pelo ${escapeHtml(sistema)} • ${escapeHtml(emissao)}</div>
-</body>
-</html>`;
-}
-
 export function abrirVisualizacaoImpressao(
   cab: PrintCabecalho,
   linhas: PrintLinha[],
