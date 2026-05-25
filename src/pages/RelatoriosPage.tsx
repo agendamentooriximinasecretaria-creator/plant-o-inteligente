@@ -316,7 +316,8 @@ export default function RelatoriosPage() {
             if (showTotal) row.push(`${p.totalHoras}h`);
             return row;
           });
-        return { columns: cols, rows };
+        const totalGeral = Object.values(profSetorMap).reduce((a, b) => a + b.totalHoras, 0);
+        return { columns: cols, rows, totalHoras: showTotal ? totalGeral : null };
       }
       case 'analise_trocas': {
         const total = filteredSwaps.length;
