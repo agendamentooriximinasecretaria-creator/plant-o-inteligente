@@ -101,7 +101,7 @@ export default function MinhaEscalaPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="module-title">Minha Escala</h1>
-          <p className="text-sm text-muted-foreground mt-1">Horas no mês: <strong className="text-foreground">{monthHours.toFixed(1)}h</strong></p>
+          <p className="text-sm text-muted-foreground mt-1">Sua escala de plantões atualizada.</p>
         </div>
       </div>
 
