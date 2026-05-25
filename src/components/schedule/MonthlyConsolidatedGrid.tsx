@@ -15,6 +15,7 @@ export interface MonthlyShift {
   carga_horaria?: number;
   status?: string;
   recebe_adn?: boolean;
+  gera_adn?: boolean;
 }
 
 export interface TipoPlantaoLegenda {
