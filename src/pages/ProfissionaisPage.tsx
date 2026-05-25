@@ -636,6 +636,10 @@ export default function ProfissionaisPage() {
                     </div>
                     <p className="text-sm text-primary font-medium">{PROFISSAO_LABELS[p.profissao] || p.profissao}</p>
                     <p className="text-xs text-muted-foreground">{p.especialidade || '—'}{p.registro ? ` · ${p.registro}` : ''}</p>
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {p.is_plantonista && <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[9px] uppercase font-bold py-0 h-4">Plantonista</Badge>}
+                      {p.recebe_adicional_noturno && <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[9px] uppercase font-bold py-0 h-4">ADN</Badge>}
+                    </div>
 
                     {(di.vencido || di.vencendo) && (
                       <div className={`mt-2 flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-md border ${di.vencido ? 'bg-destructive/10 text-destructive border-destructive/30' : 'bg-warning/10 text-warning border-warning/30'}`}>
