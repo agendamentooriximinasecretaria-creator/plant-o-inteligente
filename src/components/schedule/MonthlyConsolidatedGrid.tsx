@@ -247,7 +247,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
         <table className="w-full text-[11px] border-collapse table-fixed">
           <thead>
             <tr className="bg-slate-200/80 dark:bg-slate-900/90 sticky top-0 z-30">
-              <th className="text-left font-bold text-slate-900 dark:text-slate-100 p-4 border-b-2 border-slate-400 dark:border-slate-700 sticky left-0 bg-slate-200 dark:bg-slate-900 z-40 w-[220px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] text-sm">
+              <th className="text-left font-bold text-slate-900 dark:text-slate-100 p-4 border-b-2 border-slate-400 dark:border-slate-700 sticky left-0 bg-slate-200 dark:bg-slate-900 z-40 w-[220px] shadow-[2px_0_4px_rgba(0,0,0,0.1)] text-sm print:relative">
                 Profissional
               </th>
               {dias.map((d) => {
@@ -359,9 +359,11 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
                         </td>
                       );
                     })}
-                    <td className="px-4 py-3 text-center sticky right-0 bg-slate-100 dark:bg-slate-900 z-20 border-l-2 border-l-slate-300 dark:border-l-slate-700 print:relative shadow-[-2px_0_4px_rgba(0,0,0,0.05)] group-hover:bg-slate-100 dark:group-hover:bg-slate-800 transition-colors">
-                      <span className="font-mono font-bold text-slate-800 dark:text-slate-100 text-xs">{row.horas.toFixed(1)}h</span>
-                    </td>
+                    {showTotalHours && (
+                      <td className="px-4 py-3 text-center sticky right-0 bg-slate-100 dark:bg-slate-900 z-20 border-l-2 border-l-slate-300 dark:border-l-slate-700 print:relative shadow-[-2px_0_4px_rgba(0,0,0,0.05)] group-hover:bg-slate-100 dark:group-hover:bg-slate-800 transition-colors">
+                        <span className="font-mono font-bold text-slate-800 dark:text-slate-100 text-xs">{row.horas.toFixed(1)}h</span>
+                      </td>
+                    )}
                   </tr>
                 );
               })
