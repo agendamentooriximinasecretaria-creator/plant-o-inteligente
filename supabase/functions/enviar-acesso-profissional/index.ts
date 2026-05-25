@@ -115,10 +115,16 @@ serve(async (req) => {
             login: prof.email,
           }),
         });
-        if (resp.ok) canal = "webhook";
-        else lastError = `Webhook respondeu ${resp.status}`;
+        if (resp.ok) {
+          canal = "webhook";
+          console.log("E-mail enviado via Webhook Make.com com sucesso.");
+        } else {
+          lastError = `Webhook respondeu status ${resp.status}`;
+          console.error("Erro no Webhook:", lastError);
+        }
       } catch (e) {
         lastError = `Webhook falhou: ${e instanceof Error ? e.message : String(e)}`;
+        console.error("Exceção no Webhook:", lastError);
       }
     }
 
