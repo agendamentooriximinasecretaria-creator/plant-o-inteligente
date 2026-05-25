@@ -57,6 +57,8 @@ const emptyForm = {
   competencias: [] as string[],
   limite_trocas_plantao_mes: 3,
   limite_trocas_paciente_mes: 5,
+  is_plantonista: false,
+  recebe_adicional_noturno: false,
 };
 
 export default function ProfissionaisPage() {
@@ -94,7 +96,7 @@ export default function ProfissionaisPage() {
       // Sensitive fields are fetched on-demand when opening the edit modal.
       const { data, error } = await supabase
         .from('professionals')
-        .select('id, nome, profissao, cargo, especialidade, conselho, registro, telefone, email, status, vinculo, unidade_principal_id, setor_principal_id, competencias, documento_conselho, documento_numero, documento_validade, avatar_url, acesso_email_enviado_em, units:unidade_principal_id(nome), sectors:setor_principal_id(nome)')
+        .select('id, nome, profissao, cargo, especialidade, conselho, registro, telefone, email, status, vinculo, unidade_principal_id, setor_principal_id, competencias, documento_conselho, documento_numero, documento_validade, avatar_url, acesso_email_enviado_em, recebe_adicional_noturno, is_plantonista, units:unidade_principal_id(nome), sectors:setor_principal_id(nome)')
         .order('nome');
       if (error) throw error;
       return data;
@@ -153,6 +155,8 @@ export default function ProfissionaisPage() {
         competencias: data.competencias.length > 0 ? data.competencias : null,
         limite_trocas_plantao_mes: data.limite_trocas_plantao_mes,
         limite_trocas_paciente_mes: data.limite_trocas_paciente_mes,
+        is_plantonista: data.is_plantonista,
+        recebe_adicional_noturno: data.recebe_adicional_noturno,
       };
       if (editingId) {
         const { error } = await supabase.from('professionals').update(payload).eq('id', editingId);
@@ -225,7 +229,7 @@ export default function ProfissionaisPage() {
     // Fetch sensitive fields on demand (not in listing)
     const { data: sensitive } = await supabase
       .from('professionals')
-      .select('cpf, observacoes, limite_trocas_plantao_mes, limite_trocas_paciente_mes')
+      .select('cpf, observacoes, limite_trocas_plantao_mes, limite_trocas_paciente_mes, is_plantonista, recebe_adicional_noturno')
       .eq('id', p.id)
       .maybeSingle();
     setForm({
@@ -237,6 +241,8 @@ export default function ProfissionaisPage() {
       competencias: Array.isArray(p.competencias) ? p.competencias : [],
       limite_trocas_plantao_mes: sensitive?.limite_trocas_plantao_mes ?? 3,
       limite_trocas_paciente_mes: sensitive?.limite_trocas_paciente_mes ?? 5,
+      is_plantonista: sensitive?.is_plantonista ?? false,
+      recebe_adicional_noturno: sensitive?.recebe_adicional_noturno ?? false,
     });
     setModalOpen(true);
   };
@@ -630,6 +636,10 @@ export default function ProfissionaisPage() {
                     </div>
                     <p className="text-sm text-primary font-medium">{PROFISSAO_LABELS[p.profissao] || p.profissao}</p>
                     <p className="text-xs text-muted-foreground">{p.especialidade || '—'}{p.registro ? ` · ${p.registro}` : ''}</p>
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {p.is_plantonista && <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[9px] uppercase font-bold py-0 h-4">Plantonista</Badge>}
+                      {p.recebe_adicional_noturno && <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[9px] uppercase font-bold py-0 h-4">ADN</Badge>}
+                    </div>
 
                     {(di.vencido || di.vencendo) && (
                       <div className={`mt-2 flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-md border ${di.vencido ? 'bg-destructive/10 text-destructive border-destructive/30' : 'bg-warning/10 text-warning border-warning/30'}`}>
@@ -1015,6 +1025,33 @@ export default function ProfissionaisPage() {
                         <p className="text-xs text-muted-foreground leading-relaxed">
                           O sistema monitora automaticamente a carga horária em relação ao limite padrão e emitirá alertas de sobrecarga acima de 90%.
                         </p>
+
+                        <div className="pt-4 border-t border-border space-y-4">
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="checkbox"
+                              id="is_plantonista"
+                              checked={form.is_plantonista}
+                              onChange={e => setForm(f => ({ ...f, is_plantonista: e.target.checked }))}
+                              className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                            />
+                            <Label htmlFor="is_plantonista" className="text-sm font-medium cursor-pointer">
+                              Este profissional é plantonista
+                            </Label>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="checkbox"
+                              id="recebe_adn"
+                              checked={form.recebe_adicional_noturno}
+                              onChange={e => setForm(f => ({ ...f, recebe_adicional_noturno: e.target.checked }))}
+                              className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                            />
+                            <Label htmlFor="recebe_adn" className="text-sm font-medium cursor-pointer">
+                              Recebe Adicional Noturno (ADN)
+                            </Label>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>

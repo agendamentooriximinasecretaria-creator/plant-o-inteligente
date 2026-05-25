@@ -17,6 +17,7 @@ export interface ShiftType {
   cor: string;
   ordem: number;
   ativo: boolean;
+  gera_adicional_noturno: boolean;
 }
 
 const COR_OPTIONS = [
@@ -47,7 +48,7 @@ const calcCarga = (ini: string, fim: string): number => {
 
 const empty: Omit<ShiftType, 'id'> = {
   nome: '', sigla: '', hora_inicio: '07:00', hora_fim: '19:00',
-  carga_horaria: 12, cor: 'primary', ordem: 0, ativo: true,
+  carga_horaria: 12, cor: 'primary', ordem: 0, ativo: true, gera_adicional_noturno: false,
 };
 
 export function ShiftTypesManager() {
@@ -115,6 +116,7 @@ export function ShiftTypesManager() {
       nome: t.nome, sigla: t.sigla, hora_inicio: t.hora_inicio.slice(0, 5),
       hora_fim: t.hora_fim.slice(0, 5), carga_horaria: t.carga_horaria,
       cor: t.cor, ordem: t.ordem, ativo: t.ativo,
+      gera_adicional_noturno: t.gera_adicional_noturno ?? false,
     });
     setModalOpen(true);
   };
@@ -226,10 +228,17 @@ export function ShiftTypesManager() {
                 <input type="number" min={0} value={form.ordem}
                   onChange={e => setForm(f => ({ ...f, ordem: Number(e.target.value) }))} className={inputClass} />
               </div>
-              <div className="col-span-2 flex items-center gap-2 pt-1">
-                <input type="checkbox" id="ativo" checked={form.ativo}
-                  onChange={e => setForm(f => ({ ...f, ativo: e.target.checked }))} className="rounded" />
-                <label htmlFor="ativo" className="text-sm text-foreground">Ativo (aparece no formulário)</label>
+              <div className="col-span-2 space-y-3 pt-1">
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="gera_adn" checked={form.gera_adicional_noturno}
+                    onChange={e => setForm(f => ({ ...f, gera_adicional_noturno: e.target.checked }))} className="rounded" />
+                  <label htmlFor="gera_adn" className="text-sm font-medium text-foreground">Gera Adicional Noturno (ADN)</label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="ativo" checked={form.ativo}
+                    onChange={e => setForm(f => ({ ...f, ativo: e.target.checked }))} className="rounded" />
+                  <label htmlFor="ativo" className="text-sm text-foreground">Ativo (aparece no formulário)</label>
+                </div>
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">

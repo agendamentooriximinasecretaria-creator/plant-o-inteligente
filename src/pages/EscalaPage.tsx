@@ -277,7 +277,7 @@ export default function EscalaPage() {
   const { data: shifts = [], isLoading, refetch: refetchShifts } = useQuery({
     queryKey: ['shifts'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('shifts').select('*, professionals:profissional_id(nome, profissao, recebe_adicional_noturno), units:unidade_id(nome), sectors:setor_id(nome)').order('data', { ascending: false });
+      const { data, error } = await supabase.from('shifts').select('*, professionals:profissional_id(nome, profissao, recebe_adicional_noturno, is_plantonista), units:unidade_id(nome), sectors:setor_id(nome)').order('data', { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -301,6 +301,7 @@ export default function EscalaPage() {
       start: (t.hora_inicio || '').slice(0, 5),
       end: (t.hora_fim || '').slice(0, 5),
       carga: Number(t.carga_horaria) || 12,
+      gera_adn: !!t.gera_adicional_noturno,
     }));
   }, [tiposDB]);
 
@@ -1091,7 +1092,7 @@ export default function EscalaPage() {
     const dataFim = `${yStr}-${mStr}-${String(ultimoDia).padStart(2, '0')}`;
 
     let q = sb.from('shifts')
-      .select('id, data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, status, profissional_id, professionals:profissional_id(nome, profissao, conselho, registro, documento_numero, documento_conselho), units:unidade_id(nome), sectors:setor_id(nome), unidade_id, setor_id, profissao')
+      .select('id, data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, status, profissional_id, professionals:profissional_id(nome, profissao, conselho, registro, documento_numero, documento_conselho, recebe_adicional_noturno, is_plantonista), units:unidade_id(nome), sectors:setor_id(nome), unidade_id, setor_id, profissao')
       .gte('data', dataIni).lte('data', dataFim)
       .order('data', { ascending: true })
       .order('hora_inicio', { ascending: true });
@@ -1139,7 +1140,7 @@ export default function EscalaPage() {
           totalHoras: 0,
           totalPlantoes: 0,
           totalADN: 0,
-          elegivelADN: !!prof.recebe_adicional_noturno,
+          elegivelADN: !!prof.recebe_adicional_noturno || !!prof.is_plantonista,
         };
         map.set(profId, row);
       }
@@ -1159,11 +1160,17 @@ export default function EscalaPage() {
         row.totalHoras += carga;
         row.totalPlantoes += 1;
         
-        // Cálculo ADN
+        // Cálculo ADN (Adicional Noturno)
         if (row.elegivelADN) {
-          const tipo = (s.tipo_plantao || "").toLowerCase();
-          if (tipo.includes("not") || tipo.includes("24")) {
-            row.totalADN += tipo.includes("24") ? 10 : 7;
+          const tipoConfig = TIPOS_PLANTAO.find(t => t.value === s.tipo_plantao);
+          const geraAdn = tipoConfig?.gera_adn !== undefined ? tipoConfig.gera_adn : (
+            (s.tipo_plantao || "").toLowerCase().includes("not") || 
+            (s.tipo_plantao || "").toLowerCase().includes("24")
+          );
+
+          if (geraAdn) {
+            const t = (s.tipo_plantao || "").toLowerCase();
+            row.totalADN += t.includes("24") ? 10 : 7;
           }
         }
       }
@@ -2212,7 +2219,8 @@ export default function EscalaPage() {
               hora_fim: s.hora_fim,
               carga_horaria: Number(s.carga_horaria || 0),
               status: s.status,
-              recebe_adn: (s.professionals as any)?.recebe_adicional_noturno,
+              recebe_adn: (s.professionals as any)?.recebe_adicional_noturno || (s.professionals as any)?.is_plantonista,
+              gera_adn: TIPOS_PLANTAO.find(t => t.value === s.tipo_plantao)?.gera_adn,
             }))}
             tipos={TIPOS_PLANTAO}
             initialMonth={filtros.dataIni ? filtros.dataIni.slice(0, 7) : undefined}

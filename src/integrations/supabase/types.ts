@@ -853,6 +853,7 @@ export type Database = {
           endereco: string | null
           especialidade: string | null
           id: string
+          is_plantonista: boolean | null
           limite_trocas_paciente_mes: number
           limite_trocas_plantao_mes: number
           nome: string
@@ -884,6 +885,7 @@ export type Database = {
           endereco?: string | null
           especialidade?: string | null
           id?: string
+          is_plantonista?: boolean | null
           limite_trocas_paciente_mes?: number
           limite_trocas_plantao_mes?: number
           nome: string
@@ -915,6 +917,7 @@ export type Database = {
           endereco?: string | null
           especialidade?: string | null
           id?: string
+          is_plantonista?: boolean | null
           limite_trocas_paciente_mes?: number
           limite_trocas_plantao_mes?: number
           nome?: string
@@ -1213,6 +1216,7 @@ export type Database = {
           carga_horaria: number
           cor: string | null
           created_at: string
+          gera_adicional_noturno: boolean | null
           hora_fim: string
           hora_inicio: string
           id: string
@@ -1226,6 +1230,7 @@ export type Database = {
           carga_horaria?: number
           cor?: string | null
           created_at?: string
+          gera_adicional_noturno?: boolean | null
           hora_fim: string
           hora_inicio: string
           id?: string
@@ -1239,6 +1244,7 @@ export type Database = {
           carga_horaria?: number
           cor?: string | null
           created_at?: string
+          gera_adicional_noturno?: boolean | null
           hora_fim?: string
           hora_inicio?: string
           id?: string

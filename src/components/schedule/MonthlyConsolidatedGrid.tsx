@@ -15,6 +15,7 @@ export interface MonthlyShift {
   carga_horaria?: number;
   status?: string;
   recebe_adn?: boolean;
+  gera_adn?: boolean;
 }
 
 export interface TipoPlantaoLegenda {
@@ -23,6 +24,7 @@ export interface TipoPlantaoLegenda {
   start?: string;
   end?: string;
   carga?: number;
+  gera_adn?: boolean;
 }
 
 interface Props {
@@ -153,12 +155,17 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
       if (s.status !== "cancelado" && !["folga", "indisponibilidade"].includes((s.tipo_plantao || "").toLowerCase())) {
         row.horas += carga;
         
-        // Cálculo do ADN (Heurística: plantões noturnos ou de 24h para elegíveis)
+        // Cálculo do ADN (Adicional Noturno)
         if (row.elegivelAdn) {
-          const tipo = (s.tipo_plantao || "").toLowerCase();
-          if (tipo.includes("not") || tipo.includes("24")) {
+          const geraAdn = s.gera_adn !== undefined ? s.gera_adn : (
+            (s.tipo_plantao || "").toLowerCase().includes("not") || 
+            (s.tipo_plantao || "").toLowerCase().includes("24")
+          );
+
+          if (geraAdn) {
             // Se for 24h, assume 10h de ADN (noite anterior + noite atual)
             // Se for noturno 12h, assume 7h (22h as 05h)
+            const tipo = (s.tipo_plantao || "").toLowerCase();
             const adnNoPlantao = tipo.includes("24") ? 10 : 7;
             row.adn += adnNoPlantao;
           }
