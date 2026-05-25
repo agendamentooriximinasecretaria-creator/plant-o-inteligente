@@ -1140,7 +1140,7 @@ export default function EscalaPage() {
           totalHoras: 0,
           totalPlantoes: 0,
           totalADN: 0,
-          elegivelADN: !!prof.recebe_adicional_noturno,
+          elegivelADN: !!prof.recebe_adicional_noturno || !!prof.is_plantonista,
         };
         map.set(profId, row);
       }
