@@ -14,6 +14,7 @@ export interface MonthlyShift {
   hora_fim?: string;
   carga_horaria?: number;
   status?: string;
+  recebe_adn?: boolean;
 }
 
 export interface TipoPlantaoLegenda {
@@ -30,6 +31,7 @@ interface Props {
   /** Mês de referência YYYY-MM. Se não informado, usa o mês atual. */
   initialMonth?: string;
   showTotalHours?: boolean;
+  showADN?: boolean;
   onCellClick?: (date: string, shifts: MonthlyShift[]) => void;
 }
 
@@ -94,7 +96,7 @@ function siglaFallback(tipo: string): string {
   }
 }
 
-export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ shifts, tipos, initialMonth, showTotalHours = true, onCellClick }: Props) {
+export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ shifts, tipos, initialMonth, showTotalHours = true, showADN = false, onCellClick }: Props) {
   const today = new Date();
   const defaultMonth = initialMonth || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   const [mes, setMes] = useState<string>(defaultMonth);
@@ -115,7 +117,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
 
   // Agrupa por Unidade -> Setor -> Profissão -> Profissional (filtra apenas o mês exibido)
   const groupedData = useMemo(() => {
-    type ProfRow = { id: string; nome: string; profissao?: string; porDia: Map<number, MonthlyShift[]>; horas: number };
+    type ProfRow = { id: string; nome: string; profissao?: string; porDia: Map<number, MonthlyShift[]>; horas: number; adn: number; elegivelAdn: boolean };
     const tree = new Map<string, Map<string, Map<string, Map<string, ProfRow>>>>();
 
     for (const s of shifts) {
@@ -139,7 +141,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
 
       let row = profissaoMap.get(profId);
       if (!row) {
-        row = { id: profId, nome: s.profissional_nome || "Sem nome", profissao: s.profissao, porDia: new Map(), horas: 0 };
+        row = { id: profId, nome: s.profissional_nome || "Sem nome", profissao: s.profissao, porDia: new Map(), horas: 0, adn: 0, elegivelAdn: !!s.recebe_adn };
         profissaoMap.set(profId, row);
       }
 
@@ -263,8 +265,13 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
                 );
               })}
               {showTotalHours && (
-                <th className="text-center font-bold text-slate-900 dark:text-slate-100 p-4 border-b-2 border-slate-400 dark:border-slate-700 bg-slate-200 dark:bg-slate-900 sticky right-0 z-40 w-[80px] shadow-[-2px_0_4px_rgba(0,0,0,0.1)] text-sm border-l-2 border-l-slate-400 print:table-cell">
+                <th className="text-center font-bold text-slate-900 dark:text-slate-100 p-4 border-b-2 border-slate-400 dark:border-slate-700 bg-slate-200 dark:bg-slate-900 sticky right-[80px] z-40 w-[80px] shadow-[-2px_0_4px_rgba(0,0,0,0.1)] text-sm border-l-2 border-l-slate-400 print:table-cell">
                   Total
+                </th>
+              )}
+              {showADN && (
+                <th className="text-center font-bold text-indigo-900 dark:text-indigo-100 p-4 border-b-2 border-indigo-400 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950 sticky right-0 z-40 w-[80px] shadow-[-2px_0_4px_rgba(0,0,0,0.1)] text-sm border-l-2 border-l-indigo-400 print:table-cell" title="Adicional Noturno">
+                  ADN
                 </th>
               )}
             </tr>
@@ -272,7 +279,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
           <tbody>
             {groupedData.length === 0 ? (
               <tr>
-                <td colSpan={dias.length + (showTotalHours ? 2 : 1)} className="p-16 text-center text-muted-foreground text-base italic">
+                <td colSpan={dias.length + (showTotalHours ? 1 : 0) + (showADN ? 1 : 0) + 1} className="p-16 text-center text-muted-foreground text-base italic">
                   Nenhum plantão encontrado para este período.
                 </td>
               </tr>
@@ -281,7 +288,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
                 if (item.type === 'header-unidade') {
                   return (
                     <tr key={item.key} className="bg-slate-800 dark:bg-slate-950">
-                      <td colSpan={dias.length + (showTotalHours ? 2 : 1)} className="px-6 py-4 border-b border-slate-700 font-black text-sm text-slate-100 uppercase tracking-[0.2em]">
+                      <td colSpan={dias.length + (showTotalHours ? 1 : 0) + (showADN ? 1 : 0) + 1} className="px-6 py-4 border-b border-slate-700 font-black text-sm text-slate-100 uppercase tracking-[0.2em]">
                         {item.label}
                       </td>
                     </tr>
@@ -290,7 +297,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
                 if (item.type === 'header-setor') {
                   return (
                     <tr key={item.key} className="bg-slate-100 dark:bg-slate-900/50">
-                      <td colSpan={dias.length + (showTotalHours ? 2 : 1)} className="px-6 py-3 border-y-2 border-slate-300 dark:border-slate-700 font-extrabold text-sm text-slate-700 dark:text-slate-300 tracking-wide">
+                      <td colSpan={dias.length + (showTotalHours ? 1 : 0) + (showADN ? 1 : 0) + 1} className="px-6 py-3 border-y-2 border-slate-300 dark:border-slate-700 font-extrabold text-sm text-slate-700 dark:text-slate-300 tracking-wide">
                         <div className="flex items-center gap-3">
                           <span className="w-1.5 h-6 bg-primary rounded-full"></span>
                           SETOR: {item.label}
@@ -302,7 +309,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
                 if (item.type === 'header-profissao') {
                   return (
                     <tr key={item.key} className="bg-white dark:bg-transparent">
-                      <td colSpan={dias.length + (showTotalHours ? 2 : 1)} className="px-8 py-2 border-b border-slate-200 dark:border-slate-800 font-bold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-widest italic">
+                      <td colSpan={dias.length + (showTotalHours ? 1 : 0) + (showADN ? 1 : 0) + 1} className="px-8 py-2 border-b border-slate-200 dark:border-slate-800 font-bold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-widest italic">
                         {item.label}
                       </td>
                     </tr>
@@ -360,8 +367,15 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
                       );
                     })}
                     {showTotalHours && (
-                      <td className="px-4 py-3 text-center sticky right-0 bg-slate-100 dark:bg-slate-900 z-20 border-l-2 border-l-slate-300 dark:border-l-slate-700 print:relative shadow-[-2px_0_4px_rgba(0,0,0,0.05)] group-hover:bg-slate-100 dark:group-hover:bg-slate-800 transition-colors">
+                      <td className={`px-4 py-3 text-center sticky ${showADN ? 'right-[80px]' : 'right-0'} bg-slate-100 dark:bg-slate-900 z-20 border-l-2 border-l-slate-300 dark:border-l-slate-700 print:relative shadow-[-2px_0_4px_rgba(0,0,0,0.05)] group-hover:bg-slate-100 dark:group-hover:bg-slate-800 transition-colors`}>
                         <span className="font-mono font-bold text-slate-800 dark:text-slate-100 text-xs">{row.horas.toFixed(1)}h</span>
+                      </td>
+                    )}
+                    {showADN && (
+                      <td className="px-4 py-3 text-center sticky right-0 bg-indigo-50 dark:bg-indigo-950 z-20 border-l-2 border-l-indigo-300 dark:border-l-indigo-700 print:relative shadow-[-2px_0_4px_rgba(0,0,0,0.05)] group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900 transition-colors">
+                        <span className="font-mono font-bold text-indigo-800 dark:text-indigo-100 text-xs">
+                          {row.elegivelAdn ? `${row.adn.toFixed(1)}h` : "—"}
+                        </span>
                       </td>
                     )}
                   </tr>
