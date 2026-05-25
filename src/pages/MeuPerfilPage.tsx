@@ -27,6 +27,42 @@ export default function MeuPerfilPage() {
   const createInstitutional = useMutation({
     mutationFn: async () => {
       if (!user?.id || !user?.email) throw new Error("Sessão inválida.");
+
+      // 1. Verifica se já existe um profissional com este user_id
+      const { data: existingByUserId } = await supabase
+        .from('professionals')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (existingByUserId) {
+        // Já possui vínculo, apenas atualiza o perfil por segurança
+        const profId = (existingByUserId as any).id;
+        await sb.from("profiles").update({ profissional_id: profId }).eq("user_id", user.id);
+        return profId;
+      }
+
+      // 2. Verifica se já existe um profissional com este e-mail
+      const { data: existingByEmail } = await supabase
+        .from('professionals')
+        .select('id, user_id')
+        .eq('email', user.email)
+        .maybeSingle();
+
+      if (existingByEmail) {
+        const prof = existingByEmail as any;
+        // Se já existe com o mesmo e-mail mas sem user_id ou com outro user_id
+        // Vamos vincular ao usuário atual
+        await supabase
+          .from('professionals')
+          .update({ user_id: user.id })
+          .eq('id', prof.id);
+        
+        await sb.from("profiles").update({ profissional_id: prof.id }).eq("user_id", user.id);
+        return prof.id;
+      }
+
+      // 3. Se não existe, cria novo
       const cargoFunc = isMaster ? "Gestor Master" : "Coordenador(a)";
       const payload: any = {
         user_id: user.id,
@@ -37,8 +73,15 @@ export default function MeuPerfilPage() {
         vinculo: "gestor_administrativo",
         observacoes: `Área institucional criada automaticamente para assinaturas (${cargoFunc}).`,
       };
+      
       const { data, error } = await sb.from("professionals").insert(payload).select("id").single();
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') {
+          throw new Error("Já existe um cadastro com este e-mail no sistema. Por favor, entre em contato com o suporte.");
+        }
+        throw error;
+      }
+
       // Vincula ao profile do usuário
       await sb.from("profiles").update({ profissional_id: data.id }).eq("user_id", user.id);
       await logAudit("criou_area_assinatura_institucional", "carimbo_digital", { professional_id: data.id, role });
