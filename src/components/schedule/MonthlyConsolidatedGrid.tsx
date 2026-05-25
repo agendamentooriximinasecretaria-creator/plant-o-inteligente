@@ -24,6 +24,7 @@ export interface TipoPlantaoLegenda {
   start?: string;
   end?: string;
   carga?: number;
+  gera_adn?: boolean;
 }
 
 interface Props {
