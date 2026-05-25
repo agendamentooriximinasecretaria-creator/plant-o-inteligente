@@ -449,7 +449,7 @@ export async function gerarPdfEscalaMensalOficial(
     { content: "Profissional", styles: { halign: "left" as const, fontStyle: "bold" as const } },
     ...headDias,
     ...(opts.incluirTotalHoras ? [{ content: "Total", styles: { halign: "center" as const, fontStyle: "bold" as const } }] : []),
-    ...(opts.incluirADN ? [{ content: "ADN", styles: { halign: "center" as const, fontStyle: "bold" as const, fillColor: [238, 242, 255] } }] : [])
+    ...(opts.incluirADN ? [{ content: "ADN", styles: { halign: "center" as const, fontStyle: "bold" as const, fillColor: [238, 242, 255] as [number, number, number] } }] : [])
   ]];
 
   const totalCols = totalDias + (opts.incluirTotalHoras ? 2 : 1);
@@ -508,7 +508,7 @@ export async function gerarPdfEscalaMensalOficial(
             nomeCol, 
             ...diaCols, 
             ...(opts.incluirTotalHoras ? [{ content: total, styles: { halign: "center" as const, fontStyle: "bold" as const, fontSize: 8 } }] : []),
-            ...(opts.incluirADN ? [{ content: p.elegivelADN ? `${p.totalADN}h` : "—", styles: { halign: "center" as const, fontStyle: "bold" as const, fontSize: 8, fillColor: [238, 242, 255] } }] : [])
+            ...(opts.incluirADN ? [{ content: p.elegivelADN ? `${p.totalADN}h` : "—", styles: { halign: "center" as const, fontStyle: "bold" as const, fontSize: 8, fillColor: [238, 242, 255] as [number, number, number] } }] : [])
           ]);
           profsInBody.push(p);
         }
