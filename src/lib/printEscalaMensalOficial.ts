@@ -400,7 +400,7 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
       <tr>
         <th class="nome">NOMES</th>
         ${colDiaTh}
-        <th class="total">${escapeHtml(totalLabel)}</th>
+        ${opts.incluirTotalHoras ? `<th class="total">${escapeHtml(totalLabel)}</th>` : ""}
       </tr>
     </thead>
     <tbody>${linhasTr}</tbody>
