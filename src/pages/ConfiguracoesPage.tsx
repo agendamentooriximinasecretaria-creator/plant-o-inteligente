@@ -209,6 +209,16 @@ export default function ConfiguracoesPage() {
                   />
                   <label htmlFor="showTotalHours" className="text-sm font-medium text-foreground cursor-pointer">Exibir total de horas</label>
                 </div>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="checkbox" 
+                    id="showADN"
+                    checked={settings.exibir_adn_escala_consolidada !== false} 
+                    onChange={e => saveSetting.mutate({ key: 'exibir_adn_escala_consolidada', value: e.target.checked })} 
+                    className="rounded h-4 w-4" 
+                  />
+                  <label htmlFor="showADN" className="text-sm font-medium text-foreground cursor-pointer">Exibir ADN (Adicional Noturno)</label>
+                </div>
               </div>
             </div>
           </div>

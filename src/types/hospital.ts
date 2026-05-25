@@ -58,6 +58,7 @@ export interface Professional {
   unidadePrincipal: string;
   setorPrincipal: string;
   status: 'ativo' | 'inativo';
+  recebe_adicional_noturno?: boolean;
   limiteTrocasPlantaoMes?: number;
   limiteTrocasPacienteMes?: number;
   avatar?: string;

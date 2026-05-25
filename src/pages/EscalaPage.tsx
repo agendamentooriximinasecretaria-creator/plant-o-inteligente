@@ -277,7 +277,7 @@ export default function EscalaPage() {
   const { data: shifts = [], isLoading, refetch: refetchShifts } = useQuery({
     queryKey: ['shifts'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('shifts').select('*, professionals:profissional_id(nome, profissao), units:unidade_id(nome), sectors:setor_id(nome)').order('data', { ascending: false });
+      const { data, error } = await supabase.from('shifts').select('*, professionals:profissional_id(nome, profissao, recebe_adicional_noturno), units:unidade_id(nome), sectors:setor_id(nome)').order('data', { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -911,6 +911,7 @@ export default function EscalaPage() {
     incluirObservacoes: boolean;
     incluirObservacoesRodape: boolean;
     incluirTotalHoras: boolean;
+    incluirADN: boolean;
     incluirAssinatura: boolean;
     incluirConselho: boolean;
     incluirLogo: boolean;
@@ -937,6 +938,7 @@ export default function EscalaPage() {
     incluirObservacoes: true,
     incluirObservacoesRodape: true,
     incluirTotalHoras: true,
+    incluirADN: true,
     incluirAssinatura: true,
     incluirConselho: true,
     incluirLogo: true,
@@ -1136,6 +1138,8 @@ export default function EscalaPage() {
           porDia: {},
           totalHoras: 0,
           totalPlantoes: 0,
+          totalADN: 0,
+          elegivelADN: !!prof.recebe_adicional_noturno,
         };
         map.set(profId, row);
       }
@@ -1154,6 +1158,14 @@ export default function EscalaPage() {
       if (s.status !== 'cancelado' && !['folga', 'indisponibilidade'].includes(String(s.tipo_plantao || '').toLowerCase())) {
         row.totalHoras += carga;
         row.totalPlantoes += 1;
+        
+        // Cálculo ADN
+        if (row.elegivelADN) {
+          const tipo = (s.tipo_plantao || "").toLowerCase();
+          if (tipo.includes("not") || tipo.includes("24")) {
+            row.totalADN += tipo.includes("24") ? 10 : 7;
+          }
+        }
       }
     }
 
@@ -1228,11 +1240,13 @@ export default function EscalaPage() {
     }
 
     const showTotalSetting = settings.exibir_total_escala_consolidada !== false;
+    const showADNSetting = settings.exibir_adn_escala_consolidada !== false;
 
     return {
       incluirLogo: printForm.incluirLogo,
       incluirAssinatura: printForm.incluirAssinatura,
       incluirTotalHoras: showTotalSetting && printForm.incluirTotalHoras,
+      incluirADN: showADNSetting && printForm.incluirADN,
       incluirObservacoesRodape: printForm.incluirObservacoesRodape,
       totalLabel: printForm.totalLabel,
       responsavel: responsavel || {
@@ -2198,10 +2212,12 @@ export default function EscalaPage() {
               hora_fim: s.hora_fim,
               carga_horaria: Number(s.carga_horaria || 0),
               status: s.status,
+              recebe_adn: (s.professionals as any)?.recebe_adicional_noturno,
             }))}
             tipos={TIPOS_PLANTAO}
             initialMonth={filtros.dataIni ? filtros.dataIni.slice(0, 7) : undefined}
             showTotalHours={settings.exibir_total_escala_consolidada !== false}
+            showADN={settings.exibir_adn_escala_consolidada !== false}
             onCellClick={(dateStr, cellShifts) => {
               if (cellShifts.length > 0) {
                 // Se houver plantões, abre o detalhe do primeiro (padrão do sistema para simplificar)
@@ -3069,6 +3085,7 @@ export default function EscalaPage() {
                   ['incluirFolgas', 'Incluir folgas'],
                   ['incluirAfastamentos', 'Incluir afastamentos (FE/LP/A)'],
                   settings.exibir_total_escala_consolidada !== false ? ['incluirTotalHoras', 'Mostrar total de horas (em vez de qtd. plantões)'] : null,
+                  settings.exibir_adn_escala_consolidada !== false ? ['incluirADN', 'Mostrar Adicional Noturno (ADN)'] : null,
                   ['incluirAssinatura', 'Incluir campo de assinatura'],
                   ['incluirConselho', 'Incluir conselho/registro'],
                   ['incluirLogo', 'Incluir logo da instituição'],

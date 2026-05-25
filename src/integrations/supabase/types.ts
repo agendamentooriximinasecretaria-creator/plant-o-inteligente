@@ -858,6 +858,7 @@ export type Database = {
           nome: string
           observacoes: string | null
           profissao: Database["public"]["Enums"]["profissao_type"]
+          recebe_adicional_noturno: boolean | null
           registro: string | null
           setor_principal_id: string | null
           status: string
@@ -888,6 +889,7 @@ export type Database = {
           nome: string
           observacoes?: string | null
           profissao: Database["public"]["Enums"]["profissao_type"]
+          recebe_adicional_noturno?: boolean | null
           registro?: string | null
           setor_principal_id?: string | null
           status?: string
@@ -918,6 +920,7 @@ export type Database = {
           nome?: string
           observacoes?: string | null
           profissao?: Database["public"]["Enums"]["profissao_type"]
+          recebe_adicional_noturno?: boolean | null
           registro?: string | null
           setor_principal_id?: string | null
           status?: string
