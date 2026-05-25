@@ -301,6 +301,7 @@ export default function EscalaPage() {
       start: (t.hora_inicio || '').slice(0, 5),
       end: (t.hora_fim || '').slice(0, 5),
       carga: Number(t.carga_horaria) || 12,
+      gera_adn: !!t.gera_adicional_noturno,
     }));
   }, [tiposDB]);
 
