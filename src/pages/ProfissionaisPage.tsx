@@ -1021,6 +1021,33 @@ export default function ProfissionaisPage() {
                         <p className="text-xs text-muted-foreground leading-relaxed">
                           O sistema monitora automaticamente a carga horária em relação ao limite padrão e emitirá alertas de sobrecarga acima de 90%.
                         </p>
+
+                        <div className="pt-4 border-t border-border space-y-4">
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="checkbox"
+                              id="is_plantonista"
+                              checked={form.is_plantonista}
+                              onChange={e => setForm(f => ({ ...f, is_plantonista: e.target.checked }))}
+                              className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                            />
+                            <Label htmlFor="is_plantonista" className="text-sm font-medium cursor-pointer">
+                              Este profissional é plantonista
+                            </Label>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="checkbox"
+                              id="recebe_adn"
+                              checked={form.recebe_adicional_noturno}
+                              onChange={e => setForm(f => ({ ...f, recebe_adicional_noturno: e.target.checked }))}
+                              className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                            />
+                            <Label htmlFor="recebe_adn" className="text-sm font-medium cursor-pointer">
+                              Recebe Adicional Noturno (ADN)
+                            </Label>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
