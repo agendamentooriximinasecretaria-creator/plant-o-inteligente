@@ -115,10 +115,16 @@ serve(async (req) => {
             login: prof.email,
           }),
         });
-        if (resp.ok) canal = "webhook";
-        else lastError = `Webhook respondeu ${resp.status}`;
+        if (resp.ok) {
+          canal = "webhook";
+          console.log("E-mail enviado via Webhook Make.com com sucesso.");
+        } else {
+          lastError = `Webhook respondeu status ${resp.status}`;
+          console.error("Erro no Webhook:", lastError);
+        }
       } catch (e) {
         lastError = `Webhook falhou: ${e instanceof Error ? e.message : String(e)}`;
+        console.error("Exceção no Webhook:", lastError);
       }
     }
 
@@ -130,6 +136,8 @@ serve(async (req) => {
       const servidor = smtpCfg?.servidor || "smtp.gmail.com";
       const porta = Number(smtpCfg?.porta || 587);
 
+      console.log(`Tentando envio SMTP: ${servidor}:${porta} por ${remetente}`);
+
       if (senha && remetente && smtpCfg?.status === "ativo") {
         try {
           const transporter = nodemailer.createTransport({
@@ -137,22 +145,37 @@ serve(async (req) => {
             port: porta,
             secure: porta === 465,
             auth: { user: remetente, pass: senha },
+            tls: {
+              rejectUnauthorized: true
+            }
           });
 
-          await transporter.sendMail({
+          console.log("Verificando conexão SMTP...");
+          await transporter.verify();
+          console.log("SMTP verificado. Enviando e-mail...");
+
+          const info = await transporter.sendMail({
             from: `"${empresa}" <${remetente}>`,
             to: prof.email,
             subject,
             text: textBody,
             html: htmlBody,
           });
+          
+          console.log("E-mail enviado via SMTP:", info.messageId);
           canal = "smtp";
         } catch (e) {
+          console.error("Erro SMTP detalhado:", e);
           lastError = `Falha SMTP: ${e instanceof Error ? e.message : String(e)}`;
         }
       } else {
-        if (smtpCfg?.status !== "ativo") lastError = "E-mail SMTP desativado.";
-        else lastError = "Configuração SMTP incompleta.";
+        if (smtpCfg?.status !== "ativo") {
+          lastError = "E-mail SMTP desativado nas configurações.";
+          console.log("SMTP não está ativo.");
+        } else {
+          lastError = "Configuração SMTP incompleta (falta e-mail ou senha).";
+          console.log("Configuração SMTP incompleta.");
+        }
       }
     }
 
