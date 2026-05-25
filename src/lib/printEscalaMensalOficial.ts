@@ -537,8 +537,10 @@ export async function gerarPdfEscalaMensalOficial(
   const head = [[
     { content: "Profissional", styles: { halign: "left" as const, fontStyle: "bold" as const } },
     ...headDias,
-    { content: "Total", styles: { halign: "center" as const, fontStyle: "bold" as const } }
+    ...(opts.incluirTotalHoras ? [{ content: "Total", styles: { halign: "center" as const, fontStyle: "bold" as const } }] : [])
   ]];
+
+  const totalCols = totalDias + (opts.incluirTotalHoras ? 2 : 1);
 
   // Agrupa profissionais por Unidade -> Setor -> Profissão
   const tree = new Map<string, Map<string, Map<string, MensalProfissional[]>>>();
@@ -559,13 +561,13 @@ export async function gerarPdfEscalaMensalOficial(
 
   const sortedUnidades = Array.from(tree.keys()).sort();
   for (const u of sortedUnidades) {
-    body.push([{ content: `UNIDADE: ${u.toUpperCase()}`, colSpan: totalDias + 2, styles: { fillColor: [226, 232, 240], fontStyle: "bold", halign: "left" } }]);
+    body.push([{ content: `UNIDADE: ${u.toUpperCase()}`, colSpan: totalCols, styles: { fillColor: [226, 232, 240], fontStyle: "bold", halign: "left" } }]);
     profsInBody.push(null);
 
     const unidadeMap = tree.get(u)!;
     const sortedSetores = Array.from(unidadeMap.keys()).sort();
     for (const s of sortedSetores) {
-      body.push([{ content: `SETOR: ${s.toUpperCase()}`, colSpan: totalDias + 2, styles: { fillColor: [241, 245, 249], fontStyle: "bold", halign: "left" } }]);
+      body.push([{ content: `SETOR: ${s.toUpperCase()}`, colSpan: totalCols, styles: { fillColor: [241, 245, 249], fontStyle: "bold", halign: "left" } }]);
       profsInBody.push(null);
 
       const setorMap = unidadeMap.get(s)!;
@@ -590,7 +592,11 @@ export async function gerarPdfEscalaMensalOficial(
           });
 
           const total = opts.incluirTotalHoras ? `${p.totalHoras}h` : `${p.totalPlantoes}`;
-          body.push([nomeCol, ...diaCols, { content: total, styles: { halign: "center" as const, fontStyle: "bold" as const, fontSize: 8 } }]);
+          body.push([
+            nomeCol, 
+            ...diaCols, 
+            ...(opts.incluirTotalHoras ? [{ content: total, styles: { halign: "center" as const, fontStyle: "bold" as const, fontSize: 8 } }] : [])
+          ]);
           profsInBody.push(p);
         }
       }
@@ -600,7 +606,7 @@ export async function gerarPdfEscalaMensalOficial(
   // Cálculo de larguras
   const availW = pageW - (margin * 2);
   const nomeW = 45; // Espaço um pouco maior para nome + profissão + conselho
-  const totalW = 12;
+  const totalW = opts.incluirTotalHoras ? 12 : 0;
   const diaW = (availW - nomeW - totalW) / totalDias;
 
   autoTable(doc, {
