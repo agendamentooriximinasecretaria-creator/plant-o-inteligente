@@ -3085,10 +3085,10 @@ export default function EscalaPage() {
                   ['somentePublicada', 'Somente escala publicada'],
                   ['incluirFolgas', 'Incluir folgas/indisponibilidades'],
                   ['incluirObservacoes', 'Incluir observações'],
-                  ['incluirTotalHoras', 'Incluir total de horas'],
+                  !isProfessional ? ['incluirTotalHoras', 'Incluir total de horas'] : null,
                   ['incluirAssinatura', 'Incluir campo de assinatura'],
                   ['incluirConselho', 'Incluir conselho/registro'],
-                ] as const) : ([
+                ].filter(Boolean) as any) : ([
                   ['somentePublicada', 'Somente escala publicada'],
                   ['incluirFolgas', 'Incluir folgas'],
                   ['incluirAfastamentos', 'Incluir afastamentos (FE/LP/A)'],
