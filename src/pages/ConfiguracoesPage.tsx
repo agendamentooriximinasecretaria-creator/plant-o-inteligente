@@ -52,7 +52,14 @@ export default function ConfiguracoesPage() {
     if (settings.conflict_rules) { const c = settings.conflict_rules as any; setConflictRules({ limite_horas_dia: c.limite_horas_dia || 24, limite_horas_semana: c.limite_horas_semana || 60, descanso_minimo: c.descanso_minimo || 6, aprovacao_gestor_trocas: c.aprovacao_gestor_trocas ?? true }); }
     if (settings.usage_rules) { const u = settings.usage_rules as any; setUsageRules({ limite_trocas_plantao_default: u.limite_trocas_plantao_default ?? 3, limite_trocas_paciente_default: u.limite_trocas_paciente_default ?? 5 }); }
     if (settings.webhook) { const w = settings.webhook as any; setWebhookUrl(w.url || ''); setWebhookAtivo(w.ativo || false); }
-    if (settings.gmail_smtp) { const g = settings.gmail_smtp as any; setGmailEmail(g.email_remetente || ''); setGmailServidor(g.servidor || 'smtp.gmail.com'); setGmailPorta(g.porta || 587); setGmailStatus(g.status || 'pendente'); }
+    if (settings.gmail_smtp) { 
+      const g = settings.gmail_smtp as any; 
+      setGmailEmail(g.email_remetente || ''); 
+      setGmailServidor(g.servidor || 'smtp.gmail.com'); 
+      setGmailPorta(g.porta || 587); 
+      setGmailStatus(g.status || 'pendente');
+      if (g.senha) setGmailSenha(g.senha);
+    }
   }, [settings]);
 
   const saveSetting = useMutation({
@@ -281,7 +288,26 @@ export default function ConfiguracoesPage() {
             <div><label className="text-sm font-medium text-foreground">Porta</label><input type="number" value={gmailPorta} onChange={e => setGmailPorta(Number(e.target.value))} className={inputClass} /></div>
           </div>
           <div className="flex gap-2 mt-4">
-            <button onClick={() => { const newStatus = gmailSenha ? 'ativo' : 'pendente'; setGmailStatus(newStatus); saveSetting.mutate({ key: 'gmail_smtp', value: { email_remetente: gmailEmail, servidor: gmailServidor, porta: gmailPorta, senha_configurada: !!gmailSenha, status: newStatus } }); }} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90"><Save className="h-4 w-4" /> Salvar</button>
+            <button 
+              onClick={() => { 
+                const newStatus = gmailSenha ? 'ativo' : 'pendente'; 
+                setGmailStatus(newStatus); 
+                saveSetting.mutate({ 
+                  key: 'gmail_smtp', 
+                  value: { 
+                    email_remetente: gmailEmail, 
+                    servidor: gmailServidor, 
+                    porta: gmailPorta, 
+                    senha: gmailSenha,
+                    senha_configurada: !!gmailSenha, 
+                    status: newStatus 
+                  } 
+                }); 
+              }} 
+              className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90"
+            >
+              <Save className="h-4 w-4" /> Salvar
+            </button>
           </div>
         </motion.div>
 

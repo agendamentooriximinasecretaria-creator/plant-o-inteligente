@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -45,8 +46,34 @@ serve(async (req) => {
       .eq("ativo", true)
       .maybeSingle();
 
+    // Load SMTP config
+    const { data: smtpData } = await admin
+      .from("system_settings")
+      .select("value")
+      .eq("key", "gmail_smtp")
+      .maybeSingle();
+    const smtpCfg = smtpData?.value as any;
+    const emailAtivo = smtpCfg?.status === "ativo";
+
     const vars = variaveis || {};
     const resultados = [];
+
+    let smtpClient: SMTPClient | null = null;
+    if (emailAtivo && smtpCfg?.senha && smtpCfg?.email_remetente) {
+      try {
+        const porta = Number(smtpCfg.porta || 587);
+        smtpClient = new SMTPClient({
+          connection: {
+            hostname: smtpCfg.servidor || "smtp.gmail.com",
+            port: porta,
+            tls: porta === 465,
+            auth: { username: smtpCfg.email_remetente, password: smtpCfg.senha },
+          },
+        });
+      } catch (e) {
+        console.error("Erro ao inicializar SMTP:", e);
+      }
+    }
 
     for (const dest of destinatarios) {
       const destVars = { ...vars, nome_profissional: dest.nome || "" };
@@ -57,7 +84,7 @@ serve(async (req) => {
         ? substituirVariaveis(template.mensagem, destVars)
         : vars.mensagem || tipo;
 
-      // 1. Always create internal notification
+      // 1. Internal notification
       await admin.from("notifications").insert({
         professional_id: dest.professional_id || null,
         user_id: dest.user_id || null,
@@ -69,7 +96,45 @@ serve(async (req) => {
         status_envio: "enviado",
       });
 
-      resultados.push({ id: dest.professional_id || dest.user_id, status: "notificado" });
+      // 2. Email notification (if enabled)
+      let emailStatus = "nao_enviado";
+      if (smtpClient && (dest.email || dest.professional_id)) {
+        try {
+          let emailDest = dest.email;
+          if (!emailDest && dest.professional_id) {
+            const { data: p } = await admin
+              .from("professionals")
+              .select("email")
+              .eq("id", dest.professional_id)
+              .maybeSingle();
+            emailDest = p?.email;
+          }
+
+          if (emailDest) {
+            await smtpClient.send({
+              from: `Gestão de Plantões <${smtpCfg.email_remetente}>`,
+              to: emailDest,
+              subject: titulo,
+              content: extrairTextoPlano(mensagem),
+              html: mensagem.includes("<") ? mensagem : undefined,
+            });
+            emailStatus = "enviado";
+          }
+        } catch (e) {
+          console.error(`Falha ao enviar e-mail para ${dest.email || dest.professional_id}:`, e);
+          emailStatus = "falha";
+        }
+      }
+
+      resultados.push({ 
+        id: dest.professional_id || dest.user_id, 
+        status: "notificado",
+        email: emailStatus
+      });
+    }
+
+    if (smtpClient) {
+      try { await smtpClient.close(); } catch { /* ignore */ }
     }
 
     return json(200, { success: true, count: resultados.length, resultados });

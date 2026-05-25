@@ -45,25 +45,41 @@ serve(async (req) => {
       return json(200, { success: true, message: "Nenhum plantão para amanhã.", count: 0 });
     }
 
-    let sent = 0;
-    for (const shift of shifts) {
+    const notificationPayloads = shifts.map(shift => {
       const prof = shift.professionals as any;
-      if (!prof) continue;
+      if (!prof) return null;
 
-      await admin.from("notifications").insert({
+      return {
         professional_id: shift.profissional_id,
         user_id: prof.user_id || null,
-        tipo: "lembrete",
+        nome: prof.nome,
+        email: prof.email,
         titulo: `⏰ Lembrete: plantão amanhã em ${(shift.sectors as any)?.nome || ""}`,
-        mensagem: `Olá ${prof.nome}, seu plantão é amanhã (${new Date(tomorrowStr + "T12:00:00").toLocaleDateString("pt-BR")}) das ${shift.hora_inicio} às ${shift.hora_fim} em ${(shift.units as any)?.nome || ""} - ${(shift.sectors as any)?.nome || ""}.`,
-        lida: false,
-        canal: "sistema",
-        status_envio: "enviado",
+        mensagem: `Olá ${prof.nome}, seu plantão é amanhã (${new Date(tomorrowStr + "T12:00:00").toLocaleDateString("pt-BR")}) das ${shift.hora_inicio} às ${shift.hora_fim} em ${(shift.units as any)?.nome || ""} - ${(shift.sectors as any)?.nome || ""}.`
+      };
+    }).filter(p => p !== null);
+
+    if (notificationPayloads.length > 0) {
+      // Call enviar-notificacao edge function
+      const functionUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/enviar-notificacao`;
+      const resp = await fetch(functionUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`
+        },
+        body: JSON.stringify({
+          tipo: "lembrete_plantao",
+          destinatarios: notificationPayloads
+        })
       });
-      sent++;
+
+      if (!resp.ok) {
+        console.error("Erro ao chamar enviar-notificacao:", await resp.text());
+      }
     }
 
-    return json(200, { success: true, count: sent });
+    return json(200, { success: true, count: notificationPayloads.length });
   } catch (error) {
     console.error("lembrete-plantoes error:", error);
     const message = error instanceof Error ? error.message : "Erro interno";
