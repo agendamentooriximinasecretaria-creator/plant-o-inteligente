@@ -148,6 +148,8 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
     return `<th class="dia ${fds ? "fds" : ""} ${isLastInWeek ? "week-sep" : ""}"><div class="d">${d}</div><div class="dw">${DIAS_SEM_ABREV[dow]}</div></th>`;
   }).join("");
 
+  const totalCols = totalDias + (opts.incluirTotalHoras ? 2 : 1);
+
   // Agrupa profissionais por Unidade -> Setor -> Profissão
   const tree = new Map<string, Map<string, Map<string, MensalProfissional[]>>>();
   for (const p of profs) {
@@ -167,24 +169,24 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
 
   let linhasTr = "";
   if (profs.length === 0) {
-    linhasTr = `<tr><td colspan="${totalDias + 2}" class="empty">Nenhum profissional/plantão para os filtros selecionados.</td></tr>`;
+    linhasTr = `<tr><td colspan="${totalCols}" class="empty">Nenhum profissional/plantão para os filtros selecionados.</td></tr>`;
   } else {
     const sortedUnidades = Array.from(tree.keys()).sort();
     for (const u of sortedUnidades) {
       const unidadeMap = tree.get(u)!;
       // Header de Unidade
-      linhasTr += `<tr class="group-header unidade"><td colspan="${totalDias + 2}">UNIDADE: ${escapeHtml(u)}</td></tr>`;
+      linhasTr += `<tr class="group-header unidade"><td colspan="${totalCols}">UNIDADE: ${escapeHtml(u)}</td></tr>`;
       
       const sortedSetores = Array.from(unidadeMap.keys()).sort();
       for (const s of sortedSetores) {
         // Header de Setor
-        linhasTr += `<tr class="group-header setor"><td colspan="${totalDias + 2}">SETOR: ${escapeHtml(s)}</td></tr>`;
+        linhasTr += `<tr class="group-header setor"><td colspan="${totalCols}">SETOR: ${escapeHtml(s)}</td></tr>`;
         
         const setorMap = unidadeMap.get(s)!;
         const sortedProfissoes = Array.from(setorMap.keys()).sort();
         for (const pName of sortedProfissoes) {
           // Header de Profissão
-          linhasTr += `<tr class="group-header profissao"><td colspan="${totalDias + 2}">${escapeHtml(pName)}</td></tr>`;
+          linhasTr += `<tr class="group-header profissao"><td colspan="${totalCols}">${escapeHtml(pName)}</td></tr>`;
           
           const sortedList = setorMap.get(pName)!.sort((a, b) => a.nome.localeCompare(b.nome));
           for (const p of sortedList) {
@@ -213,7 +215,7 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
             linhasTr += `<tr class="row-prof" style="background-color: ${profs.indexOf(p) % 2 === 0 ? '#fff' : '#f9fafb'}">
               <td class="nome">${escapeHtml(p.nome)}${conselho}</td>
               ${cells}
-              <td class="total">${escapeHtml(total)}</td>
+              ${opts.incluirTotalHoras ? `<td class="total">${escapeHtml(total)}</td>` : ""}
             </tr>`;
           }
         }
@@ -316,6 +318,8 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
   table.escala th.total, table.escala td.total {
     background:#e2e8f0; font-weight: 900; min-width: 45px; width: 55px; font-size: 10px; color: #000; border-left: 2px solid #111;
   }
+  .dia:last-child { border-right: 2px solid #111 !important; }
+  table.escala { width: 100%; }
   table.escala td.empty { text-align:center; padding: 20px; color:#64748b; font-style: italic; font-size: 11px; }
   
   /* Cabeçalhos de grupo */
