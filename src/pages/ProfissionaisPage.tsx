@@ -227,7 +227,7 @@ export default function ProfissionaisPage() {
     // Fetch sensitive fields on demand (not in listing)
     const { data: sensitive } = await supabase
       .from('professionals')
-      .select('cpf, observacoes, limite_trocas_plantao_mes, limite_trocas_paciente_mes')
+      .select('cpf, observacoes, limite_trocas_plantao_mes, limite_trocas_paciente_mes, is_plantonista, recebe_adicional_noturno')
       .eq('id', p.id)
       .maybeSingle();
     setForm({
@@ -239,6 +239,8 @@ export default function ProfissionaisPage() {
       competencias: Array.isArray(p.competencias) ? p.competencias : [],
       limite_trocas_plantao_mes: sensitive?.limite_trocas_plantao_mes ?? 3,
       limite_trocas_paciente_mes: sensitive?.limite_trocas_paciente_mes ?? 5,
+      is_plantonista: sensitive?.is_plantonista ?? false,
+      recebe_adicional_noturno: sensitive?.recebe_adicional_noturno ?? false,
     });
     setModalOpen(true);
   };
