@@ -1252,7 +1252,7 @@ export default function EscalaPage() {
     return {
       incluirLogo: printForm.incluirLogo,
       incluirAssinatura: printForm.incluirAssinatura,
-      incluirTotalHoras: showTotalSetting && printForm.incluirTotalHoras,
+      incluirTotalHoras: !isProfessional && showTotalSetting && printForm.incluirTotalHoras,
       incluirADN: showADNSetting && printForm.incluirADN,
       incluirObservacoesRodape: printForm.incluirObservacoesRodape,
       totalLabel: printForm.totalLabel,
