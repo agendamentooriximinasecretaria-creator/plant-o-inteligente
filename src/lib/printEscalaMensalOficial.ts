@@ -2,20 +2,17 @@
 // Modelo de impressão: "Escala Mensal Oficial"
 // ---------------------------------------------------------------
 // Layout inspirado na escala em papel hospitalar:
-//   - cabeçalho centralizado (Prefeitura > Secretaria > Unidade)
+//   - cabeçalho institucional unificado
 //   - tabela: Profissional × dias do mês (1..30/31) + Total
-//   - células com siglas (D, N, M, T, 24, SA, F, LP, FE, A...)
-//   - legenda automática a partir dos tipos de plantão configurados
-//   - assinatura no canto inferior direito
-//   - A4 landscape, CSS @media print sem sidebar/header/botões
-//
-// Sem dados sensíveis (CPF, banco, endereço residencial, observações privadas).
+//   - assinatura institucional padronizada
 // ===============================================================
 
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { getLogoSmsDataUrl, logoSmsImgHtml } from "./logoSMS";
 import type { StampData } from "./pdfStampUtils";
+import { DOCUMENT_CSS_BASE } from "./documentStyle";
+import { buildHeaderHtml, buildSignatureHtml, buildFooterHtml } from "./documentTemplates";
 
 export interface MensalInstituicao {
   prefeitura?: string;       // ex: "Prefeitura Municipal de Oriximiná"
@@ -84,6 +81,7 @@ export interface MensalOpts {
 
 const DIAS_PT_FULL = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
 const DIAS_SEM_ABREV = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
+
 
 // Categorização por tipo de plantão -> cores suaves (RGB para jsPDF e hex para HTML)
 function getCategoryColor(tipo: string, status: string): { bg: [number, number, number], hex: string, text: [number, number, number] } {
@@ -234,34 +232,26 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
   const responsavel = opts.responsavel;
   const responsavelTecnico = opts.responsavelTecnico;
   
-  const respHtml = opts.incluirAssinatura ? `
-    <div class="ass-wrap">
-      <div class="ass-box">
-        ${responsavel?.assinaturaBase64 ? `<img src="${responsavel.assinaturaBase64}" class="ass-img" />` : '<div class="ass-img-placeholder"></div>'}
-        <div class="ass-line"></div>
-        <div class="ass-nome">${escapeHtml(responsavel?.nome || "Responsável pela Escala")}</div>
-        <div class="ass-cargo">${escapeHtml(responsavel?.cargo || "Gestor / Coordenador")}</div>
-        ${responsavel?.conselho ? `<div class="ass-cons">${escapeHtml(responsavel.conselho)}</div>` : ""}
-        ${responsavel?.unidade ? `<div class="ass-unid">${escapeHtml(responsavel.unidade)}</div>` : ""}
-        ${/* !responsavel?.assinaturaBase64 ? '<div class="ass-missing">Assinatura não cadastrada</div>' : '' */ ""}
-      </div>
-      <div class="ass-box">
-        ${responsavelTecnico?.assinaturaBase64 ? `<img src="${responsavelTecnico.assinaturaBase64}" class="ass-img" />` : '<div class="ass-img-placeholder"></div>'}
-        <div class="ass-line"></div>
-        <div class="ass-nome">${escapeHtml(responsavelTecnico?.nome || "Responsável Técnico")}</div>
-        <div class="ass-cargo">${escapeHtml(responsavelTecnico?.cargo || "Responsável Técnico")}</div>
-        ${responsavelTecnico?.conselho ? `<div class="ass-cons">${escapeHtml(responsavelTecnico.conselho)}</div>` : ""}
-        ${responsavelTecnico?.unidade ? `<div class="ass-unid">${escapeHtml(responsavelTecnico.unidade)}</div>` : ""}
-        ${/* !responsavelTecnico?.assinaturaBase64 ? '<div class="ass-missing">Assinatura não cadastrada</div>' : '' */ ""}
-      </div>
-    </div>` : "";
+  const headerHtml = buildHeaderHtml({
+    title: "ESCALA MENSAL DE SERVIÇO",
+    unit: cab.instituicao.unidade || "Unidade não informada",
+    sector: cab.setor,
+    period: `${DIAS_PT_FULL[cab.mes - 1]} ${cab.ano}`,
+    emission: emissao,
+    issuer: cab.emitidoPor
+  });
+
+  const assinaturasHtml = opts.incluirAssinatura ? buildSignatureHtml({
+    responsavel,
+    responsavelTecnico
+  }) : "";
 
   const obsRodape = opts.incluirObservacoesRodape ? `
     <div class="obs-rodape">
-      <p>Escala sujeita a alteração.</p>
-      <p>Troca de plantão comunicar à coordenação.</p>
-      <p><b>OBS:</b> Qualquer troca de plantão, comunicar à coordenação.</p>
+      <p><b>OBSERVAÇÕES:</b> Escala sujeita a alteração. Qualquer troca de plantão deve ser comunicada à coordenação.</p>
     </div>` : "";
+
+  const footerHtml = buildFooterHtml(sistema);
 
   return `<!doctype html>
 <html lang="pt-BR">
@@ -269,136 +259,52 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
 <meta charset="utf-8" />
 <title>Escala Mensal Oficial</title>
 <style>
-  * { box-sizing: border-box; }
-  @page { size: A4 landscape; margin: 8mm; }
-  html, body { background:#fff; }
-  body { font-family: Arial, Helvetica, sans-serif; color:#111; margin: 10mm; font-size: 10px; }
-
-  /* Cabeçalho institucional centralizado */
-  .header-oficial { text-align:center; margin-bottom: 6px; }
-  .header-oficial .logo { float:left; margin-right: 8px; }
-  .header-oficial h1 { font-size: 12px; margin: 0; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
-  .header-oficial h2 { font-size: 11px; margin: 1px 0; font-weight: 600; text-transform: uppercase; }
-  .header-oficial h3 { font-size: 11px; margin: 1px 0; font-weight: 700; text-transform: uppercase; }
-  .header-oficial .titulo { font-size: 13px; margin-top: 4px; font-weight: 800; letter-spacing: .5px; }
-  .header-oficial .periodo { font-size: 11px; margin-top: 2px; font-weight: 700; }
-  .clear { clear: both; }
-
-  /* Bloco título da tabela */
-  .tabela-titulo {
-    border: 1.5px solid #111; border-bottom: none;
-    padding: 6px 12px; display:flex; align-items:center; gap:12px;
-    background: #f8fafc;
-  }
-  .tabela-titulo .logo-mini { width: 32px; height: 32px; object-fit: contain; }
-  .tabela-titulo .center { flex:1; text-align:center; }
-  .tabela-titulo .center .t1 { font-size: 13px; font-weight: 900; letter-spacing:.8px; color: #1e293b; }
-  .tabela-titulo .center .t2 { font-size: 11px; font-weight: 700; margin-top: 2px; color: #475569; }
-
-  /* Tabela */
-  table.escala { width: 100%; border-collapse: collapse; table-layout: fixed; border: 2px solid #111; }
-  table.escala th, table.escala td {
-    border: 1px solid #ccc; padding: 3px 2px; text-align: center; vertical-align: middle;
-    font-size: 9px; line-height: 1.1;
-  }
-  table.escala thead th { background: #e2e8f0; font-weight: 800; color: #000; border-bottom: 2px solid #111; border-right: 1px solid #aaa; }
-  table.escala th.nome, table.escala td.nome {
-    text-align: left; padding-left: 8px; font-size: 9.5px; min-width: 150px; width: 150px;
-    font-weight: 800; color: #000; border-right: 2px solid #111;
-  }
-  table.escala td.nome .cons { font-weight: 600; color: #444; font-size: 8px; display:block; margin-top: 1px; }
-  table.escala th.dia { padding: 2px 0; }
-  table.escala th.dia .d { font-weight: 900; font-size: 10px; }
-  table.escala th.dia .dw { font-size: 7.5px; color: #000; font-weight: 700; }
-  table.escala th.fds, table.escala td.fds { background: #f1f5f9; }
-  table.escala th.week-sep, table.escala td.week-sep { border-right: 2px solid #111; }
-  table.escala td.dia { font-weight: 800; font-size: 9.5px; border-right: 1px solid #eee; }
-  table.escala td.cancel { color:#dc2626; text-decoration: line-through; }
-  table.escala td.pend { color:#b45309; }
-  table.escala th.total, table.escala td.total {
-    background:#e2e8f0; font-weight: 900; min-width: 45px; width: 55px; font-size: 10px; color: #000; border-left: 2px solid #111;
-  }
-  .dia:last-child { border-right: 2px solid #111 !important; }
-  table.escala { width: 100%; }
-  table.escala td.empty { text-align:center; padding: 20px; color:#64748b; font-style: italic; font-size: 11px; }
+  ${DOCUMENT_CSS_BASE}
+  @page { size: A4 landscape; margin: 10mm; }
   
-  /* Cabeçalhos de grupo */
-  .group-header { background: #f8fafc; }
-  .group-header td { text-align: left !important; padding: 6px 12px !important; font-weight: 900 !important; border-bottom: 2px solid #111 !important; border-top: 2px solid #111 !important; }
-  .group-header.unidade { background: #1e293b; font-size: 13px; color: #ffffff; text-transform: uppercase; letter-spacing: 2px; }
-  .group-header.setor { background: #e2e8f0; font-size: 11px; padding-left: 20px !important; color: #000; border-bottom: 1.5px solid #111 !important; }
-  .group-header.setor td::before { content: "SETOR: "; color: #64748b; font-weight: 700; font-size: 9px; }
-  .group-header.profissao { background: #ffffff; font-size: 10px; color: #64748b; padding-left: 30px !important; border-bottom: 1px solid #ddd !important; font-style: italic; }
-  .row-prof td.nome { padding-left: 35px !important; }
-
-  /* Legenda */
-  .legenda { margin-top: 10px; padding: 8px; border: 1px solid #111; font-size: 9px; background: #f8fafc; }
-  .legenda b { display:inline-block; min-width: 16px; }
-  .legenda .lg-item { display:inline-block; margin-right: 12px; white-space:nowrap; }
-  .legenda .lg-title { font-weight: 700; margin-right: 6px; text-transform: uppercase; }
-
-  /* Observações */
-  .obs-rodape { margin-top: 6px; font-size: 9px; line-height: 1.3; }
-  .obs-rodape p { margin: 1px 0; }
-
-  /* Assinatura lado a lado */
-  .ass-wrap { display:flex; justify-content: space-between; margin-top: 32px; gap: 60px; padding: 0 60px; }
-  .ass-box { text-align:center; min-width: 300px; flex: 1; display: flex; flex-direction: column; align-items: center; }
-  .ass-img { height: 60px; object-fit: contain; margin-bottom: -8px; }
-  .ass-img-placeholder { height: 60px; }
-  .ass-line { border-top: 1.5px solid #111; margin-bottom: 5px; width: 100%; }
-  .ass-nome { font-size: 11px; font-weight: 900; color: #0f172a; text-transform: uppercase; }
-  .ass-cargo, .ass-cons, .ass-unid { font-size: 9.5px; color:#334155; font-weight: 600; }
-
-  /* Rodapé de emissão (não aparece no papel se não quiser) */
-  .doc-footer { margin-top: 10px; font-size: 8px; color:#777; text-align:center; border-top: 0.4px dashed #ccc; padding-top: 3px; }
-
-  /* Toolbar (oculta na impressão) */
-  .toolbar { position: sticky; top: 0; background:#fff; padding: 6px 0; border-bottom: 1px solid #e5e7eb; margin-bottom: 8px; display:flex; gap:6px; }
-  .toolbar button { background:#0e7490; color:#fff; border:none; padding: 6px 12px; border-radius: 4px; cursor:pointer; font-size: 11px; }
+  .toolbar { position: sticky; top: 0; background:#fff; padding: 10px 0; border-bottom: 1px solid #e5e7eb; margin-bottom: 15px; display:flex; gap:10px; }
+  .toolbar button { background:#0e7490; color:#fff; border:none; padding: 8px 16px; border-radius: 6px; cursor:pointer; font-size: 13px; font-weight: 600; }
   .toolbar button.secondary { background:#fff; color:#111; border:1px solid #cbd5e1; }
 
-  /* Regras de impressão: tira toolbar e qualquer chrome */
+  /* Ajustes para tabela densa (Mensal) */
+  table.escala { border: 1.5px solid #111; table-layout: fixed; }
+  table.escala th, table.escala td { border: 1px solid #ccc; padding: 4px 2px; text-align: center; vertical-align: middle; font-size: 8pt; line-height: 1.1; }
+  table.escala thead th { background: #e2e8f0; border-bottom: 1.5px solid #111; }
+  table.escala th.nome, table.escala td.nome { text-align: left; padding-left: 8px; width: 140px; border-right: 1.5px solid #111; }
+  table.escala td.nome .cons { font-size: 7.5pt; color: #666; display:block; margin-top: 1px; }
+  table.escala th.fds, table.escala td.fds { background: #f1f5f9; }
+  table.escala th.week-sep, table.escala td.week-sep { border-right: 1.5px solid #111; }
+  table.escala th.total, table.escala td.total { background:#e2e8f0; font-weight: 900; width: 50px; border-left: 1.5px solid #111; }
+
+  /* Agrupamentos */
+  .group-header td { text-align: left !important; padding: 6px 12px !important; font-weight: 800 !important; text-transform: uppercase; }
+  .group-header.unidade { background: #1e293b; color: white; letter-spacing: 1px; }
+  .group-header.setor { background: #f1f5f9; border-bottom: 1px solid #111 !important; }
+  .group-header.profissao { background: #fff; color: #64748b; font-style: italic; border-bottom: 1px solid #eee !important; font-size: 8.5pt !important; }
+
+  .legenda { margin-top: 15px; padding: 10px; border: 1px solid #ccc; font-size: 8pt; background: #f8fafc; border-radius: 4px; }
+  .legenda .lg-item { display:inline-block; margin-right: 15px; white-space:nowrap; margin-bottom: 5px; }
+  .obs-rodape { margin-top: 10px; font-size: 9pt; }
+
   @media print {
-    body { margin: 6mm; }
-    .no-print, .toolbar { display:none !important; }
+    body { margin: 0; }
+    .toolbar { display: none !important; }
     thead { display: table-header-group; }
-    tfoot { display: table-footer-group; }
-    tr, td, th { page-break-inside: avoid; }
-    .ass-wrap { page-break-inside: avoid; }
-    table.escala { font-size: 8.5px; }
   }
 </style>
 </head>
 <body>
   <div class="toolbar no-print">
-    <button onclick="window.print()">🖨️ Imprimir</button>
+    <button onclick="window.print()">🖨️ Imprimir Escala</button>
     <button class="secondary" onclick="window.close()">Fechar</button>
   </div>
 
-  <div class="header-oficial">
-    ${opts.incluirLogo ? `<div class="logo">${logoSmsImgHtml(56)}</div>` : ""}
-    ${cab.instituicao.prefeitura ? `<h1>${escapeHtml(cab.instituicao.prefeitura)}</h1>` : ""}
-    ${cab.instituicao.secretaria ? `<h2>${escapeHtml(cab.instituicao.secretaria)}</h2>` : ""}
-    ${cab.instituicao.unidade ? `<h3>${escapeHtml(cab.instituicao.unidade)}</h3>` : ""}
-    <div class="titulo">ESCALA DE SERVIÇO</div>
-    <div class="periodo">Mês: ${escapeHtml(DIAS_PT_FULL[cab.mes - 1])} &nbsp;&nbsp; Ano: ${cab.ano}</div>
-    <div class="clear"></div>
-  </div>
-
-  <div class="tabela-titulo">
-    ${opts.incluirLogo ? `<div>${logoSmsImgHtml(28)}</div>` : ""}
-    <div class="center">
-      <div class="t1">ESCALA DE SERVIÇO</div>
-      <div class="t2">${escapeHtml(subtitulo)}</div>
-    </div>
-    <div style="width:28px"></div>
-  </div>
+  ${headerHtml}
 
   <table class="escala">
     <thead>
       <tr>
-        <th class="nome">NOMES</th>
+        <th class="nome">PROFISSIONAL</th>
         ${colDiaTh}
         ${opts.incluirTotalHoras ? `<th class="total">${escapeHtml(totalLabel)}</th>` : ""}
       </tr>
@@ -407,17 +313,17 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
   </table>
 
   <div class="legenda">
-    <span class="lg-title">Legenda:</span>
-    ${legendaTipos}
+    <strong>Legenda:</strong> ${legendaTipos}
   </div>
 
   ${obsRodape}
-  ${respHtml}
+  ${assinaturasHtml}
 
-  <div class="doc-footer">Documento emitido pelo ${escapeHtml(sistema)} • ${escapeHtml(emissao)}${cab.emitidoPor ? ` • Emitido por: ${escapeHtml(cab.emitidoPor)}` : ""}</div>
+  ${footerHtml}
 </body>
 </html>`;
 }
+
 
 export function abrirEscalaMensalOficial(
   cab: MensalCabecalho,
