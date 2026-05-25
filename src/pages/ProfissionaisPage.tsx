@@ -96,7 +96,7 @@ export default function ProfissionaisPage() {
       // Sensitive fields are fetched on-demand when opening the edit modal.
       const { data, error } = await supabase
         .from('professionals')
-        .select('id, nome, profissao, cargo, especialidade, conselho, registro, telefone, email, status, vinculo, unidade_principal_id, setor_principal_id, competencias, documento_conselho, documento_numero, documento_validade, avatar_url, acesso_email_enviado_em, units:unidade_principal_id(nome), sectors:setor_principal_id(nome)')
+        .select('id, nome, profissao, cargo, especialidade, conselho, registro, telefone, email, status, vinculo, unidade_principal_id, setor_principal_id, competencias, documento_conselho, documento_numero, documento_validade, avatar_url, acesso_email_enviado_em, recebe_adicional_noturno, is_plantonista, units:unidade_principal_id(nome), sectors:setor_principal_id(nome)')
         .order('nome');
       if (error) throw error;
       return data;
