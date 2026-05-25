@@ -315,19 +315,31 @@ export default function ConfiguracoesPage() {
                 
                 setTesting('smtp');
                 try {
+                  console.log('Iniciando teste SMTP para:', emailTeste);
                   const { data, error } = await supabase.functions.invoke('testar-smtp', {
                     body: { email_teste: emailTeste }
                   });
                   
-                  if (error) throw error;
-                  toast.success(data.message || 'E-mail de teste enviado!');
+                  if (error) {
+                    console.error('Erro retornado pela função:', error);
+                    // Distinguir erro de rede vs erro da função
+                    if (error.message?.includes('Failed to send a request')) {
+                      throw new Error('Não foi possível conectar à Edge Function. Verifique se ela está publicada e se você tem internet.');
+                    }
+                    throw error;
+                  }
+                  
+                  if (data?.error) throw new Error(data.error);
+                  
+                  toast.success(data.message || 'E-mail de teste enviado com sucesso!');
                 } catch (e: any) {
                   console.error('Erro no teste SMTP:', e);
-                  toast.error(e.message || 'Falha ao testar SMTP. Verifique as configurações e a senha.');
+                  toast.error(e.message || 'Falha ao testar SMTP. Verifique as configurações e tente novamente.');
                 } finally {
                   setTesting('');
                 }
               }}
+
               disabled={testing === 'smtp'}
               className="flex items-center gap-2 border border-border px-4 py-2 rounded-lg text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
             >
