@@ -3048,12 +3048,12 @@ export default function EscalaPage() {
                   ['somentePublicada', 'Somente escala publicada'],
                   ['incluirFolgas', 'Incluir folgas'],
                   ['incluirAfastamentos', 'Incluir afastamentos (FE/LP/A)'],
-                  ['incluirTotalHoras', 'Mostrar total de horas (em vez de qtd. plantões)'],
+                  settings.exibir_total_escala_consolidada !== false ? ['incluirTotalHoras', 'Mostrar total de horas (em vez de qtd. plantões)'] : null,
                   ['incluirAssinatura', 'Incluir campo de assinatura'],
                   ['incluirConselho', 'Incluir conselho/registro'],
                   ['incluirLogo', 'Incluir logo da instituição'],
                   ['incluirObservacoesRodape', 'Incluir observações no rodapé'],
-                ] as const)).map(([k, l]) => (
+                ] as const).filter(Boolean as any)).map(([k, l]: any) => (
                   <label key={k} className="flex items-center gap-2 cursor-pointer select-none">
                     <input type="checkbox"
                       checked={(printForm as any)[k]}
