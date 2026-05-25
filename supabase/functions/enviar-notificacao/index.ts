@@ -59,21 +59,29 @@ serve(async (req) => {
     const resultados = [];
 
     let smtpClient: SMTPClient | null = null;
+    let smtpError: string | null = null;
+    
     if (emailAtivo && smtpCfg?.senha && smtpCfg?.email_remetente) {
       try {
         const porta = Number(smtpCfg.porta || 587);
+        const useTls = porta === 465;
+        
         smtpClient = new SMTPClient({
           connection: {
             hostname: smtpCfg.servidor || "smtp.gmail.com",
             port: porta,
-            tls: porta === 465,
+            tls: useTls,
             auth: { username: smtpCfg.email_remetente, password: smtpCfg.senha },
           },
         });
       } catch (e) {
         console.error("Erro ao inicializar SMTP:", e);
+        smtpError = e instanceof Error ? e.message : String(e);
       }
+    } else if (emailAtivo) {
+      smtpError = "Configuração SMTP incompleta (remetente ou senha ausente).";
     }
+
 
     for (const dest of destinatarios) {
       const destVars = { ...vars, nome_profissional: dest.nome || "" };
@@ -120,11 +128,14 @@ serve(async (req) => {
             });
             emailStatus = "enviado";
           }
-        } catch (e) {
-          console.error(`Falha ao enviar e-mail para ${dest.email || dest.professional_id}:`, e);
-          emailStatus = "falha";
+          } catch (e) {
+            console.error(`Falha ao enviar e-mail para ${dest.email || dest.professional_id}:`, e);
+            emailStatus = `falha: ${e instanceof Error ? e.message : String(e)}`;
+          }
+        } else if (emailAtivo) {
+          emailStatus = smtpError ? `erro_config: ${smtpError}` : "nao_configurado";
         }
-      }
+
 
       resultados.push({ 
         id: dest.professional_id || dest.user_id, 
