@@ -18,6 +18,8 @@ interface Props {
   /** Documento alvo. Se `getDocument` for fornecido, ele é usado quando o usuário clica em "Assinar" (lazy). */
   document?: SignableDocument;
   getDocument?: () => Promise<SignableDocument> | SignableDocument;
+  /** Mês/Competência padrão para o modal. */
+  competence?: string;
   /** Permissões de quem pode assinar este documento (RBAC visual). */
   canSign?: boolean;
   /** Texto compacto para botões. */
@@ -37,7 +39,7 @@ interface Props {
  * não substitui ICP-Brasil).
  */
 export default function SignActionButton({
-  document, getDocument, canSign = true, compact = false,
+  document, getDocument, competence, canSign = true, compact = false,
   variant = "outline", signLabel, onSigned, className,
 }: Props) {
   const { user } = useAuth();
@@ -189,6 +191,7 @@ export default function SignActionButton({
           open={signOpen}
           onOpenChange={setSignOpen}
           document={resolved}
+          initialCompetence={competence}
           onSigned={(sig) => {
             logAudit("Assinatura aplicada", "assinatura_eletronica", {
               document_type: resolved.document_type,

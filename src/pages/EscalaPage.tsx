@@ -225,6 +225,7 @@ export default function EscalaPage() {
     dataIni: string; dataFim: string;
     soConflitos: boolean; soDescobertos: boolean;
     soPublicados: boolean; soRascunhos: boolean; soFolgas: boolean;
+    competencia?: string;
   };
   const filtrosVazios: FiltrosEscala = {
     unidadeId: '', setorId: '', profissao: '', profissionalId: '',
@@ -232,6 +233,7 @@ export default function EscalaPage() {
     periodo: '', dataIni: '', dataFim: '',
     soConflitos: false, soDescobertos: false,
     soPublicados: false, soRascunhos: false, soFolgas: false,
+    competencia: new Date().toISOString().slice(0, 7),
   };
   const [filtros, setFiltros] = useState<FiltrosEscala>(filtrosVazios);
   const [busca, setBusca] = useState("");
@@ -1868,6 +1870,7 @@ export default function EscalaPage() {
               <SignActionButton
                 signLabel="Assinar escala"
                 variant="outline"
+                competence={`${ano}-${String(mes).padStart(2, '0')}`}
                 document={{
                   document_type: 'escala_mensal',
                   document_id: escalaKey,
