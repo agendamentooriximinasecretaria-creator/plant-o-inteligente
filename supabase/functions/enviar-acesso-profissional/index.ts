@@ -141,16 +141,19 @@ ${empresa}`;
     // 2) SMTP Gmail
     if (!canal) {
       const smtpCfg = cfg.gmail_smtp;
-      const remetente = smtpCfg?.email_remetente || Deno.env.get("GMAIL_SMTP_USER");
-      const senha = smtpCfg?.senha || Deno.env.get("GMAIL_SMTP_PASSWORD");
+      const remetente = smtpCfg?.email_remetente;
+      const senha = smtpCfg?.senha;
       const servidor = smtpCfg?.servidor || "smtp.gmail.com";
       const porta = Number(smtpCfg?.porta || 587);
+
+      console.log(`Tentando envio via SMTP: ${remetente} em ${servidor}:${porta} (Status: ${smtpCfg?.status})`);
 
       if (senha && remetente && smtpCfg?.status === "ativo") {
         let client: SMTPClient | null = null;
         try {
-          // Implicit TLS on 465, STARTTLS on 587
           const useTls = porta === 465;
+          
+          console.log(`Conectando ao SMTP... (TLS: ${useTls})`);
           
           client = new SMTPClient({
             connection: {
@@ -159,7 +162,14 @@ ${empresa}`;
               tls: useTls,
               auth: { username: remetente, password: senha },
             },
+            debug: {
+              log: true,
+              send: true,
+              recv: true,
+            }
           });
+          
+          console.log("Enviando mensagem...");
           
           await client.send({
             from: `${empresa} <${remetente}>`,
@@ -169,15 +179,21 @@ ${empresa}`;
             html: htmlBody,
           });
           canal = "smtp";
+          console.log(`E-mail enviado com sucesso via SMTP para ${prof.email}`);
         } catch (e) {
-          lastError = `SMTP falhou: ${e instanceof Error ? e.message : String(e)}`;
-          console.error("SMTP error details:", e);
+          lastError = `Falha na autenticação ou envio SMTP: ${e instanceof Error ? e.message : String(e)}`;
+          console.error("Erro detalhado SMTP:", e);
         } finally {
           try { await client?.close(); } catch { /* ignore */ }
         }
-      } else if (!lastError) {
-        lastError =
-          "Configuração de e-mail incompleta ou inativa. Verifique os dados do Gmail SMTP em Configurações.";
+      } else {
+        if (smtpCfg?.status !== "ativo") {
+          lastError = "O serviço de e-mail SMTP está desativado nas configurações.";
+        } else if (!remetente || !senha) {
+          lastError = "Credenciais SMTP não configuradas ou incompletas.";
+        } else {
+          lastError = "Configuração SMTP inválida.";
+        }
       }
     }
 
