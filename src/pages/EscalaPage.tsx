@@ -1136,6 +1136,8 @@ export default function EscalaPage() {
           porDia: {},
           totalHoras: 0,
           totalPlantoes: 0,
+          totalADN: 0,
+          elegivelADN: !!prof.recebe_adicional_noturno,
         };
         map.set(profId, row);
       }
@@ -1154,6 +1156,14 @@ export default function EscalaPage() {
       if (s.status !== 'cancelado' && !['folga', 'indisponibilidade'].includes(String(s.tipo_plantao || '').toLowerCase())) {
         row.totalHoras += carga;
         row.totalPlantoes += 1;
+        
+        // Cálculo ADN
+        if (row.elegivelADN) {
+          const tipo = (s.tipo_plantao || "").toLowerCase();
+          if (tipo.includes("not") || tipo.includes("24")) {
+            row.totalADN += tipo.includes("24") ? 10 : 7;
+          }
+        }
       }
     }
 
