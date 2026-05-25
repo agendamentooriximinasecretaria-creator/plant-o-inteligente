@@ -152,6 +152,17 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
       const carga = Number(s.carga_horaria || 0);
       if (s.status !== "cancelado" && !["folga", "indisponibilidade"].includes((s.tipo_plantao || "").toLowerCase())) {
         row.horas += carga;
+        
+        // Cálculo do ADN (Heurística: plantões noturnos ou de 24h para elegíveis)
+        if (row.elegivelAdn) {
+          const tipo = (s.tipo_plantao || "").toLowerCase();
+          if (tipo.includes("not") || tipo.includes("24")) {
+            // Se for 24h, assume 10h de ADN (noite anterior + noite atual)
+            // Se for noturno 12h, assume 7h (22h as 05h)
+            const adnNoPlantao = tipo.includes("24") ? 10 : 7;
+            row.adn += adnNoPlantao;
+          }
+        }
       }
     }
 

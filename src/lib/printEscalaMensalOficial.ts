@@ -49,6 +49,8 @@ export interface MensalProfissional {
   porDia: Record<number, MensalShift[]>;
   totalHoras: number;
   totalPlantoes: number;
+  totalADN?: number;
+  elegivelADN?: boolean;
 }
 
 export interface MensalCabecalho {
@@ -73,6 +75,7 @@ export interface MensalOpts {
   incluirLogo: boolean;
   incluirAssinatura: boolean;
   incluirTotalHoras: boolean;
+  incluirADN?: boolean;
   incluirObservacoesRodape: boolean;
   totalLabel?: "TOTAL" | "ADN";
   responsavel?: MensalResponsavel;
@@ -146,7 +149,7 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
     return `<th class="dia ${fds ? "fds" : ""} ${isLastInWeek ? "week-sep" : ""}"><div class="d">${d}</div><div class="dw">${DIAS_SEM_ABREV[dow]}</div></th>`;
   }).join("");
 
-  const totalCols = totalDias + (opts.incluirTotalHoras ? 2 : 1);
+  const totalCols = totalDias + (opts.incluirTotalHoras ? 1 : 0) + (opts.incluirADN ? 1 : 0) + 1;
 
   // Agrupa profissionais por Unidade -> Setor -> Profissão
   const tree = new Map<string, Map<string, Map<string, MensalProfissional[]>>>();
@@ -214,6 +217,7 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
               <td class="nome">${escapeHtml(p.nome)}${conselho}</td>
               ${cells}
               ${opts.incluirTotalHoras ? `<td class="total">${escapeHtml(total)}</td>` : ""}
+              ${opts.incluirADN ? `<td class="total" style="background-color: #eef2ff; border-left: 1px solid #ccc;">${p.elegivelADN ? `${p.totalADN}h` : "—"}</td>` : ""}
             </tr>`;
           }
         }
@@ -307,6 +311,7 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
         <th class="nome">PROFISSIONAL</th>
         ${colDiaTh}
         ${opts.incluirTotalHoras ? `<th class="total">${escapeHtml(totalLabel)}</th>` : ""}
+        ${opts.incluirADN ? `<th class="total" style="background-color: #e0e7ff; color: #3730a3;">ADN</th>` : ""}
       </tr>
     </thead>
     <tbody>${linhasTr}</tbody>

@@ -277,7 +277,7 @@ export default function EscalaPage() {
   const { data: shifts = [], isLoading, refetch: refetchShifts } = useQuery({
     queryKey: ['shifts'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('shifts').select('*, professionals:profissional_id(nome, profissao), units:unidade_id(nome), sectors:setor_id(nome)').order('data', { ascending: false });
+      const { data, error } = await supabase.from('shifts').select('*, professionals:profissional_id(nome, profissao, recebe_adicional_noturno), units:unidade_id(nome), sectors:setor_id(nome)').order('data', { ascending: false });
       if (error) throw error;
       return data;
     },
