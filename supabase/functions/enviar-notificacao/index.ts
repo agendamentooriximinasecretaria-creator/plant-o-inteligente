@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import nodemailer from "https://esm.sh/nodemailer@6.9.13";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,7 +31,6 @@ function extrairTextoPlano(texto: string): string {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-
   try {
     const admin = getAdmin();
     const { tipo, destinatarios, variaveis } = await req.json();
@@ -60,21 +59,19 @@ serve(async (req) => {
     const vars = variaveis || {};
     const resultados = [];
 
-    let smtpClient: SMTPClient | null = null;
+    let transporter: any = null;
     let smtpError: string | null = null;
     
     if (emailAtivo && smtpCfg?.senha && smtpCfg?.email_remetente) {
       try {
-        const porta = Number(smtpCfg.porta || 587);
-        const useTls = porta === 465;
+        const host = smtpCfg.servidor || "smtp.gmail.com";
+        const port = Number(smtpCfg.porta || 587);
         
-        smtpClient = new SMTPClient({
-          connection: {
-            hostname: smtpCfg.servidor || "smtp.gmail.com",
-            port: porta,
-            tls: useTls,
-            auth: { username: smtpCfg.email_remetente, password: smtpCfg.senha },
-          },
+        transporter = nodemailer.createTransport({
+          host,
+          port,
+          secure: port === 465,
+          auth: { user: smtpCfg.email_remetente, pass: smtpCfg.senha },
         });
       } catch (e) {
         console.error("Erro ao inicializar SMTP:", e);
@@ -83,7 +80,6 @@ serve(async (req) => {
     } else if (emailAtivo) {
       smtpError = "Configuração SMTP incompleta (remetente ou senha ausente).";
     }
-
 
     for (const dest of destinatarios) {
       const destVars = { ...vars, nome_profissional: dest.nome || "" };
@@ -108,7 +104,7 @@ serve(async (req) => {
 
       // 2. Email notification (if enabled)
       let emailStatus = "nao_enviado";
-      if (smtpClient && (dest.email || dest.professional_id)) {
+      if (transporter && (dest.email || dest.professional_id)) {
         try {
           let emailDest = dest.email;
           if (!emailDest && dest.professional_id) {
@@ -121,33 +117,28 @@ serve(async (req) => {
           }
 
           if (emailDest) {
-            await smtpClient.send({
+            await transporter.sendMail({
               from: `Gestão de Plantões <${smtpCfg.email_remetente}>`,
               to: emailDest,
               subject: titulo,
-              content: extrairTextoPlano(mensagem),
+              text: extrairTextoPlano(mensagem),
               html: mensagem.includes("<") ? mensagem : undefined,
             });
             emailStatus = "enviado";
           }
-          } catch (e) {
-            console.error(`Falha ao enviar e-mail para ${dest.email || dest.professional_id}:`, e);
-            emailStatus = `falha: ${e instanceof Error ? e.message : String(e)}`;
-          }
-        } else if (emailAtivo) {
-          emailStatus = smtpError ? `erro_config: ${smtpError}` : "nao_configurado";
+        } catch (e) {
+          console.error(`Falha ao enviar e-mail para ${dest.email || dest.professional_id}:`, e);
+          emailStatus = `falha: ${e instanceof Error ? e.message : String(e)}`;
         }
-
+      } else if (emailAtivo) {
+        emailStatus = smtpError ? `erro_config: ${smtpError}` : "nao_configurado";
+      }
 
       resultados.push({ 
         id: dest.professional_id || dest.user_id, 
         status: "notificado",
         email: emailStatus
       });
-    }
-
-    if (smtpClient) {
-      try { await smtpClient.close(); } catch { /* ignore */ }
     }
 
     return json(200, { success: true, count: resultados.length, resultados });
