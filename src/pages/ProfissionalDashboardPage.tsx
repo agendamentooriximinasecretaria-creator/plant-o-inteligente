@@ -120,10 +120,9 @@ export default function ProfissionalDashboardPage() {
   }, [shifts]);
 
   const cards = [
-    { label: "Próximos Plantões", value: metrics.upcoming.length, icon: CalendarDays, className: "bg-primary/10 text-primary" },
-    { label: "A Confirmar", value: metrics.naoConfirmados, icon: CheckCircle2, className: "bg-warning/10 text-warning", action: metrics.naoConfirmados > 0 ? () => document.getElementById("confirmar-section")?.scrollIntoView({ behavior: "smooth" }) : undefined },
-    { label: "Trocas Pendentes", value: metrics.pendingSwaps.length, icon: ArrowLeftRight, className: "bg-destructive/10 text-destructive", action: () => navigate("/minhas-trocas?tab=recebidas") },
-    { label: "Horas Realizadas", value: `${metrics.realizado.toFixed(1)}h`, icon: Clock3, className: "bg-info/10 text-info" },
+    { label: \"Próximos Plantões\", value: metrics.upcoming.length, icon: CalendarDays, className: \"bg-primary/10 text-primary\" },
+    { label: \"A Confirmar\", value: metrics.naoConfirmados, icon: CheckCircle2, className: \"bg-warning/10 text-warning\", action: metrics.naoConfirmados > 0 ? () => document.getElementById(\"confirmar-section\")?.scrollIntoView({ behavior: \"smooth\" }) : undefined },
+    { label: \"Trocas Pendentes\", value: metrics.pendingSwaps.length, icon: ArrowLeftRight, className: \"bg-destructive/10 text-destructive\", action: () => navigate(\"/minhas-trocas?tab=recebidas\") },
   ];
 
   return (
