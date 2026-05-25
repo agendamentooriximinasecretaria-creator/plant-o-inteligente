@@ -1092,7 +1092,7 @@ export default function EscalaPage() {
     const dataFim = `${yStr}-${mStr}-${String(ultimoDia).padStart(2, '0')}`;
 
     let q = sb.from('shifts')
-      .select('id, data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, status, profissional_id, professionals:profissional_id(nome, profissao, conselho, registro, documento_numero, documento_conselho), units:unidade_id(nome), sectors:setor_id(nome), unidade_id, setor_id, profissao')
+      .select('id, data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, status, profissional_id, professionals:profissional_id(nome, profissao, conselho, registro, documento_numero, documento_conselho, recebe_adicional_noturno, is_plantonista), units:unidade_id(nome), sectors:setor_id(nome), unidade_id, setor_id, profissao')
       .gte('data', dataIni).lte('data', dataFim)
       .order('data', { ascending: true })
       .order('hora_inicio', { ascending: true });
