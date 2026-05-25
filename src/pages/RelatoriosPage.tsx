@@ -761,6 +761,7 @@ export default function RelatoriosPage() {
             {modalReport && preview && (isMaster || isCoordinator) && (
               <SignActionButton
                 signLabel="Assinar relatório"
+                competence={filtros.dataIni ? filtros.dataIni.slice(0, 7) : new Date().toISOString().slice(0, 7)}
                 getDocument={() => ({
                   document_type: `relatorio_${modalReport.id}`,
                   document_id: `${modalReport.id}_${(filtros.dataIni || 'all')}_${(filtros.dataFim || 'all')}`,
