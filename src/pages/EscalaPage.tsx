@@ -204,6 +204,13 @@ export default function EscalaPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const sb = supabase as any;
+  const { data: settings = {} } = useQuery({
+    queryKey: ['system-settings'],
+    queryFn: async () => {
+      const { data } = await supabase.from('system_settings').select('*');
+      return Object.fromEntries((data || []).map(s => [s.key, s.value]));
+    },
+  });
 
   // -- States --
   const [view, setView] = useState<'lista' | 'calendario' | 'grade' | 'consolidada'>('lista');
@@ -2182,6 +2189,7 @@ export default function EscalaPage() {
             }))}
             tipos={TIPOS_PLANTAO}
             initialMonth={filtros.dataIni ? filtros.dataIni.slice(0, 7) : undefined}
+            showTotalHours={settings.exibir_total_escala_consolidada !== false}
           />
         </motion.div>
       ) : (

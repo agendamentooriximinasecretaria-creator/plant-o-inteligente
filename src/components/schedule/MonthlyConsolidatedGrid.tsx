@@ -29,6 +29,7 @@ interface Props {
   tipos: TipoPlantaoLegenda[];
   /** Mês de referência YYYY-MM. Se não informado, usa o mês atual. */
   initialMonth?: string;
+  showTotalHours?: boolean;
 }
 
 const DIA_SEMANA_ABREV = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
@@ -92,7 +93,7 @@ function siglaFallback(tipo: string): string {
   }
 }
 
-export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ shifts, tipos, initialMonth }: Props) {
+export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ shifts, tipos, initialMonth, showTotalHours = true }: Props) {
   const today = new Date();
   const defaultMonth = initialMonth || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   const [mes, setMes] = useState<string>(defaultMonth);
@@ -260,15 +261,17 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
                   </th>
                 );
               })}
-              <th className="text-center font-bold text-slate-900 dark:text-slate-100 p-4 border-b-2 border-slate-400 dark:border-slate-700 bg-slate-200 dark:bg-slate-900 sticky right-0 z-40 w-[80px] shadow-[-2px_0_4px_rgba(0,0,0,0.1)] text-sm border-l-2 border-l-slate-400">
-                Total
-              </th>
+              {showTotalHours && (
+                <th className="text-center font-bold text-slate-900 dark:text-slate-100 p-4 border-b-2 border-slate-400 dark:border-slate-700 bg-slate-200 dark:bg-slate-900 sticky right-0 z-40 w-[80px] shadow-[-2px_0_4px_rgba(0,0,0,0.1)] text-sm border-l-2 border-l-slate-400">
+                  Total
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
             {groupedData.length === 0 ? (
               <tr>
-                <td colSpan={dias.length + 2} className="p-16 text-center text-muted-foreground text-base italic">
+                <td colSpan={dias.length + (showTotalHours ? 2 : 1)} className="p-16 text-center text-muted-foreground text-base italic">
                   Nenhum plantão encontrado para este período.
                 </td>
               </tr>
@@ -277,7 +280,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
                 if (item.type === 'header-unidade') {
                   return (
                     <tr key={item.key} className="bg-slate-800 dark:bg-slate-950">
-                      <td colSpan={dias.length + 2} className="px-6 py-4 border-b border-slate-700 font-black text-sm text-slate-100 uppercase tracking-[0.2em]">
+                      <td colSpan={dias.length + (showTotalHours ? 2 : 1)} className="px-6 py-4 border-b border-slate-700 font-black text-sm text-slate-100 uppercase tracking-[0.2em]">
                         {item.label}
                       </td>
                     </tr>
@@ -286,7 +289,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
                 if (item.type === 'header-setor') {
                   return (
                     <tr key={item.key} className="bg-slate-100 dark:bg-slate-900/50">
-                      <td colSpan={dias.length + 2} className="px-6 py-3 border-y-2 border-slate-300 dark:border-slate-700 font-extrabold text-sm text-slate-700 dark:text-slate-300 tracking-wide">
+                      <td colSpan={dias.length + (showTotalHours ? 2 : 1)} className="px-6 py-3 border-y-2 border-slate-300 dark:border-slate-700 font-extrabold text-sm text-slate-700 dark:text-slate-300 tracking-wide">
                         <div className="flex items-center gap-3">
                           <span className="w-1.5 h-6 bg-primary rounded-full"></span>
                           SETOR: {item.label}
@@ -298,7 +301,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
                 if (item.type === 'header-profissao') {
                   return (
                     <tr key={item.key} className="bg-white dark:bg-transparent">
-                      <td colSpan={dias.length + 2} className="px-8 py-2 border-b border-slate-200 dark:border-slate-800 font-bold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-widest italic">
+                      <td colSpan={dias.length + (showTotalHours ? 2 : 1)} className="px-8 py-2 border-b border-slate-200 dark:border-slate-800 font-bold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-widest italic">
                         {item.label}
                       </td>
                     </tr>

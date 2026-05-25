@@ -186,14 +186,33 @@ export default function ConfiguracoesPage() {
 
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className={sectionClass}>
-          <div className="flex items-start gap-3 mb-4"><div className="p-2 rounded-lg bg-primary/10"><Shield className="h-5 w-5 text-primary" /></div><div><h3 className="font-display font-semibold text-foreground">Regras de Conflito</h3><p className="text-sm text-muted-foreground">Limites e validações automáticas</p></div></div>
+          <div className="flex items-start gap-3 mb-4"><div className="p-2 rounded-lg bg-primary/10"><Shield className="h-5 w-5 text-primary" /></div><div><h3 className="font-display font-semibold text-foreground">Regras de Conflito e Exibição</h3><p className="text-sm text-muted-foreground">Limites, validações e preferências de visualização</p></div></div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div><label className="text-sm font-medium text-foreground">Limite horas/dia</label><input type="number" value={conflictRules.limite_horas_dia} onChange={e => setConflictRules(c => ({ ...c, limite_horas_dia: Number(e.target.value) }))} className={inputClass} /></div>
             <div><label className="text-sm font-medium text-foreground">Limite horas/semana</label><input type="number" value={conflictRules.limite_horas_semana} onChange={e => setConflictRules(c => ({ ...c, limite_horas_semana: Number(e.target.value) }))} className={inputClass} /></div>
             <div><label className="text-sm font-medium text-foreground">Descanso mínimo (h)</label><input type="number" value={conflictRules.descanso_minimo} onChange={e => setConflictRules(c => ({ ...c, descanso_minimo: Number(e.target.value) }))} className={inputClass} /></div>
             <div className="flex items-center gap-2 pt-6"><input type="checkbox" checked={conflictRules.aprovacao_gestor_trocas} onChange={e => setConflictRules(c => ({ ...c, aprovacao_gestor_trocas: e.target.checked }))} className="rounded" /><label className="text-sm text-foreground">Aprovação do gestor para trocas</label></div>
+            
+            <div className="md:col-span-2 p-4 bg-muted/30 rounded-lg border border-border/50 space-y-3 mt-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground">Visualização da Escala</h4>
+                  <p className="text-xs text-muted-foreground">Personalize a exibição da Escala Mensal Consolidada</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="checkbox" 
+                    id="showTotalHours"
+                    checked={settings.exibir_total_escala_consolidada !== false} 
+                    onChange={e => saveSetting.mutate({ key: 'exibir_total_escala_consolidada', value: e.target.checked })} 
+                    className="rounded h-4 w-4" 
+                  />
+                  <label htmlFor="showTotalHours" className="text-sm font-medium text-foreground cursor-pointer">Exibir total de horas</label>
+                </div>
+              </div>
+            </div>
           </div>
-          <button onClick={() => saveSetting.mutate({ key: 'conflict_rules', value: conflictRules })} className="mt-4 flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90"><Save className="h-4 w-4" /> Salvar</button>
+          <button onClick={() => saveSetting.mutate({ key: 'conflict_rules', value: conflictRules })} className="mt-4 flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90"><Save className="h-4 w-4" /> Salvar Regras</button>
         </motion.div>
 
         {/* Webhook */}
