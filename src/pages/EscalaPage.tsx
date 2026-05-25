@@ -2189,6 +2189,7 @@ export default function EscalaPage() {
             }))}
             tipos={TIPOS_PLANTAO}
             initialMonth={filtros.dataIni ? filtros.dataIni.slice(0, 7) : undefined}
+            showTotalHours={settings.exibir_total_escala_consolidada !== false}
           />
         </motion.div>
       ) : (
