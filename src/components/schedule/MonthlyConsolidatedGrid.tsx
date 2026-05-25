@@ -143,7 +143,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
 
       let row = profissaoMap.get(profId);
       if (!row) {
-        row = { id: profId, nome: s.profissional_nome || "Sem nome", profissao: s.profissao, porDia: new Map(), horas: 0, adn: 0, elegivelAdn: !!s.recebe_adn };
+        row = { id: profId, nome: s.profissional_nome || "Sem nome", profissao: s.profissao, porDia: new Map(), horas: 0, adn: 0, elegivelAdn: !!s.recebe_adn || String((s as any).cargo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim() === 'plantonista' };
         profissaoMap.set(profId, row);
       }
 

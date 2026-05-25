@@ -1140,7 +1140,7 @@ export default function EscalaPage() {
           totalHoras: 0,
           totalPlantoes: 0,
           totalADN: 0,
-          elegivelADN: !!prof.recebe_adicional_noturno || !!prof.is_plantonista,
+          elegivelADN: !!prof.recebe_adicional_noturno || !!prof.is_plantonista || String(prof.cargo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim() === 'plantonista',
         };
         map.set(profId, row);
       }
@@ -2211,6 +2211,7 @@ export default function EscalaPage() {
               profissional_id: s.profissional_id,
               profissional_nome: (s.professionals as any)?.nome || 'Sem nome',
               profissao: PROFISSAO_LABELS[(s.professionals as any)?.profissao] || (s.professionals as any)?.profissao || '',
+              cargo: (s.professionals as any)?.cargo || '',
               unidade_nome: (s.units as any)?.nome || '',
               setor_nome: (s.sectors as any)?.nome || '',
               data: s.data,
@@ -2219,7 +2220,7 @@ export default function EscalaPage() {
               hora_fim: s.hora_fim,
               carga_horaria: Number(s.carga_horaria || 0),
               status: s.status,
-              recebe_adn: (s.professionals as any)?.recebe_adicional_noturno || (s.professionals as any)?.is_plantonista,
+              recebe_adn: (s.professionals as any)?.recebe_adicional_noturno || (s.professionals as any)?.is_plantonista || String((s.professionals as any)?.cargo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim() === 'plantonista',
               gera_adn: TIPOS_PLANTAO.find(t => t.value === s.tipo_plantao)?.gera_adn,
             }))}
             tipos={TIPOS_PLANTAO}
