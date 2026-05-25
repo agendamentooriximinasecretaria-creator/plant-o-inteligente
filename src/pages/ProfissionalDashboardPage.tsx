@@ -165,34 +165,6 @@ export default function ProfissionalDashboardPage() {
         ))}
       </div>
 
-      {/* Banco de horas CLT 220h */}
-      <div className="kpi-card">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h2 className="text-base font-semibold text-foreground flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" /> Banco de Horas — CLT 220h/mês</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Realizado − 220h de referência mensal</p>
-          </div>
-          <div className="text-right">
-            <p className={`text-2xl font-bold font-mono ${metrics.saldoBanco >= 0 ? "text-success" : "text-warning"}`}>
-              {metrics.saldoBanco >= 0 ? "+" : ""}{metrics.saldoBanco.toFixed(1)}h
-            </p>
-            <p className="text-[11px] text-muted-foreground">{metrics.saldoBanco >= 0 ? "saldo positivo" : "horas a cumprir"}</p>
-          </div>
-        </div>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Previsto: <span className="font-mono font-medium text-foreground">{metrics.previsto.toFixed(1)}h</span></span>
-            <span>Realizado: <span className="font-mono font-medium text-foreground">{metrics.realizado.toFixed(1)}h</span></span>
-            <span>Limite CLT: <span className="font-mono font-medium text-foreground">{CLT_LIMIT}h</span></span>
-          </div>
-          <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-            <div
-              className={`h-full transition-all ${metrics.pctCLT >= 100 ? "bg-destructive" : metrics.pctCLT >= 85 ? "bg-warning" : "bg-primary"}`}
-              style={{ width: `${metrics.pctCLT}%` }}
-            />
-          </div>
-        </div>
-      </div>
 
       {/* Weekly calendar */}
       <div className="kpi-card">
