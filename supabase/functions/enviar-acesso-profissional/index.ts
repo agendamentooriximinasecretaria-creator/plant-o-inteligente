@@ -138,22 +138,29 @@ ${empresa}`;
       }
     }
 
-    // 2) Fallback SMTP Gmail (force port 465 implicit TLS — mais estável no edge runtime)
+    // 2) SMTP Gmail
     if (!canal) {
-      const senha = Deno.env.get("GMAIL_SMTP_PASSWORD");
-      const remetente = cfg.gmail_smtp?.email_remetente || Deno.env.get("GMAIL_SMTP_USER");
-      const servidor = cfg.gmail_smtp?.servidor || "smtp.gmail.com";
-      if (senha && remetente) {
+      const smtpCfg = cfg.gmail_smtp;
+      const remetente = smtpCfg?.email_remetente || Deno.env.get("GMAIL_SMTP_USER");
+      const senha = smtpCfg?.senha || Deno.env.get("GMAIL_SMTP_PASSWORD");
+      const servidor = smtpCfg?.servidor || "smtp.gmail.com";
+      const porta = Number(smtpCfg?.porta || 587);
+
+      if (senha && remetente && smtpCfg?.status === "ativo") {
         let client: SMTPClient | null = null;
         try {
+          // Implicit TLS on 465, STARTTLS on 587
+          const useTls = porta === 465;
+          
           client = new SMTPClient({
             connection: {
               hostname: servidor,
-              port: 465,
-              tls: true,
+              port: porta,
+              tls: useTls,
               auth: { username: remetente, password: senha },
             },
           });
+          
           await client.send({
             from: `${empresa} <${remetente}>`,
             to: prof.email,
@@ -164,12 +171,13 @@ ${empresa}`;
           canal = "smtp";
         } catch (e) {
           lastError = `SMTP falhou: ${e instanceof Error ? e.message : String(e)}`;
+          console.error("SMTP error details:", e);
         } finally {
           try { await client?.close(); } catch { /* ignore */ }
         }
       } else if (!lastError) {
         lastError =
-          "Nenhum canal de e-mail configurado. Ative o webhook ou configure o SMTP do Gmail.";
+          "Configuração de e-mail incompleta ou inativa. Verifique os dados do Gmail SMTP em Configurações.";
       }
     }
 
