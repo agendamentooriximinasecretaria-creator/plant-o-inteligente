@@ -573,7 +573,7 @@ export async function gerarPdfEscalaMensalOficial(
       const setorMap = unidadeMap.get(s)!;
       const sortedProfissoes = Array.from(setorMap.keys()).sort();
       for (const pName of sortedProfissoes) {
-        body.push([{ content: pName.toUpperCase(), colSpan: totalDias + 2, styles: { fillColor: [255, 255, 255], fontStyle: "bold", halign: "left", textColor: [100, 100, 100], fontSize: 6.5 } }]);
+        body.push([{ content: pName.toUpperCase(), colSpan: totalCols, styles: { fillColor: [255, 255, 255], fontStyle: "bold", halign: "left", textColor: [100, 100, 100], fontSize: 6.5 } }]);
         profsInBody.push(null);
 
         const sortedList = setorMap.get(pName)!.sort((a, b) => a.nome.localeCompare(b.nome));
