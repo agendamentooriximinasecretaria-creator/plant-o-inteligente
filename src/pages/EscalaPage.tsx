@@ -3092,7 +3092,7 @@ export default function EscalaPage() {
                   ['somentePublicada', 'Somente escala publicada'],
                   ['incluirFolgas', 'Incluir folgas'],
                   ['incluirAfastamentos', 'Incluir afastamentos (FE/LP/A)'],
-                  settings.exibir_total_escala_consolidada !== false ? ['incluirTotalHoras', 'Mostrar total de horas (em vez de qtd. plantões)'] : null,
+                  (!isProfessional && settings.exibir_total_escala_consolidada !== false) ? ['incluirTotalHoras', 'Mostrar total de horas (em vez de qtd. plantões)'] : null,
                   settings.exibir_adn_escala_consolidada !== false ? ['incluirADN', 'Mostrar Adicional Noturno (ADN)'] : null,
                   ['incluirAssinatura', 'Incluir campo de assinatura'],
                   ['incluirConselho', 'Incluir conselho/registro'],
