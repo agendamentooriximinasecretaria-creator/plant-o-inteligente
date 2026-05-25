@@ -174,7 +174,7 @@ export default function MinhaEscalaPage() {
                   <td className="p-3 text-muted-foreground">{(s.units as any)?.nome || "—"} • {(s.sectors as any)?.nome || "—"}</td>
                   <td className="p-3 text-foreground">{s.hora_inicio} - {s.hora_fim}</td>
                   <td className="p-3 text-muted-foreground">{s.tipo_plantao}</td>
-                  <td className="p-3 text-foreground font-medium">{Number(s.carga_horaria).toFixed(1)}h</td>
+                  
                   <td className="p-3"><span className="status-badge bg-primary/10 text-primary">{s.status}</span></td>
                   <td className="p-3">
                     {s.data > today && s.status !== 'cancelado' && (
