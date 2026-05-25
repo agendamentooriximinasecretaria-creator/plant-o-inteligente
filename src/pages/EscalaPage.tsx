@@ -1160,11 +1160,17 @@ export default function EscalaPage() {
         row.totalHoras += carga;
         row.totalPlantoes += 1;
         
-        // Cálculo ADN
+        // Cálculo ADN (Adicional Noturno)
         if (row.elegivelADN) {
-          const tipo = (s.tipo_plantao || "").toLowerCase();
-          if (tipo.includes("not") || tipo.includes("24")) {
-            row.totalADN += tipo.includes("24") ? 10 : 7;
+          const tipoConfig = TIPOS_PLANTAO.find(t => t.value === s.tipo_plantao);
+          const geraAdn = tipoConfig?.gera_adn !== undefined ? tipoConfig.gera_adn : (
+            (s.tipo_plantao || "").toLowerCase().includes("not") || 
+            (s.tipo_plantao || "").toLowerCase().includes("24")
+          );
+
+          if (geraAdn) {
+            const t = (s.tipo_plantao || "").toLowerCase();
+            row.totalADN += t.includes("24") ? 10 : 7;
           }
         }
       }
