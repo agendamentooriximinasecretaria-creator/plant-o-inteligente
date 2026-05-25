@@ -263,7 +263,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
                 );
               })}
               {showTotalHours && (
-                <th className="text-center font-bold text-slate-900 dark:text-slate-100 p-4 border-b-2 border-slate-400 dark:border-slate-700 bg-slate-200 dark:bg-slate-900 sticky right-0 z-40 w-[80px] shadow-[-2px_0_4px_rgba(0,0,0,0.1)] text-sm border-l-2 border-l-slate-400">
+                <th className="text-center font-bold text-slate-900 dark:text-slate-100 p-4 border-b-2 border-slate-400 dark:border-slate-700 bg-slate-200 dark:bg-slate-900 sticky right-0 z-40 w-[80px] shadow-[-2px_0_4px_rgba(0,0,0,0.1)] text-sm border-l-2 border-l-slate-400 print:table-cell">
                   Total
                 </th>
               )}
