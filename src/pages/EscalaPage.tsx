@@ -624,11 +624,12 @@ export default function EscalaPage() {
 
   // Revalidação server-side imediatamente antes do mutate.
   // Valida TODOS os profissionais selecionados (não para no primeiro) e retorna lista agregada de conflitos.
-  const revalidateServerSide = async (data: typeof form): Promise<void> => {
+  const revalidateServerSide = async (data: typeof form): Promise<{ allDates: string[] }> => {
     const limiteDia = Number(conflictRules?.limite_horas_dia ?? 24);
     const limiteSemana = Number(conflictRules?.limite_horas_semana ?? 60);
     const novaCarga = calcHours(data.hora_inicio, data.hora_fim);
     const erros: string[] = [];
+
 
     // 1. Tipo de plantão ativo
     if (data.tipo_plantao && !['regular', 'folga', 'indisponibilidade'].includes(data.tipo_plantao)) {
@@ -752,7 +753,9 @@ export default function EscalaPage() {
         : `Não foi possível salvar — ${erros.length} conflitos detectados:`;
       throw new Error(`${cabecalho}\n• ${erros.join('\n• ')}`);
     }
+    return { allDates };
   };
+
 
   const saveMutation = useMutation({
     mutationFn: async (data: typeof form) => {
@@ -761,7 +764,8 @@ export default function EscalaPage() {
       if (!idsSnapshot.length) throw new Error('Selecione ao menos um profissional.');
       const finalData = { ...data, profissional_ids: idsSnapshot };
       // Revalidação server-side final — valida TODOS os selecionados, não apenas o primeiro
-      await revalidateServerSide(finalData);
+      const { allDates } = await revalidateServerSide(finalData);
+
       const hours = calcHours(finalData.hora_inicio, finalData.hora_fim);
       const basePayloads = finalData.setor_ids.flatMap(sid => 
         allDates.map(date => ({
