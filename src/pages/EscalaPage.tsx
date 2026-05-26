@@ -2491,9 +2491,12 @@ export default function EscalaPage() {
 
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-foreground">Profissão *</label>
-                      <select required value={form.profissao} onChange={e => setForm(f => ({ ...f, profissao: e.target.value, profissional_ids: [] }))} className={inputClass}>
-                        {Object.entries(PROFISSAO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                      </select>
+                      <MultiSelect
+                        options={Object.entries(PROFISSAO_LABELS).map(([k, v]) => ({ label: v, value: k }))}
+                        selected={form.profissao_ids}
+                        onChange={(ids) => setForm(f => ({ ...f, profissao_ids: ids, profissional_ids: [] }))}
+                        placeholder="Selecione as profissões..."
+                      />
                     </div>
 
                     <div className="space-y-2">
