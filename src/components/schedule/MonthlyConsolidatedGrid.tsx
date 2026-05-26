@@ -1,5 +1,7 @@
 import { useMemo, useState, memo } from "react";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertTriangle, Info } from "lucide-react";
+import { calculateAdicionalNoturno } from "@/lib/utils";
+
 
 export interface MonthlyShift {
   id: string;
