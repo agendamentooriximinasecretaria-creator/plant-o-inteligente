@@ -619,35 +619,53 @@ export async function gerarPdfEscalaMensalOficial(
     const xL = margin + gap + lineLen / 2;
     const startXL = margin + gap;
     
-    // Assinatura (Esquerda)
+    // Bloco Esquerdo — Responsável 1
+    const xL = margin + gap + lineLen / 2;
+    const startXL = margin + gap;
+    
+    // Assinatura Visual (Esquerda)
     if (r1?.assinaturaBase64) {
       try {
-        doc.addImage(r1.assinaturaBase64, "PNG", startXL + 2, assY - 14, 30, 12, undefined, 'FAST');
-      } catch { /* ignora */ }
+        doc.addImage(r1.assinaturaBase64, "PNG", startXL, assY - 18, 40, 16, undefined, 'FAST');
+      } catch (e) { console.error("PDF R1 Assinatura Erro:", e); }
     }
     // Carimbo (Esquerda)
     if (r1?.carimboBase64) {
       try {
-        doc.addImage(r1.carimboBase64, "PNG", startXL + 35, assY - 18, 25, 16, undefined, 'FAST');
-      } catch { /* ignora */ }
+        const stampX = r1.assinaturaBase64 ? startXL + 30 : startXL + 15;
+        doc.addImage(r1.carimboBase64, "PNG", stampX, assY - 22, 30, 20, undefined, 'FAST');
+      } catch (e) { console.error("PDF R1 Carimbo Erro:", e); }
     }
 
-    doc.setLineWidth(0.2);
+    // Selo Digital (Esquerda) se não houver assinatura visual
+    if (!r1?.assinaturaBase64 && (r1?.hasDigitalSeal || r1?.tipo === 'digital_gerado' || r1?.tipo === 'eletronica_interna')) {
+      doc.setTextColor(30, 58, 138); 
+      doc.setFont("courier", "bold");
+      doc.setFontSize(8);
+      doc.setDrawColor(30, 58, 138);
+      doc.rect(startXL + 10, assY - 12, 50, 8);
+      doc.text("ASSINADO DIGITALMENTE", xL, assY - 7, { align: "center" });
+      doc.setTextColor(0);
+      doc.setDrawColor(0);
+      doc.setFont("helvetica", "normal");
+    }
+
+    doc.setLineWidth(0.3);
     doc.line(startXL, assY, startXL + lineLen, assY);
-    doc.setFontSize(8);
+    doc.setFontSize(8.5);
     doc.setFont("helvetica", "bold");
     doc.text(r1?.nome || "", xL, assY + 4, { align: "center" });
-    doc.setFontSize(7);
+    doc.setFontSize(7.5);
     doc.setFont("helvetica", "normal");
-    doc.text(r1?.cargo || "", xL, assY + 7.5, { align: "center" });
+    doc.text(r1?.cargo || "", xL, assY + 8, { align: "center" });
     if (r1?.conselho && r1.conselho !== "Não informado") {
-      doc.text(r1.conselho, xL, assY + 10.5, { align: "center" });
-    } else if ((r1?.tipo === 'digital_gerado' || r1?.tipo === 'eletronica_interna') && !r1?.assinaturaBase64) {
-      doc.setTextColor(30, 58, 138); // Blue color for digital
-      doc.setFont("courier", "bold");
-      doc.text("ASSINADO DIGITALMENTE", xL, assY - 6, { align: "center" });
+      doc.text(r1.conselho, xL, assY + 11.5, { align: "center" });
+    }
+    if (r1?.unidade) {
+      doc.setFontSize(6.5);
+      doc.setTextColor(100);
+      doc.text(r1.unidade, xL, assY + 14.5, { align: "center" });
       doc.setTextColor(0);
-      doc.setFont("helvetica", "normal");
     }
 
     // Bloco Direito — Responsável 2
