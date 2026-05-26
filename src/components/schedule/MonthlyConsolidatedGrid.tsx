@@ -219,7 +219,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
       }
     }
     return result;
-  }, [shifts, year, monthIdx]);
+  }, [shifts, year, monthIdx, tipos]);
 
   const navMes = (delta: number) => {
     const d = new Date(year, monthIdx + delta, 1);
