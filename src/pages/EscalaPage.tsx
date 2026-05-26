@@ -2465,6 +2465,10 @@ export default function EscalaPage() {
                         placeholder="Selecione os setores..."
                       />
                     </div>
+                  </div>
+                </div>
+              </div>
+
 
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-foreground">Profissão *</label>
