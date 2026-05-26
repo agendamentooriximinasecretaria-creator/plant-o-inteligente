@@ -610,9 +610,10 @@ export default function EscalaPage() {
   // Sempre que o formulário mudar (profissionais, data, horas, setor, unidade, tipo),
   // dispara uma nova validação após 250ms de inatividade, descartando respostas antigas.
   const debouncedFormKey = useDebounce(
-    `${form.profissional_ids.join(',')}|${form.data}|${form.hora_inicio}|${form.hora_fim}|${form.setor_id}|${form.unidade_id}|${form.tipo_plantao}`,
+    `${form.profissional_ids.join(',')}|${form.dates.join(',')}|${form.hora_inicio}|${form.hora_fim}|${form.setor_ids.join(',')}|${form.unidade_id}|${form.tipo_plantao}`,
     250,
   );
+
   useEffect(() => {
     if (!modalOpen) return;
     const gen = ++validationGenRef.current;
@@ -640,47 +641,70 @@ export default function EscalaPage() {
       }
     }
 
-    // 2. Setor/Unidade válidos
-    const setor = (sectors as any[]).find((s: any) => s.id === data.setor_id);
-    if (!setor) erros.push('Setor selecionado é inválido.');
-    else if (setor.unidade_id && setor.unidade_id !== data.unidade_id) {
-      erros.push('Setor não pertence à unidade selecionada.');
+    // 2. Setores/Unidade válidos
+    for (const sid of data.setor_ids) {
+      const setor = (sectors as any[]).find((s: any) => s.id === sid);
+      if (!setor) erros.push(`Setor ${sid} é inválido.`);
+      else if (setor.unidade_id && setor.unidade_id !== data.unidade_id) {
+        erros.push(`Setor ${setor.nome} não pertence à unidade selecionada.`);
+      }
     }
 
-    // Janela de semana (segunda a domingo) para limite semanal
-    const ref = new Date(data.data + 'T00:00:00');
-    const dow = ref.getDay();
-    const diffToMon = (dow + 6) % 7;
-    const semanaIni = new Date(ref); semanaIni.setDate(ref.getDate() - diffToMon);
-    const semanaFim = new Date(semanaIni); semanaFim.setDate(semanaIni.getDate() + 6);
-    const semanaIniStr = semanaIni.toISOString().split('T')[0];
-    const semanaFimStr = semanaFim.toISOString().split('T')[0];
+    const allDates = data.date_mode === 'single' ? [data.dates[0]] : 
+                     data.date_mode === 'multiple' ? data.dates : 
+                     data.date_mode === 'range' ? (() => {
+                        const start = new Date(data.dates[0] + 'T00:00:00');
+                        const end = new Date(data.dates[1] + 'T00:00:00');
+                        const list = [];
+                        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) list.push(d.toISOString().split('T')[0]);
+                        return list;
+                     })() : 
+                     data.date_mode === 'repeat' ? (() => {
+                        const start = new Date(data.dates[0] + 'T00:00:00');
+                        const end = new Date(data.repeat_until + 'T00:00:00');
+                        const list = [];
+                        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                          if (data.repeat_days.includes(d.getDay())) list.push(d.toISOString().split('T')[0]);
+                        }
+                        return list;
+                     })() : [];
 
-    // Validação paralela por profissional, agregando todos os erros
-    const validarProfissional = async (pid: string): Promise<string[]> => {
+
+    // Validação paralela por profissional e data, agregando todos os erros
+    const validarProfissionalData = async (pid: string, dateStr: string): Promise<string[]> => {
       const out: string[] = [];
       const prof = (professionals as any[]).find((p: any) => p.id === pid);
       const nome = prof?.nome || `Profissional ${pid.slice(0, 8)}`;
+      const dataLabel = new Date(dateStr + 'T12:00:00').toLocaleDateString('pt-BR');
 
       if (!prof || prof.status !== 'ativo') {
         out.push(`${nome}: profissional inativo.`);
         return out;
       }
 
+      // Janela de semana (segunda a domingo) para limite semanal
+      const ref = new Date(dateStr + 'T00:00:00');
+      const dow = ref.getDay();
+      const diffToMon = (dow + 6) % 7;
+      const semanaIni = new Date(ref); semanaIni.setDate(ref.getDate() - diffToMon);
+      const semanaFim = new Date(semanaIni); semanaFim.setDate(semanaIni.getDate() + 6);
+      const semanaIniStr = semanaIni.toISOString().split('T')[0];
+      const semanaFimStr = semanaFim.toISOString().split('T')[0];
+
       const [conflictsRes, restRes, doDiaRes, doSemRes] = await Promise.all([
         supabase.rpc('check_shift_conflict', {
-          p_profissional_id: pid, p_data: data.data,
+          p_profissional_id: pid, p_data: dateStr,
           p_hora_inicio: data.hora_inicio, p_hora_fim: data.hora_fim,
           p_exclude_id: editingId,
         }),
         supabase.rpc('check_descanso_minimo', {
-          p_profissional_id: pid, p_data: data.data,
+          p_profissional_id: pid, p_data: dateStr,
           p_hora_inicio: data.hora_inicio, p_hora_fim: data.hora_fim,
           p_descanso_horas: descansoMinimo, p_exclude_id: editingId,
         }),
         (() => {
           let q = supabase.from('shifts').select('carga_horaria')
-            .eq('profissional_id', pid).eq('data', data.data).neq('status', 'cancelado');
+            .eq('profissional_id', pid).eq('data', dateStr).neq('status', 'cancelado');
           if (editingId) q = q.neq('id', editingId);
           return q;
         })(),
@@ -691,6 +715,7 @@ export default function EscalaPage() {
           return q;
         })(),
       ]);
+
 
       if (conflictsRes.error) out.push(`${nome}: falha ao revalidar conflito (${conflictsRes.error.message}).`);
       else if (conflictsRes.data && conflictsRes.data.length > 0) {
