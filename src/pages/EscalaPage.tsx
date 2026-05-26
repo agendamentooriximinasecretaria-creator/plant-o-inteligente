@@ -6,6 +6,8 @@ import { invalidateCrossShifts } from "@/lib/queryInvalidation";
 import { logAudit } from "@/lib/auditLog";
 import { dispatchNotification } from "@/lib/notifyHelper";
 import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info, Users as UsersIcon, Palmtree, AlertTriangle, AlertCircle, LayoutGrid, MoreHorizontal, Printer, FileText, FileSpreadsheet, CopyPlus, ShieldCheck, Send, Megaphone, Loader2, Search, X, Table2, ChevronLeft, ChevronRight, Eye, CalendarDays, Repeat } from "lucide-react";
+import { cn } from "@/lib/utils";
+
 import { WeeklyGrid, type ProfRow, type GridShift } from "@/components/schedule/WeeklyGrid";
 import { MonthlyConsolidatedGrid } from "@/components/schedule/MonthlyConsolidatedGrid";
 import { ContactActionButton } from "@/components/ContactActionButton";
@@ -559,31 +561,34 @@ export default function EscalaPage() {
     const warnings: string[] = [];
     const restWarn: string[] = [];
     for (const pid of form.profissional_ids) {
-      const { data: conflicts } = await supabase.rpc('check_shift_conflict', {
-        p_profissional_id: pid,
-        p_data: form.data,
-        p_hora_inicio: form.hora_inicio,
-        p_hora_fim: form.hora_fim,
-        p_exclude_id: editingId,
-      });
-      const prof = (professionals as any[]).find(p => p.id === pid);
-      if (conflicts && conflicts.length > 0) {
-        warnings.push(`⚠️ ${prof?.nome}: já tem plantão ${conflicts[0].conflicting_start}-${conflicts[0].conflicting_end} ou folga neste dia.`);
-      }
-      // Verifica descanso mínimo
-      const { data: restData } = await sb.rpc('check_descanso_minimo', {
-        p_profissional_id: pid,
-        p_data: form.data,
-        p_hora_inicio: form.hora_inicio,
-        p_hora_fim: form.hora_fim,
-        p_descanso_horas: descansoMinimo,
-        p_exclude_id: editingId,
-      });
-      if (restData && restData.length > 0) {
-        const gap = Number(restData[0].gap_horas).toFixed(1);
-        restWarn.push(`🛌 ${prof?.nome}: descanso de ${gap}h entre plantões (mínimo configurado: ${descansoMinimo}h).`);
+      for (const date of datesToCheck.slice(0, 10)) {
+        const { data: conflicts } = await supabase.rpc('check_shift_conflict', {
+          p_profissional_id: pid,
+          p_data: date,
+          p_hora_inicio: form.hora_inicio,
+          p_hora_fim: form.hora_fim,
+          p_exclude_id: editingId,
+        });
+        const prof = (professionals as any[]).find(p => p.id === pid);
+        if (conflicts && conflicts.length > 0) {
+          warnings.push(`⚠️ ${prof?.nome} (${new Date(date + 'T12:00:00').toLocaleDateString('pt-BR')}): já tem plantão ${conflicts[0].conflicting_start}-${conflicts[0].conflicting_end} ou folga.`);
+        }
+        // Verifica descanso mínimo
+        const { data: restData } = await sb.rpc('check_descanso_minimo', {
+          p_profissional_id: pid,
+          p_data: date,
+          p_hora_inicio: form.hora_inicio,
+          p_hora_fim: form.hora_fim,
+          p_descanso_horas: descansoMinimo,
+          p_exclude_id: editingId,
+        });
+        if (restData && restData.length > 0) {
+          const gap = Number(restData[0].gap_horas).toFixed(1);
+          restWarn.push(`🛌 ${prof?.nome} (${new Date(date + 'T12:00:00').toLocaleDateString('pt-BR')}): descanso de ${gap}h (mínimo ${descansoMinimo}h).`);
+        }
       }
     }
+
     // Descartar resultado se outra validação foi disparada nesse meio tempo
     if (gen !== undefined && gen !== validationGenRef.current) return;
     setConflictWarnings(warnings);
