@@ -2507,50 +2507,8 @@ export default function EscalaPage() {
                 </div>
               </div>
 
-              <div className="lg:col-span-8 space-y-6">
 
 
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-foreground">Profissão *</label>
-                      <select required value={form.profissao} onChange={e => setForm(f => ({ ...f, profissao: e.target.value, profissional_ids: [] }))} className={inputClass}>
-                        {Object.entries(PROFISSAO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                      </select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-foreground">Tipo de plantão *</label>
-                      <select value={form.tipo_plantao} onChange={e => applyTipoPreset(e.target.value)} className={inputClass}>
-                        {TIPOS_PLANTAO.map(t => <option key={t.value} value={t.value}>{t.value} ({t.start}–{t.end})</option>)}
-                      </select>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        {(() => { const c = classificarTurno(form.tipo_plantao, form.hora_inicio, form.hora_fim); return (
-                          <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded ${c.cls}`}>{c.label}</span>
-                        ); })()}
-                        <span className="text-[11px] text-muted-foreground">Carga: <strong>{calcHoursSafe(form.hora_inicio, form.hora_fim).toFixed(1)}h</strong></span>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-foreground">Hora início *</label>
-                        <input required type="time" value={form.hora_inicio} onChange={e => setForm(f => ({ ...f, hora_inicio: e.target.value }))} className={inputClass} />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-foreground">Hora fim *</label>
-                        <input required type="time" value={form.hora_fim} onChange={e => setForm(f => ({ ...f, hora_fim: e.target.value }))} className={inputClass} />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-foreground">Status</label>
-                      <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={inputClass}>
-                        {Object.entries(STATUS_LABELS).filter(([k]) => k !== 'trocando').map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </div>
 
 
               <div className="lg:col-span-8 space-y-6">
@@ -2728,10 +2686,13 @@ export default function EscalaPage() {
                         <UsersIcon className="h-8 w-8 text-muted-foreground/30 mx-auto" />
                         <p className="text-sm text-muted-foreground">Nenhum profissional encontrado para os filtros atuais.</p>
                       </div>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
+            </div>
+
 
             {/* Resumo do Lote */}
             {!editingId && form.setor_ids.length > 0 && form.profissional_ids.length > 0 && form.dates.length > 0 && (
