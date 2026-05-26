@@ -1670,7 +1670,7 @@ export default function EscalaPage() {
   const openEdit = (s: any) => {
     setEditingId(s.id);
     setForm({
-      unidade_id: s.unidade_id, setor_ids: [s.setor_id], profissao: s.profissao,
+      unidade_id: s.unidade_id, setor_ids: [s.setor_id], profissao_ids: [s.profissao],
       profissional_ids: [s.profissional_id], dates: [s.data],
       repeat_days: [], repeat_until: '', date_mode: 'single',
       hora_inicio: s.hora_inicio, hora_fim: s.hora_fim, tipo_plantao: s.tipo_plantao,
