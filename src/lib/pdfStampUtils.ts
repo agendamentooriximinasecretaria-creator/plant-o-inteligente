@@ -7,6 +7,8 @@ export interface StampData {
   unidade: string;
   assinaturaBase64?: string;
   carimboBase64?: string;
+  tipo?: string;
+  validationCode?: string;
 }
 
 /** 
