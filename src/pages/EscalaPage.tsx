@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { invalidateCrossShifts } from "@/lib/queryInvalidation";
 import { logAudit } from "@/lib/auditLog";
 import { dispatchNotification } from "@/lib/notifyHelper";
-import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info, Users as UsersIcon, Palmtree, AlertTriangle, AlertCircle, LayoutGrid, MoreHorizontal, Printer, FileText, FileSpreadsheet, CopyPlus, ShieldCheck, Send, Megaphone, Loader2, Search, X, Table2, ChevronLeft, ChevronRight, Eye, CalendarDays, Repeat } from "lucide-react";
+import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info, Users as UsersIcon, Palmtree, AlertTriangle, AlertCircle, LayoutGrid, MoreHorizontal, Printer, FileText, FileSpreadsheet, CopyPlus, ShieldCheck, Send, Megaphone, Loader2, Search, X, Table2, ChevronLeft, ChevronRight, Eye, CalendarDays, Repeat, Stamp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import { WeeklyGrid, type ProfRow, type GridShift } from "@/components/schedule/WeeklyGrid";
@@ -23,13 +23,14 @@ import { useNavigate } from "react-router-dom";
 import { exportToPDF, exportToExcel } from "@/lib/exportUtils";
 import { abrirVisualizacaoImpressao, gerarPdfEscala, diaSemanaPt, type PrintLinha, type PrintCabecalho, type PrintOptions } from "@/lib/printEscala";
 import { abrirEscalaMensalOficial, gerarPdfEscalaMensalOficial, type MensalProfissional, type MensalCabecalho, type MensalOpts, type MensalTipoLegenda, type MensalResponsavel } from "@/lib/printEscalaMensalOficial";
-import { fetchStampData, fetchRTForUnidade, fetchGestorMasterForUnidade, type StampData } from "@/lib/pdfStampUtils";
+import { resolveSignatureData, resolveRTForUnidade, resolveGestorMasterForUnidade, type ResolvedSignature } from "@/lib/signatureResolution";
 import { imprimirComprovantePlantao, type ComprovantePlantaoData } from "@/lib/printComprovantePlantao";
 import SignActionButton from "@/components/SignActionButton";
 import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 import { calculateAdicionalNoturno } from "@/lib/utils";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 
 
 
@@ -279,12 +280,14 @@ export default function EscalaPage() {
   const [notifyTarget, setNotifyTarget] = useState<any>(null);
   const [notifyMsg, setNotifyMsg] = useState("");
   const [historyTarget, setHistoryTarget] = useState<any>(null);
+  const [resolvedSignature, setResolvedSignature] = useState<ResolvedSignature | null>(null);
   const { data: currentStamp } = useQuery({
     queryKey: ['my-stamp', currentProfId],
     queryFn: async () => {
       if (!currentProfId) return null;
-      const { data } = await supabase.from('professional_stamps').select('*').eq('profissional_id', currentProfId).eq('bloqueado', false).maybeSingle();
-      return data;
+      const res = await resolveSignatureData({ professionalId: currentProfId });
+      setResolvedSignature(res);
+      return res;
     },
     enabled: !!currentProfId
   });
@@ -1345,7 +1348,7 @@ export default function EscalaPage() {
 
   const getMensalOpts = async (unidadeId?: string): Promise<MensalOpts> => {
     // 1. Identifica o perfil do usuário logado que está gerando a escala
-    let gestorStamp: StampData | null = null;
+    let gestorSignature: ResolvedSignature | null = null;
     
     // Tenta buscar o profissional vinculado ao usuário logado
     const { data: profProfile } = await supabase
@@ -1357,37 +1360,33 @@ export default function EscalaPage() {
     const effectiveProfId = profProfile?.profissional_id || currentProfId;
 
     if (effectiveProfId) {
-      gestorStamp = await fetchStampData(effectiveProfId);
-    }
-    
-    // Log para depuração em ambiente de desenvolvimento
-    if (!gestorStamp && effectiveProfId) {
-      console.warn(`[EscalaPage] Carimbo não encontrado para o profissional ${effectiveProfId}`);
+      gestorSignature = await resolveSignatureData({ professionalId: effectiveProfId });
     }
     
     // 2. Determina os blocos esquerdo e direito conforme a regra de negócio
-    let responsavel: StampData | null = gestorStamp;
-    let responsavelSecundario: StampData | null = null;
+    let responsavel: ResolvedSignature | null = gestorSignature;
+    let responsavelSecundario: ResolvedSignature | null = null;
 
     if (isMaster) {
       // SE quem gera é GESTOR MASTER:
       // BLOCO ESQUERDO: Gestor Master (ele mesmo)
       // BLOCO DIREITO: Responsável Técnico da Unidade
-      responsavelSecundario = await fetchRTForUnidade(unidadeId);
+      responsavelSecundario = await resolveRTForUnidade(unidadeId);
     } else if (isCoordinator) {
       // SE quem gera é COORDENADOR:
       // BLOCO ESQUERDO: Coordenador (ele mesmo)
       // BLOCO DIREITO: Gestor Master da Unidade
-      responsavelSecundario = await fetchGestorMasterForUnidade(unidadeId);
+      responsavelSecundario = await resolveGestorMasterForUnidade(unidadeId);
     } else {
       // Outros casos: mantemos o padrão anterior
-      responsavelSecundario = await fetchRTForUnidade(unidadeId);
+      responsavelSecundario = await resolveRTForUnidade(unidadeId);
     }
 
     // Validação de carimbo próprio para o aviso em tela
-    if (!gestorStamp) {
+    const hasAnySignature = gestorSignature?.hasVisualSignature || gestorSignature?.hasStamp || gestorSignature?.hasDigitalSeal;
+    if (!hasAnySignature) {
       toast.warning(
-        "Atenção: você não possui assinatura cadastrada. O documento será gerado com campo em branco para assinatura manual.", 
+        "Atenção: você não possui assinatura ou carimbo cadastrado. O documento será gerado com campo em branco para assinatura manual.", 
         { duration: 8000 }
       );
     }
@@ -1421,15 +1420,14 @@ export default function EscalaPage() {
 
   useEffect(() => {
     if (currentStamp && printOpen) {
-      const metadata = (currentStamp.metadata as any) || {};
       setPrintForm(f => ({
         ...f,
-        responsavelNome: metadata.nome_profissional || profileName || user?.email || "",
-        responsavelCargo: currentStamp.cargo || (isMaster ? 'Gestor Master' : 'Coordenador'),
-        responsavelConselho: `${metadata.conselho || ''} ${metadata.registro || ''}`.trim()
+        responsavelNome: currentStamp.nome,
+        responsavelCargo: currentStamp.cargo,
+        responsavelConselho: currentStamp.conselho
       }));
     }
-  }, [currentStamp, printOpen, profileName, user?.email, isMaster]);
+  }, [currentStamp, printOpen]);
   
   // Sincroniza configuração de exibição do total com o formulário de impressão
   useEffect(() => {
@@ -3506,8 +3504,32 @@ export default function EscalaPage() {
 
             {/* RESPONSÁVEL (apenas mensal_oficial) */}
             {printForm.modelo === 'mensal_oficial' && printForm.incluirAssinatura && (
-              <section>
-                <h4 className="text-sm font-semibold mb-2">Responsável pela escala</h4>
+              <section className="p-3 bg-muted/30 rounded-lg border border-border/50">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold">Responsável pela escala</h4>
+                  {resolvedSignature && (
+                    <div className="flex gap-2">
+                      {resolvedSignature.hasVisualSignature ? (
+                        <Badge variant="outline" className="bg-success/10 text-success border-success/20 gap-1 text-[10px] py-0">
+                          <ShieldCheck className="h-3 w-3" /> Assinatura Visual
+                        </Badge>
+                      ) : resolvedSignature.hasDigitalSeal ? (
+                        <Badge variant="outline" className="bg-info/10 text-info border-info/20 gap-1 text-[10px] py-0">
+                          <ShieldCheck className="h-3 w-3" /> Selo Digital
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20 gap-1 text-[10px] py-0">
+                          <AlertTriangle className="h-3 w-3" /> Apenas Texto
+                        </Badge>
+                      )}
+                      {resolvedSignature.hasStamp && (
+                        <Badge variant="outline" className="bg-success/10 text-success border-success/20 gap-1 text-[10px] py-0">
+                          <Stamp className="h-3 w-3" /> Carimbo
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="text-xs font-medium text-muted-foreground">Nome</label>

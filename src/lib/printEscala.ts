@@ -5,7 +5,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { getLogoSmsDataUrl, logoSmsImgHtml } from "./logoSMS";
-import type { StampData } from "./pdfStampUtils";
+import type { ResolvedSignature as StampData } from "./signatureResolution";
 import { DOCUMENT_CSS_BASE } from "./documentStyle";
 import { buildHeaderHtml, buildSignatureHtml, buildFooterHtml } from "./documentTemplates";
 
@@ -44,8 +44,8 @@ export interface PrintOptions {
   incluirAssinatura: boolean;
   incluirTotalHoras: boolean;
   incluirConselho: boolean;
-  responsavel?: StampData;
-  responsavelTecnico?: StampData;
+  responsavel?: any;
+  responsavelTecnico?: any;
 }
 
 const DIAS_PT = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
@@ -324,17 +324,31 @@ export async function gerarPdfEscala(
 
     // Bloco Esquerdo - Gestor/Coordenador/Responsável 1
     const xL = marginSide + lineLen / 2;
-    // Assinatura (Esquerda)
+    // Assinatura Visual (Esquerda)
     if (r1?.assinaturaBase64) {
       try {
-        doc.addImage(r1.assinaturaBase64, "PNG", marginSide + 2, assY - 14, 30, 12, undefined, 'FAST');
-      } catch { /* ignora */ }
+        doc.addImage(r1.assinaturaBase64, "PNG", marginSide + 5, assY - 18, 40, 16, undefined, 'FAST');
+      } catch (e) { console.error("PDF Semanal R1 Assinatura Erro:", e); }
     }
     // Carimbo (Esquerda)
     if (r1?.carimboBase64) {
       try {
-        doc.addImage(r1.carimboBase64, "PNG", marginSide + 35, assY - 18, 25, 16, undefined, 'FAST');
-      } catch { /* ignora */ }
+        const stampX = r1.assinaturaBase64 ? marginSide + 40 : marginSide + 20;
+        doc.addImage(r1.carimboBase64, "PNG", stampX, assY - 22, 30, 20, undefined, 'FAST');
+      } catch (e) { console.error("PDF Semanal R1 Carimbo Erro:", e); }
+    }
+
+    // Selo Digital (Esquerda)
+    if (!r1?.assinaturaBase64 && (r1?.hasDigitalSeal || r1?.tipoAssinante === 'gestor_master' || r1?.tipoAssinante === 'coordenador')) {
+      doc.setTextColor(30, 58, 138);
+      doc.setFont("courier", "bold");
+      doc.setFontSize(8);
+      doc.setDrawColor(30, 58, 138);
+      doc.rect(marginSide + 12, assY - 12, 50, 8);
+      doc.text("ASSINADO DIGITALMENTE", xL, assY - 7, { align: "center" });
+      doc.setTextColor(0);
+      doc.setDrawColor(0);
+      doc.setFont("helvetica", "normal");
     }
 
     doc.setLineWidth(0.3);
@@ -343,56 +357,60 @@ export async function gerarPdfEscala(
     doc.line(marginSide, assY, marginSide + lineLen, assY);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
-    doc.text(r1?.nome || "", xL, assY + 3.5, { align: "center" });
+    doc.text(r1?.nome || "", xL, assY + 4, { align: "center" });
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
-    doc.text(r1?.cargo || "", xL, assY + 6.5, { align: "center" });
-    let curY1 = assY + 9.5;
+    doc.text(r1?.cargo || "", xL, assY + 7.5, { align: "center" });
+    let curY1 = assY + 11;
     if (r1?.conselho && r1.conselho !== "Não informado") { 
       doc.text(r1.conselho, xL, curY1, { align: "center" }); 
-      curY1 += 3; 
-    } else if ((r1?.tipo === 'digital_gerado' || r1?.tipo === 'eletronica_interna') && !r1?.assinaturaBase64) {
-      doc.setTextColor(30, 58, 138);
-      doc.setFont("courier", "bold");
-      doc.text("ASSINADO DIGITALMENTE", xL, assY - 6, { align: "center" });
-      doc.setTextColor(0);
-      doc.setFont("helvetica", "normal");
+      curY1 += 3.5; 
     }
     if (r1?.unidade && r1.unidade !== "—") { doc.text(r1.unidade, xL, curY1, { align: "center" }); }
 
     // Bloco Direito - Responsável 2
     const xR = pageW - marginSide - lineLen / 2;
     const marginR = pageW - marginSide - lineLen;
-    // Assinatura (Direita)
+    // Assinatura Visual (Direita)
     if (r2?.assinaturaBase64) {
       try {
-        doc.addImage(r2.assinaturaBase64, "PNG", marginR + 2, assY - 14, 30, 12, undefined, 'FAST');
-      } catch { /* ignora */ }
+        doc.addImage(r2.assinaturaBase64, "PNG", marginR + 5, assY - 18, 40, 16, undefined, 'FAST');
+      } catch (e) { console.error("PDF Semanal R2 Assinatura Erro:", e); }
     }
     // Carimbo (Direita)
     if (r2?.carimboBase64) {
       try {
-        doc.addImage(r2.carimboBase64, "PNG", marginR + 35, assY - 18, 25, 16, undefined, 'FAST');
-      } catch { /* ignora */ }
+        const stampX = r2.assinaturaBase64 ? marginR + 40 : marginR + 20;
+        doc.addImage(r2.carimboBase64, "PNG", stampX, assY - 22, 30, 20, undefined, 'FAST');
+      } catch (e) { console.error("PDF Semanal R2 Carimbo Erro:", e); }
+    }
+
+    // Selo Digital (Direita)
+    if (!r2?.assinaturaBase64 && (r2?.hasDigitalSeal || r2?.tipoAssinante === 'gestor_master' || r2?.tipoAssinante === 'coordenador')) {
+      doc.setTextColor(30, 58, 138);
+      doc.setFont("courier", "bold");
+      doc.setFontSize(8);
+      doc.setDrawColor(30, 58, 138);
+      doc.rect(marginR + 12, assY - 12, 50, 8);
+      doc.text("ASSINADO DIGITALMENTE", xR, assY - 7, { align: "center" });
+      doc.setTextColor(0);
+      doc.setDrawColor(0);
+      doc.setFont("helvetica", "normal");
     }
 
     doc.setDrawColor(0);
     doc.setTextColor(0);
     doc.line(marginR, assY, pageW - marginSide, assY);
     doc.setFont("helvetica", "bold");
-    doc.text(r2?.nome || "", xR, assY + 3.5, { align: "center" });
+    doc.setFontSize(8.5);
+    doc.text(r2?.nome || "", xR, assY + 4, { align: "center" });
     doc.setFont("helvetica", "normal");
-    doc.text(r2?.cargo || "", xR, assY + 6.5, { align: "center" });
-    let curY2 = assY + 9.5;
+    doc.setFontSize(7.5);
+    doc.text(r2?.cargo || "", xR, assY + 7.5, { align: "center" });
+    let curY2 = assY + 11;
     if (r2?.conselho && r2.conselho !== "Não informado") { 
       doc.text(r2.conselho, xR, curY2, { align: "center" }); 
-      curY2 += 3; 
-    } else if ((r2?.tipo === 'digital_gerado' || r2?.tipo === 'eletronica_interna') && !r2?.assinaturaBase64) {
-      doc.setTextColor(30, 58, 138);
-      doc.setFont("courier", "bold");
-      doc.text("ASSINADO DIGITALMENTE", xR, assY - 6, { align: "center" });
-      doc.setTextColor(0);
-      doc.setFont("helvetica", "normal");
+      curY2 += 3.5; 
     }
     if (r2?.unidade && r2.unidade !== "—") { doc.text(r2.unidade, xR, curY2, { align: "center" }); }
   }
