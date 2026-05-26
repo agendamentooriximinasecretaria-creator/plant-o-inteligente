@@ -84,13 +84,13 @@ async function processStampData(stamp: any, profData: any): Promise<StampData> {
   const metadata = (stamp.metadata as any) || {};
   const BUCKET = 'professional-documents';
   
+  let signature_svg = metadata.signature_svg;
+  
   let assinaturaBase64: string | undefined = undefined;
   if (stamp.assinatura_path) {
     assinaturaBase64 = await convertStorageImageToBase64(BUCKET, stamp.assinatura_path);
-  } else if (stamp.tipo === 'digital_gerado' && stamp.metadata?.signature_svg) {
-    // Se for assinatura digital gerada, a assinatura pode estar no metadata como SVG ou dataURL
-    // Note: buildSignatureHtml espera uma URL ou Base64.
-    assinaturaBase64 = stamp.metadata.signature_svg;
+  } else if (stamp.tipo === 'digital_gerado' && signature_svg) {
+    assinaturaBase64 = signature_svg;
   }
 
   let carimboBase64: string | undefined = undefined;
@@ -104,7 +104,8 @@ async function processStampData(stamp: any, profData: any): Promise<StampData> {
     conselho: `${metadata.conselho || ''} ${metadata.registro || ''} ${stamp.uf_conselho ? `(${stamp.uf_conselho})` : ''}`.trim() || "—",
     unidade: metadata.unidade_principal || profData?.unidadeNome || "—",
     assinaturaBase64,
-    carimboBase64
+    carimboBase64,
+    tipo: stamp.tipo
   };
 }
 
