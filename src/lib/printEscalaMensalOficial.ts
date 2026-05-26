@@ -668,34 +668,49 @@ export async function gerarPdfEscalaMensalOficial(
     const startXR = pageW - margin - gap - lineLen;
     const xR = startXR + lineLen / 2;
     
-    // Assinatura (Direita)
+    // Assinatura Visual (Direita)
     if (r2?.assinaturaBase64) {
       try {
-        doc.addImage(r2.assinaturaBase64, "PNG", startXR + 2, assY - 14, 30, 12, undefined, 'FAST');
-      } catch { /* ignora */ }
+        doc.addImage(r2.assinaturaBase64, "PNG", startXR, assY - 18, 40, 16, undefined, 'FAST');
+      } catch (e) { console.error("PDF R2 Assinatura Erro:", e); }
     }
     // Carimbo (Direita)
     if (r2?.carimboBase64) {
       try {
-        doc.addImage(r2.carimboBase64, "PNG", startXR + 35, assY - 18, 25, 16, undefined, 'FAST');
-      } catch { /* ignora */ }
+        const stampX = r2.assinaturaBase64 ? startXR + 30 : startXR + 15;
+        doc.addImage(r2.carimboBase64, "PNG", stampX, assY - 22, 30, 20, undefined, 'FAST');
+      } catch (e) { console.error("PDF R2 Carimbo Erro:", e); }
     }
 
-    doc.line(startXR, assY, startXR + lineLen, assY);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.text(r2?.nome || "", xR, assY + 4, { align: "center" });
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "normal");
-    doc.text(r2?.cargo || "", xR, assY + 7.5, { align: "center" });
-    if (r2?.conselho && r2.conselho !== "Não informado") {
-      doc.text(r2.conselho, xR, assY + 10.5, { align: "center" });
-    } else if ((r2?.tipo === 'digital_gerado' || r2?.tipo === 'eletronica_interna') && !r2?.assinaturaBase64) {
+    // Selo Digital (Direita)
+    if (!r2?.assinaturaBase64 && (r2?.hasDigitalSeal || r2?.tipo === 'digital_gerado' || r2?.tipo === 'eletronica_interna')) {
       doc.setTextColor(30, 58, 138);
       doc.setFont("courier", "bold");
-      doc.text("ASSINADO DIGITALMENTE", xR, assY - 6, { align: "center" });
+      doc.setFontSize(8);
+      doc.setDrawColor(30, 58, 138);
+      doc.rect(startXR + 10, assY - 12, 50, 8);
+      doc.text("ASSINADO DIGITALMENTE", xR, assY - 7, { align: "center" });
       doc.setTextColor(0);
+      doc.setDrawColor(0);
       doc.setFont("helvetica", "normal");
+    }
+
+    doc.setLineWidth(0.3);
+    doc.line(startXR, assY, startXR + lineLen, assY);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.text(r2?.nome || "", xR, assY + 4, { align: "center" });
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "normal");
+    doc.text(r2?.cargo || "", xR, assY + 8, { align: "center" });
+    if (r2?.conselho && r2.conselho !== "Não informado") {
+      doc.text(r2.conselho, xR, assY + 11.5, { align: "center" });
+    }
+    if (r2?.unidade) {
+      doc.setFontSize(6.5);
+      doc.setTextColor(100);
+      doc.text(r2.unidade, xR, assY + 14.5, { align: "center" });
+      doc.setTextColor(0);
     }
   }
 
