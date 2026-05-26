@@ -1419,15 +1419,14 @@ export default function EscalaPage() {
 
   useEffect(() => {
     if (currentStamp && printOpen) {
-      const metadata = (currentStamp.metadata as any) || {};
       setPrintForm(f => ({
         ...f,
-        responsavelNome: metadata.nome_profissional || profileName || user?.email || "",
-        responsavelCargo: currentStamp.cargo || (isMaster ? 'Gestor Master' : 'Coordenador'),
-        responsavelConselho: `${metadata.conselho || ''} ${metadata.registro || ''}`.trim()
+        responsavelNome: currentStamp.nome,
+        responsavelCargo: currentStamp.cargo,
+        responsavelConselho: currentStamp.conselho
       }));
     }
-  }, [currentStamp, printOpen, profileName, user?.email, isMaster]);
+  }, [currentStamp, printOpen]);
   
   // Sincroniza configuração de exibição do total com o formulário de impressão
   useEffect(() => {
