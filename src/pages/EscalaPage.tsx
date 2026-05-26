@@ -1663,8 +1663,9 @@ export default function EscalaPage() {
   const openEdit = (s: any) => {
     setEditingId(s.id);
     setForm({
-      unidade_id: s.unidade_id, setor_id: s.setor_id, profissao: s.profissao,
-      profissional_ids: [s.profissional_id], data: s.data,
+      unidade_id: s.unidade_id, setor_ids: [s.setor_id], profissao: s.profissao,
+      profissional_ids: [s.profissional_id], dates: [s.data],
+      repeat_days: [], repeat_until: '', date_mode: 'single',
       hora_inicio: s.hora_inicio, hora_fim: s.hora_fim, tipo_plantao: s.tipo_plantao,
       observacoes: s.observacoes || '', status: s.status,
     });
@@ -1678,8 +1679,9 @@ export default function EscalaPage() {
       || (TIPOS_PLANTAO[0]?.value ?? '');
     const preset = TIPOS_PLANTAO.find(t => t.value === tipoDefault);
     setForm({
-      ...emptyForm, data: date,
-      setor_id: sectorId || filtros.setorId || '',
+      ...emptyForm, 
+      dates: [date],
+      setor_ids: sectorId ? [sectorId] : (filtros.setorId ? [filtros.setorId] : []),
       unidade_id: unidadeId || filtros.unidadeId || '',
       tipo_plantao: tipoDefault || emptyForm.tipo_plantao,
       hora_inicio: preset?.start ?? emptyForm.hora_inicio,
@@ -1687,6 +1689,7 @@ export default function EscalaPage() {
     });
     setModalOpen(true);
   };
+
 
   // Filtro inicial vindo de outras telas (ex.: SetoresPage → "Ver escala do setor/unidade")
   useEffect(() => {
