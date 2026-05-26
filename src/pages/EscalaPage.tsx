@@ -2456,8 +2456,16 @@ export default function EscalaPage() {
                       </select>
                     </div>
 
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">Setores *</label>
+                      <MultiSelect
+                        options={sectors.filter((s: any) => !form.unidade_id || s.unidade_id === form.unidade_id).map(s => ({ label: s.nome, value: s.id }))}
+                        selected={form.setor_ids}
+                        onChange={(ids) => setForm(f => ({ ...f, setor_ids: ids }))}
+                        placeholder="Selecione os setores..."
+                      />
+                    </div>
 
-                <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Setores *</label>
                   <MultiSelect
                     options={sectors.filter((s: any) => !form.unidade_id || s.unidade_id === form.unidade_id).map(s => ({ label: s.nome, value: s.id }))}
