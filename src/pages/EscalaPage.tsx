@@ -1347,7 +1347,7 @@ export default function EscalaPage() {
     // 1. Identifica o perfil do usuário logado que está gerando a escala
     const gestorStamp = currentProfId ? await fetchStampData(currentProfId) : null;
     
-    // Log para depuração em ambiente de desenvolvimento (remover em produção se necessário)
+    // Log para depuração em ambiente de desenvolvimento
     if (!gestorStamp && currentProfId) {
       console.warn(`[EscalaPage] Carimbo não encontrado para o profissional ${currentProfId}`);
     }
