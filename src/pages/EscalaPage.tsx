@@ -3503,8 +3503,32 @@ export default function EscalaPage() {
 
             {/* RESPONSÁVEL (apenas mensal_oficial) */}
             {printForm.modelo === 'mensal_oficial' && printForm.incluirAssinatura && (
-              <section>
-                <h4 className="text-sm font-semibold mb-2">Responsável pela escala</h4>
+              <section className="p-3 bg-muted/30 rounded-lg border border-border/50">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold">Responsável pela escala</h4>
+                  {resolvedSignature && (
+                    <div className="flex gap-2">
+                      {resolvedSignature.hasVisualSignature ? (
+                        <Badge variant="outline" className="bg-success/10 text-success border-success/20 gap-1 text-[10px] py-0">
+                          <ShieldCheck className="h-3 w-3" /> Assinatura Visual
+                        </Badge>
+                      ) : resolvedSignature.hasDigitalSeal ? (
+                        <Badge variant="outline" className="bg-info/10 text-info border-info/20 gap-1 text-[10px] py-0">
+                          <ShieldCheck className="h-3 w-3" /> Selo Digital
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20 gap-1 text-[10px] py-0">
+                          <AlertTriangle className="h-3 w-3" /> Apenas Texto
+                        </Badge>
+                      )}
+                      {resolvedSignature.hasStamp && (
+                        <Badge variant="outline" className="bg-success/10 text-success border-success/20 gap-1 text-[10px] py-0">
+                          <Stamp className="h-3 w-3" /> Carimbo
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="text-xs font-medium text-muted-foreground">Nome</label>
