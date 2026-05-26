@@ -1406,13 +1406,15 @@ export default function EscalaPage() {
         nome: profileName || user?.email || "",
         cargo: isMaster ? 'Gestor Master' : (isCoordinator ? 'Coordenador' : 'Gestor'),
         conselho: "",
-        unidade: ""
+        unidade: "",
+        tipo: isMaster ? 'gestor_master' : 'coordenador'
       },
       responsavelTecnico: responsavelSecundario || {
         nome: "",
         cargo: "",
         conselho: "",
-        unidade: ""
+        unidade: "",
+        tipo: 'responsavel_tecnico'
       }
     };
   };
