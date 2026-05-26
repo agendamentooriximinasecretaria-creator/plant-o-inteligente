@@ -2728,6 +2728,7 @@ export default function EscalaPage() {
                         <UsersIcon className="h-8 w-8 text-muted-foreground/30 mx-auto" />
                         <p className="text-sm text-muted-foreground">Nenhum profissional encontrado para os filtros atuais.</p>
                       </div>
+                    )}
                   </div>
                 </div>
               </div>
