@@ -109,9 +109,9 @@ export async function fetchRTForUnidade(unidadeId?: string): Promise<StampData |
     // E o profissional pertença à unidade informada
     const { data } = await supabase
       .from('professional_stamps')
-      .select('*, professionals_safe!inner(id, unidade_principal_id)')
+      .select('*, professionals!inner(id, unidade_principal_id)')
       .ilike('cargo', '%Responsável Técnico%')
-      .eq('professionals_safe.unidade_principal_id', unidadeId)
+      .eq('professionals.unidade_principal_id', unidadeId)
       .eq('bloqueado', false)
       .limit(1)
       .maybeSingle();
@@ -120,7 +120,8 @@ export async function fetchRTForUnidade(unidadeId?: string): Promise<StampData |
       return fetchStampData(data.profissional_id);
     }
     return null;
-  } catch {
+  } catch (err) {
+    console.error('Erro em fetchRTForUnidade:', err);
     return null;
   }
 }
@@ -136,9 +137,9 @@ export async function fetchGestorMasterForUnidade(unidadeId?: string): Promise<S
     // E o profissional pertença à unidade informada
     const { data } = await supabase
       .from('professional_stamps')
-      .select('*, professionals_safe!inner(id, unidade_principal_id)')
+      .select('*, professionals!inner(id, unidade_principal_id)')
       .ilike('cargo', '%Gestor Master%')
-      .eq('professionals_safe.unidade_principal_id', unidadeId)
+      .eq('professionals.unidade_principal_id', unidadeId)
       .eq('bloqueado', false)
       .limit(1)
       .maybeSingle();
@@ -147,7 +148,8 @@ export async function fetchGestorMasterForUnidade(unidadeId?: string): Promise<S
       return fetchStampData(data.profissional_id);
     }
     return null;
-  } catch {
+  } catch (err) {
+    console.error('Erro em fetchGestorMasterForUnidade:', err);
     return null;
   }
 }
