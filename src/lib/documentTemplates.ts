@@ -46,13 +46,14 @@ export function buildSignatureHtml(params: {
 }) {
   const { responsavel, responsavelTecnico } = params;
   
-  const renderBox = (r: any, defaultLabel: string) => `
+  const renderBox = (r: any) => `
     <div class="assinatura-item">
-      <div style="height: 60px; display: flex; align-items: flex-end; justify-content: center; margin-bottom: -5px;">
-        ${r?.assinaturaBase64 ? `<img src="${r.assinaturaBase64}" style="max-height: 100%; max-width: 250px;" />` : ""}
+      <div style="height: 80px; display: flex; align-items: flex-end; justify-content: center; margin-bottom: 5px; gap: 15px;">
+        ${r?.assinaturaBase64 ? `<img src="${r.assinaturaBase64}" style="max-height: 100%; max-width: 180px; object-fit: contain;" alt="Assinatura" />` : ""}
+        ${r?.carimboBase64 ? `<img src="${r.carimboBase64}" style="max-height: 100%; max-width: 140px; object-fit: contain;" alt="Carimbo" />` : ""}
       </div>
       <div class="assinatura-line">
-        <strong>${r?.nome || defaultLabel}</strong>
+        <strong>${r?.nome || ""}</strong>
       </div>
       <div class="assinatura-info">
         ${r?.cargo || ""} ${r?.conselho ? `· ${r.conselho}` : ""} <br/>
@@ -63,8 +64,8 @@ export function buildSignatureHtml(params: {
 
   return `
     <div class="assinatura-block">
-      ${renderBox(responsavel, "Responsável pela Escala")}
-      ${renderBox(responsavelTecnico, "Responsável Técnico")}
+      ${renderBox(responsavel)}
+      ${renderBox(responsavelTecnico)}
     </div>
   `;
 }
