@@ -2620,102 +2620,149 @@ export default function EscalaPage() {
                   </Tabs>
                 </div>
 
-                <div className="space-y-3 bg-muted/20 p-4 rounded-xl border border-border/50">
-                  <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <div className="space-y-0.5">
-                      <label className="text-sm font-bold text-foreground flex items-center gap-2">
-                        <UsersIcon className="h-4 w-4 text-primary" /> Profissionais escalados *
-                      </label>
-                      <p className="text-[11px] text-muted-foreground">
-                        {profissionaisFiltrados.length} encontrados · {form.profissional_ids.length} selecionados
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setForm(f => ({ ...f, profissional_ids: profissionaisFiltrados.map(p => p.id) }))}
-                        className="text-[10px] px-2 py-1 bg-primary/10 text-primary rounded-md font-bold hover:bg-primary/20 transition-colors uppercase"
-                      >
-                        Selecionar todos
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setForm(f => ({ ...f, profissional_ids: [] }))}
-                        className="text-[10px] px-2 py-1 bg-muted text-muted-foreground rounded-md font-bold hover:bg-muted/80 transition-colors uppercase"
-                      >
-                        Limpar
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="border border-border rounded-lg max-h-[400px] overflow-y-auto bg-background divide-y divide-border/40 shadow-inner">
-                    {profissionaisFiltrados.map((p: any) => {
-                      const checked = form.profissional_ids.includes(p.id);
-                      const horas = horasPorProfissional[p.id] ?? 0;
-                      const st = statusPorProf[p.id];
-                      const vinculado = form.setor_ids.some(sid => p.setor_principal_id === sid);
-                      const pSetor = sectors.find(s => s.id === p.setor_principal_id)?.nome;
-                      
-                      return (
-                        <div 
-                          key={p.id} 
-                          onClick={() => toggleProfissional(p.id)}
-                          className={cn(
-                            "flex items-center gap-3 p-3 cursor-pointer transition-all hover:bg-muted/40",
-                            checked ? "bg-primary/5 ring-1 ring-inset ring-primary/20" : ""
-                          )}
+                  <div className="space-y-4 bg-muted/20 p-4 rounded-xl border border-border/50">
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                      <div className="space-y-0.5">
+                        <label className="text-sm font-bold text-foreground flex items-center gap-2">
+                          <UsersIcon className="h-4 w-4 text-primary" /> Profissionais escalados *
+                        </label>
+                        <p className="text-[11px] text-muted-foreground">
+                          {profissionaisFiltrados.length} encontrados · {form.profissional_ids.length} selecionados
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setForm(f => ({ ...f, profissional_ids: profissionaisFiltrados.map(p => p.id) }))}
+                          className="text-[10px] px-2 py-1 bg-primary/10 text-primary rounded-md font-bold hover:bg-primary/20 transition-colors uppercase"
                         >
-                          <div className="pt-0.5">
-                            <input 
-                              type="checkbox" 
-                              checked={checked} 
-                              onChange={(e) => { e.stopPropagation(); toggleProfissional(p.id); }} 
-                              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" 
-                            />
-                          </div>
-                          
-                          <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className={cn("text-sm font-semibold truncate", checked ? "text-primary" : "text-foreground")}>
-                                {p.nome}
-                              </p>
-                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
-                                <span className="text-[10px] text-muted-foreground flex items-center gap-1 shrink-0">
-                                  {PROFISSAO_LABELS[p.profissao] || p.profissao}
-                                </span>
-                                {pSetor && (
-                                  <span className={cn(
-                                    "text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0",
-                                    vinculado ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground"
-                                  )}>
-                                    Setor: {pSetor}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
+                          Selecionar todos
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setForm(f => ({ ...f, profissional_ids: [] }))}
+                          className="text-[10px] px-2 py-1 bg-muted text-muted-foreground rounded-md font-bold hover:bg-muted/80 transition-colors uppercase"
+                        >
+                          Limpar
+                        </button>
+                      </div>
+                    </div>
 
-                            <div className="flex items-center gap-2 shrink-0">
-                              {form.dates[0] && st === 'conflito' && (
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <input 
+                        type="text"
+                        placeholder="Pesquisar por nome, setor ou profissão..."
+                        value={profSearch}
+                        onChange={(e) => setProfSearch(e.target.value)}
+                        className={cn(inputClass, "pl-10 h-10")}
+                      />
+                      {profSearch && (
+                        <button 
+                          type="button" 
+                          onClick={() => setProfSearch("")}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="border border-border rounded-lg max-h-[450px] overflow-y-auto bg-background divide-y divide-border/40 shadow-inner">
+                      {profissionaisFiltrados.map((p: any) => {
+                        const checked = form.profissional_ids.includes(p.id);
+                        const horas = horasPorProfissional[p.id] ?? 0;
+                        const st = statusPorProf[p.id];
+                        const vinculado = form.setor_ids.some(sid => p.setor_principal_id === sid);
+                        const pSetor = sectors.find(s => s.id === p.setor_principal_id)?.nome;
+                        
+                        return (
+                          <div 
+                            key={p.id} 
+                            onClick={() => toggleProfissional(p.id)}
+                            className={cn(
+                              "flex items-center gap-3 p-4 cursor-pointer transition-all hover:bg-muted/40",
+                              checked ? "bg-primary/5 ring-1 ring-inset ring-primary/20" : ""
+                            )}
+                          >
+                            <div className="pt-0.5">
+                              <input 
+                                type="checkbox" 
+                                checked={checked} 
+                                onChange={(e) => { e.stopPropagation(); toggleProfissional(p.id); }} 
+                                className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary" 
+                              />
+                            </div>
+                            
+                            <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                              <div className="min-w-0 flex-1">
                                 <TooltipProvider>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-destructive/10 text-destructive flex items-center gap-1 border border-destructive/20 cursor-help">
-                                        <AlertTriangle className="h-3 w-3" /> conflito
-                                      </span>
+                                      <p className={cn(
+                                        "text-sm font-bold leading-tight break-words",
+                                        checked ? "text-primary" : "text-foreground"
+                                      )}>
+                                        {p.nome}
+                                      </p>
                                     </TooltipTrigger>
-                                    <TooltipContent>Conflito detectado na primeira data do lote</TooltipContent>
+                                    <TooltipContent side="top" align="start">
+                                      {p.nome}
+                                    </TooltipContent>
                                   </Tooltip>
                                 </TooltipProvider>
-                              )}
-                              <span className={cn(
-                                "text-[11px] font-mono px-2 py-0.5 rounded border",
-                                horas >= LIMITE_HORAS_MENSAL ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-muted text-muted-foreground border-border"
-                              )}>
-                                {horas}h/220h
-                              </span>
+                                
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+                                  <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1 uppercase tracking-tight">
+                                    {PROFISSAO_LABELS[p.profissao] || p.profissao}
+                                  </span>
+                                  {pSetor && (
+                                    <span className={cn(
+                                      "text-[10px] px-2 py-0.5 rounded-full font-semibold border",
+                                      vinculado 
+                                        ? "bg-primary/10 text-primary border-primary/20" 
+                                        : "bg-muted text-muted-foreground border-border/50"
+                                    )}>
+                                      {pSetor}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-3 shrink-0">
+                                {form.dates[0] && st === 'conflito' && (
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="text-[10px] font-bold px-2 py-1 rounded bg-destructive text-destructive-foreground flex items-center gap-1.5 shadow-sm">
+                                          <AlertTriangle className="h-3.5 w-3.5" /> conflito
+                                        </span>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Conflito detectado na primeira data do lote</TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
+                                <span className={cn(
+                                  "text-[12px] font-bold font-mono px-2.5 py-1 rounded-md border shadow-sm",
+                                  horas >= LIMITE_HORAS_MENSAL 
+                                    ? "bg-destructive/10 text-destructive border-destructive/30" 
+                                    : "bg-muted text-muted-foreground border-border"
+                                )}>
+                                  {horas}h/220h
+                                </span>
+                              </div>
                             </div>
                           </div>
+                        );
+                      })}
+                      {profissionaisFiltrados.length === 0 && (
+                        <div className="p-12 text-center space-y-3">
+                          <UsersIcon className="h-12 w-12 text-muted-foreground/30 mx-auto" />
+                          <p className="text-sm text-muted-foreground font-medium">Nenhum profissional encontrado com os filtros e busca atuais.</p>
                         </div>
+                      )}
+                    </div>
+                  </div>
                       );
                     })}
                     {profissionaisFiltrados.length === 0 && (
