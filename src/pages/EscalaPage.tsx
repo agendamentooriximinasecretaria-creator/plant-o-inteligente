@@ -25,6 +25,8 @@ import { fetchStampData, fetchRTForUnidade, fetchGestorMasterForUnidade, type St
 import { imprimirComprovantePlantao, type ComprovantePlantaoData } from "@/lib/printComprovantePlantao";
 import SignActionButton from "@/components/SignActionButton";
 import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
+import { calculateAdicionalNoturno } from "@/lib/utils";
+
 
 const STATUS_LABELS: Record<string, string> = {
   agendado: 'Agendado', confirmado: 'Confirmado', pendente: 'Pendente',
@@ -1171,23 +1173,12 @@ export default function EscalaPage() {
         row.totalHoras += carga;
         row.totalPlantoes += 1;
         
-        // Cálculo ADN (Adicional Noturno)
+        // Cálculo ADN (Adicional Noturno) - Regra 23:00 às 07:00
         if (row.elegivelADN) {
-          const tipoConfig = TIPOS_PLANTAO.find(t => t.value === s.tipo_plantao);
-          const tipoLower = (s.tipo_plantao || "").toLowerCase();
-          const siglaUpper = currentSigla.toUpperCase();
-          
-          const geraAdn = tipoConfig?.gera_adn !== undefined ? tipoConfig.gera_adn : (
-            tipoLower.includes("not") || 
-            tipoLower.includes("24") ||
-            siglaUpper === "N" ||
-            siglaUpper === "24"
-          );
-
-          if (geraAdn) {
-            row.totalADN += (tipoLower.includes("24") || siglaUpper === "24") ? 10 : 7;
-          }
+          const adnHoras = calculateAdicionalNoturno(s.hora_inicio, s.hora_fim);
+          row.totalADN += adnHoras;
         }
+
       }
     }
 

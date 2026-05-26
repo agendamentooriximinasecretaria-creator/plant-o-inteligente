@@ -1,5 +1,7 @@
 import { useMemo, useState, memo } from "react";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertTriangle, Info } from "lucide-react";
+import { calculateAdicionalNoturno } from "@/lib/utils";
+
 
 export interface MonthlyShift {
   id: string;
@@ -174,25 +176,12 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
       if (s.status !== "cancelado" && !["folga", "indisponibilidade"].includes((s.tipo_plantao || "").toLowerCase())) {
         row.horas += carga;
         
-        // Cálculo do ADN (Adicional Noturno)
+        // Cálculo do ADN (Adicional Noturno) - Regra 23:00 às 07:00
         if (row.elegivelAdn) {
-          const tipoLower = (s.tipo_plantao || "").toLowerCase();
-          const sigla = tipoToSigla(s.tipo_plantao).toUpperCase();
-          
-          const geraAdn = s.gera_adn !== undefined ? s.gera_adn : (
-            tipoLower.includes("not") || 
-            tipoLower.includes("24") ||
-            sigla === "N" ||
-            sigla === "24"
-          );
-
-          if (geraAdn) {
-            // Se for 24h, assume 10h de ADN (noite anterior + noite atual)
-            // Se for noturno 12h, assume 7h (22h as 05h)
-            const adnNoPlantao = (tipoLower.includes("24") || sigla === "24") ? 10 : 7;
-            row.adn += adnNoPlantao;
-          }
+          const adnHoras = calculateAdicionalNoturno(s.hora_inicio, s.hora_fim);
+          row.adn += adnHoras;
         }
+
       }
     }
 
