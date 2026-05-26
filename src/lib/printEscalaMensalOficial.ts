@@ -70,6 +70,7 @@ export interface MensalResponsavel {
   unidade: string;
   assinaturaBase64?: string;
   carimboBase64?: string;
+  tipo?: string;
 }
 
 export interface MensalOpts {
