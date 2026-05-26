@@ -87,9 +87,20 @@ async function processStampData(stamp: any, profData: any): Promise<StampData> {
   let signature_svg = metadata.signature_svg;
   
   let assinaturaBase64: string | undefined = undefined;
+  
+  // Prioridade 1: Assinatura visual (upload de imagem real)
   if (stamp.assinatura_path) {
     assinaturaBase64 = await convertStorageImageToBase64(BUCKET, stamp.assinatura_path);
-  } else if (stamp.tipo === 'digital_gerado' && signature_svg) {
+  } 
+  
+  // Prioridade 2: Se não houver imagem real e for digital gerada, tenta usar SVG se existir
+  if (!assinaturaBase64 && stamp.tipo === 'digital_gerado' && signature_svg) {
+    assinaturaBase64 = signature_svg;
+  }
+
+  // Prioridade 3: Se ainda não houver imagem, mas o tipo for "assinatura_manuscrita" 
+  // e por algum motivo o path falhou ou não existe, mas temos SVG
+  if (!assinaturaBase64 && stamp.tipo === 'assinatura_manuscrita' && signature_svg) {
     assinaturaBase64 = signature_svg;
   }
 
