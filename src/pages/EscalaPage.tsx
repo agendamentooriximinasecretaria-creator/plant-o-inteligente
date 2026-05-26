@@ -26,6 +26,9 @@ import { imprimirComprovantePlantao, type ComprovantePlantaoData } from "@/lib/p
 import SignActionButton from "@/components/SignActionButton";
 import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 import { calculateAdicionalNoturno } from "@/lib/utils";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 
 const STATUS_LABELS: Record<string, string> = {
