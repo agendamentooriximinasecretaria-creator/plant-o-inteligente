@@ -49,7 +49,7 @@ export function buildSignatureHtml(params: {
   const renderBox = (r: any) => {
     if (!r || (!r.nome && !r.cargo)) return `<div class="assinatura-item"></div>`;
     
-    // Se for eletrônica ou digital gerada sem imagem, podemos mostrar um selo de autenticidade
+    // Se for eletrônica ou digital gerada sem imagem real (assinaturaBase64), mostramos um selo
     const showDigitalSeal = (r.tipo === 'eletronica_interna' || r.tipo === 'digital_gerado') && !r.assinaturaBase64;
     
     return `

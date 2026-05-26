@@ -887,8 +887,10 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
                 fontSize: stamp.tamanho_fonte,
                 fontFamily: "'Inter', system-ui, sans-serif",
               }}>
-                {previewMode === "visual" && assinaturaUrl && (
-                  <img src={assinaturaUrl} alt="Assinatura" style={{ height: stamp.assinatura_tamanho * 0.5, margin: stamp.alinhamento_texto === "centro" ? "0 auto" : undefined }} />
+                {/* Se houver imagem de assinatura (assinaturaUrl), ela deve ser renderizada INDEPENDENTE do modo, 
+                    exceto se o modo for explicitamente 'sem_assinatura' ou 'eletronica' puro sem imagem */}
+                {((previewMode === "visual" || previewMode === "carimbo_fisico" || previewMode === "eletronica") && assinaturaUrl) && (
+                  <img src={assinaturaUrl} alt="Assinatura" style={{ height: stamp.assinatura_tamanho * 0.5, margin: stamp.alinhamento_texto === "centro" ? "0 auto" : undefined, display: "block" }} />
                 )}
                 {previewMode === "carimbo_fisico" && carimboUrl && (
                   <img src={carimboUrl} alt="Carimbo" style={{ height: stamp.carimbo_tamanho * 0.5, margin: stamp.alinhamento_texto === "centro" ? "0 auto" : undefined }} />

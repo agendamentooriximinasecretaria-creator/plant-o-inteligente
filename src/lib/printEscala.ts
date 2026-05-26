@@ -351,7 +351,7 @@ export async function gerarPdfEscala(
     if (r1?.conselho && r1.conselho !== "Não informado") { 
       doc.text(r1.conselho, xL, curY1, { align: "center" }); 
       curY1 += 3; 
-    } else if (r1?.tipo === 'digital_gerado' || r1?.tipo === 'eletronica_interna') {
+    } else if ((r1?.tipo === 'digital_gerado' || r1?.tipo === 'eletronica_interna') && !r1?.assinaturaBase64) {
       doc.setTextColor(30, 58, 138);
       doc.setFont("courier", "bold");
       doc.text("ASSINADO DIGITALMENTE", xL, assY - 6, { align: "center" });
@@ -387,7 +387,7 @@ export async function gerarPdfEscala(
     if (r2?.conselho && r2.conselho !== "Não informado") { 
       doc.text(r2.conselho, xR, curY2, { align: "center" }); 
       curY2 += 3; 
-    } else if (r2?.tipo === 'digital_gerado' || r2?.tipo === 'eletronica_interna') {
+    } else if ((r2?.tipo === 'digital_gerado' || r2?.tipo === 'eletronica_interna') && !r2?.assinaturaBase64) {
       doc.setTextColor(30, 58, 138);
       doc.setFont("courier", "bold");
       doc.text("ASSINADO DIGITALMENTE", xR, assY - 6, { align: "center" });
