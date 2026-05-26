@@ -38,7 +38,7 @@ export async function fetchStampData(profissionalId: string): Promise<StampData 
     // 1. Busca o carimbo (tentando join com professionals para performance)
     const { data: stamp, error } = await supabase
       .from('professional_stamps')
-      .select('*, professionals!inner(nome, cargo, unidade_principal_id, units!unidade_principal_id(nome))')
+      .select('*, professionals!inner(nome, cargo, unidade_principal_id)')
       .eq('profissional_id', profissionalId)
       .eq('bloqueado', false)
       .maybeSingle();
