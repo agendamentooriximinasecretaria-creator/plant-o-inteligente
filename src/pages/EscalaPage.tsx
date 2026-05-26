@@ -2635,9 +2635,103 @@ export default function EscalaPage() {
                     return 0; // Aproximado
                   })()}</span></div>
                 </div>
-                <div className="text-primary font-bold">Total de plantões: {form.setor_ids.length * form.profissional_ids.length * (form.date_mode === 'multiple' ? form.dates.length : 1)}*</div>
+              <div className="p-3 rounded-lg border border-primary/20 bg-primary/5 flex items-center justify-between text-sm">
+                <div className="flex gap-4">
+                  <div>Setores: <span className="font-bold">{form.setor_ids.length}</span></div>
+                  <div>Profissionais: <span className="font-bold">{form.profissional_ids.length}</span></div>
+                  <div>Datas: <span className="font-bold">{(() => {
+                    if (form.date_mode === 'single') return 1;
+                    if (form.date_mode === 'multiple') return form.dates.filter(Boolean).length;
+                    if (form.date_mode === 'range' && form.dates[0] && form.dates[1]) {
+                      const s = new Date(form.dates[0] + 'T00:00:00'); 
+                      const e = new Date(form.dates[1] + 'T00:00:00');
+                      return Math.ceil((e.getTime() - s.getTime()) / (1000 * 3600 * 24)) + 1;
+                    }
+                    if (form.date_mode === 'repeat' && form.dates[0] && form.repeat_until) {
+                      const s = new Date(form.dates[0] + 'T00:00:00');
+                      const e = new Date(form.repeat_until + 'T00:00:00');
+                      let count = 0;
+                      for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+                        if (form.repeat_days.includes(d.getDay())) count++;
+                      }
+                      return count;
+                    }
+                    return 0;
+                  })()}</span></div>
+                </div>
+                <div className="text-primary font-bold">Lote: {form.setor_ids.length * form.profissional_ids.length * (() => {
+                    if (form.date_mode === 'single') return 1;
+                    if (form.date_mode === 'multiple') return form.dates.filter(Boolean).length;
+                    if (form.date_mode === 'range' && form.dates[0] && form.dates[1]) {
+                      const s = new Date(form.dates[0] + 'T00:00:00'); const e = new Date(form.dates[1] + 'T00:00:00');
+                      return Math.ceil((e.getTime() - s.getTime()) / (1000 * 3600 * 24)) + 1;
+                    }
+                    if (form.date_mode === 'repeat' && form.dates[0] && form.repeat_until) {
+                      const s = new Date(form.dates[0] + 'T00:00:00');
+                      const e = new Date(form.repeat_until + 'T00:00:00');
+                      let count = 0;
+                      for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+                        if (form.repeat_days.includes(d.getDay())) count++;
+                      }
+                      return count;
+                    }
+                    return 0;
+                })()} plantões</div>
               </div>
             )}
+
+            {conflictWarnings.length > 0 && (
+              <div className="space-y-1">
+                {conflictWarnings.map((w, i) => (
+                  <div key={i} className="flex items-start gap-2 p-2 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive font-medium">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" /> <span>{w}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {restWarnings.length > 0 && (
+              <div className="space-y-1">
+                {restWarnings.map((w, i) => (
+                  <div key={i} className="flex items-start gap-2 p-2 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive font-medium">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" /> <span>{w}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {workloadAlerts.length > 0 && (
+              <div className="space-y-1">
+                {workloadAlerts.map((a, i) => <div key={i} className="p-2 bg-warning/10 border border-warning/30 rounded-lg text-xs text-warning font-medium">{a}</div>)}
+              </div>
+            )}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Observações</label>
+              <textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} rows={2} className={inputClass} placeholder="Opcional..." />
+            </div>
+            
+            <div className="flex flex-wrap justify-end gap-2 pt-4 border-t">
+              <button type="button" onClick={closeModal} className="px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted">Cancelar</button>
+              {!editingId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (saveMutation.isPending || conflictWarnings.length > 0 || restWarnings.length > 0 || form.profissional_ids.length === 0 || form.setor_ids.length === 0) return;
+                    keepOpenAfterSaveRef.current = true;
+                    saveMutation.mutate(form);
+                  }}
+                  disabled={saveMutation.isPending || conflictWarnings.length > 0 || restWarnings.length > 0 || form.profissional_ids.length === 0 || form.setor_ids.length === 0}
+                  className="px-4 py-2 rounded-lg border border-primary/40 text-sm font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
+                >
+                  Salvar e adicionar outro
+                </button>
+              )}
+              <button type="submit" disabled={saveMutation.isPending || conflictWarnings.length > 0 || restWarnings.length > 0 || form.profissional_ids.length === 0 || form.setor_ids.length === 0} className="px-6 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 disabled:opacity-50 shadow-sm transition-all">
+                {saveMutation.isPending ? 'Salvando...' : editingId ? 'Salvar alteração' : `Confirmar lançamento (${form.profissional_ids.length * form.setor_ids.length * (form.date_mode === 'multiple' ? form.dates.length : 1)})`}
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
 
             <div><label className="text-sm font-medium text-foreground">Observações</label><textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} rows={2} className={inputClass} /></div>
             <div className="flex flex-wrap justify-end gap-2">
