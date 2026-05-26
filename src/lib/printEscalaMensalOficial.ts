@@ -639,22 +639,30 @@ export async function gerarPdfEscalaMensalOficial(
       doc.text(r1.conselho, xL, assY + 10.5, { align: "center" });
     }
 
-    // Bloco Direito — Responsável Técnico
+    // Bloco Direito — Responsável 2
     const startXR = pageW - margin - gap - lineLen;
     const xR = startXR + lineLen / 2;
     
+    // Assinatura (Direita)
     if (r2?.assinaturaBase64) {
       try {
-        doc.addImage(r2.assinaturaBase64, "PNG", startXR + 5, assY - 12, lineLen - 10, 10);
+        doc.addImage(r2.assinaturaBase64, "PNG", startXR + 2, assY - 14, 30, 12, undefined, 'FAST');
       } catch { /* ignora */ }
     }
+    // Carimbo (Direita)
+    if (r2?.carimboBase64) {
+      try {
+        doc.addImage(r2.carimboBase64, "PNG", startXR + 35, assY - 18, 25, 16, undefined, 'FAST');
+      } catch { /* ignora */ }
+    }
+
     doc.line(startXR, assY, startXR + lineLen, assY);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
-    doc.text(r2?.nome || "Responsável Técnico", xR, assY + 4, { align: "center" });
+    doc.text(r2?.nome || "", xR, assY + 4, { align: "center" });
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
-    doc.text(r2?.cargo || "Responsável Técnico", xR, assY + 7.5, { align: "center" });
+    doc.text(r2?.cargo || "", xR, assY + 7.5, { align: "center" });
     if (r2?.conselho && r2.conselho !== "Não informado") {
       doc.text(r2.conselho, xR, assY + 10.5, { align: "center" });
     }
