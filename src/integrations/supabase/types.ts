@@ -751,7 +751,22 @@ export type Database = {
           uf_conselho?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "professional_stamps_profissional_id_fkey"
+            columns: ["profissional_id"]
+            isOneToOne: true
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "professional_stamps_profissional_id_fkey"
+            columns: ["profissional_id"]
+            isOneToOne: true
+            referencedRelation: "professionals_safe"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       professional_unavailability: {
         Row: {
