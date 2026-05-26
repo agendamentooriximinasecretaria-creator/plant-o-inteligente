@@ -1345,7 +1345,7 @@ export default function EscalaPage() {
 
   const getMensalOpts = async (unidadeId?: string): Promise<MensalOpts> => {
     // 1. Identifica o perfil do usuário logado que está gerando a escala
-    let gestorStamp: StampData | null = null;
+    let gestorSignature: ResolvedSignature | null = null;
     
     // Tenta buscar o profissional vinculado ao usuário logado
     const { data: profProfile } = await supabase
@@ -1357,37 +1357,33 @@ export default function EscalaPage() {
     const effectiveProfId = profProfile?.profissional_id || currentProfId;
 
     if (effectiveProfId) {
-      gestorStamp = await fetchStampData(effectiveProfId);
-    }
-    
-    // Log para depuração em ambiente de desenvolvimento
-    if (!gestorStamp && effectiveProfId) {
-      console.warn(`[EscalaPage] Carimbo não encontrado para o profissional ${effectiveProfId}`);
+      gestorSignature = await resolveSignatureData({ professionalId: effectiveProfId });
     }
     
     // 2. Determina os blocos esquerdo e direito conforme a regra de negócio
-    let responsavel: StampData | null = gestorStamp;
-    let responsavelSecundario: StampData | null = null;
+    let responsavel: ResolvedSignature | null = gestorSignature;
+    let responsavelSecundario: ResolvedSignature | null = null;
 
     if (isMaster) {
       // SE quem gera é GESTOR MASTER:
       // BLOCO ESQUERDO: Gestor Master (ele mesmo)
       // BLOCO DIREITO: Responsável Técnico da Unidade
-      responsavelSecundario = await fetchRTForUnidade(unidadeId);
+      responsavelSecundario = await resolveRTForUnidade(unidadeId);
     } else if (isCoordinator) {
       // SE quem gera é COORDENADOR:
       // BLOCO ESQUERDO: Coordenador (ele mesmo)
       // BLOCO DIREITO: Gestor Master da Unidade
-      responsavelSecundario = await fetchGestorMasterForUnidade(unidadeId);
+      responsavelSecundario = await resolveGestorMasterForUnidade(unidadeId);
     } else {
       // Outros casos: mantemos o padrão anterior
-      responsavelSecundario = await fetchRTForUnidade(unidadeId);
+      responsavelSecundario = await resolveRTForUnidade(unidadeId);
     }
 
     // Validação de carimbo próprio para o aviso em tela
-    if (!gestorStamp) {
+    const hasAnySignature = gestorSignature?.hasVisualSignature || gestorSignature?.hasStamp || gestorSignature?.hasDigitalSeal;
+    if (!hasAnySignature) {
       toast.warning(
-        "Atenção: você não possui assinatura cadastrada. O documento será gerado com campo em branco para assinatura manual.", 
+        "Atenção: você não possui assinatura ou carimbo cadastrado. O documento será gerado com campo em branco para assinatura manual.", 
         { duration: 8000 }
       );
     }
