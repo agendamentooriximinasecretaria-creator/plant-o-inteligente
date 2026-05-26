@@ -384,7 +384,16 @@ export async function gerarPdfEscala(
     doc.setFont("helvetica", "normal");
     doc.text(r2?.cargo || "", xR, assY + 6.5, { align: "center" });
     let curY2 = assY + 9.5;
-    if (r2?.conselho && r2.conselho !== "Não informado") { doc.text(r2.conselho, xR, curY2, { align: "center" }); curY2 += 3; }
+    if (r2?.conselho && r2.conselho !== "Não informado") { 
+      doc.text(r2.conselho, xR, curY2, { align: "center" }); 
+      curY2 += 3; 
+    } else if (r2?.tipo === 'digital_gerado' || r2?.tipo === 'eletronica_interna') {
+      doc.setTextColor(30, 58, 138);
+      doc.setFont("courier", "bold");
+      doc.text("ASSINADO DIGITALMENTE", xR, assY - 6, { align: "center" });
+      doc.setTextColor(0);
+      doc.setFont("helvetica", "normal");
+    }
     if (r2?.unidade && r2.unidade !== "—") { doc.text(r2.unidade, xR, curY2, { align: "center" }); }
   }
 
