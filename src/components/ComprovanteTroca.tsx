@@ -191,24 +191,32 @@ export default function ComprovanteTroca({ trocaId, onClose }: Props) {
 
     // Bloco Esquerdo - Gestor/Coordenador
     const xL = marginSide + lineLen / 2;
+    // Assinatura (Esquerda)
     if (gestorStamp?.assinaturaBase64) {
-      try { doc.addImage(gestorStamp.assinaturaBase64, "PNG", marginSide + 5, assY - 14, lineLen - 10, 12); } catch { /* noop */ }
-    } else {
-      doc.setFontSize(6);
-      doc.setTextColor(150);
-      doc.text("Assinatura não cadastrada", xL, assY - 5, { align: "center" });
+      try {
+        doc.addImage(gestorStamp.assinaturaBase64, "PNG", marginSide + 2, assY - 14, 30, 12, undefined, 'FAST');
+      } catch { /* noop */ }
     }
+    // Carimbo (Esquerda)
+    if (gestorStamp?.carimboBase64) {
+      try {
+        doc.addImage(gestorStamp.carimboBase64, "PNG", marginSide + 35, assY - 18, 25, 16, undefined, 'FAST');
+      } catch { /* noop */ }
+    }
+
     doc.setLineWidth(0.3);
     doc.setDrawColor(0);
     doc.setTextColor(0);
     doc.line(marginSide, assY, marginSide + lineLen, assY);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
-    doc.text(gestorStamp?.nome || "Gestor / Coordenador", xL, assY + 3.5, { align: "center" });
+    doc.text(gestorStamp?.nome || "", xL, assY + 3.5, { align: "center" });
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
-    doc.text(gestorStamp?.cargo || "Coordenação", xL, assY + 6.5, { align: "center" });
-    if (gestorStamp?.conselho) doc.text(gestorStamp.conselho, xL, assY + 9.5, { align: "center" });
+    doc.text(gestorStamp?.cargo || "", xL, assY + 6.5, { align: "center" });
+    if (gestorStamp?.conselho && gestorStamp.conselho !== "Não informado") {
+      doc.text(gestorStamp.conselho, xL, assY + 9.5, { align: "center" });
+    }
 
     // Bloco Direito - Responsável Técnico
     const xR = w - marginSide - lineLen / 2;
