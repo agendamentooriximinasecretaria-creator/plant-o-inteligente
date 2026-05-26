@@ -138,15 +138,22 @@ export async function resolveSignatureData(params: {
         
         if (stamp.assinatura_path) {
           result.assinaturaBase64 = await convertStorageImageToBase64(BUCKET, stamp.assinatura_path);
+          if (result.assinaturaBase64) {
+            result.hasVisualSignature = true;
+          }
         }
         
         // Se ainda não houver imagem real e for digital gerada, tenta usar SVG se existir no metadata
         if (!result.assinaturaBase64 && stamp.tipo === 'digital_gerado' && metadata.signature_svg) {
           result.assinaturaBase64 = metadata.signature_svg;
+          result.hasVisualSignature = true;
         }
 
         if (stamp.carimbo_path) {
           result.carimboBase64 = await convertStorageImageToBase64(BUCKET, stamp.carimbo_path);
+          if (result.carimboBase64) {
+            result.hasStamp = true;
+          }
         }
       }
       
