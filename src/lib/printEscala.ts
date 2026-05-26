@@ -5,7 +5,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { getLogoSmsDataUrl, logoSmsImgHtml } from "./logoSMS";
-import type { StampData } from "./pdfStampUtils";
+import type { ResolvedSignature as StampData } from "./signatureResolution";
 import { DOCUMENT_CSS_BASE } from "./documentStyle";
 import { buildHeaderHtml, buildSignatureHtml, buildFooterHtml } from "./documentTemplates";
 
