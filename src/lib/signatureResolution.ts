@@ -239,7 +239,7 @@ export async function resolveGestorMasterForUnidade(unidadeId?: string): Promise
       
     if (globalGestor) return resolveSignatureData({ professionalId: globalGestor.profissional_id });
     
-    return { signatoryFound: false, nome: "", cargo: "Gestor Master", conselho: "", unidade: "", hasVisualSignature: false, hasStamp: false, hasDigitalSeal: false, tipoAssinante: "gestor_master", source: "fallback", renderMode: "text_only" };
+    return { signatoryFound: false, nome: "", cargo: "", conselho: "", unidade: "", hasVisualSignature: false, hasStamp: false, hasDigitalSeal: false, tipoAssinante: "gestor_master", source: "fallback", renderMode: "text_only" };
   } catch (err) {
     console.error('Erro em resolveGestorMasterForUnidade:', err);
     return { signatoryFound: false, nome: "", cargo: "Gestor Master", conselho: "", unidade: "", hasVisualSignature: false, hasStamp: false, hasDigitalSeal: false, tipoAssinante: "gestor_master", source: "fallback", renderMode: "text_only" };
