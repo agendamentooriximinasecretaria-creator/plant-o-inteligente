@@ -41,45 +41,85 @@ export function buildHeaderHtml(params: {
 }
 
 export function buildSignatureHtml(params: {
-  responsavel?: { nome: string; cargo: string; conselho?: string; unidade?: string; assinaturaBase64?: string; carimboBase64?: string; tipo?: string };
-  responsavelTecnico?: { nome: string; cargo: string; conselho?: string; unidade?: string; assinaturaBase64?: string; carimboBase64?: string; tipo?: string };
+  responsavel?: { 
+    nome: string; 
+    cargo: string; 
+    conselho?: string; 
+    unidade?: string; 
+    assinaturaBase64?: string; 
+    carimboBase64?: string; 
+    tipo?: string;
+    hasVisualSignature?: boolean;
+    hasStamp?: boolean;
+    hasDigitalSeal?: boolean;
+  };
+  responsavelTecnico?: { 
+    nome: string; 
+    cargo: string; 
+    conselho?: string; 
+    unidade?: string; 
+    assinaturaBase64?: string; 
+    carimboBase64?: string; 
+    tipo?: string;
+    hasVisualSignature?: boolean;
+    hasStamp?: boolean;
+    hasDigitalSeal?: boolean;
+  };
 }) {
   const { responsavel, responsavelTecnico } = params;
   
   const renderBox = (r: any) => {
-    if (!r || (!r.nome && !r.cargo)) return `<div class="assinatura-item"></div>`;
+    if (!r || (!r.nome && !r.cargo)) return `<div class="assinatura-item" style="flex: 1;"></div>`;
     
-    // Se for eletrônica ou digital gerada sem imagem real (assinaturaBase64), mostramos um selo
-    const showDigitalSeal = (r.tipo === 'eletronica_interna' || r.tipo === 'digital_gerado') && !r.assinaturaBase64;
+    // Prioridade de renderização:
+    // 1. Assinatura Visual (Imagem real)
+    // 2. Carimbo (Imagem do carimbo físico)
+    // 3. Selo Digital (Se configurado ou se for assinatura interna)
+    
+    const showSignature = !!r.assinaturaBase64;
+    const showStamp = !!r.carimboBase64;
+    const showDigitalSeal = (r.hasDigitalSeal || r.tipo === 'eletronica_interna' || r.tipo === 'digital_gerado') && !showSignature;
     
     return `
-      <div class="assinatura-item">
-        <div style="height: 100px; display: flex; align-items: flex-end; justify-content: center; margin-bottom: 5px; gap: 10px; position: relative;">
-          ${r?.assinaturaBase64 ? `<img src="${r.assinaturaBase64}" style="max-height: 85px; max-width: 220px; object-fit: contain; z-index: 1;" alt="Assinatura" />` : ""}
-          ${r?.carimboBase64 ? `<img src="${r.carimboBase64}" style="max-height: 95px; max-width: 160px; object-fit: contain; margin-left: -45px; z-index: 2;" alt="Carimbo" />` : ""}
+      <div class="assinatura-item" style="flex: 1; min-width: 250px; text-align: center; display: flex; flex-direction: column; align-items: center;">
+        <div style="height: 110px; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; position: relative; width: 100%;">
+          
+          ${showSignature ? `
+            <img src="${r.assinaturaBase64}" style="max-height: 100px; max-width: 280px; object-fit: contain; z-index: 2;" alt="Assinatura Visual" />
+          ` : ""}
+          
+          ${showStamp ? `
+            <img src="${r.carimboBase64}" style="max-height: 100px; max-width: 180px; object-fit: contain; ${showSignature ? 'margin-left: -50px; opacity: 0.9;' : ''} z-index: 1;" alt="Carimbo" />
+          ` : ""}
           
           ${showDigitalSeal ? `
-            <div style="position: absolute; bottom: 10px; font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #1e3a8a; border: 1.5px solid #1e3a8a; padding: 4px 8px; border-radius: 4px; background: rgba(239, 246, 255, 0.5); text-transform: uppercase; font-weight: bold; transform: rotate(-5deg); z-index: 0;">
-              Assinado Digitalmente<br/>
-              <span style="font-size: 8px; font-weight: normal;">Sistema GestorPlantão</span>
+            <div style="font-family: 'Courier New', Courier, monospace; font-size: 11px; color: #1e3a8a; border: 2px solid #1e3a8a; padding: 6px 12px; border-radius: 4px; background: rgba(239, 246, 255, 0.7); text-transform: uppercase; font-weight: bold; transform: rotate(-3deg); box-shadow: 2px 2px 0px rgba(0,0,0,0.1); z-index: 0;">
+              ASSINADO DIGITALMENTE<br/>
+              <span style="font-size: 9px; font-weight: normal; opacity: 0.8;">Sistema GestorPlantão SMS</span>
             </div>
           ` : ""}
+          
+          ${(!showSignature && !showStamp && !showDigitalSeal) ? `
+            <div style="width: 80%; border-bottom: 1px dashed #ccc; height: 60px;"></div>
+          ` : ""}
         </div>
-        <div class="assinatura-line" style="border-top: 1px solid #000; padding-top: 5px;">
-          <strong>${r?.nome || ""}</strong>
-        </div>
-        <div class="assinatura-info">
-          ${r?.cargo || ""} ${r?.conselho && r.conselho !== "Não informado" ? `· ${r.conselho}` : ""} <br/>
-          ${r?.unidade || ""}
+        
+        <div class="assinatura-line" style="width: 85%; border-top: 1.5px solid #000; margin-bottom: 4px;"></div>
+        
+        <div style="line-height: 1.3;">
+          <strong style="font-size: 11pt; color: #000; text-transform: uppercase;">${r.nome || ""}</strong><br/>
+          <span style="font-size: 9pt; color: #333;">${r.cargo || ""}</span><br/>
+          ${r.conselho && r.conselho !== "Não informado" ? `<span style="font-size: 8.5pt; color: #555;">${r.conselho}</span><br/>` : ""}
+          ${r.unidade ? `<span style="font-size: 8pt; color: #666; font-style: italic;">${r.unidade}</span>` : ""}
         </div>
       </div>
     `;
   };
 
   return `
-    <div class="assinatura-block" style="display: flex; justify-content: space-around; margin-top: 30px; page-break-inside: avoid;">
+    <div class="assinatura-block" style="display: flex; justify-content: space-around; gap: 40px; margin-top: 40px; page-break-inside: avoid; width: 100%;">
       ${renderBox(responsavel)}
-      ${renderBox(responsavelTecnico)}
+      ${responsavelTecnico ? renderBox(responsavelTecnico) : ""}
     </div>
   `;
 }
