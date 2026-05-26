@@ -415,8 +415,8 @@ export default function RelatoriosPage() {
         unidade: ""
       },
       responsavelTecnico: responsavelSecundario || {
-        nome: isCoordinator ? "Gestor Master não cadastrado" : "Responsável Técnico não cadastrado",
-        cargo: isCoordinator ? "Gestor Master" : "Responsável Técnico",
+        nome: "",
+        cargo: "",
         conselho: "",
         unidade: ""
       },

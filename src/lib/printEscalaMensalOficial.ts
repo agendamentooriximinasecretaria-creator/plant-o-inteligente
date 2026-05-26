@@ -69,6 +69,7 @@ export interface MensalResponsavel {
   conselho: string;
   unidade: string;
   assinaturaBase64?: string;
+  carimboBase64?: string;
 }
 
 export interface MensalOpts {
@@ -610,45 +611,58 @@ export async function gerarPdfEscalaMensalOficial(
     const lineLen = 70;
     const gap = (availW - (lineLen * 2)) / 3;
 
-    // Bloco Esquerdo — Gestor Master / Coordenador
+    // Bloco Esquerdo — Gestor / Coordenador / Responsável 1
     const xL = margin + gap + lineLen / 2;
     const startXL = margin + gap;
     
+    // Assinatura (Esquerda)
     if (r1?.assinaturaBase64) {
       try {
-        doc.addImage(r1.assinaturaBase64, "PNG", startXL + 5, assY - 12, lineLen - 10, 10);
+        doc.addImage(r1.assinaturaBase64, "PNG", startXL + 2, assY - 14, 30, 12, undefined, 'FAST');
       } catch { /* ignora */ }
     }
+    // Carimbo (Esquerda)
+    if (r1?.carimboBase64) {
+      try {
+        doc.addImage(r1.carimboBase64, "PNG", startXL + 35, assY - 18, 25, 16, undefined, 'FAST');
+      } catch { /* ignora */ }
+    }
+
     doc.setLineWidth(0.2);
     doc.line(startXL, assY, startXL + lineLen, assY);
     doc.setFontSize(8);
-    doc.text(r1?.nome || "Gestor / Coordenador", xL, assY + 4, { align: "center" });
+    doc.text(r1?.nome || "", xL, assY + 4, { align: "center" });
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
-    doc.text(r1?.cargo || "Coordenação", xL, assY + 7.5, { align: "center" });
+    doc.text(r1?.cargo || "", xL, assY + 7.5, { align: "center" });
     if (r1?.conselho && r1.conselho !== "Não informado") {
       doc.text(r1.conselho, xL, assY + 10.5, { align: "center" });
     }
-    if (r1?.unidade) {
-      doc.text(r1.unidade, xL, assY + 13.5, { align: "center" });
-    }
 
-    // Bloco Direito — Responsável Técnico
+    // Bloco Direito — Responsável 2
     const startXR = pageW - margin - gap - lineLen;
     const xR = startXR + lineLen / 2;
     
+    // Assinatura (Direita)
     if (r2?.assinaturaBase64) {
       try {
-        doc.addImage(r2.assinaturaBase64, "PNG", startXR + 5, assY - 12, lineLen - 10, 10);
+        doc.addImage(r2.assinaturaBase64, "PNG", startXR + 2, assY - 14, 30, 12, undefined, 'FAST');
       } catch { /* ignora */ }
     }
+    // Carimbo (Direita)
+    if (r2?.carimboBase64) {
+      try {
+        doc.addImage(r2.carimboBase64, "PNG", startXR + 35, assY - 18, 25, 16, undefined, 'FAST');
+      } catch { /* ignora */ }
+    }
+
     doc.line(startXR, assY, startXR + lineLen, assY);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
-    doc.text(r2?.nome || "Responsável Técnico", xR, assY + 4, { align: "center" });
+    doc.text(r2?.nome || "", xR, assY + 4, { align: "center" });
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
-    doc.text(r2?.cargo || "Responsável Técnico", xR, assY + 7.5, { align: "center" });
+    doc.text(r2?.cargo || "", xR, assY + 7.5, { align: "center" });
     if (r2?.conselho && r2.conselho !== "Não informado") {
       doc.text(r2.conselho, xR, assY + 10.5, { align: "center" });
     }
