@@ -440,25 +440,28 @@ export default function EscalaPage() {
   // Ordena: vinculados ao setor selecionado vêm primeiro
   const profissionaisFiltrados = useMemo(() => {
     const base = (professionals as any[]).filter((p: any) => !form.profissao || p.profissao === form.profissao);
-    if (!form.setor_id) return base;
+    if (!form.setor_ids.length) return base;
+    const firstSetorId = form.setor_ids[0];
     return [...base].sort((a, b) => {
-      const av = a.setor_principal_id === form.setor_id ? 0 : 1;
-      const bv = b.setor_principal_id === form.setor_id ? 0 : 1;
+      const av = a.setor_principal_id === firstSetorId ? 0 : 1;
+      const bv = b.setor_principal_id === firstSetorId ? 0 : 1;
       return av - bv;
     });
-  }, [professionals, form.profissao, form.setor_id]);
+  }, [professionals, form.profissao, form.setor_ids]);
 
-  // Cobertura do setor no dia selecionado (em memória, a partir de shifts já carregados)
   const coberturaSetorDia = useMemo(() => {
-    if (!form.setor_id || !form.data) return null;
+    if (!form.setor_ids.length || !form.dates.length) return null;
+    const firstSetorId = form.setor_ids[0];
+    const firstDate = form.dates[0];
     const escalados = (shifts as any[]).filter((s: any) =>
-      s.setor_id === form.setor_id && s.data === form.data && s.status !== 'cancelado'
+      s.setor_id === firstSetorId && s.data === firstDate && s.status !== 'cancelado'
       && s.tipo_plantao !== 'folga' && s.tipo_plantao !== 'indisponibilidade'
     );
-    const setor = (sectors as any[]).find((s: any) => s.id === form.setor_id);
+    const setor = (sectors as any[]).find((s: any) => s.id === firstSetorId);
     const min = setor?.min_profissionais_diurno || 1;
     return { total: escalados.length, min, ids: new Set(escalados.map((e: any) => e.profissional_id)) };
-  }, [shifts, sectors, form.setor_id, form.data]);
+  }, [shifts, sectors, form.setor_ids, form.dates]);
+
 
   // Próximos plantões (até 3) do(s) profissional(is) selecionado(s) — janela ±7 dias da data escolhida
   const proxPlantoesPorProf = useMemo(() => {
