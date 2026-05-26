@@ -2438,7 +2438,7 @@ export default function EscalaPage() {
 
       {/* MODAL: Novo / Editar plantão */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? 'Editar Plantão' : 'Lançamento de Plantões em Massa'}</DialogTitle>
           </DialogHeader>
@@ -2447,15 +2447,15 @@ export default function EscalaPage() {
               <div className="lg:col-span-4 space-y-6">
                 <div className="bg-muted/30 p-4 rounded-xl space-y-4 border border-border/50">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Configurações Básicas</h3>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">Unidade *</label>
+                      <select required value={form.unidade_id} onChange={e => setForm(f => ({ ...f, unidade_id: e.target.value, setor_ids: [] }))} className={inputClass}>
+                        <option value="">Selecione...</option>
+                        {units.map((u: any) => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                      </select>
+                    </div>
 
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Unidade *</label>
-                  <select required value={form.unidade_id} onChange={e => setForm(f => ({ ...f, unidade_id: e.target.value, setor_ids: [] }))} className={inputClass}>
-                    <option value="">Selecione...</option>
-                    {units.map((u: any) => <option key={u.id} value={u.id}>{u.nome}</option>)}
-                  </select>
-                </div>
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Setores *</label>
@@ -2503,11 +2503,13 @@ export default function EscalaPage() {
                   <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={inputClass}>
                     {Object.entries(STATUS_LABELS).filter(([k]) => k !== 'trocando').map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
+                  </div>
                 </div>
               </div>
 
               <div className="lg:col-span-8 space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Datas *</label>
@@ -2680,7 +2682,11 @@ export default function EscalaPage() {
                         <UsersIcon className="h-8 w-8 text-muted-foreground/30 mx-auto" />
                         <p className="text-sm text-muted-foreground">Nenhum profissional encontrado para os filtros atuais.</p>
                       </div>
-                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
                   </div>
                 </div>
               </div>
