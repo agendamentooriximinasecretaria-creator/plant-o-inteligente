@@ -1129,6 +1129,16 @@ export default function EscalaPage() {
         const conselho = (prof.conselho || prof.registro || prof.documento_conselho || prof.documento_numero)
           ? `${prof.conselho || prof.documento_conselho || ''} ${prof.registro || prof.documento_numero || ''}`.trim()
           : 'Não inf.';
+        
+        // Normalização rigorosa do cargo para conferir se é plantonista
+        const cargoNormalizado = (prof.cargo || '').toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]/g, '')
+          .trim();
+        
+        const isPlantonista = cargoNormalizado.includes('plantonista');
+
         row = {
           id: profId,
           nome: prof.nome || '—',
@@ -1140,15 +1150,16 @@ export default function EscalaPage() {
           totalHoras: 0,
           totalPlantoes: 0,
           totalADN: 0,
-          elegivelADN: !!prof.recebe_adicional_noturno || !!prof.is_plantonista || String(prof.cargo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim() === 'plantonista',
+          elegivelADN: !!prof.recebe_adicional_noturno || !!prof.is_plantonista || isPlantonista,
         };
         map.set(profId, row);
       }
       const dia = parseInt(String(s.data).slice(8, 10), 10);
+      const currentSigla = tipoToSigla(s.tipo_plantao);
       if (!row.porDia[dia]) row.porDia[dia] = [];
       row.porDia[dia].push({
         dia,
-        sigla: tipoToSigla(s.tipo_plantao),
+        sigla: currentSigla,
         tipo: s.tipo_plantao,
         hora_inicio: s.hora_inicio,
         hora_fim: s.hora_fim,
@@ -1163,14 +1174,18 @@ export default function EscalaPage() {
         // Cálculo ADN (Adicional Noturno)
         if (row.elegivelADN) {
           const tipoConfig = TIPOS_PLANTAO.find(t => t.value === s.tipo_plantao);
+          const tipoLower = (s.tipo_plantao || "").toLowerCase();
+          const siglaUpper = currentSigla.toUpperCase();
+          
           const geraAdn = tipoConfig?.gera_adn !== undefined ? tipoConfig.gera_adn : (
-            (s.tipo_plantao || "").toLowerCase().includes("not") || 
-            (s.tipo_plantao || "").toLowerCase().includes("24")
+            tipoLower.includes("not") || 
+            tipoLower.includes("24") ||
+            siglaUpper === "N" ||
+            siglaUpper === "24"
           );
 
           if (geraAdn) {
-            const t = (s.tipo_plantao || "").toLowerCase();
-            row.totalADN += t.includes("24") ? 10 : 7;
+            row.totalADN += (tipoLower.includes("24") || siglaUpper === "24") ? 10 : 7;
           }
         }
       }
