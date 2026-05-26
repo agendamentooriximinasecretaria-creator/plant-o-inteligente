@@ -50,12 +50,18 @@ export async function fetchStampData(profissionalId: string): Promise<StampData 
     assinaturaBase64 = await convertStorageImageToBase64('signatures', stamp.assinatura_path);
   }
 
+  let carimboBase64: string | undefined = undefined;
+  if (stamp.carimbo_path) {
+    carimboBase64 = await convertStorageImageToBase64('signatures', stamp.carimbo_path);
+  }
+
   return {
     nome: metadata.nome_profissional || profData.nome || "—",
     cargo: stamp.cargo || "—",
     conselho: `${metadata.conselho || ''} ${metadata.registro || ''} ${stamp.uf_conselho ? `(${stamp.uf_conselho})` : ''}`.trim() || "—",
     unidade: metadata.unidade_principal || profData.unidade_principal?.nome || "—",
-    assinaturaBase64
+    assinaturaBase64,
+    carimboBase64
   };
 }
 
