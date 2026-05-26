@@ -5,7 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { invalidateCrossShifts } from "@/lib/queryInvalidation";
 import { logAudit } from "@/lib/auditLog";
 import { dispatchNotification } from "@/lib/notifyHelper";
-import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info, Users as UsersIcon, Palmtree, AlertTriangle, AlertCircle, LayoutGrid, MoreHorizontal, Printer, FileText, FileSpreadsheet, CopyPlus, ShieldCheck, Send, Megaphone, Loader2, Search, X, Table2, ChevronLeft, ChevronRight, Eye } from "lucide-react";
+import { Calendar, List, Clock, Plus, Trash2, Edit, ArrowLeftRight, Info, Users as UsersIcon, Palmtree, AlertTriangle, AlertCircle, LayoutGrid, MoreHorizontal, Printer, FileText, FileSpreadsheet, CopyPlus, ShieldCheck, Send, Megaphone, Loader2, Search, X, Table2, ChevronLeft, ChevronRight, Eye, CalendarDays, Repeat } from "lucide-react";
+import { cn } from "@/lib/utils";
+
 import { WeeklyGrid, type ProfRow, type GridShift } from "@/components/schedule/WeeklyGrid";
 import { MonthlyConsolidatedGrid } from "@/components/schedule/MonthlyConsolidatedGrid";
 import { ContactActionButton } from "@/components/ContactActionButton";
@@ -26,6 +28,9 @@ import { imprimirComprovantePlantao, type ComprovantePlantaoData } from "@/lib/p
 import SignActionButton from "@/components/SignActionButton";
 import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 import { calculateAdicionalNoturno } from "@/lib/utils";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 
 const STATUS_LABELS: Record<string, string> = {
@@ -71,11 +76,18 @@ const TIPOS_PLANTAO_FALLBACK = [
 const LIMITE_HORAS_MENSAL = 220;
 
 const emptyForm = {
-  unidade_id: '', setor_id: '', profissao: 'medico',
+  unidade_id: '', 
+  setor_ids: [] as string[], 
+  profissao: 'medico',
   profissional_ids: [] as string[],
-  data: '', hora_inicio: '07:00', hora_fim: '19:00',
+  dates: [] as string[], 
+  repeat_days: [] as number[],
+  repeat_until: '',
+  date_mode: 'single' as 'single' | 'multiple' | 'range' | 'repeat',
+  hora_inicio: '07:00', hora_fim: '19:00',
   tipo_plantao: 'Diurno 12h', observacoes: '', status: 'confirmado',
 };
+
 
 const emptyFolga = { profissional_id: '', data_inicio: '', data_fim: '', motivo: 'folga', observacoes: '' };
 
@@ -430,31 +442,35 @@ export default function EscalaPage() {
   // Ordena: vinculados ao setor selecionado vêm primeiro
   const profissionaisFiltrados = useMemo(() => {
     const base = (professionals as any[]).filter((p: any) => !form.profissao || p.profissao === form.profissao);
-    if (!form.setor_id) return base;
+    if (!form.setor_ids.length) return base;
+    const firstSetorId = form.setor_ids[0];
     return [...base].sort((a, b) => {
-      const av = a.setor_principal_id === form.setor_id ? 0 : 1;
-      const bv = b.setor_principal_id === form.setor_id ? 0 : 1;
+      const av = a.setor_principal_id === firstSetorId ? 0 : 1;
+      const bv = b.setor_principal_id === firstSetorId ? 0 : 1;
       return av - bv;
     });
-  }, [professionals, form.profissao, form.setor_id]);
+  }, [professionals, form.profissao, form.setor_ids]);
 
-  // Cobertura do setor no dia selecionado (em memória, a partir de shifts já carregados)
   const coberturaSetorDia = useMemo(() => {
-    if (!form.setor_id || !form.data) return null;
+    if (!form.setor_ids.length || !form.dates.length) return null;
+    const firstSetorId = form.setor_ids[0];
+    const firstDate = form.dates[0];
     const escalados = (shifts as any[]).filter((s: any) =>
-      s.setor_id === form.setor_id && s.data === form.data && s.status !== 'cancelado'
+      s.setor_id === firstSetorId && s.data === firstDate && s.status !== 'cancelado'
       && s.tipo_plantao !== 'folga' && s.tipo_plantao !== 'indisponibilidade'
     );
-    const setor = (sectors as any[]).find((s: any) => s.id === form.setor_id);
+    const setor = (sectors as any[]).find((s: any) => s.id === firstSetorId);
     const min = setor?.min_profissionais_diurno || 1;
     return { total: escalados.length, min, ids: new Set(escalados.map((e: any) => e.profissional_id)) };
-  }, [shifts, sectors, form.setor_id, form.data]);
+  }, [shifts, sectors, form.setor_ids, form.dates]);
+
 
   // Próximos plantões (até 3) do(s) profissional(is) selecionado(s) — janela ±7 dias da data escolhida
   const proxPlantoesPorProf = useMemo(() => {
     const out: Record<string, any[]> = {};
-    if (!form.data) return out;
-    const ref = new Date(form.data + 'T00:00:00').getTime();
+    const firstDate = form.dates[0];
+    if (!firstDate) return out;
+    const ref = new Date(firstDate + 'T00:00:00').getTime();
     for (const pid of form.profissional_ids) {
       out[pid] = (shifts as any[])
         .filter((s: any) => s.profissional_id === pid && s.status !== 'cancelado'
@@ -464,17 +480,19 @@ export default function EscalaPage() {
         .slice(0, 3);
     }
     return out;
-  }, [shifts, form.profissional_ids, form.data, editingId]);
+  }, [shifts, form.profissional_ids, form.dates, editingId]);
+
 
   // Status por profissional (para badge na lista): conflito de horário no dia ou já escalado no setor
   const statusPorProf = useMemo(() => {
     const out: Record<string, 'conflito' | 'no_setor' | 'disponivel'> = {};
-    if (!form.data) return out;
+    const firstDate = form.dates[0];
+    if (!firstDate) return out;
     const startMin = (() => { const [h, m] = form.hora_inicio.split(':').map(Number); return h * 60 + m; })();
     const endMinRaw = (() => { const [h, m] = form.hora_fim.split(':').map(Number); return h * 60 + m; })();
     const endMin = endMinRaw <= startMin ? endMinRaw + 24 * 60 : endMinRaw;
     for (const p of profissionaisFiltrados) {
-      const doDia = (shifts as any[]).filter((s: any) => s.profissional_id === p.id && s.data === form.data
+      const doDia = (shifts as any[]).filter((s: any) => s.profissional_id === p.id && s.data === firstDate
         && s.status !== 'cancelado' && s.id !== editingId);
       let conflito = false;
       for (const s of doDia) {
@@ -490,7 +508,8 @@ export default function EscalaPage() {
       else out[p.id] = 'disponivel';
     }
     return out;
-  }, [profissionaisFiltrados, shifts, form.data, form.hora_inicio, form.hora_fim, editingId, coberturaSetorDia]);
+  }, [profissionaisFiltrados, shifts, form.dates, form.hora_inicio, form.hora_fim, editingId, coberturaSetorDia]);
+
 
 
   useEffect(() => {
@@ -514,39 +533,62 @@ export default function EscalaPage() {
   const validationGenRef = useRef(0);
 
   const checkConflicts = async (gen?: number) => {
-    if (!form.profissional_ids.length || !form.data || !form.hora_inicio || !form.hora_fim) {
+    const datesToCheck = form.date_mode === 'single' && form.dates[0] ? [form.dates[0]] : 
+                         form.date_mode === 'multiple' ? form.dates : 
+                         form.date_mode === 'range' && form.dates[0] && form.dates[1] ? (() => {
+                            const start = new Date(form.dates[0] + 'T00:00:00');
+                            const end = new Date(form.dates[1] + 'T00:00:00');
+                            const list = [];
+                            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) list.push(d.toISOString().split('T')[0]);
+                            return list;
+                         })() : 
+                         form.date_mode === 'repeat' && form.dates[0] && form.repeat_until ? (() => {
+                            const start = new Date(form.dates[0] + 'T00:00:00');
+                            const end = new Date(form.repeat_until + 'T00:00:00');
+                            const list = [];
+                            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                              if (form.repeat_days.includes(d.getDay())) list.push(d.toISOString().split('T')[0]);
+                            }
+                            return list;
+                         })() : [];
+
+    if (!form.profissional_ids.length || !datesToCheck.length || !form.hora_inicio || !form.hora_fim) {
       setConflictWarnings([]);
       setRestWarnings([]);
       return;
     }
+
     const warnings: string[] = [];
     const restWarn: string[] = [];
     for (const pid of form.profissional_ids) {
-      const { data: conflicts } = await supabase.rpc('check_shift_conflict', {
-        p_profissional_id: pid,
-        p_data: form.data,
-        p_hora_inicio: form.hora_inicio,
-        p_hora_fim: form.hora_fim,
-        p_exclude_id: editingId,
-      });
-      const prof = (professionals as any[]).find(p => p.id === pid);
-      if (conflicts && conflicts.length > 0) {
-        warnings.push(`⚠️ ${prof?.nome}: já tem plantão ${conflicts[0].conflicting_start}-${conflicts[0].conflicting_end} ou folga neste dia.`);
-      }
-      // Verifica descanso mínimo
-      const { data: restData } = await sb.rpc('check_descanso_minimo', {
-        p_profissional_id: pid,
-        p_data: form.data,
-        p_hora_inicio: form.hora_inicio,
-        p_hora_fim: form.hora_fim,
-        p_descanso_horas: descansoMinimo,
-        p_exclude_id: editingId,
-      });
-      if (restData && restData.length > 0) {
-        const gap = Number(restData[0].gap_horas).toFixed(1);
-        restWarn.push(`🛌 ${prof?.nome}: descanso de ${gap}h entre plantões (mínimo configurado: ${descansoMinimo}h).`);
+      for (const date of datesToCheck.slice(0, 10)) {
+        const { data: conflicts } = await supabase.rpc('check_shift_conflict', {
+          p_profissional_id: pid,
+          p_data: date,
+          p_hora_inicio: form.hora_inicio,
+          p_hora_fim: form.hora_fim,
+          p_exclude_id: editingId,
+        });
+        const prof = (professionals as any[]).find(p => p.id === pid);
+        if (conflicts && conflicts.length > 0) {
+          warnings.push(`⚠️ ${prof?.nome} (${new Date(date + 'T12:00:00').toLocaleDateString('pt-BR')}): já tem plantão ${conflicts[0].conflicting_start}-${conflicts[0].conflicting_end} ou folga.`);
+        }
+        // Verifica descanso mínimo
+        const { data: restData } = await sb.rpc('check_descanso_minimo', {
+          p_profissional_id: pid,
+          p_data: date,
+          p_hora_inicio: form.hora_inicio,
+          p_hora_fim: form.hora_fim,
+          p_descanso_horas: descansoMinimo,
+          p_exclude_id: editingId,
+        });
+        if (restData && restData.length > 0) {
+          const gap = Number(restData[0].gap_horas).toFixed(1);
+          restWarn.push(`🛌 ${prof?.nome} (${new Date(date + 'T12:00:00').toLocaleDateString('pt-BR')}): descanso de ${gap}h (mínimo ${descansoMinimo}h).`);
+        }
       }
     }
+
     // Descartar resultado se outra validação foi disparada nesse meio tempo
     if (gen !== undefined && gen !== validationGenRef.current) return;
     setConflictWarnings(warnings);
@@ -554,26 +596,29 @@ export default function EscalaPage() {
   };
 
   const checkWorkload = async (gen?: number) => {
-    if (form.profissional_ids.length !== 1 || !form.data) { setWorkloadAlerts([]); return; }
+    const firstDate = form.dates[0];
+    if (form.profissional_ids.length !== 1 || !firstDate) { setWorkloadAlerts([]); return; }
     const pid = form.profissional_ids[0];
     const alerts: string[] = [];
-    const yesterday = new Date(form.data + 'T00:00:00');
+    const yesterday = new Date(firstDate + 'T00:00:00');
     yesterday.setDate(yesterday.getDate() - 1);
     const yStr = yesterday.toISOString().split('T')[0];
-    const { data: recent } = await supabase.from('shifts').select('carga_horaria, hora_fim').eq('profissional_id', pid).in('data', [form.data, yStr]).neq('status', 'cancelado');
+    const { data: recent } = await supabase.from('shifts').select('carga_horaria, hora_fim').eq('profissional_id', pid).in('data', [firstDate, yStr]).neq('status', 'cancelado');
     const recentHours = (recent || []).reduce((s: number, r: any) => s + Number(r.carga_horaria), 0);
     if (recentHours >= 24) alerts.push('🟡 Profissional já tem 24h nas últimas 24h');
     if (gen !== undefined && gen !== validationGenRef.current) return;
     setWorkloadAlerts(alerts);
   };
 
+
   // Debounce dos campos relevantes para checagem de conflitos.
   // Sempre que o formulário mudar (profissionais, data, horas, setor, unidade, tipo),
   // dispara uma nova validação após 250ms de inatividade, descartando respostas antigas.
   const debouncedFormKey = useDebounce(
-    `${form.profissional_ids.join(',')}|${form.data}|${form.hora_inicio}|${form.hora_fim}|${form.setor_id}|${form.unidade_id}|${form.tipo_plantao}`,
+    `${form.profissional_ids.join(',')}|${form.dates.join(',')}|${form.hora_inicio}|${form.hora_fim}|${form.setor_ids.join(',')}|${form.unidade_id}|${form.tipo_plantao}`,
     250,
   );
+
   useEffect(() => {
     if (!modalOpen) return;
     const gen = ++validationGenRef.current;
@@ -584,11 +629,12 @@ export default function EscalaPage() {
 
   // Revalidação server-side imediatamente antes do mutate.
   // Valida TODOS os profissionais selecionados (não para no primeiro) e retorna lista agregada de conflitos.
-  const revalidateServerSide = async (data: typeof form): Promise<void> => {
+  const revalidateServerSide = async (data: typeof form): Promise<{ allDates: string[] }> => {
     const limiteDia = Number(conflictRules?.limite_horas_dia ?? 24);
     const limiteSemana = Number(conflictRules?.limite_horas_semana ?? 60);
     const novaCarga = calcHours(data.hora_inicio, data.hora_fim);
     const erros: string[] = [];
+
 
     // 1. Tipo de plantão ativo
     if (data.tipo_plantao && !['regular', 'folga', 'indisponibilidade'].includes(data.tipo_plantao)) {
@@ -601,47 +647,70 @@ export default function EscalaPage() {
       }
     }
 
-    // 2. Setor/Unidade válidos
-    const setor = (sectors as any[]).find((s: any) => s.id === data.setor_id);
-    if (!setor) erros.push('Setor selecionado é inválido.');
-    else if (setor.unidade_id && setor.unidade_id !== data.unidade_id) {
-      erros.push('Setor não pertence à unidade selecionada.');
+    // 2. Setores/Unidade válidos
+    for (const sid of data.setor_ids) {
+      const setor = (sectors as any[]).find((s: any) => s.id === sid);
+      if (!setor) erros.push(`Setor ${sid} é inválido.`);
+      else if (setor.unidade_id && setor.unidade_id !== data.unidade_id) {
+        erros.push(`Setor ${setor.nome} não pertence à unidade selecionada.`);
+      }
     }
 
-    // Janela de semana (segunda a domingo) para limite semanal
-    const ref = new Date(data.data + 'T00:00:00');
-    const dow = ref.getDay();
-    const diffToMon = (dow + 6) % 7;
-    const semanaIni = new Date(ref); semanaIni.setDate(ref.getDate() - diffToMon);
-    const semanaFim = new Date(semanaIni); semanaFim.setDate(semanaIni.getDate() + 6);
-    const semanaIniStr = semanaIni.toISOString().split('T')[0];
-    const semanaFimStr = semanaFim.toISOString().split('T')[0];
+    const allDates = data.date_mode === 'single' ? [data.dates[0]] : 
+                     data.date_mode === 'multiple' ? data.dates : 
+                     data.date_mode === 'range' ? (() => {
+                        const start = new Date(data.dates[0] + 'T00:00:00');
+                        const end = new Date(data.dates[1] + 'T00:00:00');
+                        const list = [];
+                        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) list.push(d.toISOString().split('T')[0]);
+                        return list;
+                     })() : 
+                     data.date_mode === 'repeat' ? (() => {
+                        const start = new Date(data.dates[0] + 'T00:00:00');
+                        const end = new Date(data.repeat_until + 'T00:00:00');
+                        const list = [];
+                        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                          if (data.repeat_days.includes(d.getDay())) list.push(d.toISOString().split('T')[0]);
+                        }
+                        return list;
+                     })() : [];
 
-    // Validação paralela por profissional, agregando todos os erros
-    const validarProfissional = async (pid: string): Promise<string[]> => {
+
+    // Validação paralela por profissional e data, agregando todos os erros
+    const validarProfissionalData = async (pid: string, dateStr: string): Promise<string[]> => {
       const out: string[] = [];
       const prof = (professionals as any[]).find((p: any) => p.id === pid);
       const nome = prof?.nome || `Profissional ${pid.slice(0, 8)}`;
+      const dataLabel = new Date(dateStr + 'T12:00:00').toLocaleDateString('pt-BR');
 
       if (!prof || prof.status !== 'ativo') {
         out.push(`${nome}: profissional inativo.`);
         return out;
       }
 
+      // Janela de semana (segunda a domingo) para limite semanal
+      const ref = new Date(dateStr + 'T00:00:00');
+      const dow = ref.getDay();
+      const diffToMon = (dow + 6) % 7;
+      const semanaIni = new Date(ref); semanaIni.setDate(ref.getDate() - diffToMon);
+      const semanaFim = new Date(semanaIni); semanaFim.setDate(semanaIni.getDate() + 6);
+      const semanaIniStr = semanaIni.toISOString().split('T')[0];
+      const semanaFimStr = semanaFim.toISOString().split('T')[0];
+
       const [conflictsRes, restRes, doDiaRes, doSemRes] = await Promise.all([
         supabase.rpc('check_shift_conflict', {
-          p_profissional_id: pid, p_data: data.data,
+          p_profissional_id: pid, p_data: dateStr,
           p_hora_inicio: data.hora_inicio, p_hora_fim: data.hora_fim,
           p_exclude_id: editingId,
         }),
         supabase.rpc('check_descanso_minimo', {
-          p_profissional_id: pid, p_data: data.data,
+          p_profissional_id: pid, p_data: dateStr,
           p_hora_inicio: data.hora_inicio, p_hora_fim: data.hora_fim,
           p_descanso_horas: descansoMinimo, p_exclude_id: editingId,
         }),
         (() => {
           let q = supabase.from('shifts').select('carga_horaria')
-            .eq('profissional_id', pid).eq('data', data.data).neq('status', 'cancelado');
+            .eq('profissional_id', pid).eq('data', dateStr).neq('status', 'cancelado');
           if (editingId) q = q.neq('id', editingId);
           return q;
         })(),
@@ -652,6 +721,7 @@ export default function EscalaPage() {
           return q;
         })(),
       ]);
+
 
       if (conflictsRes.error) out.push(`${nome}: falha ao revalidar conflito (${conflictsRes.error.message}).`);
       else if (conflictsRes.data && conflictsRes.data.length > 0) {
@@ -674,8 +744,13 @@ export default function EscalaPage() {
       return out;
     };
 
-    const resultados = await Promise.all(data.profissional_ids.map(validarProfissional));
+    const resultados = await Promise.all(
+      data.profissional_ids.flatMap(pid => 
+        allDates.map(date => validarProfissionalData(pid, date))
+      )
+    );
     resultados.forEach(r => erros.push(...r));
+
 
     if (erros.length > 0) {
       const cabecalho = erros.length === 1
@@ -683,7 +758,9 @@ export default function EscalaPage() {
         : `Não foi possível salvar — ${erros.length} conflitos detectados:`;
       throw new Error(`${cabecalho}\n• ${erros.join('\n• ')}`);
     }
+    return { allDates };
   };
+
 
   const saveMutation = useMutation({
     mutationFn: async (data: typeof form) => {
@@ -692,32 +769,43 @@ export default function EscalaPage() {
       if (!idsSnapshot.length) throw new Error('Selecione ao menos um profissional.');
       const finalData = { ...data, profissional_ids: idsSnapshot };
       // Revalidação server-side final — valida TODOS os selecionados, não apenas o primeiro
-      await revalidateServerSide(finalData);
+      const { allDates } = await revalidateServerSide(finalData);
+
       const hours = calcHours(finalData.hora_inicio, finalData.hora_fim);
-      const basePayload = {
-        unidade_id: finalData.unidade_id, setor_id: finalData.setor_id, profissao: finalData.profissao as any,
-        data: finalData.data, hora_inicio: finalData.hora_inicio, hora_fim: finalData.hora_fim,
-        carga_horaria: hours, tipo_plantao: finalData.tipo_plantao,
-        observacoes: finalData.observacoes || null, status: finalData.status as any,
-      };
+      const basePayloads = finalData.setor_ids.flatMap(sid => 
+        allDates.map(date => ({
+          unidade_id: finalData.unidade_id, setor_id: sid, profissao: finalData.profissao as any,
+          data: date, hora_inicio: finalData.hora_inicio, hora_fim: finalData.hora_fim,
+          carga_horaria: hours, tipo_plantao: finalData.tipo_plantao,
+          observacoes: finalData.observacoes || null, status: finalData.status as any,
+        }))
+      );
 
       if (editingId) {
         const pid = finalData.profissional_ids[0];
-        const { error } = await supabase.from('shifts').update({ ...basePayload, profissional_id: pid }).eq('id', editingId);
+        const { error } = await supabase.from('shifts').update({ ...basePayloads[0], profissional_id: pid }).eq('id', editingId);
         if (error) throw error;
         await logAudit('Plantão editado', 'escala', { id: editingId });
       } else {
-        const payloads = finalData.profissional_ids.map(pid => ({ ...basePayload, profissional_id: pid }));
+        const payloads = finalData.profissional_ids.flatMap(pid => 
+          basePayloads.map(bp => ({ ...bp, profissional_id: pid }))
+        );
         const { error } = await supabase.from('shifts').insert(payloads);
         if (error) throw error;
-        await logAudit('Plantões criados (múltiplos profissionais)', 'escala', { count: payloads.length, data: finalData.data });
+        await logAudit('Plantões criados em lote', 'escala', { 
+          count: payloads.length, 
+          profissionais: finalData.profissional_ids.length,
+          setores: finalData.setor_ids.length,
+          datas: allDates.length
+        });
         for (const pid of finalData.profissional_ids) {
           await dispatchNotification({
-            professionalId: pid, tipo: 'plantao', titulo: 'Novo plantão agendado',
-            mensagem: `Você foi escalado para plantão em ${new Date(finalData.data + 'T12:00:00').toLocaleDateString('pt-BR')} das ${finalData.hora_inicio} às ${finalData.hora_fim}.`,
+            professionalId: pid, tipo: 'plantao', titulo: 'Novos plantões agendados',
+            mensagem: `${allDates.length} novos plantões foram escalados para você entre ${allDates[0]} e ${allDates[allDates.length-1]}.`,
           });
         }
       }
+
     },
     onSuccess: () => {
       invalidateCrossShifts(qc);
@@ -1580,8 +1668,9 @@ export default function EscalaPage() {
   const openEdit = (s: any) => {
     setEditingId(s.id);
     setForm({
-      unidade_id: s.unidade_id, setor_id: s.setor_id, profissao: s.profissao,
-      profissional_ids: [s.profissional_id], data: s.data,
+      unidade_id: s.unidade_id, setor_ids: [s.setor_id], profissao: s.profissao,
+      profissional_ids: [s.profissional_id], dates: [s.data],
+      repeat_days: [], repeat_until: '', date_mode: 'single',
       hora_inicio: s.hora_inicio, hora_fim: s.hora_fim, tipo_plantao: s.tipo_plantao,
       observacoes: s.observacoes || '', status: s.status,
     });
@@ -1595,8 +1684,9 @@ export default function EscalaPage() {
       || (TIPOS_PLANTAO[0]?.value ?? '');
     const preset = TIPOS_PLANTAO.find(t => t.value === tipoDefault);
     setForm({
-      ...emptyForm, data: date,
-      setor_id: sectorId || filtros.setorId || '',
+      ...emptyForm, 
+      dates: [date],
+      setor_ids: sectorId ? [sectorId] : (filtros.setorId ? [filtros.setorId] : []),
       unidade_id: unidadeId || filtros.unidadeId || '',
       tipo_plantao: tipoDefault || emptyForm.tipo_plantao,
       hora_inicio: preset?.start ?? emptyForm.hora_inicio,
@@ -1604,6 +1694,7 @@ export default function EscalaPage() {
     });
     setModalOpen(true);
   };
+
 
   // Filtro inicial vindo de outras telas (ex.: SetoresPage → "Ver escala do setor/unidade")
   useEffect(() => {
@@ -2347,158 +2438,236 @@ export default function EscalaPage() {
 
       {/* MODAL: Novo / Editar plantão */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editingId ? 'Editar Plantão' : 'Novo Plantão'}</DialogTitle></DialogHeader>
-          <form onSubmit={e => { e.preventDefault(); saveMutation.mutate(form); }} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div><label className="text-sm font-medium text-foreground">Unidade *</label>
-                <select required value={form.unidade_id} onChange={e => setForm(f => ({ ...f, unidade_id: e.target.value, setor_id: '' }))} className={inputClass}>
-                  <option value="">Selecione...</option>{units.map((u: any) => <option key={u.id} value={u.id}>{u.nome}</option>)}
-                </select></div>
-              <div><label className="text-sm font-medium text-foreground">Setor *</label>
-                <select required value={form.setor_id} onChange={e => setForm(f => ({ ...f, setor_id: e.target.value }))} className={inputClass}>
-                  <option value="">Selecione...</option>{sectors.filter((s: any) => !form.unidade_id || s.unidade_id === form.unidade_id).map((s: any) => <option key={s.id} value={s.id}>{s.nome}</option>)}
-                </select></div>
-              <div><label className="text-sm font-medium text-foreground">Profissão *</label>
-                <select required value={form.profissao} onChange={e => setForm(f => ({ ...f, profissao: e.target.value, profissional_ids: [] }))} className={inputClass}>
-                  {Object.entries(PROFISSAO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </select></div>
-              <div><label className="text-sm font-medium text-foreground">Data *</label><input required type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} className={inputClass} /></div>
-              <div className="col-span-2"><label className="text-sm font-medium text-foreground">Tipo de plantão *</label>
-                <select value={form.tipo_plantao} onChange={e => applyTipoPreset(e.target.value)} className={inputClass}>
-                  {TIPOS_PLANTAO.map(t => <option key={t.value} value={t.value}>{t.value} ({t.start}–{t.end})</option>)}
-                </select>
-                <div className="flex items-center gap-2 mt-1.5">
-                  {(() => { const c = classificarTurno(form.tipo_plantao, form.hora_inicio, form.hora_fim); return (
-                    <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded ${c.cls}`}>{c.label}</span>
-                  ); })()}
-                  <span className="text-[11px] text-muted-foreground">Carga: <strong>{calcHoursSafe(form.hora_inicio, form.hora_fim).toFixed(1)}h</strong></span>
-                  <span className="text-[11px] text-muted-foreground">— horários preenchem-se automaticamente</span>
+        <DialogContent className="max-w-2xl max-h-[95vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingId ? 'Editar Plantão' : 'Lançamento de Plantões em Massa'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={e => { e.preventDefault(); saveMutation.mutate(form); }} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Unidade *</label>
+                  <select required value={form.unidade_id} onChange={e => setForm(f => ({ ...f, unidade_id: e.target.value, setor_ids: [] }))} className={inputClass}>
+                    <option value="">Selecione...</option>
+                    {units.map((u: any) => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Setores *</label>
+                  <MultiSelect
+                    options={sectors.filter((s: any) => !form.unidade_id || s.unidade_id === form.unidade_id).map(s => ({ label: s.nome, value: s.id }))}
+                    selected={form.setor_ids}
+                    onChange={(ids) => setForm(f => ({ ...f, setor_ids: ids }))}
+                    placeholder="Selecione os setores..."
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Profissão *</label>
+                  <select required value={form.profissao} onChange={e => setForm(f => ({ ...f, profissao: e.target.value, profissional_ids: [] }))} className={inputClass}>
+                    {Object.entries(PROFISSAO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Tipo de plantão *</label>
+                  <select value={form.tipo_plantao} onChange={e => applyTipoPreset(e.target.value)} className={inputClass}>
+                    {TIPOS_PLANTAO.map(t => <option key={t.value} value={t.value}>{t.value} ({t.start}–{t.end})</option>)}
+                  </select>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    {(() => { const c = classificarTurno(form.tipo_plantao, form.hora_inicio, form.hora_fim); return (
+                      <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded ${c.cls}`}>{c.label}</span>
+                    ); })()}
+                    <span className="text-[11px] text-muted-foreground">Carga: <strong>{calcHoursSafe(form.hora_inicio, form.hora_fim).toFixed(1)}h</strong></span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">Hora início *</label>
+                    <input required type="time" value={form.hora_inicio} onChange={e => setForm(f => ({ ...f, hora_inicio: e.target.value }))} className={inputClass} />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">Hora fim *</label>
+                    <input required type="time" value={form.hora_fim} onChange={e => setForm(f => ({ ...f, hora_fim: e.target.value }))} className={inputClass} />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Status</label>
+                  <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={inputClass}>
+                    {Object.entries(STATUS_LABELS).filter(([k]) => k !== 'trocando').map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
                 </div>
               </div>
-              <div><label className="text-sm font-medium text-foreground">Hora início *</label><input required type="time" value={form.hora_inicio} onChange={e => setForm(f => ({ ...f, hora_inicio: e.target.value }))} className={inputClass} /></div>
-              <div><label className="text-sm font-medium text-foreground">Hora fim *</label><input required type="time" value={form.hora_fim} onChange={e => setForm(f => ({ ...f, hora_fim: e.target.value }))} className={inputClass} /></div>
-              <div className="col-span-2"><label className="text-sm font-medium text-foreground">Status</label>
-                <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={inputClass}>
-                  {Object.entries(STATUS_LABELS).filter(([k]) => k !== 'trocando').map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </select></div>
-            </div>
 
-            {/* Cobertura do setor no dia */}
-            {coberturaSetorDia && (
-              <div className={`rounded-lg p-2.5 text-xs flex items-center gap-2 border ${
-                coberturaSetorDia.total === 0 ? 'bg-destructive/10 border-destructive/30 text-destructive'
-                : coberturaSetorDia.total < coberturaSetorDia.min ? 'bg-warning/10 border-warning/30 text-warning'
-                : 'bg-success/10 border-success/30 text-success'
-              }`}>
-                <UsersIcon className="h-4 w-4" />
-                <span>
-                  Cobertura atual do setor em <strong>{new Date(form.data + 'T12:00:00').toLocaleDateString('pt-BR')}</strong>:{' '}
-                  <strong>{coberturaSetorDia.total}</strong> profissional(is) escalado(s) (mínimo {coberturaSetorDia.min}).
-                </span>
-              </div>
-            )}
-
-            {/* Multi-select de profissionais com horas no mês */}
-            <div>
-              <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                <UsersIcon className="h-4 w-4" /> Profissionais escalados *
-                {form.profissional_ids.length > 0 && (
-                  <span className="text-xs text-muted-foreground">({form.profissional_ids.length} selecionado{form.profissional_ids.length > 1 ? 's' : ''})</span>
-                )}
-              </label>
-              <p className="text-xs text-muted-foreground mb-2">
-                Filtrado por <strong>{PROFISSAO_LABELS[form.profissao]}</strong>{form.setor_id && <> · vinculados ao setor primeiro</>}. Horas exibidas: trabalhadas no mês / limite CLT (220h).
-              </p>
-              <div className="border border-border rounded-lg p-2 max-h-56 overflow-y-auto space-y-1">
-                {profissionaisFiltrados.map((p: any) => {
-                  const checked = form.profissional_ids.includes(p.id);
-                  const horas = horasPorProfissional[p.id] ?? 0;
-                  const overLimit = horas >= LIMITE_HORAS_MENSAL;
-                  const st = statusPorProf[p.id];
-                  const vinculado = form.setor_id && p.setor_principal_id === form.setor_id;
-                  return (
-                    <label key={p.id} className={`flex items-center gap-2 p-2 rounded cursor-pointer text-sm ${checked ? 'bg-primary/10' : 'hover:bg-muted'} ${st === 'conflito' ? 'opacity-80' : ''}`}>
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleProfissional(p.id)}
-                        disabled={!!editingId && !checked && form.profissional_ids.length >= 1}
-                        className="rounded"
-                      />
-                      <span className="h-6 w-6 rounded-full bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center">{initials(p.nome)}</span>
-                      <span className="text-foreground flex-1 truncate flex items-center gap-1.5">
-                        {p.nome}
-                        {vinculado && <span className="text-[9px] uppercase font-semibold px-1 py-0.5 rounded bg-accent/15 text-accent">Setor</span>}
-                      </span>
-                      {form.data && st === 'conflito' && (
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-destructive/15 text-destructive flex items-center gap-1"><AlertTriangle className="h-3 w-3" />conflito</span>
-                      )}
-                      {form.data && st === 'no_setor' && (
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-warning/15 text-warning">já no setor</span>
-                      )}
-                      {form.data && st === 'disponivel' && (
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-success/15 text-success">disponível</span>
-                      )}
-                      <span className={`text-[11px] font-mono px-1.5 py-0.5 rounded ${overLimit ? 'bg-destructive/15 text-destructive' : horas > 180 ? 'bg-warning/15 text-warning' : 'bg-muted text-muted-foreground'}`}>
-                        {horas}h/{LIMITE_HORAS_MENSAL}h
-                      </span>
-                    </label>
-                  );
-                })}
-                {profissionaisFiltrados.length === 0 && (
-                  <p className="text-xs text-muted-foreground p-2">Nenhum profissional ativo desta categoria.</p>
-                )}
-              </div>
-              {editingId && <p className="text-xs text-muted-foreground mt-1">Edição permite apenas 1 profissional. Para adicionar outros, crie um novo plantão.</p>}
-            </div>
-
-            {/* Próximos plantões dos profissionais selecionados (janela ±7 dias) */}
-            {form.profissional_ids.length > 0 && form.data && (() => {
-              const items = form.profissional_ids
-                .map(pid => ({ pid, prof: (professionals as any[]).find(p => p.id === pid), list: proxPlantoesPorProf[pid] || [] }))
-                .filter(x => x.list.length > 0);
-              if (!items.length) return null;
-              return (
-                <div className="rounded-lg border border-border bg-muted/30 p-2.5 text-xs space-y-1.5">
-                  <p className="font-semibold text-foreground flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> Plantões próximos (±7 dias)</p>
-                  {items.map(it => (
-                    <div key={it.pid}>
-                      <p className="font-medium text-foreground">{it.prof?.nome}</p>
-                      <ul className="ml-4 text-muted-foreground space-y-0.5">
-                        {it.list.map((s: any) => (
-                          <li key={s.id}>• {new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR')} · {(s.hora_inicio || '').slice(0, 5)}–{(s.hora_fim || '').slice(0, 5)} · {s.tipo_plantao}</li>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Datas *</label>
+                  <Tabs value={form.date_mode} onValueChange={(v: any) => setForm(f => ({ ...f, date_mode: v }))} className="w-full">
+                    <TabsList className="grid w-full grid-cols-4 h-9">
+                      <TabsTrigger value="single" title="Data única"><CalendarDays className="h-4 w-4" /></TabsTrigger>
+                      <TabsTrigger value="multiple" title="Datas múltiplas"><List className="h-4 w-4" /></TabsTrigger>
+                      <TabsTrigger value="range" title="Intervalo"><ArrowLeftRight className="h-4 w-4" /></TabsTrigger>
+                      <TabsTrigger value="repeat" title="Repetir"><Repeat className="h-4 w-4" /></TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="single" className="mt-2">
+                      <input required type="date" value={form.dates[0] || ''} onChange={e => setForm(f => ({ ...f, dates: [e.target.value] }))} className={inputClass} />
+                    </TabsContent>
+                    <TabsContent value="multiple" className="mt-2 space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        {form.dates.map((d, i) => (
+                          <div key={i} className="flex gap-1">
+                            <input type="date" value={d} onChange={e => {
+                              const newDates = [...form.dates];
+                              newDates[i] = e.target.value;
+                              setForm(f => ({ ...f, dates: newDates }));
+                            }} className={inputClass} />
+                            <button type="button" onClick={() => setForm(f => ({ ...f, dates: f.dates.filter((_, idx) => idx !== i) }))} className="p-2 text-destructive"><X className="h-4 w-4" /></button>
+                          </div>
                         ))}
-                      </ul>
-                    </div>
-                  ))}
+                      </div>
+                      <button type="button" onClick={() => setForm(f => ({ ...f, dates: [...f.dates, ''] }))} className="text-xs text-primary font-medium hover:underline">+ Adicionar data</button>
+                    </TabsContent>
+                    <TabsContent value="range" className="mt-2 grid grid-cols-2 gap-2">
+                      <input placeholder="Início" type="date" value={form.dates[0] || ''} onChange={e => setForm(f => {
+                        const d = [...f.dates]; d[0] = e.target.value; return { ...f, dates: d };
+                      })} className={inputClass} />
+                      <input placeholder="Fim" type="date" value={form.dates[1] || ''} onChange={e => setForm(f => {
+                        const d = [...f.dates]; d[1] = e.target.value; return { ...f, dates: d };
+                      })} className={inputClass} />
+                    </TabsContent>
+                    <TabsContent value="repeat" className="mt-2 space-y-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase font-bold text-muted-foreground">Início</label>
+                          <input type="date" value={form.dates[0] || ''} onChange={e => setForm(f => ({ ...f, dates: [e.target.value] }))} className={inputClass} />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase font-bold text-muted-foreground">Até</label>
+                          <input type="date" value={form.repeat_until} onChange={e => setForm(f => ({ ...f, repeat_until: e.target.value }))} className={inputClass} />
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((day, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => setForm(f => {
+                              const days = f.repeat_days.includes(i) ? f.repeat_days.filter(d => d !== i) : [...f.repeat_days, i];
+                              return { ...f, repeat_days: days };
+                            })}
+                            className={cn(
+                              "h-8 w-8 rounded-full border text-[10px] font-bold transition-colors",
+                              form.repeat_days.includes(i) ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground hover:bg-muted"
+                            )}
+                          >
+                            {day}
+                          </button>
+                        ))}
+                      </div>
+                    </TabsContent>
+                  </Tabs>
                 </div>
-              );
-            })()}
 
-            {conflictWarnings.length > 0 && (
-              <div className="space-y-1">
-                {conflictWarnings.map((w, i) => (
-                  <div key={i} className="flex items-start gap-2 p-2 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive font-medium">
-                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" /> <span>{w}</span>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                    <UsersIcon className="h-4 w-4" /> Profissionais escalados *
+                    {form.profissional_ids.length > 0 && (
+                      <span className="text-xs text-muted-foreground">({form.profissional_ids.length} selecionado{form.profissional_ids.length > 1 ? 's' : ''})</span>
+                    )}
+                  </label>
+                  <div className="flex items-center gap-2 mb-2">
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, profissional_ids: profissionaisFiltrados.map(p => p.id) }))}
+                      className="text-[10px] uppercase font-bold text-primary hover:underline"
+                    >
+                      Selecionar todos filtrados
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, profissional_ids: [] }))}
+                      className="text-[10px] uppercase font-bold text-muted-foreground hover:underline"
+                    >
+                      Limpar
+                    </button>
                   </div>
-                ))}
-              </div>
-            )}
-            {restWarnings.length > 0 && (
-              <div className="space-y-1">
-                {restWarnings.map((w, i) => (
-                  <div key={i} className="flex items-start gap-2 p-2 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive font-medium">
-                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" /> <span>{w}</span>
+                  <div className="border border-border rounded-lg p-2 max-h-48 overflow-y-auto space-y-1 bg-muted/20">
+                    {profissionaisFiltrados.map((p: any) => {
+                      const checked = form.profissional_ids.includes(p.id);
+                      const horas = horasPorProfissional[p.id] ?? 0;
+                      const st = statusPorProf[p.id];
+                      const vinculado = form.setor_ids.some(sid => p.setor_principal_id === sid);
+                      return (
+                        <label key={p.id} className={`flex items-center gap-2 p-2 rounded cursor-pointer text-sm ${checked ? 'bg-primary/10' : 'hover:bg-muted'}`}>
+                          <input type="checkbox" checked={checked} onChange={() => toggleProfissional(p.id)} className="rounded" />
+                          <span className="text-foreground flex-1 truncate flex items-center gap-1.5">
+                            {p.nome}
+                            {vinculado && <span className="text-[9px] uppercase font-semibold px-1 py-0.5 rounded bg-accent/15 text-accent">Setor</span>}
+                          </span>
+                          {form.dates[0] && st === 'conflito' && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-destructive/15 text-destructive flex items-center gap-1"><AlertTriangle className="h-3 w-3" />conflito</span>
+                          )}
+                          <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{horas}h/220h</span>
+                        </label>
+                      );
+                    })}
                   </div>
-                ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Resumo do Lote */}
+            {!editingId && form.setor_ids.length > 0 && form.profissional_ids.length > 0 && form.dates.length > 0 && (
+              <div className="p-3 rounded-lg border border-primary/20 bg-primary/5 flex items-center justify-between text-sm">
+                <div className="flex gap-4">
+                  <div>Setores: <span className="font-bold">{form.setor_ids.length}</span></div>
+                  <div>Profissionais: <span className="font-bold">{form.profissional_ids.length}</span></div>
+                  <div>Datas: <span className="font-bold">{(() => {
+                    if (form.date_mode === 'single') return 1;
+                    if (form.date_mode === 'multiple') return form.dates.filter(Boolean).length;
+                    if (form.date_mode === 'range' && form.dates[0] && form.dates[1]) {
+                      const s = new Date(form.dates[0] + 'T00:00:00'); 
+                      const e = new Date(form.dates[1] + 'T00:00:00');
+                      return Math.ceil((e.getTime() - s.getTime()) / (1000 * 3600 * 24)) + 1;
+                    }
+                    if (form.date_mode === 'repeat' && form.dates[0] && form.repeat_until) {
+                      const s = new Date(form.dates[0] + 'T00:00:00');
+                      const e = new Date(form.repeat_until + 'T00:00:00');
+                      let count = 0;
+                      for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+                        if (form.repeat_days.includes(d.getDay())) count++;
+                      }
+                      return count;
+                    }
+                    return 0;
+                  })()}</span></div>
+                </div>
+                <div className="text-primary font-bold">Lote: {form.setor_ids.length * form.profissional_ids.length * (() => {
+                    if (form.date_mode === 'single') return 1;
+                    if (form.date_mode === 'multiple') return form.dates.filter(Boolean).length;
+                    if (form.date_mode === 'range' && form.dates[0] && form.dates[1]) {
+                      const s = new Date(form.dates[0] + 'T00:00:00'); const e = new Date(form.dates[1] + 'T00:00:00');
+                      return Math.ceil((e.getTime() - s.getTime()) / (1000 * 3600 * 24)) + 1;
+                    }
+                    if (form.date_mode === 'repeat' && form.dates[0] && form.repeat_until) {
+                      const s = new Date(form.dates[0] + 'T00:00:00');
+                      const e = new Date(form.repeat_until + 'T00:00:00');
+                      let count = 0;
+                      for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+                        if (form.repeat_days.includes(d.getDay())) count++;
+                      }
+                      return count;
+                    }
+                    return 0;
+                })()} plantões</div>
               </div>
             )}
-            {workloadAlerts.length > 0 && (
-              <div className="space-y-1">
-                {workloadAlerts.map((a, i) => <div key={i} className="p-2 bg-warning/10 border border-warning/30 rounded-lg text-xs text-warning font-medium">{a}</div>)}
-              </div>
-            )}
+
+
+
             <div><label className="text-sm font-medium text-foreground">Observações</label><textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} rows={2} className={inputClass} /></div>
             <div className="flex flex-wrap justify-end gap-2">
               <button type="button" onClick={closeModal} className="px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted">Cancelar</button>
