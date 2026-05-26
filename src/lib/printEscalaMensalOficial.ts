@@ -70,6 +70,7 @@ export interface MensalResponsavel {
   unidade: string;
   assinaturaBase64?: string;
   carimboBase64?: string;
+  tipo?: string;
 }
 
 export interface MensalOpts {
@@ -631,12 +632,19 @@ export async function gerarPdfEscalaMensalOficial(
     doc.setLineWidth(0.2);
     doc.line(startXL, assY, startXL + lineLen, assY);
     doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
     doc.text(r1?.nome || "", xL, assY + 4, { align: "center" });
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
     doc.text(r1?.cargo || "", xL, assY + 7.5, { align: "center" });
     if (r1?.conselho && r1.conselho !== "Não informado") {
       doc.text(r1.conselho, xL, assY + 10.5, { align: "center" });
+    } else if (r1?.tipo === 'digital_gerado' || r1?.tipo === 'eletronica_interna') {
+      doc.setTextColor(30, 58, 138); // Blue color for digital
+      doc.setFont("courier", "bold");
+      doc.text("ASSINADO DIGITALMENTE", xL, assY - 6, { align: "center" });
+      doc.setTextColor(0);
+      doc.setFont("helvetica", "normal");
     }
 
     // Bloco Direito — Responsável 2
@@ -665,6 +673,12 @@ export async function gerarPdfEscalaMensalOficial(
     doc.text(r2?.cargo || "", xR, assY + 7.5, { align: "center" });
     if (r2?.conselho && r2.conselho !== "Não informado") {
       doc.text(r2.conselho, xR, assY + 10.5, { align: "center" });
+    } else if (r2?.tipo === 'digital_gerado' || r2?.tipo === 'eletronica_interna') {
+      doc.setTextColor(30, 58, 138);
+      doc.setFont("courier", "bold");
+      doc.text("ASSINADO DIGITALMENTE", xR, assY - 6, { align: "center" });
+      doc.setTextColor(0);
+      doc.setFont("helvetica", "normal");
     }
   }
 

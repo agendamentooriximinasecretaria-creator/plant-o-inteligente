@@ -348,7 +348,16 @@ export async function gerarPdfEscala(
     doc.setFontSize(7.5);
     doc.text(r1?.cargo || "", xL, assY + 6.5, { align: "center" });
     let curY1 = assY + 9.5;
-    if (r1?.conselho && r1.conselho !== "Não informado") { doc.text(r1.conselho, xL, curY1, { align: "center" }); curY1 += 3; }
+    if (r1?.conselho && r1.conselho !== "Não informado") { 
+      doc.text(r1.conselho, xL, curY1, { align: "center" }); 
+      curY1 += 3; 
+    } else if (r1?.tipo === 'digital_gerado' || r1?.tipo === 'eletronica_interna') {
+      doc.setTextColor(30, 58, 138);
+      doc.setFont("courier", "bold");
+      doc.text("ASSINADO DIGITALMENTE", xL, assY - 6, { align: "center" });
+      doc.setTextColor(0);
+      doc.setFont("helvetica", "normal");
+    }
     if (r1?.unidade && r1.unidade !== "—") { doc.text(r1.unidade, xL, curY1, { align: "center" }); }
 
     // Bloco Direito - Responsável 2
@@ -375,7 +384,16 @@ export async function gerarPdfEscala(
     doc.setFont("helvetica", "normal");
     doc.text(r2?.cargo || "", xR, assY + 6.5, { align: "center" });
     let curY2 = assY + 9.5;
-    if (r2?.conselho && r2.conselho !== "Não informado") { doc.text(r2.conselho, xR, curY2, { align: "center" }); curY2 += 3; }
+    if (r2?.conselho && r2.conselho !== "Não informado") { 
+      doc.text(r2.conselho, xR, curY2, { align: "center" }); 
+      curY2 += 3; 
+    } else if (r2?.tipo === 'digital_gerado' || r2?.tipo === 'eletronica_interna') {
+      doc.setTextColor(30, 58, 138);
+      doc.setFont("courier", "bold");
+      doc.text("ASSINADO DIGITALMENTE", xR, assY - 6, { align: "center" });
+      doc.setTextColor(0);
+      doc.setFont("helvetica", "normal");
+    }
     if (r2?.unidade && r2.unidade !== "—") { doc.text(r2.unidade, xR, curY2, { align: "center" }); }
   }
 
