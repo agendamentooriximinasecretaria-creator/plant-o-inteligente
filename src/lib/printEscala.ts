@@ -348,7 +348,16 @@ export async function gerarPdfEscala(
     doc.setFontSize(7.5);
     doc.text(r1?.cargo || "", xL, assY + 6.5, { align: "center" });
     let curY1 = assY + 9.5;
-    if (r1?.conselho && r1.conselho !== "Não informado") { doc.text(r1.conselho, xL, curY1, { align: "center" }); curY1 += 3; }
+    if (r1?.conselho && r1.conselho !== "Não informado") { 
+      doc.text(r1.conselho, xL, curY1, { align: "center" }); 
+      curY1 += 3; 
+    } else if (r1?.tipo === 'digital_gerado' || r1?.tipo === 'eletronica_interna') {
+      doc.setTextColor(30, 58, 138);
+      doc.setFont("courier", "bold");
+      doc.text("ASSINADO DIGITALMENTE", xL, assY - 6, { align: "center" });
+      doc.setTextColor(0);
+      doc.setFont("helvetica", "normal");
+    }
     if (r1?.unidade && r1.unidade !== "—") { doc.text(r1.unidade, xL, curY1, { align: "center" }); }
 
     // Bloco Direito - Responsável 2
