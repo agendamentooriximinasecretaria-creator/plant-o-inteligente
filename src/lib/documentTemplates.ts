@@ -41,8 +41,8 @@ export function buildHeaderHtml(params: {
 }
 
 export function buildSignatureHtml(params: {
-  responsavel?: { nome: string; cargo: string; conselho?: string; unidade?: string; assinaturaBase64?: string };
-  responsavelTecnico?: { nome: string; cargo: string; conselho?: string; unidade?: string; assinaturaBase64?: string };
+  responsavel?: { nome: string; cargo: string; conselho?: string; unidade?: string; assinaturaBase64?: string; carimboBase64?: string };
+  responsavelTecnico?: { nome: string; cargo: string; conselho?: string; unidade?: string; assinaturaBase64?: string; carimboBase64?: string };
 }) {
   const { responsavel, responsavelTecnico } = params;
   
