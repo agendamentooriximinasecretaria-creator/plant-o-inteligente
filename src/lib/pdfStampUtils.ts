@@ -35,39 +35,38 @@ async function convertStorageImageToBase64(bucket: string, path: string): Promis
  */
 export async function fetchStampData(profissionalId: string): Promise<StampData | null> {
   try {
-    // 1. Busca o carimbo (tentando join com professionals para performance)
+    // 1. Busca o carimbo
     const { data: stamp, error } = await supabase
       .from('professional_stamps')
-      .select('*, professionals!inner(nome, cargo, unidade_principal_id)')
+      .select('*')
       .eq('profissional_id', profissionalId)
       .eq('bloqueado', false)
       .maybeSingle();
 
-    if (error) {
-      console.error('Erro ao buscar professional_stamps:', error);
-      // Fallback sem join caso o join falhe por falta de FK ou permissão
-      const { data: fallbackStamp } = await supabase
-        .from('professional_stamps')
-        .select('*')
-        .eq('profissional_id', profissionalId)
-        .eq('bloqueado', false)
-        .maybeSingle();
-        
-      if (!fallbackStamp) return null;
-      
-      const { data: profData } = await supabase
-        .from('professionals')
-        .select('nome, cargo, unidade_principal_id, units!unidade_principal_id(nome)')
-        .eq('id', profissionalId)
-        .maybeSingle();
-
-      return processStampData(fallbackStamp, profData);
+    if (error || !stamp) {
+      if (error) console.error('Erro ao buscar professional_stamps:', error);
+      return null;
     }
 
-    if (!stamp) return null;
-    
-    const profData = (stamp as any).professionals || {};
-    return processStampData(stamp, profData);
+    // 2. Busca dados do profissional
+    const { data: profData } = await supabase
+      .from('professionals')
+      .select('nome, cargo, unidade_principal_id')
+      .eq('id', profissionalId)
+      .maybeSingle();
+
+    // 3. Busca nome da unidade se houver ID
+    let unidadeNome = "";
+    if (profData?.unidade_principal_id) {
+      const { data: unitData } = await supabase
+        .from('units')
+        .select('nome')
+        .eq('id', profData.unidade_principal_id)
+        .maybeSingle();
+      unidadeNome = unitData?.nome || "";
+    }
+
+    return processStampData(stamp, { ...profData, unidadeNome });
   } catch (err) {
     console.error('Erro inesperado em fetchStampData:', err);
     return null;
