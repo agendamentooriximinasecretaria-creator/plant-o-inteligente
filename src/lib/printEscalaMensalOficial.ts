@@ -620,16 +620,18 @@ export async function gerarPdfEscalaMensalOficial(
     const startXL = margin + gap;
     
     // Assinatura Visual (Esquerda)
-    if (r1?.assinaturaBase64) {
+    if (r1?.assinaturaBase64 && r1.assinaturaBase64.length > 100) {
       try {
-        doc.addImage(r1.assinaturaBase64, "PNG", startXL, assY - 18, 40, 16, undefined, 'FAST');
+        const format = r1.assinaturaBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+        doc.addImage(r1.assinaturaBase64, format, startXL, assY - 18, 40, 16, undefined, 'FAST');
       } catch (e) { console.error("PDF R1 Assinatura Erro:", e); }
     }
     // Carimbo (Esquerda)
-    if (r1?.carimboBase64) {
+    if (r1?.carimboBase64 && r1.carimboBase64.length > 100) {
       try {
-        const stampX = r1.assinaturaBase64 ? startXL + 30 : startXL + 15;
-        doc.addImage(r1.carimboBase64, "PNG", stampX, assY - 22, 30, 20, undefined, 'FAST');
+        const format = r1.carimboBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+        const stampX = (r1.assinaturaBase64 && r1.assinaturaBase64.length > 100) ? startXL + 30 : startXL + 15;
+        doc.addImage(r1.carimboBase64, format, stampX, assY - 22, 30, 20, undefined, 'FAST');
       } catch (e) { console.error("PDF R1 Carimbo Erro:", e); }
     }
 
@@ -669,16 +671,18 @@ export async function gerarPdfEscalaMensalOficial(
     const xR = startXR + lineLen / 2;
     
     // Assinatura Visual (Direita)
-    if (r2?.assinaturaBase64) {
+    if (r2?.assinaturaBase64 && r2.assinaturaBase64.length > 100) {
       try {
-        doc.addImage(r2.assinaturaBase64, "PNG", startXR, assY - 18, 40, 16, undefined, 'FAST');
+        const format = r2.assinaturaBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+        doc.addImage(r2.assinaturaBase64, format, startXR, assY - 18, 40, 16, undefined, 'FAST');
       } catch (e) { console.error("PDF R2 Assinatura Erro:", e); }
     }
     // Carimbo (Direita)
-    if (r2?.carimboBase64) {
+    if (r2?.carimboBase64 && r2.carimboBase64.length > 100) {
       try {
-        const stampX = r2.assinaturaBase64 ? startXR + 30 : startXR + 15;
-        doc.addImage(r2.carimboBase64, "PNG", stampX, assY - 22, 30, 20, undefined, 'FAST');
+        const format = r2.carimboBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+        const stampX = (r2.assinaturaBase64 && r2.assinaturaBase64.length > 100) ? startXR + 30 : startXR + 15;
+        doc.addImage(r2.carimboBase64, format, stampX, assY - 22, 30, 20, undefined, 'FAST');
       } catch (e) { console.error("PDF R2 Carimbo Erro:", e); }
     }
 

@@ -76,9 +76,9 @@ export function buildSignatureHtml(params: {
     // 2. Carimbo (Imagem do carimbo físico)
     // 3. Selo Digital (Se configurado ou se for assinatura interna)
     
-    const showSignature = !!r.assinaturaBase64;
-    const showStamp = !!r.carimboBase64;
-    const showDigitalSeal = (r.hasDigitalSeal || r.tipo === 'eletronica_interna' || r.tipo === 'digital_gerado') && !showSignature;
+    const showSignature = !!r.assinaturaBase64 && r.assinaturaBase64.length > 100;
+    const showStamp = !!r.carimboBase64 && r.carimboBase64.length > 100;
+    const showDigitalSeal = (r.hasDigitalSeal || r.tipo === 'eletronica_interna' || r.tipo === 'digital_gerado' || r.renderMode === 'digital') && !showSignature;
     
     return `
       <div class="assinatura-item" style="flex: 1; min-width: 250px; text-align: center; display: flex; flex-direction: column; align-items: center;">
