@@ -673,6 +673,12 @@ export async function gerarPdfEscalaMensalOficial(
     doc.text(r2?.cargo || "", xR, assY + 7.5, { align: "center" });
     if (r2?.conselho && r2.conselho !== "Não informado") {
       doc.text(r2.conselho, xR, assY + 10.5, { align: "center" });
+    } else if (r2?.tipo === 'digital_gerado' || r2?.tipo === 'eletronica_interna') {
+      doc.setTextColor(30, 58, 138);
+      doc.setFont("courier", "bold");
+      doc.text("ASSINADO DIGITALMENTE", xR, assY - 6, { align: "center" });
+      doc.setTextColor(0);
+      doc.setFont("helvetica", "normal");
     }
   }
 
