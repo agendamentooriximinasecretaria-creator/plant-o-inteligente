@@ -74,11 +74,18 @@ const TIPOS_PLANTAO_FALLBACK = [
 const LIMITE_HORAS_MENSAL = 220;
 
 const emptyForm = {
-  unidade_id: '', setor_id: '', profissao: 'medico',
+  unidade_id: '', 
+  setor_ids: [] as string[], 
+  profissao: 'medico',
   profissional_ids: [] as string[],
-  data: '', hora_inicio: '07:00', hora_fim: '19:00',
+  dates: [] as string[], 
+  repeat_days: [] as number[],
+  repeat_until: '',
+  date_mode: 'single' as 'single' | 'multiple' | 'range' | 'repeat',
+  hora_inicio: '07:00', hora_fim: '19:00',
   tipo_plantao: 'Diurno 12h', observacoes: '', status: 'confirmado',
 };
+
 
 const emptyFolga = { profissional_id: '', data_inicio: '', data_fim: '', motivo: 'folga', observacoes: '' };
 
@@ -517,11 +524,31 @@ export default function EscalaPage() {
   const validationGenRef = useRef(0);
 
   const checkConflicts = async (gen?: number) => {
-    if (!form.profissional_ids.length || !form.data || !form.hora_inicio || !form.hora_fim) {
+    const datesToCheck = form.date_mode === 'single' && form.dates[0] ? [form.dates[0]] : 
+                         form.date_mode === 'multiple' ? form.dates : 
+                         form.date_mode === 'range' && form.dates[0] && form.dates[1] ? (() => {
+                            const start = new Date(form.dates[0] + 'T00:00:00');
+                            const end = new Date(form.dates[1] + 'T00:00:00');
+                            const list = [];
+                            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) list.push(d.toISOString().split('T')[0]);
+                            return list;
+                         })() : 
+                         form.date_mode === 'repeat' && form.dates[0] && form.repeat_until ? (() => {
+                            const start = new Date(form.dates[0] + 'T00:00:00');
+                            const end = new Date(form.repeat_until + 'T00:00:00');
+                            const list = [];
+                            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                              if (form.repeat_days.includes(d.getDay())) list.push(d.toISOString().split('T')[0]);
+                            }
+                            return list;
+                         })() : [];
+
+    if (!form.profissional_ids.length || !datesToCheck.length || !form.hora_inicio || !form.hora_fim) {
       setConflictWarnings([]);
       setRestWarnings([]);
       return;
     }
+
     const warnings: string[] = [];
     const restWarn: string[] = [];
     for (const pid of form.profissional_ids) {
