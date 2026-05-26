@@ -43,8 +43,13 @@ export async function fetchStampData(profissionalId: string): Promise<StampData 
       .eq('bloqueado', false)
       .maybeSingle();
 
-    if (error || !stamp) {
-      if (error) console.error('Erro ao buscar professional_stamps:', error);
+    if (error) {
+      console.error('Erro ao buscar professional_stamps:', error);
+      return null;
+    }
+
+    if (!stamp) {
+      console.warn(`[pdfStampUtils] Nenhum carimbo ativo encontrado para o profissional_id: ${profissionalId}`);
       return null;
     }
 
