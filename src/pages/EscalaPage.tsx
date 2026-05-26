@@ -441,7 +441,9 @@ export default function EscalaPage() {
   // Carrega horas do mês para profissionais filtrados (para mostrar 24h/220h ao lado do nome)
   // Ordena: vinculados ao setor selecionado vêm primeiro
   const profissionaisFiltrados = useMemo(() => {
-    const base = (professionals as any[]).filter((p: any) => !form.profissao || p.profissao === form.profissao);
+    const base = (professionals as any[]).filter((p: any) => 
+      !form.profissao_ids.length || form.profissao_ids.includes(p.profissao)
+    );
     if (!form.setor_ids.length) return base;
     const firstSetorId = form.setor_ids[0];
     return [...base].sort((a, b) => {
@@ -449,7 +451,7 @@ export default function EscalaPage() {
       const bv = b.setor_principal_id === firstSetorId ? 0 : 1;
       return av - bv;
     });
-  }, [professionals, form.profissao, form.setor_ids]);
+  }, [professionals, form.profissao_ids, form.setor_ids]);
 
   const coberturaSetorDia = useMemo(() => {
     if (!form.setor_ids.length || !form.dates.length) return null;
