@@ -774,24 +774,45 @@ export default function EscalaPage() {
       const { allDates } = await revalidateServerSide(finalData);
 
       const hours = calcHours(finalData.hora_inicio, finalData.hora_fim);
-      const basePayloads = finalData.setor_ids.flatMap(sid => 
-        allDates.map(date => ({
-          unidade_id: finalData.unidade_id, setor_id: sid, profissao: finalData.profissao as any,
-          data: date, hora_inicio: finalData.hora_inicio, hora_fim: finalData.hora_fim,
-          carga_horaria: hours, tipo_plantao: finalData.tipo_plantao,
-          observacoes: finalData.observacoes || null, status: finalData.status as any,
-        }))
-      );
-
+      
       if (editingId) {
         const pid = finalData.profissional_ids[0];
-        const { error } = await supabase.from('shifts').update({ ...basePayloads[0], profissional_id: pid }).eq('id', editingId);
+        const prof = (professionals as any[]).find(p => p.id === pid);
+        const payload = {
+          unidade_id: finalData.unidade_id, 
+          setor_id: finalData.setor_ids[0], 
+          profissao: prof?.profissao || finalData.profissao_ids[0] as any,
+          data: allDates[0], 
+          hora_inicio: finalData.hora_inicio, 
+          hora_fim: finalData.hora_fim,
+          carga_horaria: hours, 
+          tipo_plantao: finalData.tipo_plantao,
+          observacoes: finalData.observacoes || null, 
+          status: finalData.status as any,
+          profissional_id: pid
+        };
+        const { error } = await supabase.from('shifts').update(payload).eq('id', editingId);
         if (error) throw error;
         await logAudit('Plantão editado', 'escala', { id: editingId });
       } else {
-        const payloads = finalData.profissional_ids.flatMap(pid => 
-          basePayloads.map(bp => ({ ...bp, profissional_id: pid }))
-        );
+        const payloads = finalData.profissional_ids.flatMap(pid => {
+          const prof = (professionals as any[]).find(p => p.id === pid);
+          return finalData.setor_ids.flatMap(sid => 
+            allDates.map(date => ({
+              unidade_id: finalData.unidade_id, 
+              setor_id: sid, 
+              profissao: prof?.profissao || finalData.profissao_ids[0] as any,
+              data: date, 
+              hora_inicio: finalData.hora_inicio, 
+              hora_fim: finalData.hora_fim,
+              carga_horaria: hours, 
+              tipo_plantao: finalData.tipo_plantao,
+              observacoes: finalData.observacoes || null, 
+              status: finalData.status as any,
+              profissional_id: pid
+            }))
+          );
+        });
         const { error } = await supabase.from('shifts').insert(payloads);
         if (error) throw error;
         await logAudit('Plantões criados em lote', 'escala', { 
