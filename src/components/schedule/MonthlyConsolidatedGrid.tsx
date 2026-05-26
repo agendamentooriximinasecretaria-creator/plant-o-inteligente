@@ -6,6 +6,7 @@ export interface MonthlyShift {
   profissional_id: string;
   profissional_nome: string;
   profissao?: string;
+  cargo?: string;
   unidade_nome?: string;
   setor_nome?: string;
   data: string; // YYYY-MM-DD
@@ -119,7 +120,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
 
   // Agrupa por Unidade -> Setor -> Profissão -> Profissional (filtra apenas o mês exibido)
   const groupedData = useMemo(() => {
-    type ProfRow = { id: string; nome: string; profissao?: string; porDia: Map<number, MonthlyShift[]>; horas: number; adn: number; elegivelAdn: boolean };
+    type ProfRow = { id: string; nome: string; profissao?: string; cargo?: string; porDia: Map<number, MonthlyShift[]>; horas: number; adn: number; elegivelAdn: boolean };
     const tree = new Map<string, Map<string, Map<string, Map<string, ProfRow>>>>();
 
     for (const s of shifts) {
@@ -143,7 +144,25 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
 
       let row = profissaoMap.get(profId);
       if (!row) {
-        row = { id: profId, nome: s.profissional_nome || "Sem nome", profissao: s.profissao, porDia: new Map(), horas: 0, adn: 0, elegivelAdn: !!s.recebe_adn || String((s as any).cargo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim() === 'plantonista' };
+        // Normalização rigorosa do cargo para conferir se é plantonista
+        const cargoNormalizado = (s.cargo || '').toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]/g, '')
+          .trim();
+        
+        const isPlantonista = cargoNormalizado.includes('plantonista');
+        
+        row = { 
+          id: profId, 
+          nome: s.profissional_nome || "Sem nome", 
+          profissao: s.profissao,
+          cargo: s.cargo,
+          porDia: new Map(), 
+          horas: 0, 
+          adn: 0, 
+          elegivelAdn: !!s.recebe_adn || isPlantonista
+        };
         profissaoMap.set(profId, row);
       }
 
@@ -157,16 +176,20 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
         
         // Cálculo do ADN (Adicional Noturno)
         if (row.elegivelAdn) {
+          const tipoLower = (s.tipo_plantao || "").toLowerCase();
+          const sigla = tipoToSigla(s.tipo_plantao).toUpperCase();
+          
           const geraAdn = s.gera_adn !== undefined ? s.gera_adn : (
-            (s.tipo_plantao || "").toLowerCase().includes("not") || 
-            (s.tipo_plantao || "").toLowerCase().includes("24")
+            tipoLower.includes("not") || 
+            tipoLower.includes("24") ||
+            sigla === "N" ||
+            sigla === "24"
           );
 
           if (geraAdn) {
             // Se for 24h, assume 10h de ADN (noite anterior + noite atual)
             // Se for noturno 12h, assume 7h (22h as 05h)
-            const tipo = (s.tipo_plantao || "").toLowerCase();
-            const adnNoPlantao = tipo.includes("24") ? 10 : 7;
+            const adnNoPlantao = (tipoLower.includes("24") || sigla === "24") ? 10 : 7;
             row.adn += adnNoPlantao;
           }
         }
@@ -196,7 +219,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
       }
     }
     return result;
-  }, [shifts, year, monthIdx]);
+  }, [shifts, year, monthIdx, tipos]);
 
   const navMes = (delta: number) => {
     const d = new Date(year, monthIdx + delta, 1);
