@@ -221,19 +221,27 @@ export default function ComprovanteTroca({ trocaId, onClose }: Props) {
     // Bloco Direito - Responsável Técnico
     const xR = w - marginSide - lineLen / 2;
     const marginR = w - marginSide - lineLen;
+    // Assinatura (Direita)
     if (rtStamp?.assinaturaBase64) {
-      try { doc.addImage(rtStamp.assinaturaBase64, "PNG", marginR + 5, assY - 14, lineLen - 10, 12); } catch { /* noop */ }
-    } else {
-      doc.setFontSize(6);
-      doc.setTextColor(150);
-      doc.text("Assinatura não cadastrada", xR, assY - 5, { align: "center" });
+      try {
+        doc.addImage(rtStamp.assinaturaBase64, "PNG", marginR + 2, assY - 14, 30, 12, undefined, 'FAST');
+      } catch { /* noop */ }
     }
+    // Carimbo (Direita)
+    if (rtStamp?.carimboBase64) {
+      try {
+        doc.addImage(rtStamp.carimboBase64, "PNG", marginR + 35, assY - 18, 25, 16, undefined, 'FAST');
+      } catch { /* noop */ }
+    }
+
     doc.line(marginR, assY, w - marginSide, assY);
     doc.setFont("helvetica", "bold");
-    doc.text(rtStamp?.nome || "Responsável Técnico", xR, assY + 3.5, { align: "center" });
+    doc.text(rtStamp?.nome || "", xR, assY + 3.5, { align: "center" });
     doc.setFont("helvetica", "normal");
-    doc.text(rtStamp?.cargo || "Responsável Técnico", xR, assY + 6.5, { align: "center" });
-    if (rtStamp?.conselho) doc.text(rtStamp.conselho, xR, assY + 9.5, { align: "center" });
+    doc.text(rtStamp?.cargo || "", xR, assY + 6.5, { align: "center" });
+    if (rtStamp?.conselho && rtStamp.conselho !== "Não informado") {
+      doc.text(rtStamp.conselho, xR, assY + 9.5, { align: "center" });
+    }
 
     y = assY + 15;
 
