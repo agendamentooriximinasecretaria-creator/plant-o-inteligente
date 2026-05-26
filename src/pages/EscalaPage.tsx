@@ -2691,6 +2691,8 @@ export default function EscalaPage() {
                 </div>
               </div>
             </div>
+            </div>
+
 
             {/* Resumo do Lote */}
             {!editingId && form.setor_ids.length > 0 && form.profissional_ids.length > 0 && form.dates.length > 0 && (
