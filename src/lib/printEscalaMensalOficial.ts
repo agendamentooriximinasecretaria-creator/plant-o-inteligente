@@ -615,10 +615,6 @@ export async function gerarPdfEscalaMensalOficial(
     const lineLen = 70;
     const gap = (availW - (lineLen * 2)) / 3;
 
-    // Bloco Esquerdo — Gestor / Coordenador / Responsável 1
-    const xL = margin + gap + lineLen / 2;
-    const startXL = margin + gap;
-    
     // Bloco Esquerdo — Responsável 1
     const xL = margin + gap + lineLen / 2;
     const startXL = margin + gap;
