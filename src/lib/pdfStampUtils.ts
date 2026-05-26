@@ -24,7 +24,8 @@ async function convertStorageImageToBase64(bucket: string, path: string): Promis
       reader.onerror = () => resolve(undefined);
       reader.readAsDataURL(data);
     });
-  } catch {
+  } catch (err) {
+    console.error(`Erro ao converter imagem ${path} para base64:`, err);
     return undefined;
   }
 }
@@ -33,33 +34,64 @@ async function convertStorageImageToBase64(bucket: string, path: string): Promis
  * Busca os dados de carimbo e converte a assinatura para base64.
  */
 export async function fetchStampData(profissionalId: string): Promise<StampData | null> {
-  const { data: stamp, error } = await supabase
-    .from('professional_stamps')
-    .select('*, professionals_safe(nome, unidade_principal:unidade_principal_id(nome))')
-    .eq('profissional_id', profissionalId)
-    .eq('bloqueado', false)
-    .maybeSingle();
+  try {
+    // 1. Busca o carimbo
+    const { data: stamp, error } = await supabase
+      .from('professional_stamps')
+      .select('*')
+      .eq('profissional_id', profissionalId)
+      .eq('bloqueado', false)
+      .maybeSingle();
 
-  if (error || !stamp) return null;
+    if (error || !stamp) {
+      if (error) console.error('Erro ao buscar professional_stamps:', error);
+      return null;
+    }
 
+    // 2. Busca dados do profissional
+    const { data: profData } = await supabase
+      .from('professionals')
+      .select('nome, cargo, unidade_principal_id')
+      .eq('id', profissionalId)
+      .maybeSingle();
+
+    // 3. Busca nome da unidade se houver ID
+    let unidadeNome = "";
+    if (profData?.unidade_principal_id) {
+      const { data: unitData } = await supabase
+        .from('units')
+        .select('nome')
+        .eq('id', profData.unidade_principal_id)
+        .maybeSingle();
+      unidadeNome = unitData?.nome || "";
+    }
+
+    return processStampData(stamp, { ...profData, unidadeNome });
+  } catch (err) {
+    console.error('Erro inesperado em fetchStampData:', err);
+    return null;
+  }
+}
+
+async function processStampData(stamp: any, profData: any): Promise<StampData> {
   const metadata = (stamp.metadata as any) || {};
-  const profData = (stamp as any).professionals_safe || {};
+  const BUCKET = 'professional-documents';
   
   let assinaturaBase64: string | undefined = undefined;
   if (stamp.assinatura_path) {
-    assinaturaBase64 = await convertStorageImageToBase64('signatures', stamp.assinatura_path);
+    assinaturaBase64 = await convertStorageImageToBase64(BUCKET, stamp.assinatura_path);
   }
 
   let carimboBase64: string | undefined = undefined;
   if (stamp.carimbo_path) {
-    carimboBase64 = await convertStorageImageToBase64('signatures', stamp.carimbo_path);
+    carimboBase64 = await convertStorageImageToBase64(BUCKET, stamp.carimbo_path);
   }
 
   return {
-    nome: metadata.nome_profissional || profData.nome || "—",
-    cargo: stamp.cargo || "—",
+    nome: metadata.nome_profissional || profData?.nome || "—",
+    cargo: stamp.cargo || profData?.cargo || "—",
     conselho: `${metadata.conselho || ''} ${metadata.registro || ''} ${stamp.uf_conselho ? `(${stamp.uf_conselho})` : ''}`.trim() || "—",
-    unidade: metadata.unidade_principal || profData.unidade_principal?.nome || "—",
+    unidade: metadata.unidade_principal || profData?.unidadeNome || "—",
     assinaturaBase64,
     carimboBase64
   };
@@ -76,9 +108,9 @@ export async function fetchRTForUnidade(unidadeId?: string): Promise<StampData |
     // E o profissional pertença à unidade informada
     const { data } = await supabase
       .from('professional_stamps')
-      .select('*, professionals_safe!inner(id, unidade_principal_id)')
+      .select('*, professionals!inner(id, unidade_principal_id)')
       .ilike('cargo', '%Responsável Técnico%')
-      .eq('professionals_safe.unidade_principal_id', unidadeId)
+      .eq('professionals.unidade_principal_id', unidadeId)
       .eq('bloqueado', false)
       .limit(1)
       .maybeSingle();
@@ -87,7 +119,8 @@ export async function fetchRTForUnidade(unidadeId?: string): Promise<StampData |
       return fetchStampData(data.profissional_id);
     }
     return null;
-  } catch {
+  } catch (err) {
+    console.error('Erro em fetchRTForUnidade:', err);
     return null;
   }
 }
@@ -103,9 +136,9 @@ export async function fetchGestorMasterForUnidade(unidadeId?: string): Promise<S
     // E o profissional pertença à unidade informada
     const { data } = await supabase
       .from('professional_stamps')
-      .select('*, professionals_safe!inner(id, unidade_principal_id)')
+      .select('*, professionals!inner(id, unidade_principal_id)')
       .ilike('cargo', '%Gestor Master%')
-      .eq('professionals_safe.unidade_principal_id', unidadeId)
+      .eq('professionals.unidade_principal_id', unidadeId)
       .eq('bloqueado', false)
       .limit(1)
       .maybeSingle();
@@ -114,7 +147,8 @@ export async function fetchGestorMasterForUnidade(unidadeId?: string): Promise<S
       return fetchStampData(data.profissional_id);
     }
     return null;
-  } catch {
+  } catch (err) {
+    console.error('Erro em fetchGestorMasterForUnidade:', err);
     return null;
   }
 }
