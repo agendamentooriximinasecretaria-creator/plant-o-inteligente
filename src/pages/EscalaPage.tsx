@@ -25,6 +25,8 @@ import { fetchStampData, fetchRTForUnidade, fetchGestorMasterForUnidade, type St
 import { imprimirComprovantePlantao, type ComprovantePlantaoData } from "@/lib/printComprovantePlantao";
 import SignActionButton from "@/components/SignActionButton";
 import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
+import { calculateAdicionalNoturno } from "@/lib/utils";
+
 
 const STATUS_LABELS: Record<string, string> = {
   agendado: 'Agendado', confirmado: 'Confirmado', pendente: 'Pendente',
