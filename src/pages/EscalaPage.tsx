@@ -78,7 +78,7 @@ const LIMITE_HORAS_MENSAL = 220;
 const emptyForm = {
   unidade_id: '', 
   setor_ids: [] as string[], 
-  profissao: 'medico',
+  profissao_ids: ['medico'] as string[],
   profissional_ids: [] as string[],
   dates: [] as string[], 
   repeat_days: [] as number[],
