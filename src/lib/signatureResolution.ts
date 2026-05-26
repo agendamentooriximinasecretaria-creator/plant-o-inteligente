@@ -151,8 +151,8 @@ export async function resolveSignatureData(params: {
       }
       
       // Definir modo de renderização preferencial
-      if (result.hasVisualSignature || result.assinaturaBase64) result.renderMode = "visual";
-      else if (result.hasStamp) result.renderMode = "stamp";
+      if (result.assinaturaBase64) result.renderMode = "visual";
+      else if (result.carimboBase64) result.renderMode = "stamp";
       else if (result.hasDigitalSeal) result.renderMode = "digital";
       else result.renderMode = "text_only";
 
