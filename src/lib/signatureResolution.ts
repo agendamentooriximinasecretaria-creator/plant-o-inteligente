@@ -205,7 +205,7 @@ export async function resolveRTForUnidade(unidadeId?: string): Promise<ResolvedS
 
     if (globalRT) return resolveSignatureData({ professionalId: globalRT.profissional_id });
     
-    return { signatoryFound: false, nome: "", cargo: "Responsável Técnico", conselho: "", unidade: "", hasVisualSignature: false, hasStamp: false, hasDigitalSeal: false, tipoAssinante: "responsavel_tecnico", source: "fallback", renderMode: "text_only" };
+    return { signatoryFound: false, nome: "", cargo: "", conselho: "", unidade: "", hasVisualSignature: false, hasStamp: false, hasDigitalSeal: false, tipoAssinante: "responsavel_tecnico", source: "fallback", renderMode: "text_only" };
   } catch (err) {
     console.error('Erro em resolveRTForUnidade:', err);
     return { signatoryFound: false, nome: "", cargo: "Responsável Técnico", conselho: "", unidade: "", hasVisualSignature: false, hasStamp: false, hasDigitalSeal: false, tipoAssinante: "responsavel_tecnico", source: "fallback", renderMode: "text_only" };
