@@ -322,26 +322,34 @@ export async function gerarPdfEscala(
     const lineLen = 75;
     const marginSide = 25;
 
-    // Bloco Esquerdo - Gestor/Coordenador
+    // Bloco Esquerdo - Gestor/Coordenador/Responsável 1
     const xL = marginSide + lineLen / 2;
+    // Assinatura (Esquerda)
     if (r1?.assinaturaBase64) {
       try {
-        doc.addImage(r1.assinaturaBase64, "PNG", marginSide + 5, assY - 14, lineLen - 10, 12);
-    } catch { /* ignora */ }
+        doc.addImage(r1.assinaturaBase64, "PNG", marginSide + 2, assY - 14, 30, 12, undefined, 'FAST');
+      } catch { /* ignora */ }
     }
+    // Carimbo (Esquerda)
+    if (r1?.carimboBase64) {
+      try {
+        doc.addImage(r1.carimboBase64, "PNG", marginSide + 35, assY - 18, 25, 16, undefined, 'FAST');
+      } catch { /* ignora */ }
+    }
+
     doc.setLineWidth(0.3);
     doc.setDrawColor(0);
     doc.setTextColor(0);
     doc.line(marginSide, assY, marginSide + lineLen, assY);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
-    doc.text(r1?.nome || "Gestor / Coordenador", xL, assY + 3.5, { align: "center" });
+    doc.text(r1?.nome || "", xL, assY + 3.5, { align: "center" });
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
-    doc.text(r1?.cargo || "Coordenação", xL, assY + 6.5, { align: "center" });
+    doc.text(r1?.cargo || "", xL, assY + 6.5, { align: "center" });
     let curY1 = assY + 9.5;
-    if (r1?.conselho) { doc.text(r1.conselho, xL, curY1, { align: "center" }); curY1 += 3; }
-    if (r1?.unidade) { doc.text(r1.unidade, xL, curY1, { align: "center" }); }
+    if (r1?.conselho && r1.conselho !== "Não informado") { doc.text(r1.conselho, xL, curY1, { align: "center" }); curY1 += 3; }
+    if (r1?.unidade && r1.unidade !== "—") { doc.text(r1.unidade, xL, curY1, { align: "center" }); }
 
     // Bloco Direito - Responsável Técnico
     const xR = pageW - marginSide - lineLen / 2;
