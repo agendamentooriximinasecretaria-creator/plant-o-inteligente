@@ -466,8 +466,9 @@ export default function EscalaPage() {
   // Próximos plantões (até 3) do(s) profissional(is) selecionado(s) — janela ±7 dias da data escolhida
   const proxPlantoesPorProf = useMemo(() => {
     const out: Record<string, any[]> = {};
-    if (!form.data) return out;
-    const ref = new Date(form.data + 'T00:00:00').getTime();
+    const firstDate = form.dates[0];
+    if (!firstDate) return out;
+    const ref = new Date(firstDate + 'T00:00:00').getTime();
     for (const pid of form.profissional_ids) {
       out[pid] = (shifts as any[])
         .filter((s: any) => s.profissional_id === pid && s.status !== 'cancelado'
@@ -477,17 +478,19 @@ export default function EscalaPage() {
         .slice(0, 3);
     }
     return out;
-  }, [shifts, form.profissional_ids, form.data, editingId]);
+  }, [shifts, form.profissional_ids, form.dates, editingId]);
+
 
   // Status por profissional (para badge na lista): conflito de horário no dia ou já escalado no setor
   const statusPorProf = useMemo(() => {
     const out: Record<string, 'conflito' | 'no_setor' | 'disponivel'> = {};
-    if (!form.data) return out;
+    const firstDate = form.dates[0];
+    if (!firstDate) return out;
     const startMin = (() => { const [h, m] = form.hora_inicio.split(':').map(Number); return h * 60 + m; })();
     const endMinRaw = (() => { const [h, m] = form.hora_fim.split(':').map(Number); return h * 60 + m; })();
     const endMin = endMinRaw <= startMin ? endMinRaw + 24 * 60 : endMinRaw;
     for (const p of profissionaisFiltrados) {
-      const doDia = (shifts as any[]).filter((s: any) => s.profissional_id === p.id && s.data === form.data
+      const doDia = (shifts as any[]).filter((s: any) => s.profissional_id === p.id && s.data === firstDate
         && s.status !== 'cancelado' && s.id !== editingId);
       let conflito = false;
       for (const s of doDia) {
@@ -503,7 +506,8 @@ export default function EscalaPage() {
       else out[p.id] = 'disponivel';
     }
     return out;
-  }, [profissionaisFiltrados, shifts, form.data, form.hora_inicio, form.hora_fim, editingId, coberturaSetorDia]);
+  }, [profissionaisFiltrados, shifts, form.dates, form.hora_inicio, form.hora_fim, editingId, coberturaSetorDia]);
+
 
 
   useEffect(() => {
@@ -587,18 +591,20 @@ export default function EscalaPage() {
   };
 
   const checkWorkload = async (gen?: number) => {
-    if (form.profissional_ids.length !== 1 || !form.data) { setWorkloadAlerts([]); return; }
+    const firstDate = form.dates[0];
+    if (form.profissional_ids.length !== 1 || !firstDate) { setWorkloadAlerts([]); return; }
     const pid = form.profissional_ids[0];
     const alerts: string[] = [];
-    const yesterday = new Date(form.data + 'T00:00:00');
+    const yesterday = new Date(firstDate + 'T00:00:00');
     yesterday.setDate(yesterday.getDate() - 1);
     const yStr = yesterday.toISOString().split('T')[0];
-    const { data: recent } = await supabase.from('shifts').select('carga_horaria, hora_fim').eq('profissional_id', pid).in('data', [form.data, yStr]).neq('status', 'cancelado');
+    const { data: recent } = await supabase.from('shifts').select('carga_horaria, hora_fim').eq('profissional_id', pid).in('data', [firstDate, yStr]).neq('status', 'cancelado');
     const recentHours = (recent || []).reduce((s: number, r: any) => s + Number(r.carga_horaria), 0);
     if (recentHours >= 24) alerts.push('🟡 Profissional já tem 24h nas últimas 24h');
     if (gen !== undefined && gen !== validationGenRef.current) return;
     setWorkloadAlerts(alerts);
   };
+
 
   // Debounce dos campos relevantes para checagem de conflitos.
   // Sempre que o formulário mudar (profissionais, data, horas, setor, unidade, tipo),
