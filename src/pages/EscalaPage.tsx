@@ -2438,71 +2438,125 @@ export default function EscalaPage() {
 
       {/* MODAL: Novo / Editar plantão */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[95vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? 'Editar Plantão' : 'Lançamento de Plantões em Massa'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={e => { e.preventDefault(); saveMutation.mutate(form); }} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Unidade *</label>
-                  <select required value={form.unidade_id} onChange={e => setForm(f => ({ ...f, unidade_id: e.target.value, setor_ids: [] }))} className={inputClass}>
-                    <option value="">Selecione...</option>
-                    {units.map((u: any) => <option key={u.id} value={u.id}>{u.nome}</option>)}
-                  </select>
-                </div>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              <div className="lg:col-span-4 space-y-6">
+                <div className="bg-muted/30 p-4 rounded-xl space-y-4 border border-border/50">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Configurações Básicas</h3>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">Unidade *</label>
+                      <select required value={form.unidade_id} onChange={e => setForm(f => ({ ...f, unidade_id: e.target.value, setor_ids: [] }))} className={inputClass}>
+                        <option value="">Selecione...</option>
+                        {units.map((u: any) => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                      </select>
+                    </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Setores *</label>
-                  <MultiSelect
-                    options={sectors.filter((s: any) => !form.unidade_id || s.unidade_id === form.unidade_id).map(s => ({ label: s.nome, value: s.id }))}
-                    selected={form.setor_ids}
-                    onChange={(ids) => setForm(f => ({ ...f, setor_ids: ids }))}
-                    placeholder="Selecione os setores..."
-                  />
-                </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">Setores *</label>
+                      <MultiSelect
+                        options={sectors.filter((s: any) => !form.unidade_id || s.unidade_id === form.unidade_id).map(s => ({ label: s.nome, value: s.id }))}
+                        selected={form.setor_ids}
+                        onChange={(ids) => setForm(f => ({ ...f, setor_ids: ids }))}
+                        placeholder="Selecione os setores..."
+                      />
+                    </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Profissão *</label>
-                  <select required value={form.profissao} onChange={e => setForm(f => ({ ...f, profissao: e.target.value, profissional_ids: [] }))} className={inputClass}>
-                    {Object.entries(PROFISSAO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </select>
-                </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">Profissão *</label>
+                      <select required value={form.profissao} onChange={e => setForm(f => ({ ...f, profissao: e.target.value, profissional_ids: [] }))} className={inputClass}>
+                        {Object.entries(PROFISSAO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                      </select>
+                    </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Tipo de plantão *</label>
-                  <select value={form.tipo_plantao} onChange={e => applyTipoPreset(e.target.value)} className={inputClass}>
-                    {TIPOS_PLANTAO.map(t => <option key={t.value} value={t.value}>{t.value} ({t.start}–{t.end})</option>)}
-                  </select>
-                  <div className="flex items-center gap-2 mt-1.5">
-                    {(() => { const c = classificarTurno(form.tipo_plantao, form.hora_inicio, form.hora_fim); return (
-                      <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded ${c.cls}`}>{c.label}</span>
-                    ); })()}
-                    <span className="text-[11px] text-muted-foreground">Carga: <strong>{calcHoursSafe(form.hora_inicio, form.hora_fim).toFixed(1)}h</strong></span>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">Tipo de plantão *</label>
+                      <select value={form.tipo_plantao} onChange={e => applyTipoPreset(e.target.value)} className={inputClass}>
+                        {TIPOS_PLANTAO.map(t => <option key={t.value} value={t.value}>{t.value} ({t.start}–{t.end})</option>)}
+                      </select>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        {(() => { const c = classificarTurno(form.tipo_plantao, form.hora_inicio, form.hora_fim); return (
+                          <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded ${c.cls}`}>{c.label}</span>
+                        ); })()}
+                        <span className="text-[11px] text-muted-foreground">Carga: <strong>{calcHoursSafe(form.hora_inicio, form.hora_fim).toFixed(1)}h</strong></span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground">Hora início *</label>
+                        <input required type="time" value={form.hora_inicio} onChange={e => setForm(f => ({ ...f, hora_inicio: e.target.value }))} className={inputClass} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground">Hora fim *</label>
+                        <input required type="time" value={form.hora_fim} onChange={e => setForm(f => ({ ...f, hora_fim: e.target.value }))} className={inputClass} />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">Status</label>
+                      <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={inputClass}>
+                        {Object.entries(STATUS_LABELS).filter(([k]) => k !== 'trocando').map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                      </select>
+                    </div>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">Hora início *</label>
-                    <input required type="time" value={form.hora_inicio} onChange={e => setForm(f => ({ ...f, hora_inicio: e.target.value }))} className={inputClass} />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">Hora fim *</label>
-                    <input required type="time" value={form.hora_fim} onChange={e => setForm(f => ({ ...f, hora_fim: e.target.value }))} className={inputClass} />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Status</label>
-                  <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={inputClass}>
-                    {Object.entries(STATUS_LABELS).filter(([k]) => k !== 'trocando').map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </select>
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="lg:col-span-8 space-y-6">
+
+
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">Profissão *</label>
+                      <select required value={form.profissao} onChange={e => setForm(f => ({ ...f, profissao: e.target.value, profissional_ids: [] }))} className={inputClass}>
+                        {Object.entries(PROFISSAO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">Tipo de plantão *</label>
+                      <select value={form.tipo_plantao} onChange={e => applyTipoPreset(e.target.value)} className={inputClass}>
+                        {TIPOS_PLANTAO.map(t => <option key={t.value} value={t.value}>{t.value} ({t.start}–{t.end})</option>)}
+                      </select>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        {(() => { const c = classificarTurno(form.tipo_plantao, form.hora_inicio, form.hora_fim); return (
+                          <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded ${c.cls}`}>{c.label}</span>
+                        ); })()}
+                        <span className="text-[11px] text-muted-foreground">Carga: <strong>{calcHoursSafe(form.hora_inicio, form.hora_fim).toFixed(1)}h</strong></span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground">Hora início *</label>
+                        <input required type="time" value={form.hora_inicio} onChange={e => setForm(f => ({ ...f, hora_inicio: e.target.value }))} className={inputClass} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground">Hora fim *</label>
+                        <input required type="time" value={form.hora_fim} onChange={e => setForm(f => ({ ...f, hora_fim: e.target.value }))} className={inputClass} />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">Status</label>
+                      <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={inputClass}>
+                        {Object.entries(STATUS_LABELS).filter(([k]) => k !== 'trocando').map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+
+              <div className="lg:col-span-8 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Datas *</label>
                   <Tabs value={form.date_mode} onValueChange={(v: any) => setForm(f => ({ ...f, date_mode: v }))} className="w-full">
@@ -2571,49 +2625,109 @@ export default function EscalaPage() {
                   </Tabs>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                    <UsersIcon className="h-4 w-4" /> Profissionais escalados *
-                    {form.profissional_ids.length > 0 && (
-                      <span className="text-xs text-muted-foreground">({form.profissional_ids.length} selecionado{form.profissional_ids.length > 1 ? 's' : ''})</span>
-                    )}
-                  </label>
-                  <div className="flex items-center gap-2 mb-2">
-                    <button
-                      type="button"
-                      onClick={() => setForm(f => ({ ...f, profissional_ids: profissionaisFiltrados.map(p => p.id) }))}
-                      className="text-[10px] uppercase font-bold text-primary hover:underline"
-                    >
-                      Selecionar todos filtrados
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setForm(f => ({ ...f, profissional_ids: [] }))}
-                      className="text-[10px] uppercase font-bold text-muted-foreground hover:underline"
-                    >
-                      Limpar
-                    </button>
+                <div className="space-y-3 bg-muted/20 p-4 rounded-xl border border-border/50">
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <div className="space-y-0.5">
+                      <label className="text-sm font-bold text-foreground flex items-center gap-2">
+                        <UsersIcon className="h-4 w-4 text-primary" /> Profissionais escalados *
+                      </label>
+                      <p className="text-[11px] text-muted-foreground">
+                        {profissionaisFiltrados.length} encontrados · {form.profissional_ids.length} selecionados
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, profissional_ids: profissionaisFiltrados.map(p => p.id) }))}
+                        className="text-[10px] px-2 py-1 bg-primary/10 text-primary rounded-md font-bold hover:bg-primary/20 transition-colors uppercase"
+                      >
+                        Selecionar todos
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, profissional_ids: [] }))}
+                        className="text-[10px] px-2 py-1 bg-muted text-muted-foreground rounded-md font-bold hover:bg-muted/80 transition-colors uppercase"
+                      >
+                        Limpar
+                      </button>
+                    </div>
                   </div>
-                  <div className="border border-border rounded-lg p-2 max-h-48 overflow-y-auto space-y-1 bg-muted/20">
+
+                  <div className="border border-border rounded-lg max-h-[400px] overflow-y-auto bg-background divide-y divide-border/40 shadow-inner">
                     {profissionaisFiltrados.map((p: any) => {
                       const checked = form.profissional_ids.includes(p.id);
                       const horas = horasPorProfissional[p.id] ?? 0;
                       const st = statusPorProf[p.id];
                       const vinculado = form.setor_ids.some(sid => p.setor_principal_id === sid);
+                      const pSetor = sectors.find(s => s.id === p.setor_principal_id)?.nome;
+                      
                       return (
-                        <label key={p.id} className={`flex items-center gap-2 p-2 rounded cursor-pointer text-sm ${checked ? 'bg-primary/10' : 'hover:bg-muted'}`}>
-                          <input type="checkbox" checked={checked} onChange={() => toggleProfissional(p.id)} className="rounded" />
-                          <span className="text-foreground flex-1 truncate flex items-center gap-1.5">
-                            {p.nome}
-                            {vinculado && <span className="text-[9px] uppercase font-semibold px-1 py-0.5 rounded bg-accent/15 text-accent">Setor</span>}
-                          </span>
-                          {form.dates[0] && st === 'conflito' && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-destructive/15 text-destructive flex items-center gap-1"><AlertTriangle className="h-3 w-3" />conflito</span>
+                        <div 
+                          key={p.id} 
+                          onClick={() => toggleProfissional(p.id)}
+                          className={cn(
+                            "flex items-center gap-3 p-3 cursor-pointer transition-all hover:bg-muted/40",
+                            checked ? "bg-primary/5 ring-1 ring-inset ring-primary/20" : ""
                           )}
-                          <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{horas}h/220h</span>
-                        </label>
+                        >
+                          <div className="pt-0.5">
+                            <input 
+                              type="checkbox" 
+                              checked={checked} 
+                              onChange={(e) => { e.stopPropagation(); toggleProfissional(p.id); }} 
+                              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" 
+                            />
+                          </div>
+                          
+                          <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className={cn("text-sm font-semibold truncate", checked ? "text-primary" : "text-foreground")}>
+                                {p.nome}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                                <span className="text-[10px] text-muted-foreground flex items-center gap-1 shrink-0">
+                                  {PROFISSAO_LABELS[p.profissao] || p.profissao}
+                                </span>
+                                {pSetor && (
+                                  <span className={cn(
+                                    "text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0",
+                                    vinculado ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground"
+                                  )}>
+                                    Setor: {pSetor}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              {form.dates[0] && st === 'conflito' && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-destructive/10 text-destructive flex items-center gap-1 border border-destructive/20 cursor-help">
+                                        <AlertTriangle className="h-3 w-3" /> conflito
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Conflito detectado na primeira data do lote</TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                              <span className={cn(
+                                "text-[11px] font-mono px-2 py-0.5 rounded border",
+                                horas >= LIMITE_HORAS_MENSAL ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-muted text-muted-foreground border-border"
+                              )}>
+                                {horas}h/220h
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       );
                     })}
+                    {profissionaisFiltrados.length === 0 && (
+                      <div className="p-8 text-center space-y-2">
+                        <UsersIcon className="h-8 w-8 text-muted-foreground/30 mx-auto" />
+                        <p className="text-sm text-muted-foreground">Nenhum profissional encontrado para os filtros atuais.</p>
+                      </div>
                   </div>
                 </div>
               </div>
@@ -2621,77 +2735,112 @@ export default function EscalaPage() {
 
             {/* Resumo do Lote */}
             {!editingId && form.setor_ids.length > 0 && form.profissional_ids.length > 0 && form.dates.length > 0 && (
-              <div className="p-3 rounded-lg border border-primary/20 bg-primary/5 flex items-center justify-between text-sm">
-                <div className="flex gap-4">
-                  <div>Setores: <span className="font-bold">{form.setor_ids.length}</span></div>
-                  <div>Profissionais: <span className="font-bold">{form.profissional_ids.length}</span></div>
-                  <div>Datas: <span className="font-bold">{(() => {
-                    if (form.date_mode === 'single') return 1;
-                    if (form.date_mode === 'multiple') return form.dates.filter(Boolean).length;
-                    if (form.date_mode === 'range' && form.dates[0] && form.dates[1]) {
-                      const s = new Date(form.dates[0] + 'T00:00:00'); 
-                      const e = new Date(form.dates[1] + 'T00:00:00');
-                      return Math.ceil((e.getTime() - s.getTime()) / (1000 * 3600 * 24)) + 1;
-                    }
-                    if (form.date_mode === 'repeat' && form.dates[0] && form.repeat_until) {
-                      const s = new Date(form.dates[0] + 'T00:00:00');
-                      const e = new Date(form.repeat_until + 'T00:00:00');
-                      let count = 0;
-                      for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
-                        if (form.repeat_days.includes(d.getDay())) count++;
+              <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 flex items-center justify-between text-sm shadow-sm">
+                <div className="flex gap-6">
+                  <div className="flex flex-col"><span className="text-[10px] uppercase font-bold text-muted-foreground">Setores</span><span className="font-bold text-base">{form.setor_ids.length}</span></div>
+                  <div className="flex flex-col"><span className="text-[10px] uppercase font-bold text-muted-foreground">Profissionais</span><span className="font-bold text-base">{form.profissional_ids.length}</span></div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground">Dias</span>
+                    <span className="font-bold text-base">{(() => {
+                      if (form.date_mode === 'single') return 1;
+                      if (form.date_mode === 'multiple') return form.dates.filter(Boolean).length;
+                      if (form.date_mode === 'range' && form.dates[0] && form.dates[1]) {
+                        const s = new Date(form.dates[0] + 'T00:00:00'); 
+                        const e = new Date(form.dates[1] + 'T00:00:00');
+                        return Math.ceil((e.getTime() - s.getTime()) / (1000 * 3600 * 24)) + 1;
                       }
-                      return count;
-                    }
-                    return 0;
-                  })()}</span></div>
+                      if (form.date_mode === 'repeat' && form.dates[0] && form.repeat_until) {
+                        const s = new Date(form.dates[0] + 'T00:00:00');
+                        const e = new Date(form.repeat_until + 'T00:00:00');
+                        let count = 0;
+                        for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+                          if (form.repeat_days.includes(d.getDay())) count++;
+                        }
+                        return count;
+                      }
+                      return 0;
+                    })()}</span>
+                  </div>
                 </div>
-                <div className="text-primary font-bold">Lote: {form.setor_ids.length * form.profissional_ids.length * (() => {
-                    if (form.date_mode === 'single') return 1;
-                    if (form.date_mode === 'multiple') return form.dates.filter(Boolean).length;
-                    if (form.date_mode === 'range' && form.dates[0] && form.dates[1]) {
-                      const s = new Date(form.dates[0] + 'T00:00:00'); const e = new Date(form.dates[1] + 'T00:00:00');
-                      return Math.ceil((e.getTime() - s.getTime()) / (1000 * 3600 * 24)) + 1;
-                    }
-                    if (form.date_mode === 'repeat' && form.dates[0] && form.repeat_until) {
-                      const s = new Date(form.dates[0] + 'T00:00:00');
-                      const e = new Date(form.repeat_until + 'T00:00:00');
-                      let count = 0;
-                      for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
-                        if (form.repeat_days.includes(d.getDay())) count++;
+                <div className="text-right">
+                  <span className="text-[10px] uppercase font-bold text-primary block">Total de Lançamentos</span>
+                  <div className="text-2xl font-black text-primary tracking-tight">
+                    {form.setor_ids.length * form.profissional_ids.length * (() => {
+                      if (form.date_mode === 'single') return 1;
+                      if (form.date_mode === 'multiple') return form.dates.filter(Boolean).length;
+                      if (form.date_mode === 'range' && form.dates[0] && form.dates[1]) {
+                        const s = new Date(form.dates[0] + 'T00:00:00'); const e = new Date(form.dates[1] + 'T00:00:00');
+                        return Math.ceil((e.getTime() - s.getTime()) / (1000 * 3600 * 24)) + 1;
                       }
-                      return count;
-                    }
-                    return 0;
-                })()} plantões</div>
+                      if (form.date_mode === 'repeat' && form.dates[0] && form.repeat_until) {
+                        const s = new Date(form.dates[0] + 'T00:00:00');
+                        const e = new Date(form.repeat_until + 'T00:00:00');
+                        let count = 0;
+                        for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+                          if (form.repeat_days.includes(d.getDay())) count++;
+                        }
+                        return count;
+                      }
+                      return 0;
+                    })()}
+                  </div>
+                </div>
               </div>
             )}
 
-
-
-            <div><label className="text-sm font-medium text-foreground">Observações</label><textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} rows={2} className={inputClass} /></div>
-            <div className="flex flex-wrap justify-end gap-2">
-              <button type="button" onClick={closeModal} className="px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted">Cancelar</button>
+            {conflictWarnings.length > 0 && (
+              <div className="space-y-1">
+                {conflictWarnings.map((w, i) => (
+                  <div key={i} className="flex items-start gap-2 p-2 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive font-medium">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" /> <span>{w}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {restWarnings.length > 0 && (
+              <div className="space-y-1">
+                {restWarnings.map((w, i) => (
+                  <div key={i} className="flex items-start gap-2 p-2 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive font-medium">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" /> <span>{w}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {workloadAlerts.length > 0 && (
+              <div className="space-y-1">
+                {workloadAlerts.map((a, i) => <div key={i} className="p-2 bg-warning/10 border border-warning/30 rounded-lg text-xs text-warning font-medium">{a}</div>)}
+              </div>
+            )}
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Observações</label>
+              <textarea value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} rows={2} className={inputClass} placeholder="Opcional..." />
+            </div>
+            
+            <div className="flex flex-wrap justify-end gap-3 pt-6 border-t">
+              <button type="button" onClick={closeModal} className="px-6 py-2.5 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors">Cancelar</button>
               {!editingId && (
                 <button
                   type="button"
                   onClick={() => {
-                    if (saveMutation.isPending || conflictWarnings.length > 0 || restWarnings.length > 0 || form.profissional_ids.length === 0) return;
+                    if (saveMutation.isPending || conflictWarnings.length > 0 || restWarnings.length > 0 || form.profissional_ids.length === 0 || form.setor_ids.length === 0) return;
                     keepOpenAfterSaveRef.current = true;
                     saveMutation.mutate(form);
                   }}
-                  disabled={saveMutation.isPending || conflictWarnings.length > 0 || restWarnings.length > 0 || form.profissional_ids.length === 0}
-                  className="px-4 py-2 rounded-lg border border-primary/40 text-sm font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
+                  disabled={saveMutation.isPending || conflictWarnings.length > 0 || restWarnings.length > 0 || form.profissional_ids.length === 0 || form.setor_ids.length === 0}
+                  className="px-6 py-2.5 rounded-xl border border-primary/40 text-sm font-medium text-primary hover:bg-primary/10 disabled:opacity-50 transition-colors"
                 >
                   Salvar e adicionar outro
                 </button>
               )}
-              <button type="submit" disabled={saveMutation.isPending || conflictWarnings.length > 0 || restWarnings.length > 0 || form.profissional_ids.length === 0} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50">
-                {saveMutation.isPending ? 'Salvando...' : editingId ? 'Salvar plantão' : `Salvar plantão${form.profissional_ids.length > 1 ? ` (${form.profissional_ids.length})` : ''}`}
+              <button type="submit" disabled={saveMutation.isPending || conflictWarnings.length > 0 || restWarnings.length > 0 || form.profissional_ids.length === 0 || form.setor_ids.length === 0} className="px-8 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 disabled:opacity-50 shadow-md shadow-primary/20 transition-all">
+                {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : editingId ? 'Salvar Alteração' : 'Confirmar Lançamento em Massa'}
               </button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
+
 
       {/* MODAL: Marcar folga / indisponibilidade */}
       <Dialog open={folgaModalOpen} onOpenChange={setFolgaModalOpen}>
