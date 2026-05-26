@@ -69,6 +69,7 @@ export interface MensalResponsavel {
   conselho: string;
   unidade: string;
   assinaturaBase64?: string;
+  carimboBase64?: string;
 }
 
 export interface MensalOpts {
