@@ -91,7 +91,7 @@ async function processStampData(stamp: any, profData: any): Promise<StampData> {
     nome: metadata.nome_profissional || profData?.nome || "—",
     cargo: stamp.cargo || profData?.cargo || "—",
     conselho: `${metadata.conselho || ''} ${metadata.registro || ''} ${stamp.uf_conselho ? `(${stamp.uf_conselho})` : ''}`.trim() || "—",
-    unidade: metadata.unidade_principal || profData?.units?.nome || "—",
+    unidade: metadata.unidade_principal || profData?.unidadeNome || "—",
     assinaturaBase64,
     carimboBase64
   };
