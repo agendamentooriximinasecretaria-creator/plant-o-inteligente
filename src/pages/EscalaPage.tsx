@@ -266,6 +266,7 @@ export default function EscalaPage() {
   const [restWarnings, setRestWarnings] = useState<string[]>([]);
   const [workloadAlerts, setWorkloadAlerts] = useState<string[]>([]);
   const [horasPorProfissional, setHorasPorProfissional] = useState<Record<string, number>>({});
+  const [profSearch, setProfSearch] = useState("");
   const [detailShift, setDetailShift] = useState<any>(null);
   const keepOpenAfterSaveRef = useRef(false);
   // Menu de ações na célula vazia (data + setor opcional)
