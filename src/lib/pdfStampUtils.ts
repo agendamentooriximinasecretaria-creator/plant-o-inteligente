@@ -85,6 +85,10 @@ async function processStampData(stamp: any, profData: any): Promise<StampData> {
   let assinaturaBase64: string | undefined = undefined;
   if (stamp.assinatura_path) {
     assinaturaBase64 = await convertStorageImageToBase64(BUCKET, stamp.assinatura_path);
+  } else if (stamp.tipo === 'digital_gerado' && stamp.metadata?.signature_svg) {
+    // Se for assinatura digital gerada, a assinatura pode estar no metadata como SVG ou dataURL
+    // Note: buildSignatureHtml espera uma URL ou Base64.
+    assinaturaBase64 = stamp.metadata.signature_svg;
   }
 
   let carimboBase64: string | undefined = undefined;

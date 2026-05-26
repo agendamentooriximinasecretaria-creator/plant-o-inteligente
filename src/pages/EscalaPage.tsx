@@ -1345,11 +1345,24 @@ export default function EscalaPage() {
 
   const getMensalOpts = async (unidadeId?: string): Promise<MensalOpts> => {
     // 1. Identifica o perfil do usuário logado que está gerando a escala
-    const gestorStamp = currentProfId ? await fetchStampData(currentProfId) : null;
+    let gestorStamp: StampData | null = null;
+    
+    // Tenta buscar o profissional vinculado ao usuário logado
+    const { data: profProfile } = await supabase
+      .from('profiles')
+      .select('profissional_id')
+      .eq('user_id', user?.id || '')
+      .maybeSingle();
+      
+    const effectiveProfId = profProfile?.profissional_id || currentProfId;
+
+    if (effectiveProfId) {
+      gestorStamp = await fetchStampData(effectiveProfId);
+    }
     
     // Log para depuração em ambiente de desenvolvimento
-    if (!gestorStamp && currentProfId) {
-      console.warn(`[EscalaPage] Carimbo não encontrado para o profissional ${currentProfId}`);
+    if (!gestorStamp && effectiveProfId) {
+      console.warn(`[EscalaPage] Carimbo não encontrado para o profissional ${effectiveProfId}`);
     }
     
     // 2. Determina os blocos esquerdo e direito conforme a regra de negócio
