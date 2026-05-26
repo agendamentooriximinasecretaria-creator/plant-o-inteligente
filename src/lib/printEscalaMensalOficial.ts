@@ -75,8 +75,6 @@ export interface MensalResponsavel {
   hasStamp?: boolean;
   hasDigitalSeal?: boolean;
 }
-  hasDigitalSeal?: boolean;
-}
 
 export interface MensalOpts {
   incluirLogo: boolean;
