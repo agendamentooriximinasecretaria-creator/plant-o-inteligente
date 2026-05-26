@@ -3544,3 +3544,4 @@ export default function EscalaPage() {
       </Dialog>
     </div>
   );
+}
