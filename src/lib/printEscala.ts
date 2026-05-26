@@ -44,8 +44,8 @@ export interface PrintOptions {
   incluirAssinatura: boolean;
   incluirTotalHoras: boolean;
   incluirConselho: boolean;
-  responsavel?: StampData;
-  responsavelTecnico?: StampData;
+  responsavel?: any;
+  responsavelTecnico?: any;
 }
 
 const DIAS_PT = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
