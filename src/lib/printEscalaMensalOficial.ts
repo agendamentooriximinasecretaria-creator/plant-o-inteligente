@@ -71,6 +71,9 @@ export interface MensalResponsavel {
   assinaturaBase64?: string;
   carimboBase64?: string;
   tipo?: string;
+  hasVisualSignature?: boolean;
+  hasStamp?: boolean;
+  hasDigitalSeal?: boolean;
 }
 
 export interface MensalOpts {
