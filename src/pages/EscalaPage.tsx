@@ -78,7 +78,7 @@ const LIMITE_HORAS_MENSAL = 220;
 const emptyForm = {
   unidade_id: '', 
   setor_ids: [] as string[], 
-  profissao: 'medico',
+  profissao_ids: ['medico'] as string[],
   profissional_ids: [] as string[],
   dates: [] as string[], 
   repeat_days: [] as number[],
@@ -441,7 +441,9 @@ export default function EscalaPage() {
   // Carrega horas do mês para profissionais filtrados (para mostrar 24h/220h ao lado do nome)
   // Ordena: vinculados ao setor selecionado vêm primeiro
   const profissionaisFiltrados = useMemo(() => {
-    const base = (professionals as any[]).filter((p: any) => !form.profissao || p.profissao === form.profissao);
+    const base = (professionals as any[]).filter((p: any) => 
+      !form.profissao_ids.length || form.profissao_ids.includes(p.profissao)
+    );
     if (!form.setor_ids.length) return base;
     const firstSetorId = form.setor_ids[0];
     return [...base].sort((a, b) => {
@@ -449,7 +451,7 @@ export default function EscalaPage() {
       const bv = b.setor_principal_id === firstSetorId ? 0 : 1;
       return av - bv;
     });
-  }, [professionals, form.profissao, form.setor_ids]);
+  }, [professionals, form.profissao_ids, form.setor_ids]);
 
   const coberturaSetorDia = useMemo(() => {
     if (!form.setor_ids.length || !form.dates.length) return null;
@@ -772,24 +774,45 @@ export default function EscalaPage() {
       const { allDates } = await revalidateServerSide(finalData);
 
       const hours = calcHours(finalData.hora_inicio, finalData.hora_fim);
-      const basePayloads = finalData.setor_ids.flatMap(sid => 
-        allDates.map(date => ({
-          unidade_id: finalData.unidade_id, setor_id: sid, profissao: finalData.profissao as any,
-          data: date, hora_inicio: finalData.hora_inicio, hora_fim: finalData.hora_fim,
-          carga_horaria: hours, tipo_plantao: finalData.tipo_plantao,
-          observacoes: finalData.observacoes || null, status: finalData.status as any,
-        }))
-      );
-
+      
       if (editingId) {
         const pid = finalData.profissional_ids[0];
-        const { error } = await supabase.from('shifts').update({ ...basePayloads[0], profissional_id: pid }).eq('id', editingId);
+        const prof = (professionals as any[]).find(p => p.id === pid);
+        const payload = {
+          unidade_id: finalData.unidade_id, 
+          setor_id: finalData.setor_ids[0], 
+          profissao: prof?.profissao || finalData.profissao_ids[0] as any,
+          data: allDates[0], 
+          hora_inicio: finalData.hora_inicio, 
+          hora_fim: finalData.hora_fim,
+          carga_horaria: hours, 
+          tipo_plantao: finalData.tipo_plantao,
+          observacoes: finalData.observacoes || null, 
+          status: finalData.status as any,
+          profissional_id: pid
+        };
+        const { error } = await supabase.from('shifts').update(payload).eq('id', editingId);
         if (error) throw error;
         await logAudit('Plantão editado', 'escala', { id: editingId });
       } else {
-        const payloads = finalData.profissional_ids.flatMap(pid => 
-          basePayloads.map(bp => ({ ...bp, profissional_id: pid }))
-        );
+        const payloads = finalData.profissional_ids.flatMap(pid => {
+          const prof = (professionals as any[]).find(p => p.id === pid);
+          return finalData.setor_ids.flatMap(sid => 
+            allDates.map(date => ({
+              unidade_id: finalData.unidade_id, 
+              setor_id: sid, 
+              profissao: prof?.profissao || finalData.profissao_ids[0] as any,
+              data: date, 
+              hora_inicio: finalData.hora_inicio, 
+              hora_fim: finalData.hora_fim,
+              carga_horaria: hours, 
+              tipo_plantao: finalData.tipo_plantao,
+              observacoes: finalData.observacoes || null, 
+              status: finalData.status as any,
+              profissional_id: pid
+            }))
+          );
+        });
         const { error } = await supabase.from('shifts').insert(payloads);
         if (error) throw error;
         await logAudit('Plantões criados em lote', 'escala', { 
@@ -1668,7 +1691,7 @@ export default function EscalaPage() {
   const openEdit = (s: any) => {
     setEditingId(s.id);
     setForm({
-      unidade_id: s.unidade_id, setor_ids: [s.setor_id], profissao: s.profissao,
+      unidade_id: s.unidade_id, setor_ids: [s.setor_id], profissao_ids: [s.profissao],
       profissional_ids: [s.profissional_id], dates: [s.data],
       repeat_days: [], repeat_until: '', date_mode: 'single',
       hora_inicio: s.hora_inicio, hora_fim: s.hora_fim, tipo_plantao: s.tipo_plantao,
@@ -2468,9 +2491,12 @@ export default function EscalaPage() {
 
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-foreground">Profissão *</label>
-                      <select required value={form.profissao} onChange={e => setForm(f => ({ ...f, profissao: e.target.value, profissional_ids: [] }))} className={inputClass}>
-                        {Object.entries(PROFISSAO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                      </select>
+                      <MultiSelect
+                        options={Object.entries(PROFISSAO_LABELS).map(([k, v]) => ({ label: v, value: k }))}
+                        selected={form.profissao_ids}
+                        onChange={(ids) => setForm(f => ({ ...f, profissao_ids: ids, profissional_ids: [] }))}
+                        placeholder="Selecione as profissões..."
+                      />
                     </div>
 
                     <div className="space-y-2">
