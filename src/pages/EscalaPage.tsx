@@ -2763,18 +2763,8 @@ export default function EscalaPage() {
                       )}
                     </div>
                   </div>
-                      );
-                    })}
-                    {profissionaisFiltrados.length === 0 && (
-                      <div className="p-8 text-center space-y-2">
-                        <UsersIcon className="h-8 w-8 text-muted-foreground/30 mx-auto" />
-                        <p className="text-sm text-muted-foreground">Nenhum profissional encontrado para os filtros atuais.</p>
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
-            </div>
             </div>
 
 
