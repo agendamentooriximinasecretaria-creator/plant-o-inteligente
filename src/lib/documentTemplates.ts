@@ -46,21 +46,25 @@ export function buildSignatureHtml(params: {
 }) {
   const { responsavel, responsavelTecnico } = params;
   
-  const renderBox = (r: any) => `
-    <div class="assinatura-item">
-      <div style="height: 80px; display: flex; align-items: flex-end; justify-content: center; margin-bottom: 5px; gap: 15px;">
-        ${r?.assinaturaBase64 ? `<img src="${r.assinaturaBase64}" style="max-height: 100%; max-width: 180px; object-fit: contain;" alt="Assinatura" />` : ""}
-        ${r?.carimboBase64 ? `<img src="${r.carimboBase64}" style="max-height: 100%; max-width: 140px; object-fit: contain;" alt="Carimbo" />` : ""}
+  const renderBox = (r: any) => {
+    if (!r || (!r.nome && !r.cargo)) return `<div class="assinatura-item"></div>`;
+    
+    return `
+      <div class="assinatura-item">
+        <div style="height: 100px; display: flex; align-items: flex-end; justify-content: center; margin-bottom: 5px; gap: 10px; position: relative;">
+          ${r?.assinaturaBase64 ? `<img src="${r.assinaturaBase64}" style="max-height: 80px; max-width: 200px; object-fit: contain; z-index: 1;" alt="Assinatura" />` : ""}
+          ${r?.carimboBase64 ? `<img src="${r.carimboBase64}" style="max-height: 90px; max-width: 150px; object-fit: contain; margin-left: -40px; z-index: 2;" alt="Carimbo" />` : ""}
+        </div>
+        <div class="assinatura-line" style="border-top: 1px solid #000; padding-top: 5px;">
+          <strong>${r?.nome || ""}</strong>
+        </div>
+        <div class="assinatura-info">
+          ${r?.cargo || ""} ${r?.conselho ? `· ${r.conselho}` : ""} <br/>
+          ${r?.unidade || ""}
+        </div>
       </div>
-      <div class="assinatura-line">
-        <strong>${r?.nome || ""}</strong>
-      </div>
-      <div class="assinatura-info">
-        ${r?.cargo || ""} ${r?.conselho ? `· ${r.conselho}` : ""} <br/>
-        ${r?.unidade || ""}
-      </div>
-    </div>
-  `;
+    `;
+  };
 
   return `
     <div class="assinatura-block">
