@@ -279,12 +279,14 @@ export default function EscalaPage() {
   const [notifyTarget, setNotifyTarget] = useState<any>(null);
   const [notifyMsg, setNotifyMsg] = useState("");
   const [historyTarget, setHistoryTarget] = useState<any>(null);
+  const [resolvedSignature, setResolvedSignature] = useState<ResolvedSignature | null>(null);
   const { data: currentStamp } = useQuery({
     queryKey: ['my-stamp', currentProfId],
     queryFn: async () => {
       if (!currentProfId) return null;
-      const { data } = await supabase.from('professional_stamps').select('*').eq('profissional_id', currentProfId).eq('bloqueado', false).maybeSingle();
-      return data;
+      const res = await resolveSignatureData({ professionalId: currentProfId });
+      setResolvedSignature(res);
+      return res;
     },
     enabled: !!currentProfId
   });
