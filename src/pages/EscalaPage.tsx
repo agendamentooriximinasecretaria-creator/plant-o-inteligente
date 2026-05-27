@@ -1269,6 +1269,20 @@ export default function EscalaPage() {
           .trim();
         
         const isPlantonista = cargoNormalizado.includes('plantonista');
+        
+        // Verifica elegibilidade ADN com base nas novas configurações
+        let elegivelADN = false;
+        if (adnConfig && adnConfig.enabled) {
+          const byFlag = adnConfig.eligibility.by_flag && (!!prof.recebe_adicional_noturno || !!prof.is_plantonista);
+          const byRole = adnConfig.eligibility.by_role && adnConfig.eligibility.roles.some(r => {
+            const rNorm = r.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').trim();
+            return cargoNormalizado === rNorm || (prof.cargo || '').toLowerCase().trim() === r.toLowerCase().trim();
+          });
+          elegivelADN = byFlag || byRole;
+        } else if (!adnConfig) {
+          // Fallback para regra antiga se não houver config
+          elegivelADN = !!prof.recebe_adicional_noturno || !!prof.is_plantonista || isPlantonista;
+        }
 
         row = {
           id: profId,
@@ -1281,7 +1295,7 @@ export default function EscalaPage() {
           totalHoras: 0,
           totalPlantoes: 0,
           totalADN: 0,
-          elegivelADN: !!prof.recebe_adicional_noturno || !!prof.is_plantonista || isPlantonista,
+          elegivelADN,
         };
         map.set(profId, row);
       }
