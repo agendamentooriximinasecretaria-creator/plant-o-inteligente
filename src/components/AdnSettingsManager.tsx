@@ -155,6 +155,30 @@ export function AdnSettingsManager() {
     }));
   };
 
+  const toggleProfession = (prof: string) => {
+    setConfig(prev => ({
+      ...prev,
+      eligibility: {
+        ...prev.eligibility,
+        professions: prev.eligibility.professions.includes(prof)
+          ? prev.eligibility.professions.filter(p => p !== prof)
+          : [...prev.eligibility.professions, prof]
+      }
+    }));
+  };
+
+  const toggleSector = (sector: string) => {
+    setConfig(prev => ({
+      ...prev,
+      eligibility: {
+        ...prev.eligibility,
+        sectors: prev.eligibility.sectors.includes(sector)
+          ? prev.eligibility.sectors.filter(s => s !== sector)
+          : [...prev.eligibility.sectors, sector]
+      }
+    }));
+  };
+
   const toggleShiftType = (nome: string) => {
     setConfig(prev => ({
       ...prev,
