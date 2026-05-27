@@ -456,7 +456,7 @@ export async function gerarPdfEscalaMensalOficial(
     { content: "Profissional", styles: { halign: "left" as const, fontStyle: "bold" as const } },
     ...headDias,
     ...(opts.incluirTotalHoras ? [{ content: "Total", styles: { halign: "center" as const, fontStyle: "bold" as const } }] : []),
-    ...(opts.incluirADN ? [{ content: "ADN", styles: { halign: "center" as const, fontStyle: "bold" as const, fillColor: [238, 242, 255] as [number, number, number] } }] : [])
+    ...(opts.incluirADN ? [{ content: opts.adnLabel || "ADN", styles: { halign: "center" as const, fontStyle: "bold" as const, fillColor: [238, 242, 255] as [number, number, number] } }] : [])
   ]];
 
   const totalCols = totalDias + (opts.incluirTotalHoras ? 2 : 1);
