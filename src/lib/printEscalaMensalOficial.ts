@@ -318,7 +318,7 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
         <th class="nome">PROFISSIONAL</th>
         ${colDiaTh}
         ${opts.incluirTotalHoras ? `<th class="total">${escapeHtml(totalLabel)}</th>` : ""}
-        ${opts.incluirADN ? `<th class="total" style="background-color: #e0e7ff; color: #3730a3;">ADN</th>` : ""}
+        ${opts.incluirADN ? `<th class="total" style="background-color: #e0e7ff; color: #3730a3;">${opts.adnLabel || 'ADN'}</th>` : ""}
       </tr>
     </thead>
     <tbody>${linhasTr}</tbody>
