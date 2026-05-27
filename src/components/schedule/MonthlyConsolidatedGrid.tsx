@@ -166,7 +166,10 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
             const rNorm = r.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').trim();
             return cargoNormalizado === rNorm || (s.cargo || '').toLowerCase().trim() === r.toLowerCase().trim();
           });
-          elegivelAdn = byFlag || byRole;
+          const byProfession = adnConfig.eligibility.by_profession && adnConfig.eligibility.professions.includes(s.profissao || '');
+          const bySector = adnConfig.eligibility.by_sector && adnConfig.eligibility.sectors.includes(s.setor_nome || '');
+          
+          elegivelAdn = byFlag || byRole || byProfession || bySector;
         } else if (!adnConfig) {
           elegivelAdn = !!s.recebe_adn || isPlantonista;
         }
