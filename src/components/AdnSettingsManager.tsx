@@ -116,7 +116,7 @@ export function AdnSettingsManager() {
       } else {
         await supabase.from('system_settings').insert({ key: 'adn_config', value: newConfig as any });
       }
-      await logAudit('Configuração de ADN salva', 'configuracoes', newConfig);
+      await logAudit('Configuração de ADN salva', 'configuracoes', newConfig as unknown as Record<string, unknown>);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['system-settings'] });
