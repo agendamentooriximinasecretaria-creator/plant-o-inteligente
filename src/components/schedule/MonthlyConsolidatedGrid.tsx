@@ -215,7 +215,21 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
             } else if (adnConfig.calculation_type === 'fixed_per_shift') {
               const adnHoras = calculateAdicionalNoturno(s.hora_inicio, s.hora_fim, adnConfig.start_time, adnConfig.end_time);
               if (adnHoras > 0) row.adn += (adnConfig.fixed_value || 0);
+    }
+
+    if (adnConfig?.calculation_type === 'fixed_total') {
+      for (const unidadeMap of tree.values()) {
+        for (const setorMap of unidadeMap.values()) {
+          for (const profissaoMap of setorMap.values()) {
+            for (const row of profissaoMap.values()) {
+              if (row.elegivelAdn && row.horas > 0) {
+                row.adn = adnConfig.fixed_value || 0;
+              }
             }
+          }
+        }
+      }
+    }
           }
         }
 
