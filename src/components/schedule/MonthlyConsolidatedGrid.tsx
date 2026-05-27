@@ -1,6 +1,8 @@
 import { useMemo, useState, memo } from "react";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertTriangle, Info } from "lucide-react";
 import { calculateAdicionalNoturno } from "@/lib/utils";
+import { AdnConfig } from "@/components/AdnSettingsManager";
+
 
 
 export interface MonthlyShift {
@@ -38,6 +40,7 @@ interface Props {
   showTotalHours?: boolean;
   showADN?: boolean;
   onCellClick?: (date: string, shifts: MonthlyShift[]) => void;
+  adnConfig?: AdnConfig;
 }
 
 const DIA_SEMANA_ABREV = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
@@ -101,7 +104,7 @@ function siglaFallback(tipo: string): string {
   }
 }
 
-export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ shifts, tipos, initialMonth, showTotalHours = true, showADN = false, onCellClick }: Props) {
+export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ shifts, tipos, initialMonth, showTotalHours = true, showADN = false, onCellClick, adnConfig }: Props) {
   const today = new Date();
   const defaultMonth = initialMonth || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   const [mes, setMes] = useState<string>(defaultMonth);
@@ -155,6 +158,22 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
         
         const isPlantonista = cargoNormalizado.includes('plantonista');
         
+        // Verifica elegibilidade ADN com base nas configurações
+        let elegivelAdn = false;
+        if (adnConfig && adnConfig.enabled) {
+          const byFlag = adnConfig.eligibility.by_flag && (!!s.recebe_adn);
+          const byRole = adnConfig.eligibility.by_role && adnConfig.eligibility.roles.some(r => {
+            const rNorm = r.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').trim();
+            return cargoNormalizado === rNorm || (s.cargo || '').toLowerCase().trim() === r.toLowerCase().trim();
+          });
+          const byProfession = adnConfig.eligibility.by_profession && adnConfig.eligibility.professions.includes(s.profissao || '');
+          const bySector = adnConfig.eligibility.by_sector && adnConfig.eligibility.sectors.includes(s.setor_nome || '');
+          
+          elegivelAdn = byFlag || byRole || byProfession || bySector;
+        } else if (!adnConfig) {
+          elegivelAdn = !!s.recebe_adn || isPlantonista;
+        }
+        
         row = { 
           id: profId, 
           nome: s.profissional_nome || "Sem nome", 
@@ -163,7 +182,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
           porDia: new Map(), 
           horas: 0, 
           adn: 0, 
-          elegivelAdn: !!s.recebe_adn || isPlantonista
+          elegivelAdn
         };
         profissaoMap.set(profId, row);
       }
@@ -176,10 +195,42 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
       if (s.status !== "cancelado" && !["folga", "indisponibilidade"].includes((s.tipo_plantao || "").toLowerCase())) {
         row.horas += carga;
         
-        // Cálculo do ADN (Adicional Noturno) - Regra 23:00 às 07:00
+        // Cálculo do ADN (Adicional Noturno) - Regra configurável
         if (row.elegivelAdn) {
-          const adnHoras = calculateAdicionalNoturno(s.hora_inicio, s.hora_fim);
-          row.adn += adnHoras;
+          const shiftName = s.tipo_plantao;
+          const generatesADN = !adnConfig?.shift_types?.length || (shiftName && adnConfig.shift_types.includes(shiftName));
+          
+          if (generatesADN) {
+            if (!adnConfig || adnConfig.calculation_type === 'hours') {
+              const adnHoras = calculateAdicionalNoturno(
+                s.hora_inicio, 
+                s.hora_fim, 
+                adnConfig?.start_time || "23:00", 
+                adnConfig?.end_time || "07:00"
+              );
+              row.adn += adnHoras;
+            } else if (adnConfig.calculation_type === 'shifts') {
+              const adnHoras = calculateAdicionalNoturno(s.hora_inicio, s.hora_fim, adnConfig.start_time, adnConfig.end_time);
+              if (adnHoras > 0) row.adn += 1;
+            } else if (adnConfig.calculation_type === 'fixed_per_shift') {
+              const adnHoras = calculateAdicionalNoturno(s.hora_inicio, s.hora_fim, adnConfig.start_time, adnConfig.end_time);
+              if (adnHoras > 0) row.adn += (adnConfig.fixed_value || 0);
+    }
+
+    if (adnConfig?.calculation_type === 'fixed_total') {
+      for (const unidadeMap of tree.values()) {
+        for (const setorMap of unidadeMap.values()) {
+          for (const profissaoMap of setorMap.values()) {
+            for (const row of profissaoMap.values()) {
+              if (row.elegivelAdn && row.horas > 0) {
+                row.adn = adnConfig.fixed_value || 0;
+              }
+            }
+          }
+        }
+      }
+    }
+          }
         }
 
       }
@@ -301,7 +352,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
               )}
               {showADN && (
                 <th className="text-center font-bold text-indigo-900 dark:text-indigo-100 p-4 border-b-2 border-indigo-400 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950 sticky right-0 z-40 w-[80px] shadow-[-2px_0_4px_rgba(0,0,0,0.1)] text-sm border-l-2 border-l-indigo-400 print:table-cell" title="Adicional Noturno">
-                  ADN
+                  {adnConfig?.label || "ADN"}
                 </th>
               )}
             </tr>
@@ -404,7 +455,11 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
                     {showADN && (
                       <td className="px-4 py-3 text-center sticky right-0 bg-indigo-50 dark:bg-indigo-950 z-20 border-l-2 border-l-indigo-300 dark:border-l-indigo-700 print:relative shadow-[-2px_0_4px_rgba(0,0,0,0.05)] group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900 transition-colors">
                         <span className="font-mono font-bold text-indigo-800 dark:text-indigo-100 text-xs">
-                          {row.elegivelAdn ? `${row.adn.toFixed(1)}h` : "—"}
+                          {row.elegivelAdn ? (
+                            adnConfig?.display?.format === 'value' 
+                              ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(row.adn)
+                              : `${row.adn.toFixed(adnConfig?.display?.decimals ?? 1)}${adnConfig?.display?.format === 'quantity' ? '' : 'h'}`
+                          ) : "—"}
                         </span>
                       </td>
                     )}

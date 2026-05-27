@@ -9,6 +9,7 @@ import { ShiftTypesManager } from "@/components/ShiftTypesManager";
 import DocumentTemplatesManager from "@/components/document-templates/DocumentTemplatesManager";
 import SwapAttachmentSettingsManager from "@/components/SwapAttachmentSettingsManager";
 import CarimbosAssinaturasManager from "@/components/CarimbosAssinaturasManager";
+import { AdnSettingsManager } from "@/components/AdnSettingsManager";
 
 // Strip credentials/secrets before logging settings to audit trail.
 function sanitizeSettingForAudit(key: string, value: any): any {
@@ -191,6 +192,11 @@ export default function ConfiguracoesPage() {
           <CarimbosAssinaturasManager />
         </motion.div>
 
+        {/* Adicional Noturno (ADN) */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.048 }} className={sectionClass}>
+          <AdnSettingsManager />
+        </motion.div>
+
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className={sectionClass}>
           <div className="flex items-start gap-3 mb-4"><div className="p-2 rounded-lg bg-primary/10"><Shield className="h-5 w-5 text-primary" /></div><div><h3 className="font-display font-semibold text-foreground">Regras de Conflito e Exibição</h3><p className="text-sm text-muted-foreground">Limites, validações e preferências de visualização</p></div></div>
@@ -215,16 +221,6 @@ export default function ConfiguracoesPage() {
                     className="rounded h-4 w-4" 
                   />
                   <label htmlFor="showTotalHours" className="text-sm font-medium text-foreground cursor-pointer">Exibir total de horas</label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="checkbox" 
-                    id="showADN"
-                    checked={settings.exibir_adn_escala_consolidada !== false} 
-                    onChange={e => saveSetting.mutate({ key: 'exibir_adn_escala_consolidada', value: e.target.checked })} 
-                    className="rounded h-4 w-4" 
-                  />
-                  <label htmlFor="showADN" className="text-sm font-medium text-foreground cursor-pointer">Exibir ADN (Adicional Noturno)</label>
                 </div>
               </div>
             </div>

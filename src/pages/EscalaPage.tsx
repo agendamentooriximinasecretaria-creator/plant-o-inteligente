@@ -28,6 +28,8 @@ import { imprimirComprovantePlantao, type ComprovantePlantaoData } from "@/lib/p
 import SignActionButton from "@/components/SignActionButton";
 import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 import { calculateAdicionalNoturno } from "@/lib/utils";
+import { AdnConfig } from "@/components/AdnSettingsManager";
+
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -226,6 +228,9 @@ export default function EscalaPage() {
       return Object.fromEntries((data || []).map(s => [s.key, s.value]));
     },
   });
+
+  const adnConfig = settings.adn_config as unknown as AdnConfig | undefined;
+  const showADNSetting = adnConfig ? (adnConfig.enabled && adnConfig.display.monthly_scale) : (settings.exibir_adn_escala_consolidada !== false);
 
   // -- States --
   const [view, setView] = useState<'lista' | 'calendario' | 'grade' | 'consolidada'>('lista');
@@ -1265,6 +1270,24 @@ export default function EscalaPage() {
           .trim();
         
         const isPlantonista = cargoNormalizado.includes('plantonista');
+        
+        // Verifica elegibilidade ADN com base nas novas configurações
+        let elegivelADN = false;
+        if (adnConfig && adnConfig.enabled) {
+          const byFlag = adnConfig.eligibility.by_flag && (!!prof.recebe_adicional_noturno || !!prof.is_plantonista);
+          const byRole = adnConfig.eligibility.by_role && adnConfig.eligibility.roles.some(r => {
+            const rNorm = r.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').trim();
+            return cargoNormalizado === rNorm || (prof.cargo || '').toLowerCase().trim() === r.toLowerCase().trim();
+          });
+          const byProfession = adnConfig.eligibility.by_profession && adnConfig.eligibility.professions.includes(prof.profissao);
+          const sectorName = (s.sectors as any)?.nome;
+          const bySector = adnConfig.eligibility.by_sector && adnConfig.eligibility.sectors.includes(sectorName);
+          
+          elegivelADN = byFlag || byRole || byProfession || bySector;
+        } else if (!adnConfig) {
+          // Fallback para regra antiga se não houver config
+          elegivelADN = !!prof.recebe_adicional_noturno || !!prof.is_plantonista || isPlantonista;
+        }
 
         row = {
           id: profId,
@@ -1277,7 +1300,7 @@ export default function EscalaPage() {
           totalHoras: 0,
           totalPlantoes: 0,
           totalADN: 0,
-          elegivelADN: !!prof.recebe_adicional_noturno || !!prof.is_plantonista || isPlantonista,
+          elegivelADN,
         };
         map.set(profId, row);
       }
@@ -1298,11 +1321,40 @@ export default function EscalaPage() {
         row.totalHoras += carga;
         row.totalPlantoes += 1;
         
-        // Cálculo ADN (Adicional Noturno) - Regra 23:00 às 07:00
+        // Cálculo ADN (Adicional Noturno) - Regra configurável
         if (row.elegivelADN) {
-          const adnHoras = calculateAdicionalNoturno(s.hora_inicio, s.hora_fim);
-          row.totalADN += adnHoras;
+          const shiftName = s.tipo_plantao;
+          const generatesADN = !adnConfig?.shift_types?.length || (shiftName && adnConfig.shift_types.includes(shiftName));
+          
+          if (generatesADN) {
+            if (!adnConfig || adnConfig.calculation_type === 'hours') {
+              const adnHoras = calculateAdicionalNoturno(
+                s.hora_inicio, 
+                s.hora_fim, 
+                adnConfig?.start_time || "23:00", 
+                adnConfig?.end_time || "07:00"
+              );
+              row.totalADN += adnHoras;
+            } else if (adnConfig.calculation_type === 'shifts') {
+              // Verifica se o plantão tem alguma hora noturna para contar como plantão noturno
+              const adnHoras = calculateAdicionalNoturno(s.hora_inicio, s.hora_fim, adnConfig.start_time, adnConfig.end_time);
+              if (adnHoras > 0) row.totalADN += 1;
+            } else if (adnConfig.calculation_type === 'fixed_per_shift') {
+              const adnHoras = calculateAdicionalNoturno(s.hora_inicio, s.hora_fim, adnConfig.start_time, adnConfig.end_time);
+              if (adnHoras > 0) row.totalADN += (adnConfig.fixed_value || 0);
+            }
+          }
+    }
+
+    if (adnConfig?.calculation_type === 'fixed_total') {
+      for (const row of map.values()) {
+        if (row.elegivelADN && row.totalPlantoes > 0) {
+          row.totalADN = adnConfig.fixed_value || 0;
         }
+      }
+    }
+
+
 
       }
     }
@@ -1392,13 +1444,15 @@ export default function EscalaPage() {
     }
 
     const showTotalSetting = settings.exibir_total_escala_consolidada !== false;
-    const showADNSetting = settings.exibir_adn_escala_consolidada !== false;
+    const showADNSetting = adnConfig ? (adnConfig.enabled && adnConfig.display.monthly_scale) : (settings.exibir_adn_escala_consolidada !== false);
 
     return {
       incluirLogo: printForm.incluirLogo,
       incluirAssinatura: printForm.incluirAssinatura,
       incluirTotalHoras: !isProfessional && showTotalSetting && printForm.incluirTotalHoras,
       incluirADN: showADNSetting && printForm.incluirADN,
+      adnLabel: adnConfig?.label,
+      adnDecimals: adnConfig?.display?.decimals,
       incluirObservacoesRodape: printForm.incluirObservacoesRodape,
       totalLabel: printForm.totalLabel,
       responsavel: responsavel || {
@@ -2375,7 +2429,8 @@ export default function EscalaPage() {
             tipos={TIPOS_PLANTAO}
             initialMonth={filtros.dataIni ? filtros.dataIni.slice(0, 7) : undefined}
             showTotalHours={!isProfessional && settings.exibir_total_escala_consolidada !== false}
-            showADN={settings.exibir_adn_escala_consolidada !== false}
+            showADN={showADNSetting}
+            adnConfig={adnConfig}
             onCellClick={(dateStr, cellShifts) => {
               if (cellShifts.length > 0) {
                 // Se houver plantões, abre o detalhe do primeiro (padrão do sistema para simplificar)
