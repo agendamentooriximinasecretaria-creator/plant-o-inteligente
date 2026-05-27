@@ -158,6 +158,19 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
         
         const isPlantonista = cargoNormalizado.includes('plantonista');
         
+        // Verifica elegibilidade ADN com base nas configurações
+        let elegivelAdn = false;
+        if (adnConfig && adnConfig.enabled) {
+          const byFlag = adnConfig.eligibility.by_flag && (!!s.recebe_adn);
+          const byRole = adnConfig.eligibility.by_role && adnConfig.eligibility.roles.some(r => {
+            const rNorm = r.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').trim();
+            return cargoNormalizado === rNorm || (s.cargo || '').toLowerCase().trim() === r.toLowerCase().trim();
+          });
+          elegivelAdn = byFlag || byRole;
+        } else if (!adnConfig) {
+          elegivelAdn = !!s.recebe_adn || isPlantonista;
+        }
+        
         row = { 
           id: profId, 
           nome: s.profissional_nome || "Sem nome", 
@@ -166,7 +179,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
           porDia: new Map(), 
           horas: 0, 
           adn: 0, 
-          elegivelAdn: !!s.recebe_adn || isPlantonista
+          elegivelAdn
         };
         profissaoMap.set(profId, row);
       }
