@@ -81,6 +81,8 @@ export interface MensalOpts {
   incluirAssinatura: boolean;
   incluirTotalHoras: boolean;
   incluirADN?: boolean;
+  adnLabel?: string;
+  adnDecimals?: number;
   incluirObservacoesRodape: boolean;
   totalLabel?: "TOTAL" | "ADN";
   responsavel?: MensalResponsavel;
