@@ -1,6 +1,8 @@
 import { useMemo, useState, memo } from "react";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertTriangle, Info } from "lucide-react";
 import { calculateAdicionalNoturno } from "@/lib/utils";
+import { AdnConfig } from "@/components/AdnSettingsManager";
+
 
 
 export interface MonthlyShift {
