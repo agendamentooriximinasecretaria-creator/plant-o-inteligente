@@ -229,7 +229,7 @@ export default function EscalaPage() {
     },
   });
 
-  const adnConfig = settings.adn_config as AdnConfig | undefined;
+  const adnConfig = settings.adn_config as unknown as AdnConfig | undefined;
 
   // -- States --
   const [view, setView] = useState<'lista' | 'calendario' | 'grade' | 'consolidada'>('lista');
