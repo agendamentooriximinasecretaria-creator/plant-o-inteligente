@@ -430,7 +430,11 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
                     {showADN && (
                       <td className="px-4 py-3 text-center sticky right-0 bg-indigo-50 dark:bg-indigo-950 z-20 border-l-2 border-l-indigo-300 dark:border-l-indigo-700 print:relative shadow-[-2px_0_4px_rgba(0,0,0,0.05)] group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900 transition-colors">
                         <span className="font-mono font-bold text-indigo-800 dark:text-indigo-100 text-xs">
-                          {row.elegivelAdn ? `${row.adn.toFixed(1)}h` : "—"}
+                          {row.elegivelAdn ? (
+                            adnConfig?.display?.format === 'value' 
+                              ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(row.adn)
+                              : `${row.adn.toFixed(adnConfig?.display?.decimals ?? 1)}${adnConfig?.display?.format === 'quantity' ? '' : 'h'}`
+                          ) : "—"}
                         </span>
                       </td>
                     )}
