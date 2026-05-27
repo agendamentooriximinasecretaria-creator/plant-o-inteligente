@@ -137,12 +137,12 @@ export function AdnSettingsManager() {
     }));
   };
 
-  const toggleShiftType = (id: string) => {
+  const toggleShiftType = (nome: string) => {
     setConfig(prev => ({
       ...prev,
-      shift_types: prev.shift_types.includes(id)
-        ? prev.shift_types.filter(s => s !== id)
-        : [...prev.shift_types, id]
+      shift_types: prev.shift_types.includes(nome)
+        ? prev.shift_types.filter(s => s !== nome)
+        : [...prev.shift_types, nome]
     }));
   };
 
