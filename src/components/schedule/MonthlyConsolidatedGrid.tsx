@@ -192,10 +192,20 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
       if (s.status !== "cancelado" && !["folga", "indisponibilidade"].includes((s.tipo_plantao || "").toLowerCase())) {
         row.horas += carga;
         
-        // Cálculo do ADN (Adicional Noturno) - Regra 23:00 às 07:00
+        // Cálculo do ADN (Adicional Noturno) - Regra configurável
         if (row.elegivelAdn) {
-          const adnHoras = calculateAdicionalNoturno(s.hora_inicio, s.hora_fim);
-          row.adn += adnHoras;
+          const shiftName = s.tipo_plantao;
+          const generatesADN = !adnConfig?.shift_types?.length || (shiftName && adnConfig.shift_types.includes(shiftName));
+          
+          if (generatesADN) {
+            const adnHoras = calculateAdicionalNoturno(
+              s.hora_inicio, 
+              s.hora_fim, 
+              adnConfig?.start_time || "23:00", 
+              adnConfig?.end_time || "07:00"
+            );
+            row.adn += adnHoras;
+          }
         }
 
       }
