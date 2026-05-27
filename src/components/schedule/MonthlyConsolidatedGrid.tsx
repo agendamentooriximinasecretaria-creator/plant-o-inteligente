@@ -40,6 +40,7 @@ interface Props {
   showTotalHours?: boolean;
   showADN?: boolean;
   onCellClick?: (date: string, shifts: MonthlyShift[]) => void;
+  adnConfig?: AdnConfig;
 }
 
 const DIA_SEMANA_ABREV = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
