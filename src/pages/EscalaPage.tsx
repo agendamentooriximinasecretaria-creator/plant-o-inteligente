@@ -1316,11 +1316,22 @@ export default function EscalaPage() {
         row.totalHoras += carga;
         row.totalPlantoes += 1;
         
-        // Cálculo ADN (Adicional Noturno) - Regra 23:00 às 07:00
+        // Cálculo ADN (Adicional Noturno) - Regra configurável
         if (row.elegivelADN) {
-          const adnHoras = calculateAdicionalNoturno(s.hora_inicio, s.hora_fim);
-          row.totalADN += adnHoras;
+          const shiftName = s.tipo_plantao;
+          const generatesADN = !adnConfig?.shift_types?.length || (shiftName && adnConfig.shift_types.includes(shiftName));
+          
+          if (generatesADN) {
+            const adnHoras = calculateAdicionalNoturno(
+              s.hora_inicio, 
+              s.hora_fim, 
+              adnConfig?.start_time || "23:00", 
+              adnConfig?.end_time || "07:00"
+            );
+            row.totalADN += adnHoras;
+          }
         }
+
 
       }
     }
