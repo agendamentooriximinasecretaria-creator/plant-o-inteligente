@@ -348,9 +348,9 @@ export function AdnSettingsManager() {
                     {shiftTypes.map(st => (
                       <Badge 
                         key={st.id} 
-                        variant={config.shift_types.includes(st.id) ? "secondary" : "outline"}
-                        className={`cursor-pointer transition-colors ${config.shift_types.includes(st.id) ? 'bg-indigo-500/20 text-indigo-700 border-indigo-500/30' : ''}`}
-                        onClick={() => toggleShiftType(st.id)}
+                        variant={config.shift_types.includes(st.nome) ? "secondary" : "outline"}
+                        className={`cursor-pointer transition-colors ${config.shift_types.includes(st.nome) ? 'bg-indigo-500/20 text-indigo-700 border-indigo-500/30' : ''}`}
+                        onClick={() => toggleShiftType(st.nome)}
                       >
                         {st.nome}
                       </Badge>
