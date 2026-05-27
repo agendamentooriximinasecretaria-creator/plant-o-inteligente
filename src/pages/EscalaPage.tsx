@@ -1421,7 +1421,7 @@ export default function EscalaPage() {
     }
 
     const showTotalSetting = settings.exibir_total_escala_consolidada !== false;
-    const showADNSetting = settings.exibir_adn_escala_consolidada !== false;
+    const showADNSetting = adnConfig ? (adnConfig.enabled && adnConfig.display.monthly_scale) : (settings.exibir_adn_escala_consolidada !== false);
 
     return {
       incluirLogo: printForm.incluirLogo,
