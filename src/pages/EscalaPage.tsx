@@ -1279,7 +1279,11 @@ export default function EscalaPage() {
             const rNorm = r.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').trim();
             return cargoNormalizado === rNorm || (prof.cargo || '').toLowerCase().trim() === r.toLowerCase().trim();
           });
-          elegivelADN = byFlag || byRole;
+          const byProfession = adnConfig.eligibility.by_profession && adnConfig.eligibility.professions.includes(prof.profissao);
+          const sectorName = (s.sectors as any)?.nome;
+          const bySector = adnConfig.eligibility.by_sector && adnConfig.eligibility.sectors.includes(sectorName);
+          
+          elegivelADN = byFlag || byRole || byProfession || bySector;
         } else if (!adnConfig) {
           // Fallback para regra antiga se não houver config
           elegivelADN = !!prof.recebe_adicional_noturno || !!prof.is_plantonista || isPlantonista;
