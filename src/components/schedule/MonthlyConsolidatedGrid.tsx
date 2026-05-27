@@ -104,7 +104,7 @@ function siglaFallback(tipo: string): string {
   }
 }
 
-export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ shifts, tipos, initialMonth, showTotalHours = true, showADN = false, onCellClick }: Props) {
+export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ shifts, tipos, initialMonth, showTotalHours = true, showADN = false, onCellClick, adnConfig }: Props) {
   const today = new Date();
   const defaultMonth = initialMonth || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   const [mes, setMes] = useState<string>(defaultMonth);
