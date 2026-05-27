@@ -515,7 +515,7 @@ export async function gerarPdfEscalaMensalOficial(
             nomeCol, 
             ...diaCols, 
             ...(opts.incluirTotalHoras ? [{ content: total, styles: { halign: "center" as const, fontStyle: "bold" as const, fontSize: 8 } }] : []),
-            ...(opts.incluirADN ? [{ content: p.elegivelADN ? `${p.totalADN}h` : "—", styles: { halign: "center" as const, fontStyle: "bold" as const, fontSize: 8, fillColor: [238, 242, 255] as [number, number, number] } }] : [])
+            ...(opts.incluirADN ? [{ content: p.elegivelADN ? `${p.totalADN?.toFixed(opts.adnDecimals ?? 1)}h` : "—", styles: { halign: "center" as const, fontStyle: "bold" as const, fontSize: 8, fillColor: [238, 242, 255] as [number, number, number] } }] : [])
           ]);
           profsInBody.push(p);
         }
