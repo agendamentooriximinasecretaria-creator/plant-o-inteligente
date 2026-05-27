@@ -307,6 +307,18 @@ export function AdnSettingsManager() {
                 </Select>
               </div>
 
+              {(config.calculation_type === 'fixed_per_shift' || config.calculation_type === 'fixed_total') && (
+                <div className="space-y-2">
+                  <Label>Valor do Adicional (R$)</Label>
+                  <Input 
+                    type="number" 
+                    value={config.fixed_value} 
+                    onChange={e => setConfig(prev => ({ ...prev, fixed_value: parseFloat(e.target.value) || 0 }))}
+                    placeholder="Ex: 50.00"
+                  />
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Formato de Exibição</Label>
