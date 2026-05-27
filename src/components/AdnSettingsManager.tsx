@@ -377,7 +377,60 @@ export function AdnSettingsManager() {
                             {cargo}
                           </Badge>
                         ))}
-                        {cargos.length === 0 && <span className="text-xs text-muted-foreground italic">Nenhum cargo encontrado no sistema.</span>}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center gap-2">
+                    <Checkbox 
+                      id="elig_prof" 
+                      checked={config.eligibility.by_profession} 
+                      onCheckedChange={(v) => setConfig(prev => ({ ...prev, eligibility: { ...prev.eligibility, by_profession: !!v } }))} 
+                    />
+                    <Label htmlFor="elig_prof" className="text-sm cursor-pointer font-semibold text-foreground">Por Profissão</Label>
+                  </div>
+                  {config.eligibility.by_profession && (
+                    <div className="bg-muted/40 p-3 rounded-lg border border-border/50 space-y-3">
+                      <div className="flex flex-wrap gap-2">
+                        {professions.map(prof => (
+                          <Badge 
+                            key={prof} 
+                            variant={config.eligibility.professions.includes(prof) ? "default" : "outline"}
+                            className="cursor-pointer transition-colors"
+                            onClick={() => toggleProfession(prof)}
+                          >
+                            {prof}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center gap-2">
+                    <Checkbox 
+                      id="elig_sector" 
+                      checked={config.eligibility.by_sector} 
+                      onCheckedChange={(v) => setConfig(prev => ({ ...prev, eligibility: { ...prev.eligibility, by_sector: !!v } }))} 
+                    />
+                    <Label htmlFor="elig_sector" className="text-sm cursor-pointer font-semibold text-foreground">Por Setor</Label>
+                  </div>
+                  {config.eligibility.by_sector && (
+                    <div className="bg-muted/40 p-3 rounded-lg border border-border/50 space-y-3">
+                      <div className="flex flex-wrap gap-2">
+                        {sectors.map(sector => (
+                          <Badge 
+                            key={sector} 
+                            variant={config.eligibility.sectors.includes(sector) ? "default" : "outline"}
+                            className="cursor-pointer transition-colors"
+                            onClick={() => toggleSector(sector)}
+                          >
+                            {sector}
+                          </Badge>
+                        ))}
                       </div>
                     </div>
                   )}
