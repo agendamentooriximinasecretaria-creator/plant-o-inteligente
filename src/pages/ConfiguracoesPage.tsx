@@ -192,6 +192,11 @@ export default function ConfiguracoesPage() {
           <CarimbosAssinaturasManager />
         </motion.div>
 
+        {/* Adicional Noturno (ADN) */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.048 }} className={sectionClass}>
+          <AdnSettingsManager />
+        </motion.div>
+
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className={sectionClass}>
           <div className="flex items-start gap-3 mb-4"><div className="p-2 rounded-lg bg-primary/10"><Shield className="h-5 w-5 text-primary" /></div><div><h3 className="font-display font-semibold text-foreground">Regras de Conflito e Exibição</h3><p className="text-sm text-muted-foreground">Limites, validações e preferências de visualização</p></div></div>
