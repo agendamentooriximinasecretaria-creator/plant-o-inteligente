@@ -1344,7 +1344,15 @@ export default function EscalaPage() {
               if (adnHoras > 0) row.totalADN += (adnConfig.fixed_value || 0);
             }
           }
+    }
+
+    if (adnConfig?.calculation_type === 'fixed_total') {
+      for (const row of map.values()) {
+        if (row.elegivelADN && row.totalPlantoes > 0) {
+          row.totalADN = adnConfig.fixed_value || 0;
         }
+      }
+    }
 
 
 
