@@ -1428,6 +1428,8 @@ export default function EscalaPage() {
       incluirAssinatura: printForm.incluirAssinatura,
       incluirTotalHoras: !isProfessional && showTotalSetting && printForm.incluirTotalHoras,
       incluirADN: showADNSetting && printForm.incluirADN,
+      adnLabel: adnConfig?.label,
+      adnDecimals: adnConfig?.display?.decimals,
       incluirObservacoesRodape: printForm.incluirObservacoesRodape,
       totalLabel: printForm.totalLabel,
       responsavel: responsavel || {
