@@ -327,7 +327,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
               )}
               {showADN && (
                 <th className="text-center font-bold text-indigo-900 dark:text-indigo-100 p-4 border-b-2 border-indigo-400 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950 sticky right-0 z-40 w-[80px] shadow-[-2px_0_4px_rgba(0,0,0,0.1)] text-sm border-l-2 border-l-indigo-400 print:table-cell" title="Adicional Noturno">
-                  ADN
+                  {adnConfig?.label || "ADN"}
                 </th>
               )}
             </tr>
