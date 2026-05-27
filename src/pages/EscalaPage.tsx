@@ -2406,7 +2406,8 @@ export default function EscalaPage() {
             tipos={TIPOS_PLANTAO}
             initialMonth={filtros.dataIni ? filtros.dataIni.slice(0, 7) : undefined}
             showTotalHours={!isProfessional && settings.exibir_total_escala_consolidada !== false}
-            showADN={settings.exibir_adn_escala_consolidada !== false}
+            showADN={showADNSetting}
+            adnConfig={adnConfig}
             onCellClick={(dateStr, cellShifts) => {
               if (cellShifts.length > 0) {
                 // Se houver plantões, abre o detalhe do primeiro (padrão do sistema para simplificar)
