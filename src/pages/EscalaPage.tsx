@@ -230,6 +230,7 @@ export default function EscalaPage() {
   });
 
   const adnConfig = settings.adn_config as unknown as AdnConfig | undefined;
+  const showADNSetting = adnConfig ? (adnConfig.enabled && adnConfig.display.monthly_scale) : (settings.exibir_adn_escala_consolidada !== false);
 
   // -- States --
   const [view, setView] = useState<'lista' | 'calendario' | 'grade' | 'consolidada'>('lista');
