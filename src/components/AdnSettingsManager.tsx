@@ -75,7 +75,7 @@ export function AdnSettingsManager() {
     queryKey: ['system-settings', 'adn_config'],
     queryFn: async () => {
       const { data } = await supabase.from('system_settings').select('value').eq('key', 'adn_config').maybeSingle();
-      return (data?.value as AdnConfig) || DEFAULT_CONFIG;
+      return (data?.value as unknown as AdnConfig) || DEFAULT_CONFIG;
     },
   });
 
