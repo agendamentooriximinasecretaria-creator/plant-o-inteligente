@@ -224,7 +224,7 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
               <td class="nome">${escapeHtml(p.nome)}${conselho}</td>
               ${cells}
               ${opts.incluirTotalHoras ? `<td class="total">${escapeHtml(total)}</td>` : ""}
-              ${opts.incluirADN ? `<td class="total" style="background-color: #eef2ff; border-left: 1px solid #ccc;">${p.elegivelADN ? `${p.totalADN}h` : "—"}</td>` : ""}
+              ${opts.incluirADN ? `<td class="total" style="background-color: #eef2ff; border-left: 1px solid #ccc;">${p.elegivelADN ? `${p.totalADN?.toFixed(opts.adnDecimals ?? 1)}h` : "—"}</td>` : ""}
             </tr>`;
           }
         }
