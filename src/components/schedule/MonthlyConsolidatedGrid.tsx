@@ -201,13 +201,21 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
           const generatesADN = !adnConfig?.shift_types?.length || (shiftName && adnConfig.shift_types.includes(shiftName));
           
           if (generatesADN) {
-            const adnHoras = calculateAdicionalNoturno(
-              s.hora_inicio, 
-              s.hora_fim, 
-              adnConfig?.start_time || "23:00", 
-              adnConfig?.end_time || "07:00"
-            );
-            row.adn += adnHoras;
+            if (!adnConfig || adnConfig.calculation_type === 'hours') {
+              const adnHoras = calculateAdicionalNoturno(
+                s.hora_inicio, 
+                s.hora_fim, 
+                adnConfig?.start_time || "23:00", 
+                adnConfig?.end_time || "07:00"
+              );
+              row.adn += adnHoras;
+            } else if (adnConfig.calculation_type === 'shifts') {
+              const adnHoras = calculateAdicionalNoturno(s.hora_inicio, s.hora_fim, adnConfig.start_time, adnConfig.end_time);
+              if (adnHoras > 0) row.adn += 1;
+            } else if (adnConfig.calculation_type === 'fixed_per_shift') {
+              const adnHoras = calculateAdicionalNoturno(s.hora_inicio, s.hora_fim, adnConfig.start_time, adnConfig.end_time);
+              if (adnHoras > 0) row.adn += (adnConfig.fixed_value || 0);
+            }
           }
         }
 
