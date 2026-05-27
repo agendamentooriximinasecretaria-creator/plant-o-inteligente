@@ -88,6 +88,24 @@ export function AdnSettingsManager() {
     }
   });
 
+  const { data: professions = [] } = useQuery({
+    queryKey: ['professionals-professions'],
+    queryFn: async () => {
+      const { data } = await supabase.from('professionals').select('profissao').not('profissao', 'is', null);
+      const unique = Array.from(new Set(data?.map(p => p.profissao).filter(Boolean) as string[]));
+      return unique.sort();
+    }
+  });
+
+  const { data: sectors = [] } = useQuery({
+    queryKey: ['sectors-list'],
+    queryFn: async () => {
+      const { data } = await supabase.from('sectors').select('nome').eq('unidade_id', (await supabase.from('units').select('id').limit(1).single()).data?.id || '');
+      const unique = Array.from(new Set(data?.map(s => s.nome).filter(Boolean) as string[]));
+      return unique.sort();
+    }
+  });
+
   const { data: shiftTypes = [] } = useQuery({
     queryKey: ['shift_types'],
     queryFn: async () => {
