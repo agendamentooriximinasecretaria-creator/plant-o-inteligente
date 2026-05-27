@@ -9,6 +9,7 @@ import { ShiftTypesManager } from "@/components/ShiftTypesManager";
 import DocumentTemplatesManager from "@/components/document-templates/DocumentTemplatesManager";
 import SwapAttachmentSettingsManager from "@/components/SwapAttachmentSettingsManager";
 import CarimbosAssinaturasManager from "@/components/CarimbosAssinaturasManager";
+import { AdnSettingsManager } from "@/components/AdnSettingsManager";
 
 // Strip credentials/secrets before logging settings to audit trail.
 function sanitizeSettingForAudit(key: string, value: any): any {
