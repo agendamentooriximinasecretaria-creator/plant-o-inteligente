@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import ComprovanteTroca from "@/components/ComprovanteTroca";
 import SignActionButton from "@/components/SignActionButton";
 import SwapAttachmentsSection from "@/components/SwapAttachmentsSection";
-import { useSwapAttachmentSettings, motivoEhSaude } from "@/lib/swapAttachmentSettings";
+import { useSwapAttachmentSettings, motivoEhSaude, getSwapAttachmentSettings } from "@/lib/swapAttachmentSettings";
 import { printSolicitacaoTroca } from "@/lib/printSolicitacaoTroca";
 import { calcularHorasMes } from "@/lib/horas";
 import { MoreActionsMenu } from "@/components/MoreActionsMenu";
@@ -369,24 +369,32 @@ export default function TrocasPage() {
       }
 
       // Validações de anexos ao aprovar
-      if (status === 'aprovada' && attachSettings) {
+      const currentAttachSettings = await getSwapAttachmentSettings();
+      if (status === 'aprovada' && currentAttachSettings) {
         const ctx = swaps.find((s: any) => s.id === id);
         const motivoTroca = ctx?.motivo || '';
         const ehSaude = motivoEhSaude(motivoTroca);
-        const obrigatorio = attachSettings.permitir_anexos && (
-          attachSettings.obrigatorio || (attachSettings.obrigatorio_apenas_saude && ehSaude)
+        const obrigatorio = currentAttachSettings.permitir_anexos && (
+          currentAttachSettings.obrigatorio || (currentAttachSettings.obrigatorio_apenas_saude && ehSaude)
         );
-        if (obrigatorio || attachSettings.bloquear_aprovacao_sem_anexo || attachSettings.exigir_analise_coordenador) {
+        
+        // Só bloqueamos por falta de anexo se ele for obrigatório para esta troca específica
+        // OU se o gestor configurou para exigir anexo em TODAS as aprovações (bloquear_aprovacao_sem_anexo)
+        // No entanto, o usuário relatou que quer que o Master possa aprovar se tirou a obrigatoriedade.
+        const deveValidarExistencia = currentAttachSettings.bloquear_aprovacao_sem_anexo && obrigatorio;
+
+        if (deveValidarExistencia || currentAttachSettings.exigir_analise_coordenador) {
           const { data: anexos } = await (supabase as any)
             .from('swap_attachments')
             .select('id, status, analisado_em')
             .eq('troca_id', id)
             .neq('status', 'removido');
           const ativos = (anexos || []).filter((a: any) => a.status === 'ativo');
-          if ((obrigatorio || attachSettings.bloquear_aprovacao_sem_anexo) && ativos.length === 0) {
-            throw new Error('É obrigatório anexar documento justificativo antes da aprovação desta troca.');
+          
+          if (deveValidarExistencia && ativos.length === 0) {
+            throw new Error('É obrigatório anexar documento justificativo antes da aprovação desta troca (conforme regras de obrigatoriedade ativas).');
           }
-          if (attachSettings.exigir_analise_coordenador && ativos.some((a: any) => !a.analisado_em)) {
+          if (currentAttachSettings.exigir_analise_coordenador && ativos.some((a: any) => !a.analisado_em)) {
             throw new Error('Existem anexos pendentes de análise do coordenador. Marque-os como analisados antes de aprovar.');
           }
         }
