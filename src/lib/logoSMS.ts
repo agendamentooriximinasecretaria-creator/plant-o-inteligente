@@ -1,32 +1,26 @@
-// Logo oficial SMS Oriximiná - usada em todas as impressões e PDFs do sistema.
-// Mantida em formato redondo (círculo padrão) com proporção 1:1.
+export const LOGO_ORIXIMINA_PATH = "https://lovable-project-assets.s3.amazonaws.com/495f80d9-ad05-4b0f-900f-0e9ef4f4f9ea.jpg";
+export const LOGO_SMS_PATH = "https://lovable-project-assets.s3.amazonaws.com/175885bb-96b7-466d-ae6c-4089325129eb.png";
 
-export const LOGO_SMS_PATH = "/logo-sms-oriximina.jpg";
-
-let _cachedDataUrl: string | null = null;
-
-/** Converte a logo em DataURL (necessário para embutir em jsPDF). Cacheia em memória. */
 export async function getLogoSmsDataUrl(): Promise<string | null> {
-  if (_cachedDataUrl) return _cachedDataUrl;
-  try {
-    const res = await fetch(LOGO_SMS_PATH);
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    return await new Promise<string | null>((resolve) => {
-      const r = new FileReader();
-      r.onloadend = () => {
-        _cachedDataUrl = (r.result as string) || null;
-        resolve(_cachedDataUrl);
-      };
-      r.onerror = () => resolve(null);
-      r.readAsDataURL(blob);
-    });
-  } catch {
-    return null;
-  }
+  return await fetchAsDataUrl(LOGO_SMS_PATH);
 }
 
-/** Marca HTML <img> da logo no formato redondo padrão para impressões em janela. */
-export function logoSmsImgHtml(sizePx = 64): string {
-  return `<img src="${LOGO_SMS_PATH}" alt="SMS Oriximiná" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block;border:1px solid #e5e7eb;background:#fff" />`;
+export async function getLogoOriximinaDataUrl(): Promise<string | null> {
+  return await fetchAsDataUrl(LOGO_ORIXIMINA_PATH);
+}
+
+async function fetchAsDataUrl(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch (e) {
+    console.error("Erro ao converter logo para DataURL", e);
+    return null;
+  }
 }
