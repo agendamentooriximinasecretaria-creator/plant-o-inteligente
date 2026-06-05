@@ -9,7 +9,7 @@
 
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { getLogoSmsDataUrl, logoSmsImgHtml } from "./logoSMS";
+import { getLogoSmsDataUrl, getLogoOriximinaDataUrl, logoSmsImgHtml } from "./logoSMS";
 import type { StampData } from "./pdfStampUtils";
 import { DOCUMENT_CSS_BASE } from "./documentStyle";
 import { buildHeaderHtml, buildSignatureHtml, buildFooterHtml } from "./documentTemplates";
@@ -394,9 +394,17 @@ export async function gerarPdfEscalaMensalOficial(
   let y = margin;
   if (opts.incluirLogo) {
     try {
-      const logo = await getLogoSmsDataUrl();
-      if (logo) {
-        doc.addImage(logo, "JPEG", margin, y - 2, 14, 14);
+      const [logoSms, logoOriximina] = await Promise.all([
+        getLogoSmsDataUrl(),
+        getLogoOriximinaDataUrl()
+      ]);
+      
+      if (logoSms) {
+        doc.addImage(logoSms, "PNG", margin, y - 2, 14, 14);
+      }
+      
+      if (logoOriximina) {
+        doc.addImage(logoOriximina, "JPEG", pageW - margin - 14, y - 2, 14, 14);
       }
     } catch { /* ignora */ }
   }

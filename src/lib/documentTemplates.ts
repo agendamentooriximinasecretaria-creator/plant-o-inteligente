@@ -1,4 +1,4 @@
-import { LOGO_SMS_PATH } from "./logoSMS";
+import { LOGO_SMS_PATH, LOGO_ORIXIMINA_PATH } from "./logoSMS";
 import { DOCUMENT_CSS_BASE } from "./documentStyle";
 
 export function buildHeaderHtml(params: {
@@ -15,15 +15,17 @@ export function buildHeaderHtml(params: {
   
   return `
     <div class="header-institucional">
-      <img src="${LOGO_SMS_PATH}" alt="SMS Oriximiná" />
+      <img src="${LOGO_SMS_PATH}" class="logo-round" alt="SMS Oriximiná" />
       <div class="titles">
         <h1>SECRETARIA MUNICIPAL DE SAÚDE — ORIXIMINÁ</h1>
         <h2>Hospital Municipal de Oriximiná · CNPJ 05.131.081/0001-82</h2>
         <h2>GestorPlantão · Sistema de Gestão de Escalas</h2>
       </div>
+      <img src="${LOGO_ORIXIMINA_PATH}" alt="Prefeitura de Oriximiná" />
     </div>
     
     <div class="doc-title">${title}</div>
+
     
     <div class="doc-info">
       <div>

@@ -9,6 +9,11 @@ export async function getLogoOriximinaDataUrl(): Promise<string | null> {
   return await fetchAsDataUrl(LOGO_ORIXIMINA_PATH);
 }
 
+/** Marca HTML <img> da logo no formato redondo padrão para impressões em janela. */
+export function logoSmsImgHtml(sizePx = 64): string {
+  return `<img src="${LOGO_SMS_PATH}" alt="SMS Oriximiná" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block;border:1px solid #e5e7eb;background:#fff" />`;
+}
+
 async function fetchAsDataUrl(url: string): Promise<string | null> {
   try {
     const response = await fetch(url);
@@ -24,3 +29,4 @@ async function fetchAsDataUrl(url: string): Promise<string | null> {
     return null;
   }
 }
+
