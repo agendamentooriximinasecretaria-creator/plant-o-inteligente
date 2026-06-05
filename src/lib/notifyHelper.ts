@@ -14,6 +14,7 @@ interface NotifyParams {
  */
 export async function dispatchNotification({ professionalId, userId, tipo, titulo, mensagem }: NotifyParams) {
   try {
+    // 1. Internal notification
     await supabase.from("notifications").insert({
       professional_id: professionalId || null,
       user_id: userId || null,
@@ -24,8 +25,18 @@ export async function dispatchNotification({ professionalId, userId, tipo, titul
       canal: "sistema",
       status_envio: "enviado",
     });
-  } catch {
-    // silent — notifications are non-critical
+
+    // 2. Email notification (Automatic trigger via Edge Function)
+    // We call the edge function for all notifications to ensure SMTP dispatch if configured
+    await supabase.functions.invoke("enviar-notificacao", {
+      body: { 
+        tipo, 
+        destinatarios: [{ professional_id: professionalId, user_id: userId }],
+        variaveis: { titulo, mensagem } 
+      },
+    });
+  } catch (err) {
+    console.error("Erro ao despachar notificação:", err);
   }
 }
 
