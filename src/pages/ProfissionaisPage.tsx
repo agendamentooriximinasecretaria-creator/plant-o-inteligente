@@ -6,7 +6,7 @@ import { logAudit } from "@/lib/auditLog";
 import {
   Search, Plus, User2, Edit, Calendar as CalIcon, X, MoreHorizontal,
   Printer, MessageSquare, FileCheck2, History, AlertTriangle, Filter,
-  Upload, Download, Trash2, BadgeCheck, Mail,
+  Upload, Download, Trash2, BadgeCheck, Mail, ArrowLeftRight,
 } from "lucide-react";
 import { MoreActionsMenu } from "@/components/MoreActionsMenu";
 import { ContactActionButton } from "@/components/ContactActionButton";
@@ -21,6 +21,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Briefcase, User, MapPin, FileText, Settings, ShieldCheck, Info } from "lucide-react";
 import { calcularHorasPorProfissional, calcularCargaPercentual, CLT_LIMITE_MENSAL } from "@/lib/horas";
 import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
