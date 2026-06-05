@@ -208,47 +208,36 @@ export async function gerarPdfEscala(
     getLogoOriximinaDataUrl()
   ]);
   
-  const logoSize = 18; // mm
+  const logoSize = 12; // Menor
+  const yStart = 14;
   
   if (logoSms) {
     try {
-      doc.addImage(logoSms, "PNG", 14, 14 - 4, logoSize, logoSize);
-      doc.setDrawColor(14, 116, 144);
-      doc.setLineWidth(0.4);
-      doc.circle(14 + logoSize / 2, 14 + logoSize / 2 - 4, logoSize / 2, "S");
+      doc.addImage(logoSms, "PNG", 14, yStart - 4, logoSize, logoSize);
     } catch { /* ignora */ }
   }
 
   if (logoOriximina) {
     try {
-      doc.addImage(logoOriximina, "JPEG", pageW - 14 - logoSize, 14 - 4, logoSize, logoSize);
+      doc.addImage(logoOriximina, "JPEG", pageW - 14 - logoSize, yStart - 4, logoSize, logoSize);
     } catch { /* ignora */ }
   }
 
-  const headerLeft = 14 + logoSize + 4;
-
-  // Cabeçalho
+  // Títulos centralizados
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
+  doc.setFontSize(10);
   doc.setTextColor(14, 116, 144);
-  doc.text(cab.instituicao.nome || "Instituição", headerLeft, 14);
+  doc.text("SECRETARIA MUNICIPAL DE SAÚDE — ORIXIMINÁ", pageW / 2, yStart - 2, { align: "center" });
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
+  doc.setFontSize(7.5);
   doc.setTextColor(60, 60, 60);
-  let metaY = 19;
-  const metaParts: string[] = [];
-  if (cab.instituicao.cnpj) metaParts.push(`CNPJ: ${cab.instituicao.cnpj}`);
-  if (cab.instituicao.endereco) metaParts.push(cab.instituicao.endereco);
-  if (metaParts.length) {
-    doc.text(metaParts.join("  •  "), headerLeft, metaY);
-    metaY += 5;
-  }
+  doc.text("Hospital Municipal de Oriximiná · CNPJ 05.131.081/0001-82", pageW / 2, yStart + 2, { align: "center" });
+  doc.text("GestorPlantão · Sistema de Gestão de Escalas", pageW / 2, yStart + 5, { align: "center" });
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(17, 24, 39);
-  doc.text("Escala de Plantões", headerLeft, metaY + 2);
+  doc.text("Escala de Plantões", pageW / 2, yStart + 11, { align: "center" });
 
   const infoParts: string[] = [];
   if (cab.unidade) infoParts.push(`Unidade: ${cab.unidade}`);
@@ -256,14 +245,15 @@ export async function gerarPdfEscala(
   infoParts.push(`Período: ${cab.periodoLabel}`);
   infoParts.push(`Emissão: ${new Date().toLocaleString("pt-BR")}`);
   if (cab.emitidoPor) infoParts.push(`Emitido por: ${cab.emitidoPor}`);
+  
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
+  doc.setFontSize(8);
   doc.setTextColor(60, 60, 60);
   const infoText = infoParts.join("  •  ");
-  const wrapped = doc.splitTextToSize(infoText, pageW - 28);
-  doc.text(wrapped, 14, metaY + 7);
+  doc.text(infoText, pageW / 2, yStart + 16, { align: "center" });
 
-  const startY = metaY + 7 + wrapped.length * 4 + 2;
+  const startY = yStart + 20;
+
 
   const headers = [
     "Profissional",

@@ -386,12 +386,9 @@ export async function gerarPdfEscalaMensalOficial(
   const pageH = doc.internal.pageSize.getHeight();
   const totalDias = diasDoMes(cab.ano, cab.mes);
   const totalLabel = opts.totalLabel || "TOTAL";
-
-  // Margens: 10mm em todos os lados para aproveitar o máximo do espaço
   const margin = 10;
-
-  // ===== Cabeçalho =====
   let y = margin;
+
   if (opts.incluirLogo) {
     try {
       const [logoSms, logoOriximina] = await Promise.all([
@@ -399,41 +396,35 @@ export async function gerarPdfEscalaMensalOficial(
         getLogoOriximinaDataUrl()
       ]);
       
+      const logoSize = 12; // Menor no PDF
       if (logoSms) {
-        doc.addImage(logoSms, "PNG", margin, y - 2, 14, 14);
+        doc.addImage(logoSms, "PNG", margin, y - 2, logoSize, logoSize);
       }
       
       if (logoOriximina) {
-        doc.addImage(logoOriximina, "JPEG", pageW - margin - 14, y - 2, 14, 14);
+        doc.addImage(logoOriximina, "JPEG", pageW - margin - logoSize, y - 2, logoSize, logoSize);
       }
     } catch { /* ignora */ }
   }
 
   doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(14, 116, 144);
+  doc.text("SECRETARIA MUNICIPAL DE SAÚDE — ORIXIMINÁ", pageW / 2, y + 2, { align: "center" });
+  
+  doc.setFontSize(7.5);
+  doc.setTextColor(60, 60, 60);
+  doc.text("Hospital Municipal de Oriximiná · CNPJ 05.131.081/0001-82", pageW / 2, y + 6, { align: "center" });
+  doc.text("GestorPlantão · Sistema de Gestão de Escalas", pageW / 2, y + 9, { align: "center" });
+  
+  y += 13;
+  
   doc.setFontSize(10);
   doc.setTextColor(0);
-  const headerTextX = opts.incluirLogo ? margin + 18 : margin;
-  
-  if (cab.instituicao.prefeitura) {
-    doc.text(cab.instituicao.prefeitura.toUpperCase(), headerTextX, y);
-    y += 4;
-  }
-  doc.setFontSize(9);
-  if (cab.instituicao.secretaria) {
-    doc.text(cab.instituicao.secretaria.toUpperCase(), headerTextX, y);
-    y += 4;
-  }
-  if (cab.instituicao.unidade) {
-    doc.text(cab.instituicao.unidade.toUpperCase(), headerTextX, y);
-    y += 4;
-  }
-  
-  // Título: "Escala Mensal Consolidada — [Mês/Ano]"
-  y = Math.max(y, margin + 12);
-  doc.setFontSize(11);
   const mesLabel = DIAS_PT_FULL[cab.mes - 1];
-  doc.text(`Escala Mensal Consolidada — ${mesLabel} / ${cab.ano}`, margin, y);
+  doc.text(`ESCALA MENSAL DE SERVIÇO — ${mesLabel} / ${cab.ano}`, pageW / 2, y, { align: "center" });
   y += 5;
+
 
   // Linha com: Unidade • Setor • Período • Emissão • Emitido por
   doc.setFont("helvetica", "normal");
