@@ -685,12 +685,32 @@ export default function ProfissionaisPage() {
                     )}
 
                     {p.status === 'ativo' && (
-                      <div className="mt-2">
-                        <div className="flex items-center justify-between mb-0.5">
-                          <span className="text-[10px] text-muted-foreground">Horas no mês</span>
-                          <span className={`text-[10px] font-semibold ${horasColor}`}>{horasMes.toFixed(0)}h / {LIMITE_HORAS_MENSAL}h</span>
+                      <div className="mt-3 space-y-2">
+                        <div>
+                          <div className="flex items-center justify-between mb-0.5">
+                            <span className="text-[10px] text-muted-foreground">Horas no mês</span>
+                            <span className={`text-[10px] font-semibold ${horasColor}`}>{horasMes.toFixed(0)}h / {LIMITE_HORAS_MENSAL}h</span>
+                          </div>
+                          <Progress value={percentHoras} className="h-1.5" />
                         </div>
-                        <Progress value={percentHoras} className="h-1.5" />
+
+                        {/* Informação de Limite de Trocas */}
+                        <div>
+                          <div className="flex items-center justify-between mb-0.5">
+                            <span className="text-[10px] text-muted-foreground">Trocas no mês</span>
+                            {(() => {
+                              const limite = p.limite_trocas_plantao_mes ?? (systemSettings.usage_rules as any)?.limite_trocas_plantao_default ?? 3;
+                              const usadas = swapsPorProfissional[p.id] || 0;
+                              const restantes = Math.max(0, limite - usadas);
+                              const swapColor = restantes === 0 ? 'text-destructive' : restantes === 1 ? 'text-warning' : 'text-success';
+                              return (
+                                <span className={`text-[10px] font-semibold ${swapColor}`}>
+                                  {usadas}/{limite} (Restam {restantes})
+                                </span>
+                              );
+                            })()}
+                          </div>
+                        </div>
                       </div>
                     )}
 
