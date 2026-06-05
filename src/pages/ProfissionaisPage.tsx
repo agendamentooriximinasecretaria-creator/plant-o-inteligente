@@ -700,22 +700,44 @@ export default function ProfissionaisPage() {
                           <Progress value={percentHoras} className="h-1.5" />
                         </div>
 
-                        {/* Informação de Limite de Trocas */}
-                        <div>
-                          <div className="flex items-center justify-between mb-0.5">
-                            <span className="text-[10px] text-muted-foreground">Trocas no mês</span>
-                            {(() => {
-                              const limite = p.limite_trocas_plantao_mes ?? (systemSettings.usage_rules as any)?.limite_trocas_plantao_default ?? 3;
-                              const usadas = swapsPorProfissional[p.id] || 0;
-                              const restantes = Math.max(0, limite - usadas);
-                              const swapColor = restantes === 0 ? 'text-destructive' : restantes === 1 ? 'text-warning' : 'text-success';
-                              return (
-                                <span className={`text-[10px] font-semibold ${swapColor}`}>
-                                  {usadas}/{limite} (Restam {restantes})
-                                </span>
-                              );
-                            })()}
-                          </div>
+                        {/* Informação de Saldo de Trocas */}
+                        <div className="pt-1">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex items-center justify-between cursor-help group">
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="p-1 rounded-md bg-muted/50 text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                                      <ArrowLeftRight className="h-3 w-3" />
+                                    </div>
+                                    <span className="text-[10px] font-medium text-muted-foreground">Saldo de trocas</span>
+                                  </div>
+                                  {(() => {
+                                    const limite = p.limite_trocas_plantao_mes ?? (systemSettings.usage_rules as any)?.limite_trocas_plantao_default ?? 3;
+                                    const usadas = swapsPorProfissional[p.id] || 0;
+                                    const restantes = Math.max(0, limite - usadas);
+                                    
+                                    const badgeStyles = restantes === 0 
+                                      ? 'bg-destructive/10 text-destructive border-destructive/20' 
+                                      : restantes === 1 
+                                      ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                                      : 'bg-emerald-50 text-emerald-700 border-emerald-200';
+
+                                    return (
+                                      <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-bold ${badgeStyles}`}>
+                                        <span>Restam {restantes} de {limite}</span>
+                                        <span className="opacity-40 font-normal">|</span>
+                                        <span className="opacity-70 font-medium">Usadas: {usadas}</span>
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" className="max-w-[200px] text-[11px]">
+                                <p>Quantidade de trocas ainda disponíveis para este profissional no mês atual.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
                       </div>
                     )}
