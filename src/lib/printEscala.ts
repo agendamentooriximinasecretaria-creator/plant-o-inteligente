@@ -225,14 +225,15 @@ export async function gerarPdfEscala(
 
   // Títulos centralizados
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.setTextColor(14, 116, 144);
   doc.text("SECRETARIA MUNICIPAL DE SAÚDE — ORIXIMINÁ", pageW / 2, yStart - 2, { align: "center" });
 
-  doc.setFontSize(7.5);
+  doc.setFontSize(7);
   doc.setTextColor(60, 60, 60);
-  doc.text("Hospital Municipal de Oriximiná · CNPJ 05.131.081/0001-82", pageW / 2, yStart + 2, { align: "center" });
-  doc.text("GestorPlantão · Sistema de Gestão de Escalas", pageW / 2, yStart + 5, { align: "center" });
+  doc.text("Hospital Municipal de Oriximiná · CNPJ 05.131.081/0001-82", pageW / 2, yStart + 1, { align: "center" });
+  doc.text("GestorPlantão · Sistema de Gestão de Escalas", pageW / 2, yStart + 4, { align: "center" });
+
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);

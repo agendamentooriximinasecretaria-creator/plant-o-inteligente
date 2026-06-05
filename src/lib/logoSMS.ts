@@ -1,5 +1,5 @@
-export const LOGO_ORIXIMINA_PATH = "https://lovable-project-assets.s3.amazonaws.com/495f80d9-ad05-4b0f-900f-0e9ef4f4f9ea.jpg";
-export const LOGO_SMS_PATH = "https://lovable-project-assets.s3.amazonaws.com/175885bb-96b7-466d-ae6c-4089325129eb.png";
+export const LOGO_ORIXIMINA_PATH = "/logo-prefeitura.jpg";
+export const LOGO_SMS_PATH = "/logo-sms-oriximina.jpg";
 
 /** Converte a logo em DataURL (necessário para embutir em jsPDF). */
 export async function getLogoSmsDataUrl(): Promise<string | null> {
@@ -11,13 +11,16 @@ export async function getLogoOriximinaDataUrl(): Promise<string | null> {
 }
 
 /** Marca HTML <img> da logo no formato redondo padrão para impressões em janela. */
-export function logoSmsImgHtml(sizePx = 55): string {
+export function logoSmsImgHtml(sizePx = 45): string {
   return `<img src="${LOGO_SMS_PATH}" alt="SMS Oriximiná" style="width:${sizePx}px;height:${sizePx}px;border-radius:50%;object-fit:cover;display:block;border:1px solid #e5e7eb;background:#fff" />`;
 }
 
 async function fetchAsDataUrl(url: string): Promise<string | null> {
   try {
-    const response = await fetch(url, { mode: 'cors' });
+    // Para caminhos locais (que começam com /), usamos fetch direto
+    // Para URLs externas, usamos mode: 'cors'
+    const finalUrl = url.startsWith('/') ? window.location.origin + url : url;
+    const response = await fetch(finalUrl);
     if (!response.ok) return null;
     const blob = await response.blob();
     return new Promise((resolve) => {
@@ -31,5 +34,3 @@ async function fetchAsDataUrl(url: string): Promise<string | null> {
     return null;
   }
 }
-
-

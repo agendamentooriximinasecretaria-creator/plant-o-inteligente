@@ -8,17 +8,18 @@ export const DOCUMENT_CSS_BASE = `
   body { font-family: 'Arial', sans-serif; color: #1a1a1a; margin: 0; padding: 0; font-size: 11pt; line-height: 1.5; }
   
   .header-institucional { 
-    display: flex; align-items: center; justify-content: space-between; gap: 15px; 
-    border-bottom: 2px solid #0e7490; padding-bottom: 8px; margin-bottom: 12px; 
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; 
+    border-bottom: 2px solid #0e7490; padding-bottom: 5px; margin-bottom: 8px; 
   }
-  .header-institucional img { width: 55px; height: 55px; object-fit: contain; flex-shrink: 0; }
+  .header-institucional img { width: 45px; height: 45px; object-fit: contain; flex-shrink: 0; }
   .header-institucional img.logo-round { border-radius: 50%; object-fit: cover; }
   .header-institucional .titles { flex: 1; text-align: center; }
-  .header-institucional .titles h1 { font-size: 11pt; margin: 0; text-transform: uppercase; color: #0e7490; font-weight: 800; line-height: 1.2; }
-  .header-institucional .titles h2 { font-size: 8pt; margin: 1px 0; color: #444; font-weight: 500; line-height: 1.2; }
+  .header-institucional .titles h1 { font-size: 10pt; margin: 0; text-transform: uppercase; color: #0e7490; font-weight: 800; line-height: 1.1; }
+  .header-institucional .titles h2 { font-size: 7.5pt; margin: 0; color: #444; font-weight: 500; line-height: 1.1; }
   
-  .doc-title { text-align: center; font-size: 12pt; font-weight: 800; text-transform: uppercase; margin: 12px 0 8px; }
-  .doc-info { display: flex; justify-content: space-between; font-size: 9pt; color: #333; margin-bottom: 12px; border-bottom: 1px solid #ddd; padding-bottom: 6px; }
+  .doc-title { text-align: center; font-size: 11pt; font-weight: 800; text-transform: uppercase; margin: 8px 0 4px; }
+  .doc-info { display: flex; justify-content: space-between; font-size: 8.5pt; color: #333; margin-bottom: 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+
   
   table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 10pt; }
   th { background: #f8fafc; color: #333; font-weight: 700; text-align: left; padding: 10px; border: 1px solid #ccc; }

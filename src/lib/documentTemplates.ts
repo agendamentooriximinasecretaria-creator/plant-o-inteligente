@@ -15,14 +15,15 @@ export function buildHeaderHtml(params: {
   
   return `
     <div class="header-institucional">
-      <img src="${LOGO_SMS_PATH}" class="logo-round" alt="SMS Oriximiná" />
+      <img src="${LOGO_SMS_PATH}" class="logo-round" alt="SMS" />
       <div class="titles">
         <h1>SECRETARIA MUNICIPAL DE SAÚDE — ORIXIMINÁ</h1>
         <h2>Hospital Municipal de Oriximiná · CNPJ 05.131.081/0001-82</h2>
         <h2>GestorPlantão · Sistema de Gestão de Escalas</h2>
       </div>
-      <img src="${LOGO_ORIXIMINA_PATH}" alt="Prefeitura de Oriximiná" />
+      <img src="${LOGO_ORIXIMINA_PATH}" alt="Prefeitura" />
     </div>
+
     
     <div class="doc-title">${title}</div>
 
