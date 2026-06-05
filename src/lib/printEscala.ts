@@ -4,7 +4,7 @@
 
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { getLogoSmsDataUrl, logoSmsImgHtml } from "./logoSMS";
+import { getLogoSmsDataUrl, getLogoOriximinaDataUrl, logoSmsImgHtml } from "./logoSMS";
 import type { ResolvedSignature as StampData } from "./signatureResolution";
 import { DOCUMENT_CSS_BASE } from "./documentStyle";
 import { buildHeaderHtml, buildSignatureHtml, buildFooterHtml } from "./documentTemplates";
@@ -202,21 +202,30 @@ export async function gerarPdfEscala(
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
 
-  // Logo redonda no canto superior esquerdo
-  const logo = await getLogoSmsDataUrl();
+  // Logos no cabeçalho
+  const [logoSms, logoOriximina] = await Promise.all([
+    getLogoSmsDataUrl(),
+    getLogoOriximinaDataUrl()
+  ]);
+  
   const logoSize = 18; // mm
-  const headerLeft = logo ? 14 + logoSize + 4 : 14;
-  if (logo) {
+  
+  if (logoSms) {
     try {
-      // Desenha círculo branco de fundo + clip visual via borda
-      doc.setFillColor(255, 255, 255);
-      doc.circle(14 + logoSize / 2, 14 + logoSize / 2 - 4, logoSize / 2 + 0.5, "F");
-      doc.addImage(logo, "JPEG", 14, 14 - 4, logoSize, logoSize);
+      doc.addImage(logoSms, "PNG", 14, 14 - 4, logoSize, logoSize);
       doc.setDrawColor(14, 116, 144);
       doc.setLineWidth(0.4);
       doc.circle(14 + logoSize / 2, 14 + logoSize / 2 - 4, logoSize / 2, "S");
-    } catch { /* ignora se a imagem falhar */ }
+    } catch { /* ignora */ }
   }
+
+  if (logoOriximina) {
+    try {
+      doc.addImage(logoOriximina, "JPEG", pageW - 14 - logoSize, 14 - 4, logoSize, logoSize);
+    } catch { /* ignora */ }
+  }
+
+  const headerLeft = 14 + logoSize + 4;
 
   // Cabeçalho
   doc.setFont("helvetica", "bold");

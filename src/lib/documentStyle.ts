@@ -8,12 +8,15 @@ export const DOCUMENT_CSS_BASE = `
   body { font-family: 'Arial', sans-serif; color: #1a1a1a; margin: 0; padding: 0; font-size: 11pt; line-height: 1.5; }
   
   .header-institucional { 
-    display: flex; align-items: center; gap: 20px; 
+    display: flex; align-items: center; justify-content: space-between; gap: 20px; 
     border-bottom: 2px solid #0e7490; padding-bottom: 15px; margin-bottom: 20px; 
   }
-  .header-institucional img { width: 70px; height: 70px; border-radius: 50%; object-fit: cover; }
+  .header-institucional img { width: 75px; height: 75px; object-fit: contain; }
+  .header-institucional img.logo-round { border-radius: 50%; object-fit: cover; }
+  .header-institucional .titles { flex: 1; text-align: center; }
   .header-institucional .titles h1 { font-size: 14pt; margin: 0; text-transform: uppercase; color: #0e7490; font-weight: 800; }
   .header-institucional .titles h2 { font-size: 10pt; margin: 3px 0; color: #444; font-weight: 500; }
+
   
   .doc-title { text-align: center; font-size: 14pt; font-weight: 800; text-transform: uppercase; margin: 25px 0 15px; }
   .doc-info { display: flex; justify-content: space-between; font-size: 10pt; color: #333; margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 8px; }
