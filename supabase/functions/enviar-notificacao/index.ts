@@ -72,13 +72,17 @@ serve(async (req) => {
           port,
           secure: port === 465,
           auth: { user: smtpCfg.email_remetente, pass: smtpCfg.senha },
+          tls: { rejectUnauthorized: true }
         });
+        
+        console.log(`SMTP inicializado: ${host}:${port}`);
       } catch (e) {
         console.error("Erro ao inicializar SMTP:", e);
         smtpError = e instanceof Error ? e.message : String(e);
       }
     } else if (emailAtivo) {
       smtpError = "Configuração SMTP incompleta (remetente ou senha ausente).";
+      console.warn(smtpError);
     }
 
     for (const dest of destinatarios) {
@@ -90,21 +94,38 @@ serve(async (req) => {
         ? substituirVariaveis(template.mensagem, destVars)
         : vars.mensagem || tipo;
 
-      // 1. Internal notification
-      await admin.from("notifications").insert({
-        professional_id: dest.professional_id || null,
-        user_id: dest.user_id || null,
-        tipo,
-        titulo,
-        mensagem: extrairTextoPlano(mensagem),
-        lida: false,
-        canal: "sistema",
-        status_envio: "enviado",
-      });
+      // 1. Internal notification (only if professional_id or user_id is provided)
+      // We check if it already exists to avoid duplication if called multiple times
+      if (dest.professional_id || dest.user_id) {
+        const { data: existing } = await admin
+          .from("notifications")
+          .select("id")
+          .match({
+            professional_id: dest.professional_id || null,
+            user_id: dest.user_id || null,
+            titulo,
+            status_envio: "enviado"
+          })
+          .gt("created_at", new Date(Date.now() - 10000).toISOString()) // last 10 seconds
+          .maybeSingle();
+
+        if (!existing) {
+          await admin.from("notifications").insert({
+            professional_id: dest.professional_id || null,
+            user_id: dest.user_id || null,
+            tipo,
+            titulo,
+            mensagem: extrairTextoPlano(mensagem),
+            lida: false,
+            canal: "sistema",
+            status_envio: "enviado",
+          });
+        }
+      }
 
       // 2. Email notification (if enabled)
       let emailStatus = "nao_enviado";
-      if (transporter && (dest.email || dest.professional_id)) {
+      if (transporter) {
         try {
           let emailDest = dest.email;
           if (!emailDest && dest.professional_id) {
@@ -114,9 +135,17 @@ serve(async (req) => {
               .eq("id", dest.professional_id)
               .maybeSingle();
             emailDest = p?.email;
+          } else if (!emailDest && dest.user_id) {
+             const { data: u } = await admin
+              .from("profiles")
+              .select("email")
+              .eq("id", dest.user_id)
+              .maybeSingle();
+            emailDest = u?.email;
           }
 
           if (emailDest) {
+            console.log(`Enviando e-mail para ${emailDest}...`);
             await transporter.sendMail({
               from: `Gestão de Plantões <${smtpCfg.email_remetente}>`,
               to: emailDest,
@@ -125,6 +154,10 @@ serve(async (req) => {
               html: mensagem.includes("<") ? mensagem : undefined,
             });
             emailStatus = "enviado";
+            console.log(`E-mail enviado para ${emailDest}`);
+          } else {
+            emailStatus = "destinatario_sem_email";
+            console.warn(`Destinatário ${dest.professional_id || dest.user_id} não possui e-mail.`);
           }
         } catch (e) {
           console.error(`Falha ao enviar e-mail para ${dest.email || dest.professional_id}:`, e);
