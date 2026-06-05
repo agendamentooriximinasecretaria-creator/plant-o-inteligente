@@ -96,11 +96,19 @@ export default function ProfissionaisPage() {
       // Sensitive fields are fetched on-demand when opening the edit modal.
       const { data, error } = await supabase
         .from('professionals')
-        .select('id, nome, profissao, cargo, especialidade, conselho, registro, telefone, email, status, vinculo, unidade_principal_id, setor_principal_id, competencias, documento_conselho, documento_numero, documento_validade, avatar_url, acesso_email_enviado_em, recebe_adicional_noturno, is_plantonista, units:unidade_principal_id(nome), sectors:setor_principal_id(nome)')
+        .select('id, nome, profissao, cargo, especialidade, conselho, registro, telefone, email, status, vinculo, unidade_principal_id, setor_principal_id, competencias, documento_conselho, documento_numero, documento_validade, avatar_url, acesso_email_enviado_em, recebe_adicional_noturno, is_plantonista, limite_trocas_plantao_mes, units:unidade_principal_id(nome), sectors:setor_principal_id(nome)')
         .order('nome');
       if (error) throw error;
       return data;
     },
+  });
+
+  const { data: systemSettings = {} } = useQuery({
+    queryKey: ['system-settings-rules'],
+    queryFn: async () => {
+      const { data } = await supabase.from('system_settings').select('key, value');
+      return Object.fromEntries((data || []).map(s => [s.key, s.value]));
+    }
   });
 
   const { data: monthShifts = [] } = useQuery({
@@ -114,6 +122,32 @@ export default function ProfissionaisPage() {
       return data || [];
     },
   });
+
+  const { data: monthSwaps = [] } = useQuery({
+    queryKey: ['professionals-month-swaps'],
+    queryFn: async () => {
+      const now = new Date();
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+      
+      const { data } = await supabase
+        .from('shift_swaps')
+        .select('solicitante_id, status, created_at')
+        .gte('created_at', firstDay)
+        .lte('created_at', lastDay)
+        .in('status', ['aprovada', 'concluida']);
+      return data || [];
+    },
+  });
+
+  const swapsPorProfissional = useMemo(() => {
+    const counts: Record<string, number> = {};
+    monthSwaps.forEach((s: any) => {
+      if (!counts[s.solicitante_id]) counts[s.solicitante_id] = 0;
+      counts[s.solicitante_id]++;
+    });
+    return counts;
+  }, [monthSwaps]);
 
   const horasPorProfissional = useMemo(
     () => calcularHorasPorProfissional(monthShifts as any[]),
