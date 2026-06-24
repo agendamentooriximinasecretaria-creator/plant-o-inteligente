@@ -1523,6 +1523,9 @@ export default function EscalaPage() {
           return;
         }
         const opts = await getMensalOpts(printForm.unidadeId);
+        // Substituições de placeholders no bloco de assinatura/carimbo
+        opts.dataEmissao = new Date().toLocaleDateString("pt-BR");
+        opts.codigoValidacao = `ESC-${Date.now().toString(36).toUpperCase()}`;
         const filename = `escala_oficial_${printForm.mesRef}`;
         if (acao === 'view') {
           const ok = abrirEscalaMensalOficial(cab, profs, tipos, opts, false);
