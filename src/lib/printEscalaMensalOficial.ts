@@ -911,7 +911,6 @@ export async function gerarPdfEscalaMensalOficial(
         const prof = profsInBody[data.row.index];
         const isGroupRow = !prof;
         data.cell.styles.minCellHeight = isGroupRow ? groupRowH : dataRowH;
-        data.cell.styles.cellHeight = isGroupRow ? groupRowH : dataRowH;
         data.cell.styles.cellPadding = isGroupRow ? groupPad : cellPad;
         if (isGroupRow) {
           data.cell.styles.fontSize = Math.max(6, Math.min(9, groupRowH * 0.55));
