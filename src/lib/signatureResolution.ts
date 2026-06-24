@@ -182,73 +182,118 @@ export async function resolveSignatureData(params: {
 }
 
 /**
- * Busca o Responsável Técnico da unidade ou Global
+ * Busca o Responsável Técnico — prioriza cadastro em "Assinaturas e Carimbos"
+ * (metadata.tipo_assinante = 'responsavel_tecnico'), escopado por unidade quando possível.
+ * Fallback: qualquer carimbo cadastrado como RT no sistema.
  */
 export async function resolveRTForUnidade(unidadeId?: string): Promise<ResolvedSignature> {
+  const empty = (): ResolvedSignature => ({
+    signatoryFound: false, nome: "", cargo: "", conselho: "", unidade: "",
+    hasVisualSignature: false, hasStamp: false, hasDigitalSeal: false,
+    tipoAssinante: "responsavel_tecnico", source: "fallback", renderMode: "text_only"
+  });
+
   try {
+    // 1) Procurar carimbos marcados como RT no metadata, opcionalmente filtrando por unidade
+    let query = supabase
+      .from('professional_stamps')
+      .select('profissional_id, professionals!inner(unidade_principal_id)')
+      .eq('bloqueado', false)
+      .filter('metadata->>tipo_assinante', 'eq', 'responsavel_tecnico');
+
     if (unidadeId) {
-      const { data } = await supabase
-        .from('professional_stamps')
-        .select('profissional_id')
-        .ilike('cargo', '%Responsável Técnico%')
-        .eq('bloqueado', false)
-        .eq('profissional_id', (
-          await supabase.from('professionals').select('id').eq('unidade_principal_id', unidadeId)
-        ).data?.[0]?.id || '') // Simplificado para o exemplo, ideal seria join
-        .limit(1)
-        .maybeSingle();
-        
-      if (data) return resolveSignatureData({ professionalId: data.profissional_id });
+      query = query.eq('professionals.unidade_principal_id', unidadeId);
     }
 
-    // Fallback global
-    const { data: globalRT } = await supabase
+    const { data: rtList } = await query.limit(1);
+    if (rtList && rtList.length > 0) {
+      return resolveSignatureData({ professionalId: rtList[0].profissional_id });
+    }
+
+    // 2) Fallback global sem filtro de unidade
+    if (unidadeId) {
+      const { data: globalRT } = await supabase
+        .from('professional_stamps')
+        .select('profissional_id')
+        .eq('bloqueado', false)
+        .filter('metadata->>tipo_assinante', 'eq', 'responsavel_tecnico')
+        .limit(1);
+      if (globalRT && globalRT.length > 0) {
+        return resolveSignatureData({ professionalId: globalRT[0].profissional_id });
+      }
+    }
+
+    // 3) Último fallback: cargo contendo "Responsável Técnico"
+    const { data: byCargo } = await supabase
       .from('professional_stamps')
       .select('profissional_id')
-      .ilike('cargo', '%Responsável Técnico%')
       .eq('bloqueado', false)
-      .limit(1)
-      .maybeSingle();
+      .ilike('cargo', '%Responsável Técnico%')
+      .limit(1);
+    if (byCargo && byCargo.length > 0) {
+      return resolveSignatureData({ professionalId: byCargo[0].profissional_id });
+    }
 
-    if (globalRT) return resolveSignatureData({ professionalId: globalRT.profissional_id });
-    
-    return { signatoryFound: false, nome: "", cargo: "", conselho: "", unidade: "", hasVisualSignature: false, hasStamp: false, hasDigitalSeal: false, tipoAssinante: "responsavel_tecnico", source: "fallback", renderMode: "text_only" };
+    return empty();
   } catch (err) {
     console.error('Erro em resolveRTForUnidade:', err);
-    return { signatoryFound: false, nome: "", cargo: "", conselho: "", unidade: "", hasVisualSignature: false, hasStamp: false, hasDigitalSeal: false, tipoAssinante: "responsavel_tecnico", source: "fallback", renderMode: "text_only" };
+    return empty();
   }
 }
 
 /**
- * Busca o Gestor Master da unidade ou Global
+ * Busca o Gestor Master — via user_roles ('gestor_master') → professional →
+ * "Assinaturas e Carimbos". Fallback: metadata.tipo_assinante = 'gestor_master'.
  */
 export async function resolveGestorMasterForUnidade(unidadeId?: string): Promise<ResolvedSignature> {
+  const empty = (): ResolvedSignature => ({
+    signatoryFound: false, nome: "", cargo: "", conselho: "", unidade: "",
+    hasVisualSignature: false, hasStamp: false, hasDigitalSeal: false,
+    tipoAssinante: "gestor_master", source: "fallback", renderMode: "text_only"
+  });
+
   try {
-    if (unidadeId) {
-      const { data } = await supabase
-        .from('professional_stamps')
-        .select('profissional_id')
-        .ilike('cargo', '%Gestor Master%')
-        .eq('bloqueado', false)
-        .limit(1) // Em Oriximiná geralmente é global, mas suportamos por unidade se cadastrado
-        .maybeSingle();
-        
-      if (data) return resolveSignatureData({ professionalId: data.profissional_id });
+    // 1) Buscar user_ids com role gestor_master
+    const { data: roles } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .eq('role', 'gestor_master');
+
+    const userIds = (roles || []).map(r => r.user_id).filter(Boolean);
+
+    if (userIds.length > 0) {
+      // 2) Encontrar o profissional vinculado (preferir o da unidade)
+      let profQ = supabase
+        .from('professionals')
+        .select('id, unidade_principal_id')
+        .in('user_id', userIds);
+
+      const { data: profs } = await profQ;
+      if (profs && profs.length > 0) {
+        const preferido = unidadeId
+          ? profs.find(p => p.unidade_principal_id === unidadeId)
+          : null;
+        const escolhido = preferido || profs[0];
+        const resolved = await resolveSignatureData({ professionalId: escolhido.id });
+        if (resolved.signatoryFound) return resolved;
+      }
     }
 
-    const { data: globalGestor } = await supabase
+    // 3) Fallback: carimbo marcado como gestor_master no metadata
+    const { data: byMeta } = await supabase
       .from('professional_stamps')
       .select('profissional_id')
-      .ilike('cargo', '%Gestor Master%')
       .eq('bloqueado', false)
-      .limit(1)
-      .maybeSingle();
-      
-    if (globalGestor) return resolveSignatureData({ professionalId: globalGestor.profissional_id });
-    
-    return { signatoryFound: false, nome: "", cargo: "", conselho: "", unidade: "", hasVisualSignature: false, hasStamp: false, hasDigitalSeal: false, tipoAssinante: "gestor_master", source: "fallback", renderMode: "text_only" };
+      .filter('metadata->>tipo_assinante', 'eq', 'gestor_master')
+      .limit(1);
+    if (byMeta && byMeta.length > 0) {
+      return resolveSignatureData({ professionalId: byMeta[0].profissional_id });
+    }
+
+    return empty();
   } catch (err) {
     console.error('Erro em resolveGestorMasterForUnidade:', err);
-    return { signatoryFound: false, nome: "", cargo: "", conselho: "", unidade: "", hasVisualSignature: false, hasStamp: false, hasDigitalSeal: false, tipoAssinante: "gestor_master", source: "fallback", renderMode: "text_only" };
+    return empty();
   }
 }
+
