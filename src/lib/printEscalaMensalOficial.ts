@@ -408,14 +408,17 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
     <tbody>${linhasTr}</tbody>
   </table>
 
-  <div class="legenda">
-    <strong>Legenda:</strong> ${legendaTipos}
+  <div class="print-bottom">
+    <div class="legenda">
+      <strong>Legenda:</strong> ${legendaTipos}
+    </div>
+
+    ${obsRodape}
+    ${assinaturasHtml}
+
+    ${footerHtml}
   </div>
 
-  ${obsRodape}
-  ${assinaturasHtml}
-
-  ${footerHtml}
 </body>
 </html>`;
 }
