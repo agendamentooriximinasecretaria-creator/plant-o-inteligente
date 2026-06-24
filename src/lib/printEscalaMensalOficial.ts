@@ -489,6 +489,29 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
     body.compact-print .assinatura-info, body.compact-print .sig small { font-size: 6.5pt !important; }
     body.compact-print .footer-institucional { margin-top: 4px !important; font-size: 6pt !important; padding-top: 3px !important; }
 
+    /* Fill Page: usado apenas na impressão para esticar a escala até o bloco inferior real */
+    body.fill-page-print table.escala thead th {
+      height: var(--print-head-row-h, auto) !important;
+      padding-top: var(--print-head-pad-y, 2px) !important;
+      padding-bottom: var(--print-head-pad-y, 2px) !important;
+      font-size: var(--print-head-font, 7.5pt) !important;
+    }
+    body.fill-page-print table.escala tbody tr.group-header td {
+      height: var(--print-group-row-h, auto) !important;
+      padding-top: var(--print-group-pad-y, 2px) !important;
+      padding-bottom: var(--print-group-pad-y, 2px) !important;
+      font-size: var(--print-group-font, 7.5pt) !important;
+    }
+    body.fill-page-print table.escala tbody tr.row-prof td {
+      height: var(--print-data-row-h, auto) !important;
+      padding-top: var(--print-data-pad-y, 2px) !important;
+      padding-bottom: var(--print-data-pad-y, 2px) !important;
+      font-size: var(--print-body-font, 7.5pt) !important;
+    }
+    body.fill-page-print table.escala tbody tr.row-prof td.nome .cons {
+      font-size: var(--print-cons-font, 6.5pt) !important;
+    }
+
     /* Tier extra-compacto (acionado se ainda exceder) */
     body.ultra-compact-print .header-institucional img { width: 22px !important; height: 22px !important; }
     body.ultra-compact-print .header-institucional { padding-bottom: 1px !important; margin-bottom: 2px !important; }
@@ -516,10 +539,45 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
       try {
         // A4 paisagem útil ~ 1110 x 780 px (96dpi) com margem ~6mm
         var maxH = 780;
-        document.body.classList.remove('compact-print');
-        document.body.classList.remove('ultra-compact-print');
+        document.body.classList.remove('compact-print', 'ultra-compact-print', 'fill-page-print');
+        ['--print-head-row-h','--print-head-pad-y','--print-head-font','--print-group-row-h','--print-group-pad-y','--print-group-font','--print-data-row-h','--print-data-pad-y','--print-body-font','--print-cons-font'].forEach(function(v){ document.body.style.removeProperty(v); });
         void document.body.offsetHeight;
+
+        if (document.documentElement.scrollHeight <= maxH) {
+          var table = document.querySelector('table.escala');
+          var bottom = document.querySelector('.print-bottom');
+          if (table && bottom) {
+            var tableTop = table.getBoundingClientRect().top + window.scrollY;
+            var bottomH = bottom.getBoundingClientRect().height;
+            var availableTableH = Math.max(180, maxH - tableTop - bottomH - 4);
+            var currentTableH = table.getBoundingClientRect().height;
+            if (availableTableH > currentTableH + 8) {
+              var dataRows = Math.max(1, table.querySelectorAll('tbody tr.row-prof').length);
+              var groupRows = table.querySelectorAll('tbody tr.group-header').length;
+              var headRows = table.tHead ? table.tHead.rows.length : 1;
+              var rowH = availableTableH / (dataRows + groupRows * 0.48 + headRows * 0.72);
+              var dataH = Math.max(22, rowH);
+              var groupH = Math.max(14, rowH * 0.48);
+              var headH = Math.max(16, rowH * 0.72);
+              var bodyFont = Math.max(7.5, Math.min(11.5, rowH * 0.28));
+              document.body.style.setProperty('--print-data-row-h', dataH.toFixed(1) + 'px');
+              document.body.style.setProperty('--print-group-row-h', groupH.toFixed(1) + 'px');
+              document.body.style.setProperty('--print-head-row-h', headH.toFixed(1) + 'px');
+              document.body.style.setProperty('--print-data-pad-y', Math.max(2, Math.min(8, rowH * 0.08)).toFixed(1) + 'px');
+              document.body.style.setProperty('--print-group-pad-y', Math.max(1, Math.min(5, rowH * 0.04)).toFixed(1) + 'px');
+              document.body.style.setProperty('--print-head-pad-y', Math.max(1, Math.min(5, rowH * 0.05)).toFixed(1) + 'px');
+              document.body.style.setProperty('--print-body-font', bodyFont.toFixed(1) + 'pt');
+              document.body.style.setProperty('--print-head-font', Math.max(7.5, Math.min(10.5, bodyFont * 0.92)).toFixed(1) + 'pt');
+              document.body.style.setProperty('--print-group-font', Math.max(7.5, Math.min(10, bodyFont * 0.9)).toFixed(1) + 'pt');
+              document.body.style.setProperty('--print-cons-font', Math.max(6.5, bodyFont - 1).toFixed(1) + 'pt');
+              document.body.classList.add('fill-page-print');
+              void document.body.offsetHeight;
+            }
+          }
+        }
+
         if (document.documentElement.scrollHeight > maxH) {
+          document.body.classList.remove('fill-page-print');
           document.body.classList.add('compact-print');
           void document.body.offsetHeight;
           if (document.documentElement.scrollHeight > maxH) {
