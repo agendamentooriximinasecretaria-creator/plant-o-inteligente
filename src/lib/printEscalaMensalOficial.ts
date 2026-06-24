@@ -1002,9 +1002,11 @@ export async function gerarPdfEscalaMensalOficial(
     const lineLen = 70;
     const gap = (availW - (lineLen * 2)) / 3;
 
-    // Bloco Esquerdo — Responsável 1
-    const xL = margin + gap + lineLen / 2;
-    const startXL = margin + gap;
+    const hasR2 = !!(r2 && (r2.nome || r2.cargo));
+
+    // Bloco Esquerdo — Responsável 1 (centralizado se for o único)
+    const startXL = hasR2 ? (margin + gap) : ((pageW - lineLen) / 2);
+    const xL = startXL + lineLen / 2;
     
     // Assinatura Visual (Esquerda)
     if (r1?.assinaturaBase64 && r1.assinaturaBase64.length > 100) {
@@ -1040,42 +1042,45 @@ export async function gerarPdfEscalaMensalOficial(
     renderResponsavelInfo(doc, r1, xL, assY + 4, opts);
 
 
-    // Bloco Direito — Responsável 2
-    const startXR = pageW - margin - gap - lineLen;
-    const xR = startXR + lineLen / 2;
-    
-    // Assinatura Visual (Direita)
-    if (r2?.assinaturaBase64 && r2.assinaturaBase64.length > 100) {
-      try {
-        const format = r2.assinaturaBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-        doc.addImage(r2.assinaturaBase64, format, startXR, assY - 18, 40, 16, undefined, 'FAST');
-      } catch (e) { console.error("PDF R2 Assinatura Erro:", e); }
-    }
-    // Carimbo (Direita)
-    if (r2?.carimboBase64 && r2.carimboBase64.length > 100) {
-      try {
-        const format = r2.carimboBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-        const stampX = (r2.assinaturaBase64 && r2.assinaturaBase64.length > 100) ? startXR + 30 : startXR + 15;
-        doc.addImage(r2.carimboBase64, format, stampX, assY - 22, 30, 20, undefined, 'FAST');
-      } catch (e) { console.error("PDF R2 Carimbo Erro:", e); }
+    // Bloco Direito — Responsável 2 (somente se houver)
+    if (hasR2) {
+      const startXR = pageW - margin - gap - lineLen;
+      const xR = startXR + lineLen / 2;
+      
+      // Assinatura Visual (Direita)
+      if (r2?.assinaturaBase64 && r2.assinaturaBase64.length > 100) {
+        try {
+          const format = r2.assinaturaBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+          doc.addImage(r2.assinaturaBase64, format, startXR, assY - 18, 40, 16, undefined, 'FAST');
+        } catch (e) { console.error("PDF R2 Assinatura Erro:", e); }
+      }
+      // Carimbo (Direita)
+      if (r2?.carimboBase64 && r2.carimboBase64.length > 100) {
+        try {
+          const format = r2.carimboBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+          const stampX = (r2.assinaturaBase64 && r2.assinaturaBase64.length > 100) ? startXR + 30 : startXR + 15;
+          doc.addImage(r2.carimboBase64, format, stampX, assY - 22, 30, 20, undefined, 'FAST');
+        } catch (e) { console.error("PDF R2 Carimbo Erro:", e); }
+      }
+
+      // Selo Digital (Direita)
+      if (!r2?.assinaturaBase64 && (r2?.hasDigitalSeal || r2?.tipo === 'digital_gerado' || r2?.tipo === 'eletronica_interna')) {
+        doc.setTextColor(30, 58, 138);
+        doc.setFont("courier", "bold");
+        doc.setFontSize(8);
+        doc.setDrawColor(30, 58, 138);
+        doc.rect(startXR + 10, assY - 12, 50, 8);
+        doc.text("ASSINADO DIGITALMENTE", xR, assY - 7, { align: "center" });
+        doc.setTextColor(0);
+        doc.setDrawColor(0);
+        doc.setFont("helvetica", "normal");
+      }
+
+      doc.setLineWidth(0.3);
+      doc.line(startXR, assY, startXR + lineLen, assY);
+      renderResponsavelInfo(doc, r2, xR, assY + 4, opts);
     }
 
-    // Selo Digital (Direita)
-    if (!r2?.assinaturaBase64 && (r2?.hasDigitalSeal || r2?.tipo === 'digital_gerado' || r2?.tipo === 'eletronica_interna')) {
-      doc.setTextColor(30, 58, 138);
-      doc.setFont("courier", "bold");
-      doc.setFontSize(8);
-      doc.setDrawColor(30, 58, 138);
-      doc.rect(startXR + 10, assY - 12, 50, 8);
-      doc.text("ASSINADO DIGITALMENTE", xR, assY - 7, { align: "center" });
-      doc.setTextColor(0);
-      doc.setDrawColor(0);
-      doc.setFont("helvetica", "normal");
-    }
-
-    doc.setLineWidth(0.3);
-    doc.line(startXR, assY, startXR + lineLen, assY);
-    renderResponsavelInfo(doc, r2, xR, assY + 4, opts);
 
   }
 
