@@ -673,9 +673,16 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
               </div>
               <div>
                 <label className={labelCls}>Número do registro</label>
-                <input value={registro} disabled className={inputCls} placeholder="Ex.: 12345-F" />
-                <p className="text-[11px] text-muted-foreground mt-1">Editar em "Profissionais → Editar Profissional".</p>
+                <input
+                  value={registro}
+                  onChange={e => { setRegistroTouched(true); setRegistroManual(e.target.value.slice(0, 30)); }}
+                  disabled={disabledByLock}
+                  className={inputCls}
+                  placeholder="Ex.: 12345-F"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">Será salvo também no cadastro do profissional.</p>
               </div>
+
               <div>
                 <label className={labelCls}>UF do conselho</label>
                 <select value={stamp.uf_conselho || "PA"} onChange={e => setStamp(s => ({ ...s, uf_conselho: e.target.value }))} disabled={disabledByLock} className={inputCls}>
