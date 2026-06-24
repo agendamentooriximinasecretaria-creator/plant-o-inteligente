@@ -74,6 +74,32 @@ export interface MensalResponsavel {
   hasVisualSignature?: boolean;
   hasStamp?: boolean;
   hasDigitalSeal?: boolean;
+  // Campos detalhados / flags vindos de "Exibição no Documento"
+  profissao?: string;
+  especialidade?: string;
+  conselhoSigla?: string;
+  registroNumero?: string;
+  ufConselho?: string;
+  cbo?: string;
+  cns?: string;
+  setor?: string;
+  cidadeUf?: string;
+  textoPersonalizado?: string;
+  display?: {
+    mostrar_profissao?: boolean;
+    mostrar_especialidade?: boolean;
+    mostrar_conselho?: boolean;
+    mostrar_uf_conselho?: boolean;
+    mostrar_cbo?: boolean;
+    mostrar_cns?: boolean;
+    mostrar_unidade?: boolean;
+    mostrar_setor?: boolean;
+    mostrar_cidade_uf?: boolean;
+    mostrar_data_local?: boolean;
+    mostrar_codigo_validacao?: boolean;
+    mostrar_hash?: boolean;
+    mostrar_qr_code?: boolean;
+  };
 }
 
 export interface MensalOpts {
@@ -87,7 +113,10 @@ export interface MensalOpts {
   totalLabel?: "TOTAL" | "ADN";
   responsavel?: MensalResponsavel;
   responsavelTecnico?: MensalResponsavel;
+  codigoValidacao?: string;
+  dataEmissao?: string;
 }
+
 
 const DIAS_PT_FULL = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
 const DIAS_SEM_ABREV = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
