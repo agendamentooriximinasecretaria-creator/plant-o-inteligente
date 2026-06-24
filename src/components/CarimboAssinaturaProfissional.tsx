@@ -396,7 +396,9 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
   }, [stamp.assinatura_path, stamp.carimbo_path]);
 
   const conselho = conselhoManual || professional?.documento_conselho || professional?.conselho || sugerirConselho(professional?.profissao);
-  const registro = professional?.documento_numero || professional?.registro || "";
+  const registroFromProf = professional?.documento_numero || professional?.registro || "";
+  const registro = registroTouched ? registroManual : (registroManual || registroFromProf);
+
 
   const uploadImage = useMutation({
     mutationFn: async ({ kind, file }: { kind: "assinatura" | "carimbo"; file: File }) => {
