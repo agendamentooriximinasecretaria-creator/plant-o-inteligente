@@ -408,7 +408,7 @@ export function abrirEscalaMensalOficial(
   if (!w) return false;
   let html = buildHtml(cab, profs, tipos, opts);
   if (autoPrint) {
-    html = html.replace("</body>", "<script>window.onload=()=>setTimeout(()=>window.print(),300)</script></body>");
+    html = html.replace("</body>", "<script>window.onload=()=>setTimeout(()=>window.__doPrint && window.__doPrint(),300)</script></body>");
   }
   w.document.write(html);
   w.document.close();
