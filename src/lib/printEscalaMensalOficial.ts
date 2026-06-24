@@ -436,6 +436,7 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
   .legenda { margin-top: 15px; padding: 10px; border: 1px solid #ccc; font-size: 8pt; background: #f8fafc; border-radius: 4px; }
   .legenda .lg-item { display:inline-block; margin-right: 15px; white-space:nowrap; margin-bottom: 5px; }
   .obs-rodape { margin-top: 10px; font-size: 9pt; }
+  .print-bottom .footer-institucional { border-top: 0 !important; }
 
   @media print {
     @page { size: A4 landscape; margin: 6mm; }
@@ -459,7 +460,7 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
     .assinatura-block, .signatures { margin-top: 18px !important; gap: 30px !important; }
     .assinatura-line, .sig .line { margin-top: 24px !important; font-size: 8.5pt !important; }
     .assinatura-info, .sig small { font-size: 7.5pt !important; }
-    .footer-institucional { margin-top: 10px !important; font-size: 7pt !important; padding-top: 6px !important; }
+    .footer-institucional { margin-top: 10px !important; font-size: 7pt !important; padding-top: 6px !important; border-top: 0 !important; }
 
     /* Evita quebra em blocos críticos */
     .legenda, .obs-rodape, .assinatura-block, .signatures, .footer-institucional {
