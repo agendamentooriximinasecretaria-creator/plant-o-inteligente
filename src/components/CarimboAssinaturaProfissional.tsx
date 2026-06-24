@@ -275,7 +275,10 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
 
   const [tipoAssinante, setTipoAssinante] = useState<TipoAssinante>("profissional_saude");
   const [conselhoManual, setConselhoManual] = useState<string>("");
+  const [registroManual, setRegistroManual] = useState<string>("");
+  const [registroTouched, setRegistroTouched] = useState(false);
   const [matricula, setMatricula] = useState<string>("");
+
   const assRef = useRef<HTMLInputElement>(null);
   const carRef = useRef<HTMLInputElement>(null);
 
@@ -393,7 +396,9 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
   }, [stamp.assinatura_path, stamp.carimbo_path]);
 
   const conselho = conselhoManual || professional?.documento_conselho || professional?.conselho || sugerirConselho(professional?.profissao);
-  const registro = professional?.documento_numero || professional?.registro || "";
+  const registroFromProf = professional?.documento_numero || professional?.registro || "";
+  const registro = registroTouched ? registroManual : (registroManual || registroFromProf);
+
 
   const uploadImage = useMutation({
     mutationFn: async ({ kind, file }: { kind: "assinatura" | "carimbo"; file: File }) => {
@@ -428,7 +433,7 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
       const payload = {
         ...stamp,
         profissional_id: profissionalId,
-        metadata: { ...(stamp.metadata || {}), tipo_assinante: tipoAssinante, conselho_manual: conselhoManual, matricula },
+        metadata: { ...(stamp.metadata || {}), tipo_assinante: tipoAssinante, conselho_manual: conselhoManual, registro_manual: registro, matricula },
       };
       if (existing?.id) {
         const { error } = await sb.from("professional_stamps").update(payload).eq("id", existing.id);
@@ -437,13 +442,22 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
         const { error } = await sb.from("professional_stamps").insert(payload);
         if (error) throw error;
       }
+      // Sincroniza Número do registro no cadastro do profissional
+      if (registroTouched && registro !== registroFromProf) {
+        const { error: profErr } = await sb.from("professionals")
+          .update({ documento_numero: registro, registro })
+          .eq("id", profissionalId);
+        if (profErr) console.warn("Não foi possível atualizar registro no cadastro:", profErr.message);
+      }
     },
     onSuccess: () => {
       toast.success("Carimbo e assinatura salvos.");
       qc.invalidateQueries({ queryKey: ["stamp", profissionalId] });
+      qc.invalidateQueries({ queryKey: ["prof-for-stamp", profissionalId] });
     },
     onError: (e: Error) => toast.error("Falha ao salvar: " + e.message),
   });
+
 
   const restorePadrao = () => {
     setStamp(s => ({ ...emptyStamp(profissionalId), assinatura_path: s.assinatura_path, carimbo_path: s.carimbo_path }));
@@ -668,9 +682,16 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
               </div>
               <div>
                 <label className={labelCls}>Número do registro</label>
-                <input value={registro} disabled className={inputCls} placeholder="Ex.: 12345-F" />
-                <p className="text-[11px] text-muted-foreground mt-1">Editar em "Profissionais → Editar Profissional".</p>
+                <input
+                  value={registro}
+                  onChange={e => { setRegistroTouched(true); setRegistroManual(e.target.value.slice(0, 30)); }}
+                  disabled={disabledByLock}
+                  className={inputCls}
+                  placeholder="Ex.: 12345-F"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">Será salvo também no cadastro do profissional.</p>
               </div>
+
               <div>
                 <label className={labelCls}>UF do conselho</label>
                 <select value={stamp.uf_conselho || "PA"} onChange={e => setStamp(s => ({ ...s, uf_conselho: e.target.value }))} disabled={disabledByLock} className={inputCls}>
