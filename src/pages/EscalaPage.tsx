@@ -1531,8 +1531,7 @@ export default function EscalaPage() {
           const ok = abrirEscalaMensalOficial(cab, profs, tipos, opts, false);
           if (!ok) toast.error('Bloqueador de popups impediu a visualização.');
         } else if (acao === 'print') {
-          const ok = abrirEscalaMensalOficial(cab, profs, tipos, opts, true);
-          if (!ok) toast.error('Bloqueador de popups impediu a impressão.');
+          await gerarPdfEscalaMensalOficial(cab, profs, tipos, opts, filename, 'print');
         } else if (acao === 'pdf-open') {
           await gerarPdfEscalaMensalOficial(cab, profs, tipos, opts, filename, 'open');
         } else if (acao === 'pdf-save') {

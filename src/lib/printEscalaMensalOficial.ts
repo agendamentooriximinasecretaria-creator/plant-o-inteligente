@@ -679,7 +679,7 @@ export async function gerarPdfEscalaMensalOficial(
   tipos: MensalTipoLegenda[],
   opts: MensalOpts,
   filename: string,
-  modo: "save" | "open" = "save"
+  modo: "save" | "open" | "print" = "save"
 ) {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
@@ -1087,9 +1087,19 @@ export async function gerarPdfEscalaMensalOficial(
 
   if (modo === "save") {
     doc.save(`${filename}.pdf`);
-  } else {
+  } else if (modo === "open") {
     const blob = doc.output("blob");
     const url = URL.createObjectURL(blob);
     window.open(url, "_blank");
+  } else {
+    const printableDoc = doc as jsPDF & { autoPrint?: (options?: { variant?: string }) => void };
+    printableDoc.autoPrint?.({ variant: "non-conform" });
+    const blob = doc.output("blob");
+    const url = URL.createObjectURL(blob);
+    const printWindow = window.open(url, "_blank");
+    if (!printWindow) {
+      URL.revokeObjectURL(url);
+      throw new Error("Bloqueador de popups impediu a impressão.");
+    }
   }
 }
