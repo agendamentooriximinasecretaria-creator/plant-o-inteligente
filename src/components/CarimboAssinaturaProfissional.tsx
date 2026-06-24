@@ -275,7 +275,10 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
 
   const [tipoAssinante, setTipoAssinante] = useState<TipoAssinante>("profissional_saude");
   const [conselhoManual, setConselhoManual] = useState<string>("");
+  const [registroManual, setRegistroManual] = useState<string>("");
+  const [registroTouched, setRegistroTouched] = useState(false);
   const [matricula, setMatricula] = useState<string>("");
+
   const assRef = useRef<HTMLInputElement>(null);
   const carRef = useRef<HTMLInputElement>(null);
 
