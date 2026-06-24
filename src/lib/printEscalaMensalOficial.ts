@@ -736,23 +736,25 @@ export async function gerarPdfEscalaMensalOficial(
 
   // ===== Dimensionamento dinâmico (preenche melhor a folha) =====
   // Espaço reservado abaixo da tabela: legenda + totais + assinatura/rodapé
-  const reservedBottom = (opts.incluirAssinatura ? 55 : 25);
+  const reservedBottom = (opts.incluirAssinatura ? 50 : 22);
   const availH = Math.max(60, pageH - y - reservedBottom);
 
   // Conta linhas reais (grupos + dados)
   const dataRows = profsInBody.filter(p => p !== null).length || 1;
   const groupRows = profsInBody.length - dataRows;
-  // Grupos ocupam ~70% da altura de uma linha de dados
-  const weightedRows = dataRows + groupRows * 0.7;
+  // Grupos ocupam ~60% da altura de uma linha de dados
+  const weightedRows = dataRows + groupRows * 0.6;
   let rowH = availH / weightedRows;
-  // Clamp: mínimo legível e máximo razoável
-  rowH = Math.max(4.2, Math.min(rowH, 14));
+  // Clamp: mínimo legível e máximo generoso para preencher a página com poucas linhas
+  // (1-5 profissionais → linhas bem altas; 50+ → linhas compactas mas legíveis)
+  const maxRow = dataRows <= 5 ? 32 : dataRows <= 10 ? 22 : dataRows <= 20 ? 16 : 12;
+  rowH = Math.max(4.2, Math.min(rowH, maxRow));
 
   // Fonte e padding proporcionais à altura da linha
-  const bodyFont = Math.max(6, Math.min(11, rowH * 0.78));
-  const headFont = Math.max(6, Math.min(9, bodyFont * 0.95));
-  const totalFont = Math.max(7, Math.min(12, bodyFont + 1));
-  const cellPad = Math.max(0.6, Math.min(2.2, rowH * 0.18));
+  const bodyFont = Math.max(6, Math.min(14, rowH * 0.55));
+  const headFont = Math.max(6, Math.min(11, bodyFont * 0.95));
+  const totalFont = Math.max(7, Math.min(15, bodyFont + 1));
+  const cellPad = Math.max(0.6, Math.min(3.5, rowH * 0.18));
 
   autoTable(doc, {
     head,
