@@ -139,6 +139,21 @@ function renderResponsavelInfo(
   opts: MensalOpts
 ) {
   if (!r) return;
+  const lines = buildResponsavelInfoLines(r, opts);
+
+  let y = yStart;
+  for (const ln of lines) {
+    doc.setFont("helvetica", ln.bold ? "bold" : "normal");
+    doc.setFontSize(ln.size ?? 7);
+    doc.setTextColor(ln.muted ? 100 : 0);
+    doc.text(substituirPlaceholders(ln.text, opts), xCenter, y, { align: "center" });
+    y += getResponsavelLineHeight(ln.size);
+  }
+  doc.setTextColor(0);
+  doc.setFont("helvetica", "normal");
+}
+
+function buildResponsavelInfoLines(r: MensalResponsavel, opts: MensalOpts): { text: string; bold?: boolean; muted?: boolean; size?: number }[] {
   const d = r.display || {};
   // Quando display vier indefinido, exibir o máximo possível por padrão
   const show = (flag: boolean | undefined, fallback = true) => (flag === undefined ? fallback : !!flag);
@@ -196,16 +211,24 @@ function renderResponsavelInfo(
     lines.push({ text: substituirPlaceholders(r.textoPersonalizado, opts), size: 6.5, muted: true });
   }
 
-  let y = yStart;
-  for (const ln of lines) {
-    doc.setFont("helvetica", ln.bold ? "bold" : "normal");
-    doc.setFontSize(ln.size ?? 7);
-    doc.setTextColor(ln.muted ? 100 : 0);
-    doc.text(substituirPlaceholders(ln.text, opts), xCenter, y, { align: "center" });
-    y += (ln.size && ln.size >= 8 ? 4 : 3.2);
-  }
-  doc.setTextColor(0);
-  doc.setFont("helvetica", "normal");
+  return lines;
+}
+
+function getResponsavelLineHeight(size?: number): number {
+  return size && size >= 8 ? 4 : 3.2;
+}
+
+function measureResponsavelInfoHeight(r: MensalResponsavel | undefined, opts: MensalOpts): number {
+  if (!r) return 0;
+  return buildResponsavelInfoLines(r, opts).reduce((total, ln) => total + getResponsavelLineHeight(ln.size), 0);
+}
+
+function hasSignatureMedia(r: MensalResponsavel | undefined): boolean {
+  return !!(
+    (r?.assinaturaBase64 && r.assinaturaBase64.length > 100) ||
+    (r?.carimboBase64 && r.carimboBase64.length > 100) ||
+    (!r?.assinaturaBase64 && (r?.hasDigitalSeal || r?.tipo === "digital_gerado" || r?.tipo === "eletronica_interna"))
+  );
 }
 
 
