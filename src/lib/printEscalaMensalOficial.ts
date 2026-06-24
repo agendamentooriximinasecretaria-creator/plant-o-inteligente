@@ -502,6 +502,9 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
       padding-bottom: var(--print-group-pad-y, 2px) !important;
       font-size: var(--print-group-font, 7.5pt) !important;
     }
+    body.fill-page-print table.escala tbody tr.row-prof {
+      height: var(--print-data-row-h, auto) !important;
+    }
     body.fill-page-print table.escala tbody tr.row-prof td {
       height: var(--print-data-row-h, auto) !important;
       padding-top: var(--print-data-pad-y, 2px) !important;
@@ -555,17 +558,18 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
               var dataRows = Math.max(1, table.querySelectorAll('tbody tr.row-prof').length);
               var groupRows = table.querySelectorAll('tbody tr.group-header').length;
               var headRows = table.tHead ? table.tHead.rows.length : 1;
-              var rowH = availableTableH / (dataRows + groupRows * 0.48 + headRows * 0.72);
-              var dataH = Math.max(22, rowH);
-              var groupH = Math.max(14, rowH * 0.48);
-              var headH = Math.max(16, rowH * 0.72);
-              var bodyFont = Math.max(7.5, Math.min(11.5, rowH * 0.28));
+              var targetTableH = availableTableH * 0.95;
+              var headH = Math.max(14, Math.min(24, targetTableH * 0.06));
+              var groupH = Math.max(10, Math.min(18, targetTableH * 0.035));
+              var reservedRowsH = (headRows * headH) + (groupRows * groupH);
+              var dataH = Math.max(18, (targetTableH - reservedRowsH) / dataRows);
+              var bodyFont = Math.max(7.5, Math.min(11.5, dataH * 0.16));
               document.body.style.setProperty('--print-data-row-h', dataH.toFixed(1) + 'px');
               document.body.style.setProperty('--print-group-row-h', groupH.toFixed(1) + 'px');
               document.body.style.setProperty('--print-head-row-h', headH.toFixed(1) + 'px');
-              document.body.style.setProperty('--print-data-pad-y', Math.max(2, Math.min(8, rowH * 0.08)).toFixed(1) + 'px');
-              document.body.style.setProperty('--print-group-pad-y', Math.max(1, Math.min(5, rowH * 0.04)).toFixed(1) + 'px');
-              document.body.style.setProperty('--print-head-pad-y', Math.max(1, Math.min(5, rowH * 0.05)).toFixed(1) + 'px');
+              document.body.style.setProperty('--print-data-pad-y', Math.max(2, Math.min(8, dataH * 0.06)).toFixed(1) + 'px');
+              document.body.style.setProperty('--print-group-pad-y', Math.max(1, Math.min(4, groupH * 0.08)).toFixed(1) + 'px');
+              document.body.style.setProperty('--print-head-pad-y', Math.max(1, Math.min(4, headH * 0.08)).toFixed(1) + 'px');
               document.body.style.setProperty('--print-body-font', bodyFont.toFixed(1) + 'pt');
               document.body.style.setProperty('--print-head-font', Math.max(7.5, Math.min(10.5, bodyFont * 0.92)).toFixed(1) + 'pt');
               document.body.style.setProperty('--print-group-font', Math.max(7.5, Math.min(10, bodyFont * 0.9)).toFixed(1) + 'pt');
