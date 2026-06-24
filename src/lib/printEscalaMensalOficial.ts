@@ -371,21 +371,26 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
     <button class="secondary" onclick="window.close()">Fechar</button>
   </div>
   <script>
-    // Auto-compactação: se conteúdo exceder altura útil A4 paisagem, ativa modo compacto
+    // Auto-compactação progressiva: tenta caber tudo em 1 página A4 paisagem
     window.__doPrint = function(){
       try {
-        // A4 paisagem útil ≈ 1123 x 794 px (96dpi) menos margens
-        var maxH = 760; // px aproximado de altura útil com margem 6mm
+        // A4 paisagem útil ~ 1110 x 780 px (96dpi) com margem ~6mm
+        var maxH = 780;
         document.body.classList.remove('compact-print');
-        // força layout
+        document.body.classList.remove('ultra-compact-print');
         void document.body.offsetHeight;
         if (document.documentElement.scrollHeight > maxH) {
           document.body.classList.add('compact-print');
+          void document.body.offsetHeight;
+          if (document.documentElement.scrollHeight > maxH) {
+            document.body.classList.add('ultra-compact-print');
+          }
         }
       } catch(e){}
-      setTimeout(function(){ window.print(); }, 80);
+      setTimeout(function(){ window.print(); }, 120);
     };
   </script>
+
 
 
 
