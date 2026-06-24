@@ -734,15 +734,37 @@ export async function gerarPdfEscalaMensalOficial(
   const adnW = opts.incluirADN ? 12 : 0;
   const diaW = (availW - nomeW - totalW - adnW) / totalDias;
 
+  // ===== Dimensionamento dinâmico (preenche melhor a folha) =====
+  // Espaço reservado abaixo da tabela: legenda + totais + assinatura/rodapé
+  const reservedBottom = (opts.incluirAssinatura ? 55 : 25);
+  const availH = Math.max(60, pageH - y - reservedBottom);
+
+  // Conta linhas reais (grupos + dados)
+  const dataRows = profsInBody.filter(p => p !== null).length || 1;
+  const groupRows = profsInBody.length - dataRows;
+  // Grupos ocupam ~70% da altura de uma linha de dados
+  const weightedRows = dataRows + groupRows * 0.7;
+  let rowH = availH / weightedRows;
+  // Clamp: mínimo legível e máximo razoável
+  rowH = Math.max(4.2, Math.min(rowH, 14));
+
+  // Fonte e padding proporcionais à altura da linha
+  const bodyFont = Math.max(6, Math.min(11, rowH * 0.78));
+  const headFont = Math.max(6, Math.min(9, bodyFont * 0.95));
+  const totalFont = Math.max(7, Math.min(12, bodyFont + 1));
+  const cellPad = Math.max(0.6, Math.min(2.2, rowH * 0.18));
+
   autoTable(doc, {
     head,
     body,
     startY: y,
     theme: "grid",
     margin: { left: margin, right: margin },
+    tableWidth: availW,
     styles: {
-      fontSize: 7,
-      cellPadding: 0.8,
+      fontSize: bodyFont,
+      cellPadding: cellPad,
+      minCellHeight: rowH,
       valign: "middle",
       lineColor: [200, 200, 200],
       lineWidth: 0.1,
@@ -753,7 +775,9 @@ export async function gerarPdfEscalaMensalOficial(
       fillColor: [240, 240, 240],
       textColor: 0,
       fontStyle: "bold",
-      lineWidth: 0.2
+      fontSize: headFont,
+      lineWidth: 0.2,
+      minCellHeight: Math.max(6, rowH * 0.9)
     },
     alternateRowStyles: {
       fillColor: [250, 250, 250] // Zebra (linhas alternadas com fundo levemente cinza)
@@ -768,7 +792,7 @@ export async function gerarPdfEscalaMensalOficial(
       if (ci > 0 && ci <= totalDias) {
         data.cell.styles.cellWidth = diaW;
         data.cell.styles.halign = "center";
-        
+
         if (data.section === "body") {
           const sigla = String(data.cell.raw || "");
           if (sigla !== "—") {
@@ -782,9 +806,18 @@ export async function gerarPdfEscalaMensalOficial(
               data.cell.styles.fillColor = color.bg;
               data.cell.styles.textColor = color.text;
               data.cell.styles.fontStyle = "bold";
+              data.cell.styles.fontSize = bodyFont;
             }
           }
         }
+      }
+      // Aumenta fonte das colunas Total/ADN
+      if (data.section === "body" && (ci === totalDias + 1 || (opts.incluirADN && ci === totalDias + 2))) {
+        data.cell.styles.fontSize = totalFont;
+      }
+      // Coluna nome: levemente maior
+      if (data.section === "body" && ci === 0) {
+        data.cell.styles.fontSize = Math.max(6, bodyFont * 0.92);
       }
     }
   });
