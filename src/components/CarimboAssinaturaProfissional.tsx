@@ -433,7 +433,7 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
       const payload = {
         ...stamp,
         profissional_id: profissionalId,
-        metadata: { ...(stamp.metadata || {}), tipo_assinante: tipoAssinante, conselho_manual: conselhoManual, matricula },
+        metadata: { ...(stamp.metadata || {}), tipo_assinante: tipoAssinante, conselho_manual: conselhoManual, registro_manual: registro, matricula },
       };
       if (existing?.id) {
         const { error } = await sb.from("professional_stamps").update(payload).eq("id", existing.id);
@@ -442,13 +442,22 @@ export default function CarimboAssinaturaProfissional({ profissionalId, isMaster
         const { error } = await sb.from("professional_stamps").insert(payload);
         if (error) throw error;
       }
+      // Sincroniza Número do registro no cadastro do profissional
+      if (registroTouched && registro !== registroFromProf) {
+        const { error: profErr } = await sb.from("professionals")
+          .update({ documento_numero: registro, registro })
+          .eq("id", profissionalId);
+        if (profErr) console.warn("Não foi possível atualizar registro no cadastro:", profErr.message);
+      }
     },
     onSuccess: () => {
       toast.success("Carimbo e assinatura salvos.");
       qc.invalidateQueries({ queryKey: ["stamp", profissionalId] });
+      qc.invalidateQueries({ queryKey: ["prof-for-stamp", profissionalId] });
     },
     onError: (e: Error) => toast.error("Falha ao salvar: " + e.message),
   });
+
 
   const restorePadrao = () => {
     setStamp(s => ({ ...emptyStamp(profissionalId), assinatura_path: s.assinatura_path, carimbo_path: s.carimbo_path }));
