@@ -490,26 +490,33 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
     body.compact-print .footer-institucional { margin-top: 4px !important; font-size: 6pt !important; padding-top: 3px !important; }
 
     /* Fill Page: usado apenas na impressão para esticar a escala até o bloco inferior real */
+    body.fill-page-print table.escala { height: var(--print-table-h, auto) !important; }
     body.fill-page-print table.escala thead th {
       height: var(--print-head-row-h, auto) !important;
+      min-height: var(--print-head-row-h, auto) !important;
       padding-top: var(--print-head-pad-y, 2px) !important;
       padding-bottom: var(--print-head-pad-y, 2px) !important;
       font-size: var(--print-head-font, 7.5pt) !important;
+      box-sizing: border-box !important;
     }
+    body.fill-page-print table.escala tbody tr.group-header,
     body.fill-page-print table.escala tbody tr.group-header td {
       height: var(--print-group-row-h, auto) !important;
+      min-height: var(--print-group-row-h, auto) !important;
       padding-top: var(--print-group-pad-y, 2px) !important;
       padding-bottom: var(--print-group-pad-y, 2px) !important;
       font-size: var(--print-group-font, 7.5pt) !important;
+      box-sizing: border-box !important;
     }
-    body.fill-page-print table.escala tbody tr.row-prof {
-      height: var(--print-data-row-h, auto) !important;
-    }
+    body.fill-page-print table.escala tbody tr.row-prof,
     body.fill-page-print table.escala tbody tr.row-prof td {
       height: var(--print-data-row-h, auto) !important;
+      min-height: var(--print-data-row-h, auto) !important;
       padding-top: var(--print-data-pad-y, 2px) !important;
       padding-bottom: var(--print-data-pad-y, 2px) !important;
       font-size: var(--print-body-font, 7.5pt) !important;
+      box-sizing: border-box !important;
+      vertical-align: middle !important;
     }
     body.fill-page-print table.escala tbody tr.row-prof td.nome .cons {
       font-size: var(--print-cons-font, 6.5pt) !important;
@@ -537,49 +544,52 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
     <button class="secondary" onclick="window.close()">Fechar</button>
   </div>
   <script>
-    // Auto-compactação progressiva: tenta caber tudo em 1 página A4 paisagem
+    // Distribuição de altura: tenta preencher a página A4 paisagem antes de compactar
     window.__doPrint = function(){
       try {
-        // A4 paisagem útil ~ 1110 x 780 px (96dpi) com margem ~6mm
-        var maxH = 780;
+        // A4 paisagem útil ~ 1122 x 778 px (96dpi) com margem ~6mm.
+        // Convertendo: 297mm largura -> ~1122px; 210mm altura -> ~793px; com margens 6mm sobra ~778px de altura útil.
+        var PX_PER_MM = 96 / 25.4;
+        var marginMm = 6;
+        var maxH = Math.round((210 - marginMm * 2) * PX_PER_MM); // ~ 778
         document.body.classList.remove('compact-print', 'ultra-compact-print', 'fill-page-print');
-        ['--print-head-row-h','--print-head-pad-y','--print-head-font','--print-group-row-h','--print-group-pad-y','--print-group-font','--print-data-row-h','--print-data-pad-y','--print-body-font','--print-cons-font'].forEach(function(v){ document.body.style.removeProperty(v); });
+        ['--print-table-h','--print-head-row-h','--print-head-pad-y','--print-head-font','--print-group-row-h','--print-group-pad-y','--print-group-font','--print-data-row-h','--print-data-pad-y','--print-body-font','--print-cons-font'].forEach(function(v){ document.body.style.removeProperty(v); });
         void document.body.offsetHeight;
 
-        if (document.documentElement.scrollHeight <= maxH) {
-          var table = document.querySelector('table.escala');
-          var bottom = document.querySelector('.print-bottom');
-          if (table && bottom) {
-            var tableTop = table.getBoundingClientRect().top + window.scrollY;
-            var bottomH = bottom.getBoundingClientRect().height;
-            var availableTableH = Math.max(180, maxH - tableTop - bottomH - 4);
-            var currentTableH = table.getBoundingClientRect().height;
-            if (availableTableH > currentTableH + 8) {
-              var dataRows = Math.max(1, table.querySelectorAll('tbody tr.row-prof').length);
-              var groupRows = table.querySelectorAll('tbody tr.group-header').length;
-              var headRows = table.tHead ? table.tHead.rows.length : 1;
-              var targetTableH = availableTableH * 0.95;
-              var headH = Math.max(14, Math.min(24, targetTableH * 0.06));
-              var groupH = Math.max(10, Math.min(18, targetTableH * 0.035));
-              var reservedRowsH = (headRows * headH) + (groupRows * groupH);
-              var dataH = Math.max(18, (targetTableH - reservedRowsH) / dataRows);
-              var bodyFont = Math.max(7.5, Math.min(11.5, dataH * 0.16));
-              document.body.style.setProperty('--print-data-row-h', dataH.toFixed(1) + 'px');
-              document.body.style.setProperty('--print-group-row-h', groupH.toFixed(1) + 'px');
-              document.body.style.setProperty('--print-head-row-h', headH.toFixed(1) + 'px');
-              document.body.style.setProperty('--print-data-pad-y', Math.max(2, Math.min(8, dataH * 0.06)).toFixed(1) + 'px');
-              document.body.style.setProperty('--print-group-pad-y', Math.max(1, Math.min(4, groupH * 0.08)).toFixed(1) + 'px');
-              document.body.style.setProperty('--print-head-pad-y', Math.max(1, Math.min(4, headH * 0.08)).toFixed(1) + 'px');
-              document.body.style.setProperty('--print-body-font', bodyFont.toFixed(1) + 'pt');
-              document.body.style.setProperty('--print-head-font', Math.max(7.5, Math.min(10.5, bodyFont * 0.92)).toFixed(1) + 'pt');
-              document.body.style.setProperty('--print-group-font', Math.max(7.5, Math.min(10, bodyFont * 0.9)).toFixed(1) + 'pt');
-              document.body.style.setProperty('--print-cons-font', Math.max(6.5, bodyFont - 1).toFixed(1) + 'pt');
-              document.body.classList.add('fill-page-print');
-              void document.body.offsetHeight;
-            }
-          }
+        var table = document.querySelector('table.escala');
+        var bottom = document.querySelector('.print-bottom');
+        if (table && bottom) {
+          var tableTop = table.getBoundingClientRect().top + window.scrollY;
+          var bottomH = bottom.getBoundingClientRect().height;
+          // Espaço útil disponível para a tabela = (altura útil) - (topo da tabela) - (altura do bloco inferior real) - respiro
+          var availableTableH = Math.max(180, maxH - tableTop - bottomH - 6);
+          var dataRows = Math.max(1, table.querySelectorAll('tbody tr.row-prof').length);
+          var groupRows = table.querySelectorAll('tbody tr.group-header').length;
+          var headRows = table.tHead ? table.tHead.rows.length : 1;
+          var targetTableH = availableTableH; // usa praticamente tudo
+          var headH = Math.max(16, Math.min(26, targetTableH * 0.06));
+          var groupH = Math.max(11, Math.min(20, targetTableH * 0.035));
+          var reservedRowsH = (headRows * headH) + (groupRows * groupH);
+          var dataH = Math.max(16, (targetTableH - reservedRowsH) / dataRows);
+          // Limita altura máxima por linha quando há poucos profissionais — evita linha gigantesca
+          dataH = Math.min(dataH, 90);
+          var bodyFont = Math.max(7.5, Math.min(13, dataH * 0.18));
+          document.body.style.setProperty('--print-table-h', targetTableH.toFixed(1) + 'px');
+          document.body.style.setProperty('--print-data-row-h', dataH.toFixed(1) + 'px');
+          document.body.style.setProperty('--print-group-row-h', groupH.toFixed(1) + 'px');
+          document.body.style.setProperty('--print-head-row-h', headH.toFixed(1) + 'px');
+          document.body.style.setProperty('--print-data-pad-y', Math.max(2, Math.min(10, dataH * 0.08)).toFixed(1) + 'px');
+          document.body.style.setProperty('--print-group-pad-y', Math.max(1, Math.min(4, groupH * 0.08)).toFixed(1) + 'px');
+          document.body.style.setProperty('--print-head-pad-y', Math.max(1, Math.min(4, headH * 0.08)).toFixed(1) + 'px');
+          document.body.style.setProperty('--print-body-font', bodyFont.toFixed(1) + 'pt');
+          document.body.style.setProperty('--print-head-font', Math.max(7.5, Math.min(11, bodyFont * 0.92)).toFixed(1) + 'pt');
+          document.body.style.setProperty('--print-group-font', Math.max(7.5, Math.min(10.5, bodyFont * 0.9)).toFixed(1) + 'pt');
+          document.body.style.setProperty('--print-cons-font', Math.max(6.5, bodyFont - 1).toFixed(1) + 'pt');
+          document.body.classList.add('fill-page-print');
+          void document.body.offsetHeight;
         }
 
+        // Se ainda assim transbordar, compacta progressivamente (mantém fill-page e adiciona compactação)
         if (document.documentElement.scrollHeight > maxH) {
           document.body.classList.remove('fill-page-print');
           document.body.classList.add('compact-print');
@@ -589,7 +599,7 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
           }
         }
       } catch(e){}
-      setTimeout(function(){ window.print(); }, 120);
+      setTimeout(function(){ window.print(); }, 150);
     };
   </script>
 
