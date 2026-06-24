@@ -768,21 +768,8 @@ export async function gerarPdfEscalaMensalOficial(
 
     doc.setLineWidth(0.3);
     doc.line(startXL, assY, startXL + lineLen, assY);
-    doc.setFontSize(8.5);
-    doc.setFont("helvetica", "bold");
-    doc.text(r1?.nome || "", xL, assY + 4, { align: "center" });
-    doc.setFontSize(7.5);
-    doc.setFont("helvetica", "normal");
-    doc.text(r1?.cargo || "", xL, assY + 8, { align: "center" });
-    if (r1?.conselho && r1.conselho !== "Não informado") {
-      doc.text(r1.conselho, xL, assY + 11.5, { align: "center" });
-    }
-    if (r1?.unidade) {
-      doc.setFontSize(6.5);
-      doc.setTextColor(100);
-      doc.text(r1.unidade, xL, assY + 14.5, { align: "center" });
-      doc.setTextColor(0);
-    }
+    renderResponsavelInfo(doc, r1, xL, assY + 4, opts);
+
 
     // Bloco Direito — Responsável 2
     const startXR = pageW - margin - gap - lineLen;
