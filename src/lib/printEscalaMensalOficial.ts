@@ -686,7 +686,7 @@ export async function gerarPdfEscalaMensalOficial(
     ...(opts.incluirADN ? [{ content: opts.adnLabel || "ADN", styles: { halign: "center" as const, fontStyle: "bold" as const, fillColor: [238, 242, 255] as [number, number, number] } }] : [])
   ]];
 
-  const totalCols = totalDias + (opts.incluirTotalHoras ? 2 : 1);
+  const totalCols = 1 + totalDias + (opts.incluirTotalHoras ? 1 : 0) + (opts.incluirADN ? 1 : 0);
 
   // Agrupa profissionais por Unidade -> Setor -> Profissão
   const tree = new Map<string, Map<string, Map<string, MensalProfissional[]>>>();
@@ -757,27 +757,62 @@ export async function gerarPdfEscalaMensalOficial(
   const adnW = opts.incluirADN ? 12 : 0;
   const diaW = (availW - nomeW - totalW - adnW) / totalDias;
 
-  // ===== Dimensionamento dinâmico (preenche melhor a folha) =====
-  // Espaço reservado abaixo da tabela: legenda + totais + assinatura/rodapé
-  const reservedBottom = (opts.incluirAssinatura ? 50 : 22);
-  const availH = Math.max(60, pageH - y - reservedBottom);
+  // ===== Modo Fill Page: mede elementos reais e faz a tabela ocupar a altura útil =====
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  const legendaParts = tipos.map(t => `${t.sigla}=${t.nome}${t.start && t.end ? ` (${t.start}-${t.end}h)` : ""}`);
+  legendaParts.push("!=Pendente", "*=Cancelado");
+  const legendaText = "Legenda: " + legendaParts.join("  |  ");
+  const wrappedLegenda = doc.splitTextToSize(legendaText, availW);
+  const legendaLineH = 3.2;
+  const legendGap = 3;
+  const legendHeight = Math.max(legendaLineH, wrappedLegenda.length * legendaLineH);
 
-  // Conta linhas reais (grupos + dados)
+  const obsText = opts.incluirObservacoesRodape
+    ? "OBSERVAÇÕES: Escala sujeita a alteração. Qualquer troca de plantão deve ser comunicada à coordenação."
+    : "";
+  const wrappedObs = obsText ? doc.splitTextToSize(obsText, availW) : [];
+  const obsGap = wrappedObs.length ? 2 : 0;
+  const obsHeight = wrappedObs.length * 3.2;
+
+  const totalGap = 3;
+  const totalHeight = 4;
+  const footerHeight = 8; // altura real do texto institucional inferior + respiro
+  const signatureHasMedia = hasSignatureMedia(opts.responsavel) || hasSignatureMedia(opts.responsavelTecnico);
+  const signatureInfoHeight = opts.incluirAssinatura
+    ? Math.max(
+        measureResponsavelInfoHeight(opts.responsavel, opts),
+        measureResponsavelInfoHeight(opts.responsavelTecnico, opts),
+        8
+      )
+    : 0;
+  const signatureMediaHeight = opts.incluirAssinatura ? (signatureHasMedia ? 24 : 8) : 0;
+  const signatureGap = opts.incluirAssinatura ? 5 : 0;
+  const signatureHeight = opts.incluirAssinatura ? signatureMediaHeight + 4 + signatureInfoHeight : 0;
+  const bottomContentHeight = legendGap + legendHeight + obsGap + obsHeight + totalGap + totalHeight + signatureGap + signatureHeight;
+  const tableAvailableHeight = Math.max(42, pageH - footerHeight - y - bottomContentHeight);
+
+  // Conta linhas reais (grupos + dados) e transforma a altura útil em alturas de linha.
+  // Cabeçalho e grupos são menores; registros de profissionais recebem o restante.
   const dataRows = profsInBody.filter(p => p !== null).length || 1;
   const groupRows = profsInBody.length - dataRows;
-  // Grupos ocupam ~60% da altura de uma linha de dados
-  const weightedRows = dataRows + groupRows * 0.6;
-  let rowH = availH / weightedRows;
-  // Clamp: mínimo legível e máximo generoso para preencher a página com poucas linhas
-  // (1-5 profissionais → linhas bem altas; 50+ → linhas compactas mas legíveis)
-  const maxRow = dataRows <= 5 ? 32 : dataRows <= 10 ? 22 : dataRows <= 20 ? 16 : 12;
-  rowH = Math.max(4.2, Math.min(rowH, maxRow));
+  const groupWeight = dataRows <= 5 ? 0.48 : 0.55;
+  const headWeight = 0.72;
+  const weightedRows = dataRows + groupRows * groupWeight + headWeight;
+  const dataRowH = Math.max(3.4, tableAvailableHeight / weightedRows);
+  const groupRowH = Math.max(3.6, dataRowH * groupWeight);
+  const headRowH = Math.max(5.5, dataRowH * headWeight);
 
   // Fonte e padding proporcionais à altura da linha
-  const bodyFont = Math.max(6, Math.min(14, rowH * 0.55));
+  const bodyFont = Math.max(6, Math.min(15, dataRowH * 0.5));
   const headFont = Math.max(6, Math.min(11, bodyFont * 0.95));
   const totalFont = Math.max(7, Math.min(15, bodyFont + 1));
-  const cellPad = Math.max(0.6, Math.min(3.5, rowH * 0.18));
+  const cellPad = Math.max(0.6, Math.min(4.2, dataRowH * 0.15));
+  const groupPad = Math.max(0.4, Math.min(2.2, groupRowH * 0.12));
+
+  const columnStyles: Record<number, any> = { 0: { cellWidth: nomeW } };
+  if (opts.incluirTotalHoras) columnStyles[totalDias + 1] = { cellWidth: totalW };
+  if (opts.incluirADN) columnStyles[totalDias + (opts.incluirTotalHoras ? 2 : 1)] = { cellWidth: adnW };
 
   autoTable(doc, {
     head,
@@ -789,12 +824,12 @@ export async function gerarPdfEscalaMensalOficial(
     styles: {
       fontSize: bodyFont,
       cellPadding: cellPad,
-      minCellHeight: rowH,
+      minCellHeight: dataRowH,
       valign: "middle",
       lineColor: [200, 200, 200],
       lineWidth: 0.1,
       textColor: 0,
-      overflow: "hidden"
+      overflow: "linebreak"
     },
     headStyles: {
       fillColor: [240, 240, 240],
@@ -802,21 +837,29 @@ export async function gerarPdfEscalaMensalOficial(
       fontStyle: "bold",
       fontSize: headFont,
       lineWidth: 0.2,
-      minCellHeight: Math.max(6, rowH * 0.9)
+      minCellHeight: headRowH,
+      cellPadding: Math.max(0.6, Math.min(2.5, headRowH * 0.12))
     },
     alternateRowStyles: {
       fillColor: [250, 250, 250] // Zebra (linhas alternadas com fundo levemente cinza)
     },
-    columnStyles: {
-      0: { cellWidth: nomeW },
-      [totalDias + (opts.incluirTotalHoras ? 1 : 0) + (opts.incluirADN ? 1 : 0)]: { cellWidth: adnW },
-      [totalDias + (opts.incluirTotalHoras ? 1 : 0)]: { cellWidth: totalW }
-    },
+    columnStyles,
     didParseCell: (data) => {
       const ci = data.column.index;
+      if (data.section === "body") {
+        const prof = profsInBody[data.row.index];
+        const isGroupRow = !prof;
+        data.cell.styles.minCellHeight = isGroupRow ? groupRowH : dataRowH;
+        data.cell.styles.cellPadding = isGroupRow ? groupPad : cellPad;
+        if (isGroupRow) {
+          data.cell.styles.fontSize = Math.max(6, Math.min(9, groupRowH * 0.55));
+          data.cell.styles.overflow = "linebreak";
+        }
+      }
       if (ci > 0 && ci <= totalDias) {
         data.cell.styles.cellWidth = diaW;
         data.cell.styles.halign = "center";
+        data.cell.styles.overflow = "hidden";
 
         if (data.section === "body") {
           const sigla = String(data.cell.raw || "");
@@ -843,6 +886,7 @@ export async function gerarPdfEscalaMensalOficial(
       // Coluna nome: levemente maior
       if (data.section === "body" && ci === 0) {
         data.cell.styles.fontSize = Math.max(6, bodyFont * 0.92);
+        data.cell.styles.overflow = "linebreak";
       }
     }
   });
@@ -852,14 +896,21 @@ export async function gerarPdfEscalaMensalOficial(
   // ===== Legenda dinâmica =====
   doc.setFontSize(7);
   doc.setTextColor(80);
-  const legendaParts = tipos.map(t => `${t.sigla}=${t.nome}${t.start && t.end ? ` (${t.start}-${t.end}h)` : ""}`);
-  legendaParts.push("!=Pendente", "*=Cancelado");
-  const legendaText = "Legenda: " + legendaParts.join("  |  ");
-  const wrappedLegenda = doc.splitTextToSize(legendaText, availW);
-  doc.text(wrappedLegenda, margin, finalY + 5);
-  finalY += (wrappedLegenda.length * 4) + 2;
+  finalY += legendGap;
+  doc.text(wrappedLegenda, margin, finalY);
+  finalY += legendHeight;
+
+  if (wrappedObs.length) {
+    finalY += obsGap;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(80);
+    doc.text(wrappedObs, margin, finalY);
+    finalY += obsHeight;
+  }
 
   // ===== Totais =====
+  finalY += totalGap;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(0);
@@ -868,14 +919,14 @@ export async function gerarPdfEscalaMensalOficial(
   const resumoTxt = opts.incluirTotalHoras 
     ? `Total de plantões: ${totalPlantoes}    Total de horas: ${totalHorasGeral}h`
     : `Total de plantões: ${totalPlantoes}`;
-  doc.text(resumoTxt, margin, finalY + 5);
-  finalY += 10;
+  doc.text(resumoTxt, margin, finalY);
+  finalY += totalHeight;
 
   // ===== Rodapé — Carimbo e Assinatura =====
   if (opts.incluirAssinatura) {
     const r1 = opts.responsavel;
     const r2 = opts.responsavelTecnico;
-    const assY = Math.max(finalY + 15, pageH - 35);
+    const assY = finalY + signatureGap + signatureMediaHeight;
     const lineLen = 70;
     const gap = (availW - (lineLen * 2)) / 3;
 
