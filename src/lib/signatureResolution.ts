@@ -2,6 +2,22 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type SignatureType = "visual" | "stamp" | "digital" | "text_only";
 
+export interface SignatureDisplayFlags {
+  mostrar_profissao?: boolean;
+  mostrar_especialidade?: boolean;
+  mostrar_conselho?: boolean;
+  mostrar_uf_conselho?: boolean;
+  mostrar_cbo?: boolean;
+  mostrar_cns?: boolean;
+  mostrar_unidade?: boolean;
+  mostrar_setor?: boolean;
+  mostrar_cidade_uf?: boolean;
+  mostrar_data_local?: boolean;
+  mostrar_codigo_validacao?: boolean;
+  mostrar_hash?: boolean;
+  mostrar_qr_code?: boolean;
+}
+
 export interface ResolvedSignature {
   signatoryFound: boolean;
   professionalId?: string;
@@ -10,7 +26,22 @@ export interface ResolvedSignature {
   cargo: string;
   conselho: string;
   unidade: string;
-  
+
+  // Campos detalhados para "Exibição no Documento"
+  profissao?: string;
+  especialidade?: string;
+  conselhoSigla?: string;
+  registroNumero?: string;
+  ufConselho?: string;
+  cbo?: string;
+  cns?: string;
+  setor?: string;
+  cidadeUf?: string;
+  textoPersonalizado?: string;
+
+  display?: SignatureDisplayFlags;
+  tipo?: string;
+
   // Imagens resolvidas (Base64)
   assinaturaBase64?: string;
   carimboBase64?: string;
