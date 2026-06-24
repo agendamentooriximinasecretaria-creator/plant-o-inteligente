@@ -502,6 +502,9 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
       padding-bottom: var(--print-group-pad-y, 2px) !important;
       font-size: var(--print-group-font, 7.5pt) !important;
     }
+    body.fill-page-print table.escala tbody tr.row-prof {
+      height: var(--print-data-row-h, auto) !important;
+    }
     body.fill-page-print table.escala tbody tr.row-prof td {
       height: var(--print-data-row-h, auto) !important;
       padding-top: var(--print-data-pad-y, 2px) !important;
@@ -555,17 +558,18 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
               var dataRows = Math.max(1, table.querySelectorAll('tbody tr.row-prof').length);
               var groupRows = table.querySelectorAll('tbody tr.group-header').length;
               var headRows = table.tHead ? table.tHead.rows.length : 1;
-              var rowH = availableTableH / (dataRows + groupRows * 0.48 + headRows * 0.72);
-              var dataH = Math.max(22, rowH);
-              var groupH = Math.max(14, rowH * 0.48);
-              var headH = Math.max(16, rowH * 0.72);
-              var bodyFont = Math.max(7.5, Math.min(11.5, rowH * 0.28));
+              var targetTableH = availableTableH * 0.95;
+              var headH = Math.max(14, Math.min(24, targetTableH * 0.06));
+              var groupH = Math.max(10, Math.min(18, targetTableH * 0.035));
+              var reservedRowsH = (headRows * headH) + (groupRows * groupH);
+              var dataH = Math.max(18, (targetTableH - reservedRowsH) / dataRows);
+              var bodyFont = Math.max(7.5, Math.min(11.5, dataH * 0.16));
               document.body.style.setProperty('--print-data-row-h', dataH.toFixed(1) + 'px');
               document.body.style.setProperty('--print-group-row-h', groupH.toFixed(1) + 'px');
               document.body.style.setProperty('--print-head-row-h', headH.toFixed(1) + 'px');
-              document.body.style.setProperty('--print-data-pad-y', Math.max(2, Math.min(8, rowH * 0.08)).toFixed(1) + 'px');
-              document.body.style.setProperty('--print-group-pad-y', Math.max(1, Math.min(5, rowH * 0.04)).toFixed(1) + 'px');
-              document.body.style.setProperty('--print-head-pad-y', Math.max(1, Math.min(5, rowH * 0.05)).toFixed(1) + 'px');
+              document.body.style.setProperty('--print-data-pad-y', Math.max(2, Math.min(8, dataH * 0.06)).toFixed(1) + 'px');
+              document.body.style.setProperty('--print-group-pad-y', Math.max(1, Math.min(4, groupH * 0.08)).toFixed(1) + 'px');
+              document.body.style.setProperty('--print-head-pad-y', Math.max(1, Math.min(4, headH * 0.08)).toFixed(1) + 'px');
               document.body.style.setProperty('--print-body-font', bodyFont.toFixed(1) + 'pt');
               document.body.style.setProperty('--print-head-font', Math.max(7.5, Math.min(10.5, bodyFont * 0.92)).toFixed(1) + 'pt');
               document.body.style.setProperty('--print-group-font', Math.max(7.5, Math.min(10, bodyFont * 0.9)).toFixed(1) + 'pt');
@@ -815,7 +819,7 @@ export async function gerarPdfEscalaMensalOficial(
   const adnW = opts.incluirADN ? 12 : 0;
   const diaW = (availW - nomeW - totalW - adnW) / totalDias;
 
-  // ===== Modo Fill Page: mede elementos reais e faz a tabela ocupar a altura útil =====
+  // ===== Modo Fill Page: distribui a altura útil real entre as linhas profissionais =====
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
   const legendaParts = tipos.map(t => `${t.sigla}=${t.nome}${t.start && t.end ? ` (${t.start}-${t.end}h)` : ""}`);
@@ -848,18 +852,17 @@ export async function gerarPdfEscalaMensalOficial(
   const signatureGap = opts.incluirAssinatura ? 2 : 0;
   const signatureHeight = opts.incluirAssinatura ? signatureMediaHeight + 4 + signatureInfoHeight : 0;
   const bottomContentHeight = legendGap + legendHeight + obsGap + obsHeight + totalGap + totalHeight + signatureGap + signatureHeight;
-  const tableAvailableHeight = Math.max(42, pageH - footerHeight - y - bottomContentHeight);
+  const availableTableHeight = Math.max(42, pageH - footerHeight - y - bottomContentHeight);
 
-  // Conta linhas reais (grupos + dados) e transforma a altura útil em alturas de linha.
-  // Cabeçalho e grupos são menores; registros de profissionais recebem o restante.
+  // A altura principal deve vir de: rowHeight = availableTableHeight / totalProfessionals.
+  // Cabeçalho e grupos ficam compactos; o restante é redistribuído exclusivamente nas linhas reais.
   const dataRows = profsInBody.filter(p => p !== null).length || 1;
   const groupRows = profsInBody.length - dataRows;
-  const groupWeight = dataRows <= 5 ? 0.48 : 0.55;
-  const headWeight = 0.72;
-  const weightedRows = dataRows + groupRows * groupWeight + headWeight;
-  const dataRowH = Math.max(3.4, tableAvailableHeight / weightedRows);
-  const groupRowH = Math.max(3.6, dataRowH * groupWeight);
-  const headRowH = Math.max(5.5, dataRowH * headWeight);
+  const targetTableHeight = availableTableHeight * 0.95;
+  const headRowH = Math.max(5, Math.min(8, targetTableHeight * 0.045));
+  const groupRowH = Math.max(3.8, Math.min(6.5, targetTableHeight * 0.026));
+  const reservedStructuralHeight = headRowH + groupRows * groupRowH;
+  const dataRowH = Math.max(4.2, (targetTableHeight - reservedStructuralHeight) / dataRows);
 
   // Fonte e padding proporcionais à altura da linha
   const bodyFont = Math.max(6, Math.min(15, dataRowH * 0.5));
