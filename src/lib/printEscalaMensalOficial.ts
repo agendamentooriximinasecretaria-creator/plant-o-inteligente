@@ -819,7 +819,7 @@ export async function gerarPdfEscalaMensalOficial(
   const adnW = opts.incluirADN ? 12 : 0;
   const diaW = (availW - nomeW - totalW - adnW) / totalDias;
 
-  // ===== Modo Fill Page: mede elementos reais e faz a tabela ocupar a altura útil =====
+  // ===== Modo Fill Page: distribui a altura útil real entre as linhas profissionais =====
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
   const legendaParts = tipos.map(t => `${t.sigla}=${t.nome}${t.start && t.end ? ` (${t.start}-${t.end}h)` : ""}`);
@@ -852,18 +852,17 @@ export async function gerarPdfEscalaMensalOficial(
   const signatureGap = opts.incluirAssinatura ? 2 : 0;
   const signatureHeight = opts.incluirAssinatura ? signatureMediaHeight + 4 + signatureInfoHeight : 0;
   const bottomContentHeight = legendGap + legendHeight + obsGap + obsHeight + totalGap + totalHeight + signatureGap + signatureHeight;
-  const tableAvailableHeight = Math.max(42, pageH - footerHeight - y - bottomContentHeight);
+  const availableTableHeight = Math.max(42, pageH - footerHeight - y - bottomContentHeight);
 
-  // Conta linhas reais (grupos + dados) e transforma a altura útil em alturas de linha.
-  // Cabeçalho e grupos são menores; registros de profissionais recebem o restante.
+  // A altura principal deve vir de: rowHeight = availableTableHeight / totalProfessionals.
+  // Cabeçalho e grupos ficam compactos; o restante é redistribuído exclusivamente nas linhas reais.
   const dataRows = profsInBody.filter(p => p !== null).length || 1;
   const groupRows = profsInBody.length - dataRows;
-  const groupWeight = dataRows <= 5 ? 0.48 : 0.55;
-  const headWeight = 0.72;
-  const weightedRows = dataRows + groupRows * groupWeight + headWeight;
-  const dataRowH = Math.max(3.4, tableAvailableHeight / weightedRows);
-  const groupRowH = Math.max(3.6, dataRowH * groupWeight);
-  const headRowH = Math.max(5.5, dataRowH * headWeight);
+  const targetTableHeight = availableTableHeight * 0.95;
+  const headRowH = Math.max(5, Math.min(8, targetTableHeight * 0.045));
+  const groupRowH = Math.max(3.8, Math.min(6.5, targetTableHeight * 0.026));
+  const reservedStructuralHeight = headRowH + groupRows * groupRowH;
+  const dataRowH = Math.max(4.2, (targetTableHeight - reservedStructuralHeight) / dataRows);
 
   // Fonte e padding proporcionais à altura da linha
   const bodyFont = Math.max(6, Math.min(15, dataRowH * 0.5));
@@ -912,6 +911,7 @@ export async function gerarPdfEscalaMensalOficial(
         const prof = profsInBody[data.row.index];
         const isGroupRow = !prof;
         data.cell.styles.minCellHeight = isGroupRow ? groupRowH : dataRowH;
+        data.cell.styles.cellHeight = isGroupRow ? groupRowH : dataRowH;
         data.cell.styles.cellPadding = isGroupRow ? groupPad : cellPad;
         if (isGroupRow) {
           data.cell.styles.fontSize = Math.max(6, Math.min(9, groupRowH * 0.55));
