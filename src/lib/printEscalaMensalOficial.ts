@@ -786,7 +786,7 @@ export async function gerarPdfEscalaMensalOficial(
         8
       )
     : 0;
-  const signatureMediaHeight = opts.incluirAssinatura ? (signatureHasMedia ? 24 : 8) : 0;
+  const signatureMediaHeight = opts.incluirAssinatura ? (signatureHasMedia ? 24 : 0) : 0;
   const signatureGap = opts.incluirAssinatura ? 5 : 0;
   const signatureHeight = opts.incluirAssinatura ? signatureMediaHeight + 4 + signatureInfoHeight : 0;
   const bottomContentHeight = legendGap + legendHeight + obsGap + obsHeight + totalGap + totalHeight + signatureGap + signatureHeight;
