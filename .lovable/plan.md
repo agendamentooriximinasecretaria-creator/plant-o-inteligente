@@ -1,33 +1,24 @@
-I will completely refactor the "Professional" modal in `src/pages/ProfissionaisPage.tsx` to meet hospital/professional standards.
+## Problema
 
-### 1. Structure and Layout
-- Refactor the existing `Dialog` into a more robust structure with:
-  - Fixed Header (`DialogHeader` + `DialogTitle`).
-  - Fixed Footer (sticky at the bottom with standard "Cancel" and "Save" buttons).
-  - Scrollable Body area with `overflow-x-hidden`.
-- Implement **Tabs** (using Radix `Tabs` or a custom implementation if needed, but the project seems to use `Tabs` from shadcn/ui) to group fields:
-  - **Aba 1: Dados Básicos**: Nome, CPF, Telefone, E-mail, Status, Vínculo, Observações.
-  - **Aba 2: Profissional**: Profissão, Especialidade, Conselho, Registro, Competências.
-  - **Aba 3: Unidade e Setor**: Unidade Principal, Setor Principal.
-  - **Aba 4: Documentos**: Conselho (CRM/COREN), Nº Documento, Validade.
-  - **Aba 5: Regras**: Limite de Trocas de Plantão, Limite de Trocas de Paciente.
-  - **Aba 6: Carimbo**: Integration with `CarimboAssinaturaProfissional`.
+No PDF da Escala Mensal Oficial aparece uma segunda linha de assinatura no canto direito, sem nome/cargo embaixo. Isso ocorre porque o código desenha o bloco do "Responsável Técnico" (r2) incondicionalmente, mesmo quando `opts.responsavelTecnico` não está preenchido.
 
-### 2. Responsiveness and UI Fixes
-- Set modal width to `max-w-5xl` (or `6xl` if needed) and `w-[95vw]`.
-- Use a responsive grid system:
-  - `grid-cols-1` for mobile.
-  - `md:grid-cols-2` or `lg:grid-cols-3` for larger screens depending on field width.
-- Ensure all inputs (`input`, `select`, `textarea`) have `w-full` and proper focus/border styling.
-- Remove horizontal scrolling by ensuring `min-w-0` and `overflow-x-hidden` on all containers.
-- Improve visual feedback for mandatory fields (`*`).
+## Causa
 
-### 3. Functional Integrity
-- Maintain all existing `useMutation` and `useQuery` logic for saving and fetching data.
-- Ensure "Edit Professional" correctly populates all fields, including sensitive ones fetched on demand.
-- Keep the `CarimboAssinaturaProfissional` integration working correctly in the new tabbed layout.
+Em `src/lib/printEscalaMensalOficial.ts` (linhas ~1043-1078), o bloco direito sempre executa:
+- `doc.line(startXR, assY, startXR + lineLen, assY)` desenha a linha horizontal
+- `renderResponsavelInfo(doc, r2, ...)` é chamado mesmo com `r2` vazio
 
-### Technical Details:
-- Files to modify: `src/pages/ProfissionaisPage.tsx`.
-- Components to use: `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` from `@/components/ui/tabs`.
-- CSS Classes: Use Tailwind `sticky`, `bottom-0`, `z-10` for the footer; `overflow-y-auto`, `max-h-[calc(90vh-140px)]` for the body.
+O mesmo acontece no template HTML em `src/lib/documentTemplates.ts` — embora lá já exista uma checagem `${responsavelTecnico ? renderBox(...) : ""}`, é preciso garantir consistência.
+
+## Correção
+
+1. Em `printEscalaMensalOficial.ts`, envolver TODO o bloco do "Responsável Direito" (assinatura visual, carimbo, selo digital, linha e info — linhas 1043-1078) em uma checagem:
+   ```ts
+   const hasR2 = !!(r2 && (r2.nome || r2.cargo));
+   if (hasR2) { /* desenha bloco direito */ }
+   ```
+   Assim, quando não houver Responsável Técnico, nem a linha nem qualquer artefato direito serão renderizados.
+
+2. Centralizar o bloco esquerdo quando for o único: ajustar `startXL` para `(pageW - lineLen) / 2` caso `!hasR2`, para o único signatário aparecer centralizado (igual ao HTML que já usa `justify-content: space-around`).
+
+Nenhuma outra alteração de layout, fonte ou cálculo de altura será feita.
