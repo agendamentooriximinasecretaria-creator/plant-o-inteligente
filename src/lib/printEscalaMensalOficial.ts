@@ -806,21 +806,8 @@ export async function gerarPdfEscalaMensalOficial(
 
     doc.setLineWidth(0.3);
     doc.line(startXR, assY, startXR + lineLen, assY);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
-    doc.text(r2?.nome || "", xR, assY + 4, { align: "center" });
-    doc.setFontSize(7.5);
-    doc.setFont("helvetica", "normal");
-    doc.text(r2?.cargo || "", xR, assY + 8, { align: "center" });
-    if (r2?.conselho && r2.conselho !== "Não informado") {
-      doc.text(r2.conselho, xR, assY + 11.5, { align: "center" });
-    }
-    if (r2?.unidade) {
-      doc.setFontSize(6.5);
-      doc.setTextColor(100);
-      doc.text(r2.unidade, xR, assY + 14.5, { align: "center" });
-      doc.setTextColor(0);
-    }
+    renderResponsavelInfo(doc, r2, xR, assY + 4, opts);
+
   }
 
   // ===== Rodapé Inferior =====
