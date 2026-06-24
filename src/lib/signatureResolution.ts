@@ -2,6 +2,22 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type SignatureType = "visual" | "stamp" | "digital" | "text_only";
 
+export interface SignatureDisplayFlags {
+  mostrar_profissao?: boolean;
+  mostrar_especialidade?: boolean;
+  mostrar_conselho?: boolean;
+  mostrar_uf_conselho?: boolean;
+  mostrar_cbo?: boolean;
+  mostrar_cns?: boolean;
+  mostrar_unidade?: boolean;
+  mostrar_setor?: boolean;
+  mostrar_cidade_uf?: boolean;
+  mostrar_data_local?: boolean;
+  mostrar_codigo_validacao?: boolean;
+  mostrar_hash?: boolean;
+  mostrar_qr_code?: boolean;
+}
+
 export interface ResolvedSignature {
   signatoryFound: boolean;
   professionalId?: string;
@@ -10,7 +26,22 @@ export interface ResolvedSignature {
   cargo: string;
   conselho: string;
   unidade: string;
-  
+
+  // Campos detalhados para "Exibição no Documento"
+  profissao?: string;
+  especialidade?: string;
+  conselhoSigla?: string;
+  registroNumero?: string;
+  ufConselho?: string;
+  cbo?: string;
+  cns?: string;
+  setor?: string;
+  cidadeUf?: string;
+  textoPersonalizado?: string;
+
+  display?: SignatureDisplayFlags;
+  tipo?: string;
+
   // Imagens resolvidas (Base64)
   assinaturaBase64?: string;
   carimboBase64?: string;
@@ -127,10 +158,40 @@ export async function resolveSignatureData(params: {
       result.unidade = metadata.unidade_principal || (prof as any).units?.nome || "";
       result.tipoAssinante = metadata.tipo_assinante || "profissional_saude";
 
+      // Campos detalhados para "Exibição no Documento"
+      result.profissao = (prof as any).profissao || "";
+      result.especialidade = stamp.especialidade || (prof as any).especialidade || "";
+      result.conselhoSigla = conselhoLabel;
+      result.registroNumero = registroVal;
+      result.ufConselho = stamp.uf_conselho || "";
+      result.cbo = stamp.cbo || metadata.cbo || "";
+      result.cns = stamp.cns || metadata.cns || "";
+      result.setor = metadata.setor_principal || "";
+      result.cidadeUf = stamp.cidade_uf || metadata.cidade_uf || "";
+      result.textoPersonalizado = stamp.texto_personalizado || "";
+      result.tipo = stamp.tipo;
+
+      result.display = {
+        mostrar_profissao: stamp.mostrar_profissao,
+        mostrar_especialidade: stamp.mostrar_especialidade,
+        mostrar_conselho: stamp.mostrar_conselho,
+        mostrar_uf_conselho: stamp.mostrar_uf_conselho,
+        mostrar_cbo: stamp.mostrar_cbo,
+        mostrar_cns: stamp.mostrar_cns,
+        mostrar_unidade: stamp.mostrar_unidade,
+        mostrar_setor: stamp.mostrar_setor,
+        mostrar_cidade_uf: stamp.mostrar_cidade_uf,
+        mostrar_data_local: stamp.mostrar_data_local,
+        mostrar_codigo_validacao: stamp.mostrar_codigo_validacao,
+        mostrar_hash: stamp.mostrar_hash,
+        mostrar_qr_code: stamp.mostrar_qr_code,
+      };
+
       // Flags de disponibilidade baseadas no cadastro
       result.hasVisualSignature = !!stamp.assinatura_path;
       result.hasStamp = !!stamp.carimbo_path;
       result.hasDigitalSeal = stamp.tipo === "digital_gerado" || stamp.tipo === "eletronica_interna";
+
 
       // 3. Resolver Imagens se solicitado
       if (includeImages) {

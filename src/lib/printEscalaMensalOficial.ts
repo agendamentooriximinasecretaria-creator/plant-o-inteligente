@@ -74,6 +74,32 @@ export interface MensalResponsavel {
   hasVisualSignature?: boolean;
   hasStamp?: boolean;
   hasDigitalSeal?: boolean;
+  // Campos detalhados / flags vindos de "Exibição no Documento"
+  profissao?: string;
+  especialidade?: string;
+  conselhoSigla?: string;
+  registroNumero?: string;
+  ufConselho?: string;
+  cbo?: string;
+  cns?: string;
+  setor?: string;
+  cidadeUf?: string;
+  textoPersonalizado?: string;
+  display?: {
+    mostrar_profissao?: boolean;
+    mostrar_especialidade?: boolean;
+    mostrar_conselho?: boolean;
+    mostrar_uf_conselho?: boolean;
+    mostrar_cbo?: boolean;
+    mostrar_cns?: boolean;
+    mostrar_unidade?: boolean;
+    mostrar_setor?: boolean;
+    mostrar_cidade_uf?: boolean;
+    mostrar_data_local?: boolean;
+    mostrar_codigo_validacao?: boolean;
+    mostrar_hash?: boolean;
+    mostrar_qr_code?: boolean;
+  };
 }
 
 export interface MensalOpts {
@@ -87,10 +113,101 @@ export interface MensalOpts {
   totalLabel?: "TOTAL" | "ADN";
   responsavel?: MensalResponsavel;
   responsavelTecnico?: MensalResponsavel;
+  codigoValidacao?: string;
+  dataEmissao?: string;
 }
+
 
 const DIAS_PT_FULL = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
 const DIAS_SEM_ABREV = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
+
+// Substitui placeholders {{data_emissao}} e {{codigo_validacao}} em qualquer texto
+function substituirPlaceholders(texto: string, opts: MensalOpts): string {
+  const data = opts.dataEmissao || new Date().toLocaleString("pt-BR");
+  const codigo = opts.codigoValidacao || "";
+  return (texto || "")
+    .replace(/\{\{\s*data_emissao\s*\}\}/gi, data)
+    .replace(/\{\{\s*codigo_validacao\s*\}\}/gi, codigo);
+}
+
+// Renderiza o bloco de informações do responsável respeitando flags de "Exibição no Documento"
+function renderResponsavelInfo(
+  doc: jsPDF,
+  r: MensalResponsavel | undefined,
+  xCenter: number,
+  yStart: number,
+  opts: MensalOpts
+) {
+  if (!r) return;
+  const d = r.display || {};
+  // Quando display vier indefinido, exibir o máximo possível por padrão
+  const show = (flag: boolean | undefined, fallback = true) => (flag === undefined ? fallback : !!flag);
+
+  const lines: { text: string; bold?: boolean; muted?: boolean; size?: number }[] = [];
+
+  if (r.nome) lines.push({ text: r.nome.toUpperCase(), bold: true, size: 8.5 });
+  if (r.cargo) lines.push({ text: r.cargo, size: 7.5 });
+
+  if (show(d.mostrar_profissao, false) && r.profissao) {
+    lines.push({ text: r.profissao, size: 7 });
+  }
+
+  // Conselho + Registro + UF (ex: COREN 946921-ENF / PA)
+  if (show(d.mostrar_conselho)) {
+    const sigla = r.conselhoSigla || "";
+    const reg = r.registroNumero || "";
+    const uf = show(d.mostrar_uf_conselho) && r.ufConselho ? ` / ${r.ufConselho}` : "";
+    const linha = `${sigla} ${reg}${uf}`.trim();
+    if (linha) lines.push({ text: linha, size: 7.5 });
+    else if (r.conselho && r.conselho !== "Não informado") {
+      lines.push({ text: r.conselho, size: 7.5 });
+    }
+  } else if (r.conselho && r.conselho !== "Não informado") {
+    lines.push({ text: r.conselho, size: 7.5 });
+  }
+
+  if (show(d.mostrar_especialidade, false) && r.especialidade) {
+    lines.push({ text: r.especialidade, size: 7 });
+  }
+  if (show(d.mostrar_cbo, false) && r.cbo) {
+    lines.push({ text: `CBO: ${r.cbo}`, size: 7 });
+  }
+  if (show(d.mostrar_cns, false) && r.cns) {
+    lines.push({ text: `CNS: ${r.cns}`, size: 7 });
+  }
+  if (show(d.mostrar_unidade) && r.unidade) {
+    lines.push({ text: r.unidade, size: 6.5, muted: true });
+  }
+  if (show(d.mostrar_setor, false) && r.setor) {
+    lines.push({ text: r.setor, size: 6.5, muted: true });
+  }
+  if (show(d.mostrar_cidade_uf, false) && r.cidadeUf) {
+    const data = show(d.mostrar_data_local, false)
+      ? `, ${opts.dataEmissao || new Date().toLocaleDateString("pt-BR")}`
+      : "";
+    lines.push({ text: `${r.cidadeUf}${data}`, size: 6.5, muted: true });
+  } else if (show(d.mostrar_data_local, false)) {
+    lines.push({ text: opts.dataEmissao || new Date().toLocaleDateString("pt-BR"), size: 6.5, muted: true });
+  }
+  if (show(d.mostrar_codigo_validacao, false) && opts.codigoValidacao) {
+    lines.push({ text: `Código: ${opts.codigoValidacao}`, size: 6.5, muted: true });
+  }
+  if (r.textoPersonalizado) {
+    lines.push({ text: substituirPlaceholders(r.textoPersonalizado, opts), size: 6.5, muted: true });
+  }
+
+  let y = yStart;
+  for (const ln of lines) {
+    doc.setFont("helvetica", ln.bold ? "bold" : "normal");
+    doc.setFontSize(ln.size ?? 7);
+    doc.setTextColor(ln.muted ? 100 : 0);
+    doc.text(substituirPlaceholders(ln.text, opts), xCenter, y, { align: "center" });
+    y += (ln.size && ln.size >= 8 ? 4 : 3.2);
+  }
+  doc.setTextColor(0);
+  doc.setFont("helvetica", "normal");
+}
+
 
 
 // Categorização por tipo de plantão -> cores suaves (RGB para jsPDF e hex para HTML)
@@ -739,21 +856,8 @@ export async function gerarPdfEscalaMensalOficial(
 
     doc.setLineWidth(0.3);
     doc.line(startXL, assY, startXL + lineLen, assY);
-    doc.setFontSize(8.5);
-    doc.setFont("helvetica", "bold");
-    doc.text(r1?.nome || "", xL, assY + 4, { align: "center" });
-    doc.setFontSize(7.5);
-    doc.setFont("helvetica", "normal");
-    doc.text(r1?.cargo || "", xL, assY + 8, { align: "center" });
-    if (r1?.conselho && r1.conselho !== "Não informado") {
-      doc.text(r1.conselho, xL, assY + 11.5, { align: "center" });
-    }
-    if (r1?.unidade) {
-      doc.setFontSize(6.5);
-      doc.setTextColor(100);
-      doc.text(r1.unidade, xL, assY + 14.5, { align: "center" });
-      doc.setTextColor(0);
-    }
+    renderResponsavelInfo(doc, r1, xL, assY + 4, opts);
+
 
     // Bloco Direito — Responsável 2
     const startXR = pageW - margin - gap - lineLen;
@@ -790,21 +894,8 @@ export async function gerarPdfEscalaMensalOficial(
 
     doc.setLineWidth(0.3);
     doc.line(startXR, assY, startXR + lineLen, assY);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
-    doc.text(r2?.nome || "", xR, assY + 4, { align: "center" });
-    doc.setFontSize(7.5);
-    doc.setFont("helvetica", "normal");
-    doc.text(r2?.cargo || "", xR, assY + 8, { align: "center" });
-    if (r2?.conselho && r2.conselho !== "Não informado") {
-      doc.text(r2.conselho, xR, assY + 11.5, { align: "center" });
-    }
-    if (r2?.unidade) {
-      doc.setFontSize(6.5);
-      doc.setTextColor(100);
-      doc.text(r2.unidade, xR, assY + 14.5, { align: "center" });
-      doc.setTextColor(0);
-    }
+    renderResponsavelInfo(doc, r2, xR, assY + 4, opts);
+
   }
 
   // ===== Rodapé Inferior =====
