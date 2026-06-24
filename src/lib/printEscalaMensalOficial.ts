@@ -139,6 +139,21 @@ function renderResponsavelInfo(
   opts: MensalOpts
 ) {
   if (!r) return;
+  const lines = buildResponsavelInfoLines(r, opts);
+
+  let y = yStart;
+  for (const ln of lines) {
+    doc.setFont("helvetica", ln.bold ? "bold" : "normal");
+    doc.setFontSize(ln.size ?? 7);
+    doc.setTextColor(ln.muted ? 100 : 0);
+    doc.text(substituirPlaceholders(ln.text, opts), xCenter, y, { align: "center" });
+    y += getResponsavelLineHeight(ln.size);
+  }
+  doc.setTextColor(0);
+  doc.setFont("helvetica", "normal");
+}
+
+function buildResponsavelInfoLines(r: MensalResponsavel, opts: MensalOpts): { text: string; bold?: boolean; muted?: boolean; size?: number }[] {
   const d = r.display || {};
   // Quando display vier indefinido, exibir o máximo possível por padrão
   const show = (flag: boolean | undefined, fallback = true) => (flag === undefined ? fallback : !!flag);
@@ -196,16 +211,24 @@ function renderResponsavelInfo(
     lines.push({ text: substituirPlaceholders(r.textoPersonalizado, opts), size: 6.5, muted: true });
   }
 
-  let y = yStart;
-  for (const ln of lines) {
-    doc.setFont("helvetica", ln.bold ? "bold" : "normal");
-    doc.setFontSize(ln.size ?? 7);
-    doc.setTextColor(ln.muted ? 100 : 0);
-    doc.text(substituirPlaceholders(ln.text, opts), xCenter, y, { align: "center" });
-    y += (ln.size && ln.size >= 8 ? 4 : 3.2);
-  }
-  doc.setTextColor(0);
-  doc.setFont("helvetica", "normal");
+  return lines;
+}
+
+function getResponsavelLineHeight(size?: number): number {
+  return size && size >= 8 ? 4 : 3.2;
+}
+
+function measureResponsavelInfoHeight(r: MensalResponsavel | undefined, opts: MensalOpts): number {
+  if (!r) return 0;
+  return buildResponsavelInfoLines(r, opts).reduce((total, ln) => total + getResponsavelLineHeight(ln.size), 0);
+}
+
+function hasSignatureMedia(r: MensalResponsavel | undefined): boolean {
+  return !!(
+    (r?.assinaturaBase64 && r.assinaturaBase64.length > 100) ||
+    (r?.carimboBase64 && r.carimboBase64.length > 100) ||
+    (!r?.assinaturaBase64 && (r?.hasDigitalSeal || r?.tipo === "digital_gerado" || r?.tipo === "eletronica_interna"))
+  );
 }
 
 
@@ -466,6 +489,29 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
     body.compact-print .assinatura-info, body.compact-print .sig small { font-size: 6.5pt !important; }
     body.compact-print .footer-institucional { margin-top: 4px !important; font-size: 6pt !important; padding-top: 3px !important; }
 
+    /* Fill Page: usado apenas na impressão para esticar a escala até o bloco inferior real */
+    body.fill-page-print table.escala thead th {
+      height: var(--print-head-row-h, auto) !important;
+      padding-top: var(--print-head-pad-y, 2px) !important;
+      padding-bottom: var(--print-head-pad-y, 2px) !important;
+      font-size: var(--print-head-font, 7.5pt) !important;
+    }
+    body.fill-page-print table.escala tbody tr.group-header td {
+      height: var(--print-group-row-h, auto) !important;
+      padding-top: var(--print-group-pad-y, 2px) !important;
+      padding-bottom: var(--print-group-pad-y, 2px) !important;
+      font-size: var(--print-group-font, 7.5pt) !important;
+    }
+    body.fill-page-print table.escala tbody tr.row-prof td {
+      height: var(--print-data-row-h, auto) !important;
+      padding-top: var(--print-data-pad-y, 2px) !important;
+      padding-bottom: var(--print-data-pad-y, 2px) !important;
+      font-size: var(--print-body-font, 7.5pt) !important;
+    }
+    body.fill-page-print table.escala tbody tr.row-prof td.nome .cons {
+      font-size: var(--print-cons-font, 6.5pt) !important;
+    }
+
     /* Tier extra-compacto (acionado se ainda exceder) */
     body.ultra-compact-print .header-institucional img { width: 22px !important; height: 22px !important; }
     body.ultra-compact-print .header-institucional { padding-bottom: 1px !important; margin-bottom: 2px !important; }
@@ -493,10 +539,45 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
       try {
         // A4 paisagem útil ~ 1110 x 780 px (96dpi) com margem ~6mm
         var maxH = 780;
-        document.body.classList.remove('compact-print');
-        document.body.classList.remove('ultra-compact-print');
+        document.body.classList.remove('compact-print', 'ultra-compact-print', 'fill-page-print');
+        ['--print-head-row-h','--print-head-pad-y','--print-head-font','--print-group-row-h','--print-group-pad-y','--print-group-font','--print-data-row-h','--print-data-pad-y','--print-body-font','--print-cons-font'].forEach(function(v){ document.body.style.removeProperty(v); });
         void document.body.offsetHeight;
+
+        if (document.documentElement.scrollHeight <= maxH) {
+          var table = document.querySelector('table.escala');
+          var bottom = document.querySelector('.print-bottom');
+          if (table && bottom) {
+            var tableTop = table.getBoundingClientRect().top + window.scrollY;
+            var bottomH = bottom.getBoundingClientRect().height;
+            var availableTableH = Math.max(180, maxH - tableTop - bottomH - 4);
+            var currentTableH = table.getBoundingClientRect().height;
+            if (availableTableH > currentTableH + 8) {
+              var dataRows = Math.max(1, table.querySelectorAll('tbody tr.row-prof').length);
+              var groupRows = table.querySelectorAll('tbody tr.group-header').length;
+              var headRows = table.tHead ? table.tHead.rows.length : 1;
+              var rowH = availableTableH / (dataRows + groupRows * 0.48 + headRows * 0.72);
+              var dataH = Math.max(22, rowH);
+              var groupH = Math.max(14, rowH * 0.48);
+              var headH = Math.max(16, rowH * 0.72);
+              var bodyFont = Math.max(7.5, Math.min(11.5, rowH * 0.28));
+              document.body.style.setProperty('--print-data-row-h', dataH.toFixed(1) + 'px');
+              document.body.style.setProperty('--print-group-row-h', groupH.toFixed(1) + 'px');
+              document.body.style.setProperty('--print-head-row-h', headH.toFixed(1) + 'px');
+              document.body.style.setProperty('--print-data-pad-y', Math.max(2, Math.min(8, rowH * 0.08)).toFixed(1) + 'px');
+              document.body.style.setProperty('--print-group-pad-y', Math.max(1, Math.min(5, rowH * 0.04)).toFixed(1) + 'px');
+              document.body.style.setProperty('--print-head-pad-y', Math.max(1, Math.min(5, rowH * 0.05)).toFixed(1) + 'px');
+              document.body.style.setProperty('--print-body-font', bodyFont.toFixed(1) + 'pt');
+              document.body.style.setProperty('--print-head-font', Math.max(7.5, Math.min(10.5, bodyFont * 0.92)).toFixed(1) + 'pt');
+              document.body.style.setProperty('--print-group-font', Math.max(7.5, Math.min(10, bodyFont * 0.9)).toFixed(1) + 'pt');
+              document.body.style.setProperty('--print-cons-font', Math.max(6.5, bodyFont - 1).toFixed(1) + 'pt');
+              document.body.classList.add('fill-page-print');
+              void document.body.offsetHeight;
+            }
+          }
+        }
+
         if (document.documentElement.scrollHeight > maxH) {
+          document.body.classList.remove('fill-page-print');
           document.body.classList.add('compact-print');
           void document.body.offsetHeight;
           if (document.documentElement.scrollHeight > maxH) {
@@ -663,7 +744,7 @@ export async function gerarPdfEscalaMensalOficial(
     ...(opts.incluirADN ? [{ content: opts.adnLabel || "ADN", styles: { halign: "center" as const, fontStyle: "bold" as const, fillColor: [238, 242, 255] as [number, number, number] } }] : [])
   ]];
 
-  const totalCols = totalDias + (opts.incluirTotalHoras ? 2 : 1);
+  const totalCols = 1 + totalDias + (opts.incluirTotalHoras ? 1 : 0) + (opts.incluirADN ? 1 : 0);
 
   // Agrupa profissionais por Unidade -> Setor -> Profissão
   const tree = new Map<string, Map<string, Map<string, MensalProfissional[]>>>();
@@ -734,27 +815,62 @@ export async function gerarPdfEscalaMensalOficial(
   const adnW = opts.incluirADN ? 12 : 0;
   const diaW = (availW - nomeW - totalW - adnW) / totalDias;
 
-  // ===== Dimensionamento dinâmico (preenche melhor a folha) =====
-  // Espaço reservado abaixo da tabela: legenda + totais + assinatura/rodapé
-  const reservedBottom = (opts.incluirAssinatura ? 50 : 22);
-  const availH = Math.max(60, pageH - y - reservedBottom);
+  // ===== Modo Fill Page: mede elementos reais e faz a tabela ocupar a altura útil =====
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  const legendaParts = tipos.map(t => `${t.sigla}=${t.nome}${t.start && t.end ? ` (${t.start}-${t.end}h)` : ""}`);
+  legendaParts.push("!=Pendente", "*=Cancelado");
+  const legendaText = "Legenda: " + legendaParts.join("  |  ");
+  const wrappedLegenda = doc.splitTextToSize(legendaText, availW);
+  const legendaLineH = 3.2;
+  const legendGap = 3;
+  const legendHeight = Math.max(legendaLineH, wrappedLegenda.length * legendaLineH);
 
-  // Conta linhas reais (grupos + dados)
+  const obsText = opts.incluirObservacoesRodape
+    ? "OBSERVAÇÕES: Escala sujeita a alteração. Qualquer troca de plantão deve ser comunicada à coordenação."
+    : "";
+  const wrappedObs = obsText ? doc.splitTextToSize(obsText, availW) : [];
+  const obsGap = wrappedObs.length ? 2 : 0;
+  const obsHeight = wrappedObs.length * 3.2;
+
+  const totalGap = 3;
+  const totalHeight = 4;
+  const footerHeight = 8; // altura real do texto institucional inferior + respiro
+  const signatureHasMedia = hasSignatureMedia(opts.responsavel) || hasSignatureMedia(opts.responsavelTecnico);
+  const signatureInfoHeight = opts.incluirAssinatura
+    ? Math.max(
+        measureResponsavelInfoHeight(opts.responsavel, opts),
+        measureResponsavelInfoHeight(opts.responsavelTecnico, opts),
+        8
+      )
+    : 0;
+  const signatureMediaHeight = opts.incluirAssinatura ? (signatureHasMedia ? 24 : 0) : 0;
+  const signatureGap = opts.incluirAssinatura ? 2 : 0;
+  const signatureHeight = opts.incluirAssinatura ? signatureMediaHeight + 4 + signatureInfoHeight : 0;
+  const bottomContentHeight = legendGap + legendHeight + obsGap + obsHeight + totalGap + totalHeight + signatureGap + signatureHeight;
+  const tableAvailableHeight = Math.max(42, pageH - footerHeight - y - bottomContentHeight);
+
+  // Conta linhas reais (grupos + dados) e transforma a altura útil em alturas de linha.
+  // Cabeçalho e grupos são menores; registros de profissionais recebem o restante.
   const dataRows = profsInBody.filter(p => p !== null).length || 1;
   const groupRows = profsInBody.length - dataRows;
-  // Grupos ocupam ~60% da altura de uma linha de dados
-  const weightedRows = dataRows + groupRows * 0.6;
-  let rowH = availH / weightedRows;
-  // Clamp: mínimo legível e máximo generoso para preencher a página com poucas linhas
-  // (1-5 profissionais → linhas bem altas; 50+ → linhas compactas mas legíveis)
-  const maxRow = dataRows <= 5 ? 32 : dataRows <= 10 ? 22 : dataRows <= 20 ? 16 : 12;
-  rowH = Math.max(4.2, Math.min(rowH, maxRow));
+  const groupWeight = dataRows <= 5 ? 0.48 : 0.55;
+  const headWeight = 0.72;
+  const weightedRows = dataRows + groupRows * groupWeight + headWeight;
+  const dataRowH = Math.max(3.4, tableAvailableHeight / weightedRows);
+  const groupRowH = Math.max(3.6, dataRowH * groupWeight);
+  const headRowH = Math.max(5.5, dataRowH * headWeight);
 
   // Fonte e padding proporcionais à altura da linha
-  const bodyFont = Math.max(6, Math.min(14, rowH * 0.55));
+  const bodyFont = Math.max(6, Math.min(15, dataRowH * 0.5));
   const headFont = Math.max(6, Math.min(11, bodyFont * 0.95));
   const totalFont = Math.max(7, Math.min(15, bodyFont + 1));
-  const cellPad = Math.max(0.6, Math.min(3.5, rowH * 0.18));
+  const cellPad = Math.max(0.6, Math.min(4.2, dataRowH * 0.15));
+  const groupPad = Math.max(0.4, Math.min(2.2, groupRowH * 0.12));
+
+  const columnStyles: Record<number, any> = { 0: { cellWidth: nomeW } };
+  if (opts.incluirTotalHoras) columnStyles[totalDias + 1] = { cellWidth: totalW };
+  if (opts.incluirADN) columnStyles[totalDias + (opts.incluirTotalHoras ? 2 : 1)] = { cellWidth: adnW };
 
   autoTable(doc, {
     head,
@@ -766,12 +882,12 @@ export async function gerarPdfEscalaMensalOficial(
     styles: {
       fontSize: bodyFont,
       cellPadding: cellPad,
-      minCellHeight: rowH,
+      minCellHeight: dataRowH,
       valign: "middle",
       lineColor: [200, 200, 200],
       lineWidth: 0.1,
       textColor: 0,
-      overflow: "hidden"
+      overflow: "linebreak"
     },
     headStyles: {
       fillColor: [240, 240, 240],
@@ -779,21 +895,29 @@ export async function gerarPdfEscalaMensalOficial(
       fontStyle: "bold",
       fontSize: headFont,
       lineWidth: 0.2,
-      minCellHeight: Math.max(6, rowH * 0.9)
+      minCellHeight: headRowH,
+      cellPadding: Math.max(0.6, Math.min(2.5, headRowH * 0.12))
     },
     alternateRowStyles: {
       fillColor: [250, 250, 250] // Zebra (linhas alternadas com fundo levemente cinza)
     },
-    columnStyles: {
-      0: { cellWidth: nomeW },
-      [totalDias + (opts.incluirTotalHoras ? 1 : 0) + (opts.incluirADN ? 1 : 0)]: { cellWidth: adnW },
-      [totalDias + (opts.incluirTotalHoras ? 1 : 0)]: { cellWidth: totalW }
-    },
+    columnStyles,
     didParseCell: (data) => {
       const ci = data.column.index;
+      if (data.section === "body") {
+        const prof = profsInBody[data.row.index];
+        const isGroupRow = !prof;
+        data.cell.styles.minCellHeight = isGroupRow ? groupRowH : dataRowH;
+        data.cell.styles.cellPadding = isGroupRow ? groupPad : cellPad;
+        if (isGroupRow) {
+          data.cell.styles.fontSize = Math.max(6, Math.min(9, groupRowH * 0.55));
+          data.cell.styles.overflow = "linebreak";
+        }
+      }
       if (ci > 0 && ci <= totalDias) {
         data.cell.styles.cellWidth = diaW;
         data.cell.styles.halign = "center";
+        data.cell.styles.overflow = "hidden";
 
         if (data.section === "body") {
           const sigla = String(data.cell.raw || "");
@@ -820,6 +944,7 @@ export async function gerarPdfEscalaMensalOficial(
       // Coluna nome: levemente maior
       if (data.section === "body" && ci === 0) {
         data.cell.styles.fontSize = Math.max(6, bodyFont * 0.92);
+        data.cell.styles.overflow = "linebreak";
       }
     }
   });
@@ -829,14 +954,21 @@ export async function gerarPdfEscalaMensalOficial(
   // ===== Legenda dinâmica =====
   doc.setFontSize(7);
   doc.setTextColor(80);
-  const legendaParts = tipos.map(t => `${t.sigla}=${t.nome}${t.start && t.end ? ` (${t.start}-${t.end}h)` : ""}`);
-  legendaParts.push("!=Pendente", "*=Cancelado");
-  const legendaText = "Legenda: " + legendaParts.join("  |  ");
-  const wrappedLegenda = doc.splitTextToSize(legendaText, availW);
-  doc.text(wrappedLegenda, margin, finalY + 5);
-  finalY += (wrappedLegenda.length * 4) + 2;
+  finalY += legendGap;
+  doc.text(wrappedLegenda, margin, finalY);
+  finalY += legendHeight;
+
+  if (wrappedObs.length) {
+    finalY += obsGap;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(80);
+    doc.text(wrappedObs, margin, finalY);
+    finalY += obsHeight;
+  }
 
   // ===== Totais =====
+  finalY += totalGap;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(0);
@@ -845,14 +977,14 @@ export async function gerarPdfEscalaMensalOficial(
   const resumoTxt = opts.incluirTotalHoras 
     ? `Total de plantões: ${totalPlantoes}    Total de horas: ${totalHorasGeral}h`
     : `Total de plantões: ${totalPlantoes}`;
-  doc.text(resumoTxt, margin, finalY + 5);
-  finalY += 10;
+  doc.text(resumoTxt, margin, finalY);
+  finalY += totalHeight;
 
   // ===== Rodapé — Carimbo e Assinatura =====
   if (opts.incluirAssinatura) {
     const r1 = opts.responsavel;
     const r2 = opts.responsavelTecnico;
-    const assY = Math.max(finalY + 15, pageH - 35);
+    const assY = finalY + signatureGap + signatureMediaHeight;
     const lineLen = 70;
     const gap = (availW - (lineLen * 2)) / 3;
 
