@@ -348,9 +348,27 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
 </head>
 <body>
   <div class="toolbar no-print">
-    <button onclick="window.print()">🖨️ Imprimir Escala</button>
+    <button onclick="window.__doPrint && window.__doPrint()">🖨️ Imprimir Escala</button>
     <button class="secondary" onclick="window.close()">Fechar</button>
   </div>
+  <script>
+    // Auto-compactação: se conteúdo exceder altura útil A4 paisagem, ativa modo compacto
+    window.__doPrint = function(){
+      try {
+        // A4 paisagem útil ≈ 1123 x 794 px (96dpi) menos margens
+        var maxH = 760; // px aproximado de altura útil com margem 6mm
+        document.body.classList.remove('compact-print');
+        // força layout
+        void document.body.offsetHeight;
+        if (document.documentElement.scrollHeight > maxH) {
+          document.body.classList.add('compact-print');
+        }
+      } catch(e){}
+      setTimeout(function(){ window.print(); }, 80);
+    };
+  </script>
+
+
 
   ${headerHtml}
 
