@@ -150,8 +150,8 @@ export async function resolveSignatureData(params: {
       result.nome = metadata.nome_profissional || prof.nome || "";
       result.cargo = stamp.cargo || prof.cargo || prof.profissao || "";
       
-      const conselhoLabel = metadata.conselho || prof.documento_conselho || prof.conselho || "";
-      const registroVal = metadata.registro || prof.documento_numero || prof.registro || "";
+      const conselhoLabel = metadata.conselho_manual || metadata.conselho || prof.documento_conselho || prof.conselho || "";
+      const registroVal = metadata.registro_manual || metadata.registro || prof.documento_numero || prof.registro || "";
       const ufSuffix = stamp.uf_conselho ? ` (${stamp.uf_conselho})` : "";
       result.conselho = `${conselhoLabel} ${registroVal}${ufSuffix}`.trim();
       
