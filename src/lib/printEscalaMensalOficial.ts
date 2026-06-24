@@ -298,9 +298,51 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
   .obs-rodape { margin-top: 10px; font-size: 9pt; }
 
   @media print {
-    body { margin: 0; }
+    @page { size: A4 landscape; margin: 6mm; }
+    html, body { margin: 0 !important; padding: 0 !important; }
     .toolbar { display: none !important; }
     thead { display: table-header-group; }
+
+    /* Compactação base de impressão */
+    .header-institucional { padding-bottom: 3px !important; margin-bottom: 4px !important; }
+    .header-institucional .titles h1 { font-size: 9pt !important; }
+    .header-institucional .titles h2 { font-size: 7pt !important; }
+    .header-institucional img { width: 36px !important; height: 36px !important; }
+    .doc-title { font-size: 10pt !important; margin: 4px 0 2px !important; }
+    .doc-info { font-size: 7.5pt !important; margin-bottom: 4px !important; padding-bottom: 2px !important; }
+
+    table.escala th, table.escala td { padding: 2px 1px !important; font-size: 7.5pt !important; line-height: 1.05 !important; }
+    table.escala td.nome .cons { font-size: 6.5pt !important; }
+    .legenda { margin-top: 6px !important; padding: 5px 8px !important; font-size: 7pt !important; }
+    .legenda .lg-item { margin-right: 10px !important; margin-bottom: 2px !important; }
+    .obs-rodape { margin-top: 5px !important; font-size: 7.5pt !important; }
+    .assinatura-block, .signatures { margin-top: 18px !important; gap: 30px !important; }
+    .assinatura-line, .sig .line { margin-top: 24px !important; font-size: 8.5pt !important; }
+    .assinatura-info, .sig small { font-size: 7.5pt !important; }
+    .footer-institucional { margin-top: 10px !important; font-size: 7pt !important; padding-top: 6px !important; }
+
+    /* Evita quebra em blocos críticos */
+    .legenda, .obs-rodape, .assinatura-block, .signatures, .footer-institucional {
+      page-break-inside: avoid; break-inside: avoid;
+    }
+    .assinatura-block, .signatures, .footer-institucional { break-before: avoid; page-break-before: avoid; }
+    table.escala tr { page-break-inside: avoid; break-inside: avoid; }
+
+    /* Modo ultra-compacto quando o conteúdo excede 1 página */
+    body.compact-print .header-institucional img { width: 30px !important; height: 30px !important; }
+    body.compact-print .header-institucional .titles h1 { font-size: 8pt !important; }
+    body.compact-print .header-institucional .titles h2 { font-size: 6.5pt !important; }
+    body.compact-print .doc-title { font-size: 9pt !important; margin: 2px 0 1px !important; }
+    body.compact-print .doc-info { font-size: 6.5pt !important; }
+    body.compact-print table.escala th,
+    body.compact-print table.escala td { padding: 1px 1px !important; font-size: 6.5pt !important; line-height: 1 !important; }
+    body.compact-print table.escala td.nome { padding-left: 4px !important; }
+    body.compact-print table.escala td.nome .cons { font-size: 5.5pt !important; }
+    body.compact-print .legenda { padding: 3px 6px !important; font-size: 6pt !important; }
+    body.compact-print .obs-rodape { font-size: 6.5pt !important; }
+    body.compact-print .assinatura-block, body.compact-print .signatures { margin-top: 10px !important; gap: 20px !important; }
+    body.compact-print .assinatura-line, body.compact-print .sig .line { margin-top: 16px !important; font-size: 7.5pt !important; }
+    body.compact-print .footer-institucional { margin-top: 6px !important; font-size: 6pt !important; }
   }
 </style>
 </head>
