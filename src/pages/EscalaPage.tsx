@@ -1325,7 +1325,7 @@ export default function EscalaPage() {
         row.totalPlantoes += 1;
         
         // Cálculo ADN (Adicional Noturno) - Regra configurável
-        if (row.elegivelADN) {
+        if (row.elegivelADN && carga > 0) {
           const shiftName = s.tipo_plantao;
           const generatesADN = !adnConfig?.shift_types?.length || (shiftName && adnConfig.shift_types.includes(shiftName));
           
