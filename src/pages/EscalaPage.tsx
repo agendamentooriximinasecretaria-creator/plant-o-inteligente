@@ -1317,7 +1317,10 @@ export default function EscalaPage() {
         status: s.status,
       });
       const carga = Number(s.carga_horaria) || 0;
-      if (s.status !== 'cancelado' && !['folga', 'indisponibilidade'].includes(String(s.tipo_plantao || '').toLowerCase())) {
+      const tipoLower = String(s.tipo_plantao || '').toLowerCase();
+      const isAusencia = ['folga', 'indisponibilidade'].includes(tipoLower)
+        || /licen[çc]a|f[ée]rias|atestado|maternidade|afastamento/.test(tipoLower);
+      if (s.status !== 'cancelado' && !isAusencia) {
         row.totalHoras += carga;
         row.totalPlantoes += 1;
         
