@@ -1282,8 +1282,10 @@ export default function EscalaPage() {
           const byProfession = adnConfig.eligibility.by_profession && adnConfig.eligibility.professions.includes(prof.profissao);
           const sectorName = (s.sectors as any)?.nome;
           const bySector = adnConfig.eligibility.by_sector && adnConfig.eligibility.sectors.includes(sectorName);
-          
+
           elegivelADN = byFlag || byRole || byProfession || bySector;
+          // Veto manual: se o profissional foi explicitamente desmarcado, NÃO recebe ADN
+          if (prof.recebe_adicional_noturno === false) elegivelADN = false;
         } else if (!adnConfig) {
           // Fallback para regra antiga se não houver config
           elegivelADN = !!prof.recebe_adicional_noturno || !!prof.is_plantonista || isPlantonista;
