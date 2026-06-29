@@ -92,7 +92,7 @@ const emptyForm = {
 };
 
 
-const emptyFolga = { profissional_id: '', data_inicio: '', data_fim: '', motivo: 'folga', observacoes: '' };
+const emptyFolga = { profissional_id: '', data_inicio: '', data_fim: '', motivo: 'Folga', observacoes: '' };
 
 function ShiftHistoryView({ shiftId }: { shiftId: string }) {
   const { data: logs = [], isLoading } = useQuery({
@@ -2983,8 +2983,11 @@ export default function EscalaPage() {
             <div>
               <label className="text-sm font-medium text-foreground">Motivo *</label>
               <select value={folgaForm.motivo} onChange={e => setFolgaForm(f => ({ ...f, motivo: e.target.value }))} className={inputClass}>
-                <option value="folga">Folga</option>
-                <option value="indisponibilidade">Indisponibilidade (férias / licença / atestado)</option>
+                <option value="Folga">Folga</option>
+                <option value="Férias">Férias</option>
+                <option value="Licença médica / Atestado">Licença médica / Atestado</option>
+                <option value="Licença Maternidade">Licença Maternidade</option>
+                <option value="Outro">Outro</option>
               </select>
             </div>
             <div>
