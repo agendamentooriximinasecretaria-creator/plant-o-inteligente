@@ -92,7 +92,7 @@ const emptyForm = {
 };
 
 
-const emptyFolga = { profissional_id: '', data_inicio: '', data_fim: '', motivo: 'folga', observacoes: '' };
+const emptyFolga = { profissional_id: '', data_inicio: '', data_fim: '', motivo: 'Folga', observacoes: '' };
 
 function ShiftHistoryView({ shiftId }: { shiftId: string }) {
   const { data: logs = [], isLoading } = useQuery({
