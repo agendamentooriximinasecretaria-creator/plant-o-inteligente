@@ -1282,8 +1282,10 @@ export default function EscalaPage() {
           const byProfession = adnConfig.eligibility.by_profession && adnConfig.eligibility.professions.includes(prof.profissao);
           const sectorName = (s.sectors as any)?.nome;
           const bySector = adnConfig.eligibility.by_sector && adnConfig.eligibility.sectors.includes(sectorName);
-          
+
           elegivelADN = byFlag || byRole || byProfession || bySector;
+          // Veto manual: se o profissional foi explicitamente desmarcado, NÃO recebe ADN
+          if (prof.recebe_adicional_noturno === false) elegivelADN = false;
         } else if (!adnConfig) {
           // Fallback para regra antiga se não houver config
           elegivelADN = !!prof.recebe_adicional_noturno || !!prof.is_plantonista || isPlantonista;
@@ -1317,12 +1319,15 @@ export default function EscalaPage() {
         status: s.status,
       });
       const carga = Number(s.carga_horaria) || 0;
-      if (s.status !== 'cancelado' && !['folga', 'indisponibilidade'].includes(String(s.tipo_plantao || '').toLowerCase())) {
+      const tipoLower = String(s.tipo_plantao || '').toLowerCase();
+      const isAusencia = ['folga', 'indisponibilidade'].includes(tipoLower)
+        || /licen[çc]a|f[ée]rias|atestado|maternidade|afastamento/.test(tipoLower);
+      if (s.status !== 'cancelado' && !isAusencia) {
         row.totalHoras += carga;
         row.totalPlantoes += 1;
         
         // Cálculo ADN (Adicional Noturno) - Regra configurável
-        if (row.elegivelADN) {
+        if (row.elegivelADN && carga > 0) {
           const shiftName = s.tipo_plantao;
           const generatesADN = !adnConfig?.shift_types?.length || (shiftName && adnConfig.shift_types.includes(shiftName));
           

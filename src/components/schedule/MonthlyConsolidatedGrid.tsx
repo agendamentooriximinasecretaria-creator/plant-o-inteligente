@@ -170,6 +170,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
           const bySector = adnConfig.eligibility.by_sector && adnConfig.eligibility.sectors.includes(s.setor_nome || '');
           
           elegivelAdn = byFlag || byRole || byProfession || bySector;
+          if (s.recebe_adn === false) elegivelAdn = false;
         } else if (!adnConfig) {
           elegivelAdn = !!s.recebe_adn || isPlantonista;
         }
@@ -192,11 +193,14 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
       row.porDia.set(d, arr);
 
       const carga = Number(s.carga_horaria || 0);
-      if (s.status !== "cancelado" && !["folga", "indisponibilidade"].includes((s.tipo_plantao || "").toLowerCase())) {
+      const tipoLower = (s.tipo_plantao || "").toLowerCase();
+      const isAusencia = ["folga", "indisponibilidade"].includes(tipoLower)
+        || /licen[çc]a|f[ée]rias|atestado|maternidade|afastamento/.test(tipoLower);
+      if (s.status !== "cancelado" && !isAusencia) {
         row.horas += carga;
-        
+
         // Cálculo do ADN (Adicional Noturno) - Regra configurável
-        if (row.elegivelAdn) {
+        if (row.elegivelAdn && carga > 0) {
           const shiftName = s.tipo_plantao;
           const generatesADN = !adnConfig?.shift_types?.length || (shiftName && adnConfig.shift_types.includes(shiftName));
           
