@@ -170,6 +170,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
           const bySector = adnConfig.eligibility.by_sector && adnConfig.eligibility.sectors.includes(s.setor_nome || '');
           
           elegivelAdn = byFlag || byRole || byProfession || bySector;
+          if (s.recebe_adn === false) elegivelAdn = false;
         } else if (!adnConfig) {
           elegivelAdn = !!s.recebe_adn || isPlantonista;
         }
