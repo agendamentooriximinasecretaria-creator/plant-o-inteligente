@@ -1065,7 +1065,7 @@ export default function TrocasPage() {
                         </button>
                       </>
                     )}
-                    {isMaster && ['recusada', 'rejeitada', 'cancelada'].includes(swap.status) && (
+                    {isMaster && swap.status !== 'solicitada' && swap.status !== 'aguardando_aprovacao' && swap.status !== 'aguardando_resposta' && (
                       <button onClick={() => handleReabrirSwap(swap)} disabled={reabrirSwap.isPending}
                         className="px-2.5 py-1.5 rounded-lg border border-info/40 text-info text-xs font-semibold hover:bg-info/10 transition-colors inline-flex items-center gap-1 disabled:opacity-50"
                         title="Reabrir para o profissional refazer/continuar">
