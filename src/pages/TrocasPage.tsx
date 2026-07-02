@@ -1065,6 +1065,20 @@ export default function TrocasPage() {
                         </button>
                       </>
                     )}
+                    {isMaster && ['recusada', 'rejeitada', 'cancelada'].includes(swap.status) && (
+                      <button onClick={() => handleReabrirSwap(swap)} disabled={reabrirSwap.isPending}
+                        className="px-2.5 py-1.5 rounded-lg border border-info/40 text-info text-xs font-semibold hover:bg-info/10 transition-colors inline-flex items-center gap-1 disabled:opacity-50"
+                        title="Reabrir para o profissional refazer/continuar">
+                        <RotateCcw className="h-3.5 w-3.5" /> Reabrir
+                      </button>
+                    )}
+                    {isMaster && (
+                      <button onClick={() => handleDeleteSwap(swap)} disabled={deleteSwap.isPending}
+                        className="px-2.5 py-1.5 rounded-lg border border-destructive/40 text-destructive text-xs font-semibold hover:bg-destructive/10 transition-colors inline-flex items-center gap-1 disabled:opacity-50"
+                        title="Excluir troca e liberar limite do profissional">
+                        <Trash2 className="h-3.5 w-3.5" /> Excluir
+                      </button>
+                    )}
                   </div>
                 </div>
 
