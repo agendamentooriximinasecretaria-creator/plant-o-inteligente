@@ -596,6 +596,8 @@ export default function TrocasPage() {
     });
     if (ok) reabrirSwap.mutate(swap);
   }, [confirm, reabrirSwap]);
+
+  const pendingStatuses = ['solicitada', 'aguardando_resposta', 'aguardando_aprovacao', 'aceita'];
   const inputClass = "w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring transition-all";
 
   const formatShiftLabel = (s: any) =>
