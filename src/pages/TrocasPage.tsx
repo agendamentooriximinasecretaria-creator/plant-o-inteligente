@@ -9,8 +9,9 @@ import { SWAP_STATUS_LABELS } from "@/types/hospital";
 import type { SwapStatus } from "@/types/hospital";
 import {
   ArrowLeftRight, Clock, CheckCircle2, XCircle, AlertCircle, Plus, Zap, FileText, Filter,
-  ChevronDown, Calendar as CalIcon, Search, X, Printer, Download, BellRing, Activity, History, Paperclip,
+  ChevronDown, Calendar as CalIcon, Search, X, Printer, Download, BellRing, Activity, History, Paperclip, Trash2, RotateCcw,
 } from "lucide-react";
+import { useConfirm } from "@/hooks/useConfirm";
 import { ContactActionButton } from "@/components/ContactActionButton";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -217,6 +218,7 @@ const SwapCard = memo(({ swap, i, professionals, isMaster, notifyingId, onImpact
 export default function TrocasPage() {
   const qc = useQueryClient();
   const { isMaster } = useAuth();
+  const confirm = useConfirm();
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [comprovanteId, setComprovanteId] = useState<string | null>(null);
   const [attachmentsSwapId, setAttachmentsSwapId] = useState<string | null>(null);
@@ -500,6 +502,100 @@ export default function TrocasPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const deleteSwap = useMutation({
+    mutationFn: async (swap: any) => {
+      // Remove dependências e a troca. O contador mensal
+      // (count_trocas_plantao_mes) considera linhas existentes em shift_swaps,
+      // portanto a exclusão libera automaticamente o limite do profissional.
+      await supabase.from('swap_attachments').delete().eq('troca_id', swap.id);
+      await supabase.from('swap_history').delete().eq('swap_id', swap.id);
+      const { error } = await supabase.from('shift_swaps').delete().eq('id', swap.id);
+      if (error) throw error;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      await logAudit('Troca excluída pelo Gestor Master', 'trocas', {
+        swap_id: swap.id,
+        solicitante_id: swap.solicitante_id,
+        destinatario_id: swap.destinatario_id,
+        status_anterior: swap.status,
+        usuario: user?.email,
+      });
+
+      // Notifica o solicitante que o limite foi liberado
+      if (swap.solicitante_id) {
+        await dispatchNotification({
+          professionalId: swap.solicitante_id,
+          tipo: 'troca',
+          titulo: '♻️ Solicitação de troca removida',
+          mensagem: 'Sua solicitação foi excluída pelo Gestor Master. Seu limite mensal de trocas foi liberado — você pode refazer a solicitação.',
+        });
+      }
+    },
+    onSuccess: () => {
+      invalidateCrossSwaps(qc);
+      toast.success('Troca excluída. Limite do profissional liberado.');
+    },
+    onError: (e: Error) => toast.error('Erro ao excluir: ' + e.message),
+  });
+
+  const reabrirSwap = useMutation({
+    mutationFn: async (swap: any) => {
+      const { error } = await supabase.from('shift_swaps').update({
+        status: 'solicitada' as any,
+        observacao_rejeicao: null,
+        rejeitado_em: null,
+        aprovado_em: null,
+      } as any).eq('id', swap.id);
+      if (error) throw error;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.from('swap_history').insert({
+        swap_id: swap.id,
+        acao: 'Reaberta pelo Gestor Master',
+        usuario: user?.email || 'Gestor Master',
+        user_id: user?.id,
+      });
+      await logAudit('Troca reaberta', 'trocas', { swap_id: swap.id });
+
+      if (swap.solicitante_id) {
+        await dispatchNotification({
+          professionalId: swap.solicitante_id,
+          tipo: 'troca',
+          titulo: '🔄 Solicitação reaberta',
+          mensagem: 'O Gestor Master reabriu sua solicitação de troca. Ela está novamente em análise.',
+        });
+      }
+    },
+    onSuccess: () => {
+      invalidateCrossSwaps(qc);
+      toast.success('Solicitação reaberta.');
+    },
+    onError: (e: Error) => toast.error('Erro: ' + e.message),
+  });
+
+  const handleDeleteSwap = useCallback(async (swap: any) => {
+    const isConcluded = ['aprovada', 'concluida'].includes(swap.status);
+    const ok = await confirm({
+      title: 'Excluir solicitação de troca?',
+      description: isConcluded
+        ? 'Atenção: esta troca já foi efetivada. Excluir aqui remove apenas o registro da solicitação e libera o limite mensal do profissional — os plantões já reatribuídos NÃO serão revertidos automaticamente. Deseja continuar?'
+        : 'A solicitação será removida e o limite mensal de trocas do profissional será liberado, permitindo nova solicitação.',
+      confirmText: 'Excluir',
+      variant: 'destructive',
+    });
+    if (ok) deleteSwap.mutate(swap);
+  }, [confirm, deleteSwap]);
+
+  const handleReabrirSwap = useCallback(async (swap: any) => {
+    const ok = await confirm({
+      title: 'Reabrir solicitação?',
+      description: 'A troca voltará para o status "Solicitada", permitindo que o profissional continue o fluxo.',
+      confirmText: 'Reabrir',
+      variant: 'info',
+    });
+    if (ok) reabrirSwap.mutate(swap);
+  }, [confirm, reabrirSwap]);
 
   const pendingStatuses = ['solicitada', 'aguardando_resposta', 'aguardando_aprovacao', 'aceita'];
   const inputClass = "w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring transition-all";
@@ -968,6 +1064,20 @@ export default function TrocasPage() {
                           <XCircle className="h-3.5 w-3.5" /> Recusar
                         </button>
                       </>
+                    )}
+                    {isMaster && ['recusada', 'rejeitada', 'cancelada'].includes(swap.status) && (
+                      <button onClick={() => handleReabrirSwap(swap)} disabled={reabrirSwap.isPending}
+                        className="px-2.5 py-1.5 rounded-lg border border-info/40 text-info text-xs font-semibold hover:bg-info/10 transition-colors inline-flex items-center gap-1 disabled:opacity-50"
+                        title="Reabrir para o profissional refazer/continuar">
+                        <RotateCcw className="h-3.5 w-3.5" /> Reabrir
+                      </button>
+                    )}
+                    {isMaster && (
+                      <button onClick={() => handleDeleteSwap(swap)} disabled={deleteSwap.isPending}
+                        className="px-2.5 py-1.5 rounded-lg border border-destructive/40 text-destructive text-xs font-semibold hover:bg-destructive/10 transition-colors inline-flex items-center gap-1 disabled:opacity-50"
+                        title="Excluir troca e liberar limite do profissional">
+                        <Trash2 className="h-3.5 w-3.5" /> Excluir
+                      </button>
                     )}
                   </div>
                 </div>
