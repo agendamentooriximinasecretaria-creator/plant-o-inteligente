@@ -505,36 +505,89 @@ export default function TrocasPage() {
 
   const deleteSwap = useMutation({
     mutationFn: async (swap: any) => {
-      // Remove dependências e a troca. O contador mensal
-      // (count_trocas_plantao_mes) considera linhas existentes em shift_swaps,
-      // portanto a exclusão libera automaticamente o limite do profissional.
+      const wasEfetivada = ['aprovada', 'concluida'].includes(swap.status);
+      let reverted = false;
+
+      // 1) Se a troca já foi efetivada, REVERTER os plantões aos donos originais
+      //    antes de apagar o registro. Isso evita inconsistência na escala.
+      if (wasEfetivada) {
+        // Recarrega para garantir shift_id / shift_id_destino atuais
+        const { data: fresh } = await supabase.from('shift_swaps')
+          .select('shift_id, shift_id_destino, solicitante_id, destinatario_id')
+          .eq('id', swap.id).maybeSingle();
+        const t = fresh || swap;
+
+        if (t.shift_id_destino) {
+          // Troca dupla: devolve cada plantão ao dono original (inverso do efetivar)
+          const nowIso = new Date().toISOString();
+          const [rA, rB] = await Promise.all([
+            supabase.from('shifts').update({ profissional_id: t.solicitante_id, updated_at: nowIso }).eq('id', t.shift_id),
+            supabase.from('shifts').update({ profissional_id: t.destinatario_id, updated_at: nowIso }).eq('id', t.shift_id_destino),
+          ]);
+          if (rA.error) throw new Error(`Erro ao reverter plantão A: ${rA.error.message}`);
+          if (rB.error) throw new Error(`Erro ao reverter plantão B: ${rB.error.message}`);
+        } else if (t.shift_id && t.solicitante_id) {
+          // Troca simples: devolve ao solicitante original
+          const { error } = await supabase.from('shifts')
+            .update({ profissional_id: t.solicitante_id, updated_at: new Date().toISOString() })
+            .eq('id', t.shift_id);
+          if (error) throw new Error(`Erro ao reverter plantão: ${error.message}`);
+        }
+        reverted = true;
+      }
+
+      // 2) Remove dependências e a troca. O contador mensal
+      //    (count_trocas_plantao_mes) considera linhas existentes em shift_swaps,
+      //    portanto a exclusão libera automaticamente o limite do profissional.
       await supabase.from('swap_attachments').delete().eq('troca_id', swap.id);
       await supabase.from('swap_history').delete().eq('swap_id', swap.id);
       const { error } = await supabase.from('shift_swaps').delete().eq('id', swap.id);
       if (error) throw error;
 
       const { data: { user } } = await supabase.auth.getUser();
-      await logAudit('Troca excluída pelo Gestor Master', 'trocas', {
-        swap_id: swap.id,
-        solicitante_id: swap.solicitante_id,
-        destinatario_id: swap.destinatario_id,
-        status_anterior: swap.status,
-        usuario: user?.email,
-      });
+      await logAudit(
+        reverted ? 'Troca excluída e plantões revertidos pelo Gestor Master' : 'Troca excluída pelo Gestor Master',
+        'trocas',
+        {
+          swap_id: swap.id,
+          solicitante_id: swap.solicitante_id,
+          destinatario_id: swap.destinatario_id,
+          shift_id: swap.shift_id,
+          shift_id_destino: swap.shift_id_destino,
+          status_anterior: swap.status,
+          reverted_shifts: reverted,
+          usuario: user?.email,
+        }
+      );
 
-      // Notifica o solicitante que o limite foi liberado
+      // 3) Notifica os envolvidos
+      const msgSolic = reverted
+        ? 'Sua solicitação foi excluída pelo Gestor Master. Os plantões trocados foram REVERTIDOS aos donos originais e seu limite mensal foi liberado.'
+        : 'Sua solicitação foi excluída pelo Gestor Master. Seu limite mensal de trocas foi liberado — você pode refazer a solicitação.';
       if (swap.solicitante_id) {
         await dispatchNotification({
           professionalId: swap.solicitante_id,
           tipo: 'troca',
-          titulo: '♻️ Solicitação de troca removida',
-          mensagem: 'Sua solicitação foi excluída pelo Gestor Master. Seu limite mensal de trocas foi liberado — você pode refazer a solicitação.',
+          titulo: reverted ? '↩️ Troca revertida' : '♻️ Solicitação de troca removida',
+          mensagem: msgSolic,
         });
       }
+      if (reverted && swap.destinatario_id && swap.destinatario_id !== swap.solicitante_id) {
+        await dispatchNotification({
+          professionalId: swap.destinatario_id,
+          tipo: 'troca',
+          titulo: '↩️ Troca revertida',
+          mensagem: 'Uma troca em que você estava envolvido foi revertida pelo Gestor Master. O(s) plantão(ões) voltaram à titularidade original — verifique sua escala.',
+        });
+      }
+
+      return { reverted };
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
       invalidateCrossSwaps(qc);
-      toast.success('Troca excluída. Limite do profissional liberado.');
+      toast.success(res?.reverted
+        ? 'Troca excluída, plantões revertidos e limite liberado.'
+        : 'Troca excluída. Limite do profissional liberado.');
     },
     onError: (e: Error) => toast.error('Erro ao excluir: ' + e.message),
   });
