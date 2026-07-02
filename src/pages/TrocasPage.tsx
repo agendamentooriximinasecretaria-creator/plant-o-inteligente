@@ -632,9 +632,9 @@ export default function TrocasPage() {
     const ok = await confirm({
       title: 'Excluir solicitação de troca?',
       description: isConcluded
-        ? 'Atenção: esta troca já foi efetivada. Excluir aqui remove apenas o registro da solicitação e libera o limite mensal do profissional — os plantões já reatribuídos NÃO serão revertidos automaticamente. Deseja continuar?'
+        ? 'Esta troca já foi efetivada. Ao excluir, o sistema vai REVERTER automaticamente os plantões aos donos originais, apagar o registro e liberar o limite mensal do profissional. Deseja continuar?'
         : 'A solicitação será removida e o limite mensal de trocas do profissional será liberado, permitindo nova solicitação.',
-      confirmText: 'Excluir',
+      confirmText: isConcluded ? 'Excluir e reverter' : 'Excluir',
       variant: 'destructive',
     });
     if (ok) deleteSwap.mutate(swap);
