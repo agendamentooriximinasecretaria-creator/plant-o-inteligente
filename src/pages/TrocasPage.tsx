@@ -218,6 +218,7 @@ const SwapCard = memo(({ swap, i, professionals, isMaster, notifyingId, onImpact
 export default function TrocasPage() {
   const qc = useQueryClient();
   const { isMaster } = useAuth();
+  const confirm = useConfirm();
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [comprovanteId, setComprovanteId] = useState<string | null>(null);
   const [attachmentsSwapId, setAttachmentsSwapId] = useState<string | null>(null);
