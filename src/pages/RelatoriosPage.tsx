@@ -5,10 +5,10 @@ import { logAudit } from "@/lib/auditLog";
 import { exportToPDF, exportToExcel, exportToCSV } from "@/lib/exportUtils";
 import { abrirVisualizacaoRelatorio, type RelatorioFiltroAplicado, type RelatorioPrintCab } from "@/lib/printRelatorio";
 import { fetchStampData, fetchRTForUnidade, fetchGestorMasterForUnidade, type StampData } from "@/lib/pdfStampUtils";
-import { Download, Loader2, Eye, Printer, FileText, FileSpreadsheet, Mail, Filter, X } from "lucide-react";
+import { Download, Loader2, Eye, Printer, FileText, FileSpreadsheet, Mail, Filter, X, TrendingUp, TrendingDown, Users, Clock, Activity, AlertTriangle, CheckCircle2, RefreshCw, Building2, Calendar as CalendarIcon, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line, AreaChart, Area } from "recharts";
 import { isPlantaoContabilizavel } from "@/lib/horas";
 import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -26,15 +26,24 @@ const STATUS_TROCA = ['solicitada', 'aguardando_resposta', 'aguardando_aprovacao
 type FormatoExport = 'pdf' | 'excel' | 'csv';
 
 const reports = [
-  { id: 'profissionais', nome: 'Relatório de Profissionais', descricao: 'Lista completa de profissionais cadastrados', icon: '👥', kind: 'professionals' as const },
-  { id: 'plantoes', nome: 'Relatório de Plantões', descricao: 'Todos os plantões organizados por período', icon: '📋', kind: 'shifts' as const },
-  { id: 'horas_profissional', nome: 'Horas por Profissional', descricao: 'Total de horas trabalhadas por profissional', icon: '⏱️', hasChart: true, kind: 'shifts' as const },
-  { id: 'trocas', nome: 'Relatório de Trocas', descricao: 'Histórico completo de trocas de plantão', icon: '🔄', kind: 'swaps' as const },
-  { id: 'setores', nome: 'Relatório por Setor', descricao: 'Plantões agrupados por setor', icon: '🏥', hasChart: true, kind: 'shifts' as const },
-  { id: 'cancelados', nome: 'Relatório de Plantões Cancelados', descricao: 'Plantões que foram cancelados', icon: '❌', kind: 'shifts' as const },
-  { id: 'escala_mensal', nome: 'Escala Mensal Consolidada', descricao: 'Grid profissional × dia do mês', icon: '📆', kind: 'shifts' as const },
-  { id: 'analise_trocas', nome: 'Análise de Trocas', descricao: 'Estatísticas e taxa de aprovação', icon: '📊', hasChart: true, kind: 'swaps' as const },
-  { id: 'cobertura_setor', nome: 'Cobertura por Setor', descricao: 'Plantões por setor com visualização', icon: '📈', hasChart: true, kind: 'shifts' as const },
+  { id: 'profissionais', nome: 'Relatório de Profissionais', descricao: 'Lista completa de profissionais cadastrados', icon: '👥', kind: 'professionals' as const, categoria: 'Cadastros' },
+  { id: 'plantoes', nome: 'Relatório de Plantões', descricao: 'Todos os plantões organizados por período', icon: '📋', kind: 'shifts' as const, categoria: 'Operacional' },
+  { id: 'horas_profissional', nome: 'Horas por Profissional', descricao: 'Total de horas trabalhadas por profissional', icon: '⏱️', hasChart: true, kind: 'shifts' as const, categoria: 'Operacional' },
+  { id: 'trocas', nome: 'Relatório de Trocas', descricao: 'Histórico completo de trocas de plantão', icon: '🔄', kind: 'swaps' as const, categoria: 'Trocas' },
+  { id: 'setores', nome: 'Relatório por Setor', descricao: 'Plantões agrupados por setor', icon: '🏥', hasChart: true, kind: 'shifts' as const, categoria: 'Operacional' },
+  { id: 'cancelados', nome: 'Relatório de Plantões Cancelados', descricao: 'Plantões que foram cancelados', icon: '❌', kind: 'shifts' as const, categoria: 'Qualidade' },
+  { id: 'escala_mensal', nome: 'Escala Mensal Consolidada', descricao: 'Grid profissional × dia do mês', icon: '📆', kind: 'shifts' as const, categoria: 'Operacional' },
+  { id: 'analise_trocas', nome: 'Análise de Trocas', descricao: 'Estatísticas e taxa de aprovação', icon: '📊', hasChart: true, kind: 'swaps' as const, categoria: 'Trocas' },
+  { id: 'cobertura_setor', nome: 'Cobertura por Setor', descricao: 'Plantões por setor com visualização', icon: '📈', hasChart: true, kind: 'shifts' as const, categoria: 'Operacional' },
+  // ===== Novos relatórios analíticos =====
+  { id: 'absenteismo', nome: 'Absenteísmo (Faltas)', descricao: 'Faltas por profissional, taxa e ranking', icon: '🚫', hasChart: true, kind: 'shifts' as const, categoria: 'Qualidade' },
+  { id: 'atrasos', nome: 'Pontualidade & Atrasos', descricao: 'Atrasos registrados no check-in por profissional', icon: '⏰', hasChart: true, kind: 'shifts' as const, categoria: 'Qualidade' },
+  { id: 'checkin_compliance', nome: 'Compliance de Check-in', descricao: '% de plantões com check-in/check-out registrado', icon: '✅', hasChart: true, kind: 'shifts' as const, categoria: 'Qualidade' },
+  { id: 'ranking_horas', nome: 'Ranking de Produtividade', descricao: 'Top profissionais por horas realizadas', icon: '🏆', hasChart: true, kind: 'shifts' as const, categoria: 'Analítico' },
+  { id: 'plantoes_por_tipo', nome: 'Distribuição por Tipo de Plantão', descricao: 'Diurno, noturno, sobreaviso, 12h, 24h', icon: '🌓', hasChart: true, kind: 'shifts' as const, categoria: 'Analítico' },
+  { id: 'trocas_por_profissional', nome: 'Trocas por Profissional', descricao: 'Solicitadas vs recebidas por profissional', icon: '👥', hasChart: true, kind: 'swaps' as const, categoria: 'Trocas' },
+  { id: 'carga_semanal', nome: 'Carga Horária Semanal Média', descricao: 'Horas/semana por profissional (alerta >60h)', icon: '📅', kind: 'shifts' as const, categoria: 'Analítico' },
+  { id: 'evolucao_mensal', nome: 'Evolução Mensal de Plantões', descricao: 'Série temporal de plantões e horas por mês', icon: '📉', hasChart: true, kind: 'shifts' as const, categoria: 'Analítico' },
 ];
 
 type ReportDef = (typeof reports)[number];
@@ -325,6 +334,137 @@ export default function RelatoriosPage() {
         const taxa = total > 0 ? ((aprovadas / total) * 100).toFixed(1) : '0';
         return { columns: ['Métrica', 'Valor'], rows: [['Total de Trocas', String(total)], ['Aprovadas/Concluídas', String(aprovadas)], ['Taxa de Aprovação', `${taxa}%`], ['Rejeitadas', String(filteredSwaps.filter((s: any) => ['rejeitada', 'recusada'].includes(s.status)).length)], ['Pendentes', String(filteredSwaps.filter((s: any) => ['solicitada', 'aguardando_resposta', 'aguardando_aprovacao'].includes(s.status)).length)]] };
       }
+      case 'absenteismo': {
+        const byProf: Record<string, { nome: string; total: number; faltas: number }> = {};
+        filteredShifts.forEach((s: any) => {
+          const nome = (s.professionals as any)?.nome || 'Desconhecido';
+          if (!byProf[s.profissional_id]) byProf[s.profissional_id] = { nome, total: 0, faltas: 0 };
+          byProf[s.profissional_id].total++;
+          if (s.faltou) byProf[s.profissional_id].faltas++;
+        });
+        const rows = Object.values(byProf)
+          .filter(p => p.total > 0)
+          .sort((a, b) => (b.faltas / b.total) - (a.faltas / a.total))
+          .map(p => [p.nome, String(p.total), String(p.faltas), `${((p.faltas / p.total) * 100).toFixed(1)}%`]);
+        return { columns: ['Profissional', 'Plantões', 'Faltas', 'Taxa de Absenteísmo'], rows };
+      }
+      case 'atrasos': {
+        const byProf: Record<string, { nome: string; qtd: number; minutos: number }> = {};
+        filteredShifts.forEach((s: any) => {
+          if (!s.atraso_minutos || Number(s.atraso_minutos) <= 0) return;
+          const nome = (s.professionals as any)?.nome || 'Desconhecido';
+          if (!byProf[s.profissional_id]) byProf[s.profissional_id] = { nome, qtd: 0, minutos: 0 };
+          byProf[s.profissional_id].qtd++;
+          byProf[s.profissional_id].minutos += Number(s.atraso_minutos);
+        });
+        const rows = Object.values(byProf)
+          .sort((a, b) => b.minutos - a.minutos)
+          .map(p => [p.nome, String(p.qtd), `${p.minutos} min`, `${(p.minutos / p.qtd).toFixed(1)} min`]);
+        return { columns: ['Profissional', 'Ocorrências', 'Total Atraso', 'Média por ocorrência'], rows };
+      }
+      case 'checkin_compliance': {
+        const byProf: Record<string, { nome: string; total: number; comCheckin: number; comCheckout: number }> = {};
+        filteredShifts.forEach((s: any) => {
+          if (!isPlantaoContabilizavel(s)) return;
+          const nome = (s.professionals as any)?.nome || 'Desconhecido';
+          if (!byProf[s.profissional_id]) byProf[s.profissional_id] = { nome, total: 0, comCheckin: 0, comCheckout: 0 };
+          byProf[s.profissional_id].total++;
+          if (s.checkin_em) byProf[s.profissional_id].comCheckin++;
+          if (s.checkout_em) byProf[s.profissional_id].comCheckout++;
+        });
+        const rows = Object.values(byProf)
+          .filter(p => p.total > 0)
+          .sort((a, b) => (a.comCheckin / a.total) - (b.comCheckin / b.total))
+          .map(p => [p.nome, String(p.total), `${((p.comCheckin / p.total) * 100).toFixed(0)}%`, `${((p.comCheckout / p.total) * 100).toFixed(0)}%`]);
+        return { columns: ['Profissional', 'Plantões', '% Check-in', '% Check-out'], rows };
+      }
+      case 'ranking_horas': {
+        const byProf: Record<string, { nome: string; hours: number; count: number }> = {};
+        filteredShifts.forEach((s: any) => {
+          if (!isPlantaoContabilizavel(s)) return;
+          const nome = (s.professionals as any)?.nome || 'Desconhecido';
+          if (!byProf[s.profissional_id]) byProf[s.profissional_id] = { nome, hours: 0, count: 0 };
+          byProf[s.profissional_id].hours += Number(s.carga_horaria || 0);
+          byProf[s.profissional_id].count++;
+        });
+        const ordered = Object.values(byProf).sort((a, b) => b.hours - a.hours);
+        const totalHoras = ordered.reduce((a, p) => a + p.hours, 0);
+        const rows = ordered.map((p, i) => [`${i + 1}º`, p.nome, String(p.count), `${p.hours.toFixed(1)}h`, `${totalHoras ? ((p.hours / totalHoras) * 100).toFixed(1) : '0'}%`]);
+        return { columns: ['#', 'Profissional', 'Plantões', 'Horas', '% do Total'], rows, totalHoras };
+      }
+      case 'plantoes_por_tipo': {
+        const byTipo: Record<string, { count: number; horas: number }> = {};
+        filteredShifts.forEach((s: any) => {
+          const t = s.tipo_plantao || 'não definido';
+          if (!byTipo[t]) byTipo[t] = { count: 0, horas: 0 };
+          byTipo[t].count++;
+          if (isPlantaoContabilizavel(s)) byTipo[t].horas += Number(s.carga_horaria || 0);
+        });
+        const totalHoras = Object.values(byTipo).reduce((a, b) => a + b.horas, 0);
+        const rows = Object.entries(byTipo)
+          .sort((a, b) => b[1].count - a[1].count)
+          .map(([t, v]) => [t, String(v.count), `${v.horas.toFixed(1)}h`]);
+        return { columns: ['Tipo de Plantão', 'Quantidade', 'Horas'], rows, totalHoras };
+      }
+      case 'trocas_por_profissional': {
+        const byProf: Record<string, { nome: string; solicitadas: number; recebidas: number; aprovadas: number }> = {};
+        const nomeById: Record<string, string> = {};
+        (professionals as any[]).forEach(p => { nomeById[p.id] = p.nome; });
+        filteredSwaps.forEach((s: any) => {
+          if (s.solicitante_id) {
+            const n = (s.solicitante as any)?.nome || nomeById[s.solicitante_id] || '—';
+            if (!byProf[s.solicitante_id]) byProf[s.solicitante_id] = { nome: n, solicitadas: 0, recebidas: 0, aprovadas: 0 };
+            byProf[s.solicitante_id].solicitadas++;
+            if (['aprovada', 'concluida'].includes(s.status)) byProf[s.solicitante_id].aprovadas++;
+          }
+          if (s.destinatario_id) {
+            const n = (s.destinatario as any)?.nome || nomeById[s.destinatario_id] || '—';
+            if (!byProf[s.destinatario_id]) byProf[s.destinatario_id] = { nome: n, solicitadas: 0, recebidas: 0, aprovadas: 0 };
+            byProf[s.destinatario_id].recebidas++;
+          }
+        });
+        const rows = Object.values(byProf)
+          .sort((a, b) => (b.solicitadas + b.recebidas) - (a.solicitadas + a.recebidas))
+          .map(p => [p.nome, String(p.solicitadas), String(p.recebidas), String(p.aprovadas), `${p.solicitadas ? ((p.aprovadas / p.solicitadas) * 100).toFixed(0) : '0'}%`]);
+        return { columns: ['Profissional', 'Solicitadas', 'Recebidas', 'Aprovadas', 'Taxa aprov.'], rows };
+      }
+      case 'carga_semanal': {
+        const byProf: Record<string, { nome: string; semanas: Record<string, number> }> = {};
+        filteredShifts.forEach((s: any) => {
+          if (!isPlantaoContabilizavel(s)) return;
+          const d = new Date(s.data + 'T12:00:00');
+          const dow = d.getDay();
+          const mon = new Date(d); mon.setDate(d.getDate() - ((dow + 6) % 7));
+          const wKey = mon.toISOString().slice(0, 10);
+          const nome = (s.professionals as any)?.nome || 'Desconhecido';
+          if (!byProf[s.profissional_id]) byProf[s.profissional_id] = { nome, semanas: {} };
+          byProf[s.profissional_id].semanas[wKey] = (byProf[s.profissional_id].semanas[wKey] || 0) + Number(s.carga_horaria || 0);
+        });
+        const rows = Object.values(byProf).map(p => {
+          const vals = Object.values(p.semanas);
+          const media = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+          const max = vals.length ? Math.max(...vals) : 0;
+          const alerta = max > 60 ? '⚠️ Excedeu 60h' : (media > 44 ? '⚠️ Acima CLT' : 'OK');
+          return [p.nome, String(vals.length), `${media.toFixed(1)}h`, `${max.toFixed(1)}h`, alerta];
+        }).sort((a, b) => parseFloat(b[3]) - parseFloat(a[3]));
+        return { columns: ['Profissional', 'Semanas', 'Média/sem', 'Pico', 'Status'], rows };
+      }
+      case 'evolucao_mensal': {
+        const byMonth: Record<string, { count: number; horas: number; faltas: number }> = {};
+        filteredShifts.forEach((s: any) => {
+          const m = (s.data || '').slice(0, 7);
+          if (!m) return;
+          if (!byMonth[m]) byMonth[m] = { count: 0, horas: 0, faltas: 0 };
+          byMonth[m].count++;
+          if (isPlantaoContabilizavel(s)) byMonth[m].horas += Number(s.carga_horaria || 0);
+          if (s.faltou) byMonth[m].faltas++;
+        });
+        const totalHoras = Object.values(byMonth).reduce((a, b) => a + b.horas, 0);
+        const rows = Object.entries(byMonth)
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([m, v]) => [m, String(v.count), `${v.horas.toFixed(1)}h`, String(v.faltas)]);
+        return { columns: ['Mês', 'Plantões', 'Horas', 'Faltas'], rows, totalHoras };
+      }
       default: return { columns: [], rows: [] };
     }
   };
@@ -585,24 +725,256 @@ export default function RelatoriosPage() {
     return STATUS_PLANTAO;
   }, [modalReport]);
 
+  // ===== Presets de período =====
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const applyPreset = (preset: string) => {
+    const hoje = new Date();
+    let ini = new Date(hoje), fim = new Date(hoje);
+    if (preset === 'hoje') { /* mesmo dia */ }
+    else if (preset === 'ontem') { ini.setDate(hoje.getDate() - 1); fim = new Date(ini); }
+    else if (preset === 'semana') { ini.setDate(hoje.getDate() - ((hoje.getDay() + 6) % 7)); fim = new Date(ini); fim.setDate(ini.getDate() + 6); }
+    else if (preset === 'mes') { ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1); fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0); }
+    else if (preset === 'mes_anterior') { ini = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1); fim = new Date(hoje.getFullYear(), hoje.getMonth(), 0); }
+    else if (preset === '30d') { ini.setDate(hoje.getDate() - 30); }
+    else if (preset === '90d') { ini.setDate(hoje.getDate() - 90); }
+    else if (preset === 'ytd') { ini = new Date(hoje.getFullYear(), 0, 1); }
+    else if (preset === 'ano') { ini = new Date(hoje.getFullYear(), 0, 1); fim = new Date(hoje.getFullYear(), 11, 31); }
+    setFiltros(f => ({ ...f, dataIni: iso(ini), dataFim: iso(fim) }));
+  };
+
+  const PRESETS = [
+    { id: 'hoje', label: 'Hoje' },
+    { id: 'ontem', label: 'Ontem' },
+    { id: 'semana', label: 'Esta semana' },
+    { id: 'mes', label: 'Este mês' },
+    { id: 'mes_anterior', label: 'Mês anterior' },
+    { id: '30d', label: 'Últimos 30 dias' },
+    { id: '90d', label: 'Últimos 90 dias' },
+    { id: 'ytd', label: 'Ano até hoje' },
+    { id: 'ano', label: 'Este ano' },
+  ];
+
+  // ===== KPI dashboard (visão geral) =====
+  const [dashPeriodo, setDashPeriodo] = useState<'mes' | 'mes_anterior' | '30d' | 'ano'>('mes');
+  const [categoriaFilter, setCategoriaFilter] = useState<string>('Todas');
+
+  const kpiData = useMemo(() => {
+    const hoje = new Date();
+    let ini: Date, fim: Date;
+    if (dashPeriodo === 'mes') { ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1); fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0); }
+    else if (dashPeriodo === 'mes_anterior') { ini = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1); fim = new Date(hoje.getFullYear(), hoje.getMonth(), 0); }
+    else if (dashPeriodo === '30d') { ini = new Date(hoje); ini.setDate(hoje.getDate() - 30); fim = hoje; }
+    else { ini = new Date(hoje.getFullYear(), 0, 1); fim = new Date(hoje.getFullYear(), 11, 31); }
+    const iniS = iso(ini), fimS = iso(fim);
+    // período anterior de mesma duração (para variação)
+    const diffMs = fim.getTime() - ini.getTime();
+    const prevFim = new Date(ini.getTime() - 86400000);
+    const prevIni = new Date(prevFim.getTime() - diffMs);
+    const prevIniS = iso(prevIni), prevFimS = iso(prevFim);
+
+    const inRng = (d: string, a: string, b: string) => d >= a && d <= b;
+    const cur = (shifts as any[]).filter(s => inRng(s.data, iniS, fimS));
+    const prev = (shifts as any[]).filter(s => inRng(s.data, prevIniS, prevFimS));
+
+    const horasCur = cur.filter(isPlantaoContabilizavel).reduce((a, s) => a + Number(s.carga_horaria || 0), 0);
+    const horasPrev = prev.filter(isPlantaoContabilizavel).reduce((a, s) => a + Number(s.carga_horaria || 0), 0);
+    const faltasCur = cur.filter(s => s.faltou).length;
+    const faltasPrev = prev.filter(s => s.faltou).length;
+    const totalCur = cur.length || 1;
+    const totalPrev = prev.length || 1;
+    const canceladosCur = cur.filter(s => s.status === 'cancelado').length;
+
+    const swapsCur = (swaps as any[]).filter(s => inRng((s.created_at || '').slice(0, 10), iniS, fimS));
+    const swapsPrev = (swaps as any[]).filter(s => inRng((s.created_at || '').slice(0, 10), prevIniS, prevFimS));
+    const aprovCur = swapsCur.filter(s => ['aprovada', 'concluida'].includes(s.status)).length;
+    const pendCur = swapsCur.filter(s => ['solicitada', 'aguardando_resposta', 'aguardando_aprovacao', 'aceita'].includes(s.status)).length;
+
+    const profAtivos = (professionals as any[]).filter(p => p.status === 'ativo').length;
+
+    // evolução por mês (últimos 6)
+    const evol: { mes: string; horas: number; plantoes: number; faltas: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+      const label = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const list = (shifts as any[]).filter(s => (s.data || '').startsWith(key));
+      evol.push({
+        mes: label,
+        horas: list.filter(isPlantaoContabilizavel).reduce((a, s) => a + Number(s.carga_horaria || 0), 0),
+        plantoes: list.length,
+        faltas: list.filter(s => s.faltou).length,
+      });
+    }
+
+    // top setores no período
+    const bySetor: Record<string, { nome: string; horas: number; plantoes: number }> = {};
+    cur.forEach(s => {
+      const nome = (s.sectors as any)?.nome || 'Sem setor';
+      const k = s.setor_id || 'x';
+      if (!bySetor[k]) bySetor[k] = { nome, horas: 0, plantoes: 0 };
+      bySetor[k].plantoes++;
+      if (isPlantaoContabilizavel(s)) bySetor[k].horas += Number(s.carga_horaria || 0);
+    });
+    const topSetores = Object.values(bySetor).sort((a, b) => b.horas - a.horas).slice(0, 6);
+
+    const varPct = (a: number, b: number) => b === 0 ? (a > 0 ? 100 : 0) : ((a - b) / b) * 100;
+
+    return {
+      horasCur, horasPrev, varHoras: varPct(horasCur, horasPrev),
+      plantoes: cur.length, plantoesPrev: prev.length, varPlantoes: varPct(cur.length, prev.length),
+      faltasCur, faltasPrev, taxaAbs: (faltasCur / totalCur) * 100, taxaAbsPrev: (faltasPrev / totalPrev) * 100,
+      canceladosCur, taxaCanc: (canceladosCur / totalCur) * 100,
+      swapsCur: swapsCur.length, swapsPrev: swapsPrev.length, varSwaps: varPct(swapsCur.length, swapsPrev.length),
+      aprovCur, taxaAprov: swapsCur.length ? (aprovCur / swapsCur.length) * 100 : 0,
+      pendCur,
+      profAtivos,
+      evol,
+      topSetores,
+      periodoLabel: `${iso(ini).split('-').reverse().join('/')} — ${iso(fim).split('-').reverse().join('/')}`,
+    };
+  }, [shifts, swaps, professionals, dashPeriodo]);
+
+  const categorias = useMemo(() => ['Todas', ...Array.from(new Set(reports.map(r => (r as any).categoria || 'Geral')))], []);
+  const reportsFiltrados = useMemo(
+    () => categoriaFilter === 'Todas' ? reports : reports.filter(r => (r as any).categoria === categoriaFilter),
+    [categoriaFilter]
+  );
+
+  const KPI = ({ label, value, sub, delta, icon: Icon, tone = 'primary', alert }: { label: string; value: React.ReactNode; sub?: string; delta?: number; icon: any; tone?: 'primary' | 'success' | 'warning' | 'danger'; alert?: boolean }) => {
+    const toneBg = tone === 'success' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+      : tone === 'warning' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+      : tone === 'danger' ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+      : 'bg-primary/10 text-primary';
+    const up = (delta ?? 0) >= 0;
+    return (
+      <div className={`bg-card border ${alert ? 'border-amber-400/60' : 'border-border'} rounded-xl p-4 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elevated)] transition-shadow`}>
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">{label}</div>
+            <div className="font-display font-bold text-2xl text-foreground mt-1">{value}</div>
+            {sub && <div className="text-[11px] text-muted-foreground mt-0.5">{sub}</div>}
+          </div>
+          <div className={`p-2 rounded-lg ${toneBg}`}>
+            <Icon className="h-4 w-4" />
+          </div>
+        </div>
+        {typeof delta === 'number' && isFinite(delta) && (
+          <div className={`mt-2 inline-flex items-center gap-1 text-[11px] font-semibold ${up ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+            {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+            {up ? '+' : ''}{delta.toFixed(1)}% vs período anterior
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="module-title">Relatórios</h1>
-        <p className="text-muted-foreground text-sm mt-1">Filtre, visualize e exporte relatórios operacionais com dados reais</p>
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="module-title">Relatórios</h1>
+          <p className="text-muted-foreground text-sm mt-1">Painel analítico, indicadores e exportação institucional · <span className="text-foreground/70">{kpiData.periodoLabel}</span></p>
+        </div>
+        <div className="inline-flex rounded-lg border border-border bg-card p-1 text-xs">
+          {(['mes', 'mes_anterior', '30d', 'ano'] as const).map(p => (
+            <button key={p} onClick={() => setDashPeriodo(p)}
+              className={`px-3 py-1.5 rounded-md font-medium transition-colors ${dashPeriodo === p ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+              {p === 'mes' ? 'Este mês' : p === 'mes_anterior' ? 'Mês anterior' : p === '30d' ? '30 dias' : 'Ano'}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {reports.map((r, i) => (
-          <motion.div key={r.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} className="bg-card rounded-lg border border-border p-5 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elevated)] transition-shadow">
-            <div className="flex items-start gap-4">
+      {/* ===== KPI Grid ===== */}
+      {canRead && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <KPI label="Horas realizadas" value={`${kpiData.horasCur.toFixed(0)}h`} sub={`vs ${kpiData.horasPrev.toFixed(0)}h antes`} delta={kpiData.varHoras} icon={Clock} tone="primary" />
+          <KPI label="Plantões no período" value={kpiData.plantoes} sub={`${kpiData.profAtivos} profissionais ativos`} delta={kpiData.varPlantoes} icon={Activity} tone="primary" />
+          <KPI label="Taxa de absenteísmo" value={`${kpiData.taxaAbs.toFixed(1)}%`} sub={`${kpiData.faltasCur} faltas registradas`} delta={kpiData.taxaAbs - kpiData.taxaAbsPrev} icon={AlertTriangle} tone={kpiData.taxaAbs > 5 ? 'danger' : 'success'} alert={kpiData.taxaAbs > 5} />
+          <KPI label="Cancelamentos" value={`${kpiData.taxaCanc.toFixed(1)}%`} sub={`${kpiData.canceladosCur} plantões cancelados`} icon={X} tone={kpiData.taxaCanc > 5 ? 'warning' : 'success'} />
+          <KPI label="Trocas solicitadas" value={kpiData.swapsCur} sub={`${kpiData.pendCur} aguardando ação`} delta={kpiData.varSwaps} icon={RefreshCw} tone="primary" />
+          <KPI label="Taxa de aprovação de trocas" value={`${kpiData.taxaAprov.toFixed(0)}%`} sub={`${kpiData.aprovCur} aprovadas`} icon={CheckCircle2} tone="success" />
+          <KPI label="Profissionais ativos" value={kpiData.profAtivos} sub="cadastro atual" icon={Users} tone="primary" />
+          <KPI label="Trocas pendentes" value={kpiData.pendCur} sub="requerem análise" icon={AlertTriangle} tone={kpiData.pendCur > 0 ? 'warning' : 'success'} alert={kpiData.pendCur > 0} />
+        </div>
+      )}
+
+      {/* ===== Charts row ===== */}
+      {canRead && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2 bg-card border border-border rounded-xl p-4 shadow-[var(--shadow-card)]">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-display font-semibold text-sm">Evolução (últimos 6 meses)</h3>
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Horas · Plantões · Faltas</span>
+            </div>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={kpiData.evol}>
+                  <defs>
+                    <linearGradient id="gradHoras" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
+                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="mes" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                  <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Area type="monotone" dataKey="horas" name="Horas" stroke="hsl(var(--primary))" fill="url(#gradHoras)" strokeWidth={2} />
+                  <Line type="monotone" dataKey="plantoes" name="Plantões" stroke="hsl(var(--accent))" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="faltas" name="Faltas" stroke="hsl(0 84% 60%)" strokeWidth={2} dot={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 shadow-[var(--shadow-card)]">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-display font-semibold text-sm">Top setores</h3>
+              <Building2 className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={kpiData.topSetores} layout="vertical" margin={{ left: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+                  <YAxis type="category" dataKey="nome" tick={{ fontSize: 10, fill: 'hsl(var(--foreground))' }} width={90} />
+                  <Tooltip formatter={(v: number) => `${v.toFixed(1)}h`} contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
+                  <Bar dataKey="horas" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Catálogo de relatórios ===== */}
+      <div className="flex items-center justify-between flex-wrap gap-2 pt-2">
+        <h2 className="font-display font-semibold text-base flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> Catálogo de relatórios</h2>
+        <div className="flex flex-wrap gap-1.5">
+          {categorias.map(c => (
+            <button key={c} onClick={() => setCategoriaFilter(c)}
+              className={`px-3 py-1 rounded-full text-[11px] font-medium border transition-colors ${categoriaFilter === c ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-muted-foreground hover:text-foreground'}`}>
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {reportsFiltrados.map((r, i) => (
+          <motion.div key={r.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }} className="bg-card rounded-xl border border-border p-5 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elevated)] hover:-translate-y-0.5 transition-all">
+            <div className="flex items-start gap-3">
               <span className="text-2xl">{r.icon}</span>
-              <div className="flex-1">
-                <h3 className="font-display font-semibold text-foreground">{r.nome}</h3>
-                <p className="text-sm text-muted-foreground mt-1">{r.descricao}</p>
-                <div className="flex gap-2 mt-4 flex-wrap">
-                  <button onClick={() => openReportModal(r)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90">
-                    <Filter className="h-3 w-3" /> Gerar relatório
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-display font-semibold text-foreground text-sm">{r.nome}</h3>
+                  <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{(r as any).categoria}</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{r.descricao}</p>
+                <div className="flex gap-2 mt-3 flex-wrap">
+                  <button onClick={() => openReportModal(r)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 active:scale-[0.98] transition">
+                    <Filter className="h-3 w-3" /> Gerar
                   </button>
                   {r.hasChart && (
                     <button onClick={() => setChartReport(chartReport === r.id ? null : r.id)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${chartReport === r.id ? 'bg-primary text-primary-foreground' : 'border border-border text-foreground hover:bg-muted'}`}>
@@ -617,6 +989,7 @@ export default function RelatoriosPage() {
         ))}
       </div>
 
+
       {/* Modal: Filtros + Preview + Ações */}
       <Dialog open={!!modalReport} onOpenChange={o => !o && closeModal()}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -629,6 +1002,22 @@ export default function RelatoriosPage() {
 
           {modalReport && (
             <div className="space-y-5">
+              {/* Presets de período */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Período rápido:</span>
+                {PRESETS.map(p => (
+                  <button key={p.id} type="button" onClick={() => applyPreset(p.id)}
+                    className="px-2.5 py-1 rounded-full text-[11px] font-medium border border-border bg-card text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors">
+                    {p.label}
+                  </button>
+                ))}
+                {(filtros.dataIni || filtros.dataFim) && (
+                  <button type="button" onClick={() => setFiltros(f => ({ ...f, dataIni: '', dataFim: '' }))}
+                    className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-muted text-foreground hover:bg-muted/80">
+                    <X className="h-3 w-3 inline mr-1" />Limpar período
+                  </button>
+                )}
+              </div>
               {/* Filtros */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
