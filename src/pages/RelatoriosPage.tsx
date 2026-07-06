@@ -725,24 +725,256 @@ export default function RelatoriosPage() {
     return STATUS_PLANTAO;
   }, [modalReport]);
 
+  // ===== Presets de período =====
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const applyPreset = (preset: string) => {
+    const hoje = new Date();
+    let ini = new Date(hoje), fim = new Date(hoje);
+    if (preset === 'hoje') { /* mesmo dia */ }
+    else if (preset === 'ontem') { ini.setDate(hoje.getDate() - 1); fim = new Date(ini); }
+    else if (preset === 'semana') { ini.setDate(hoje.getDate() - ((hoje.getDay() + 6) % 7)); fim = new Date(ini); fim.setDate(ini.getDate() + 6); }
+    else if (preset === 'mes') { ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1); fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0); }
+    else if (preset === 'mes_anterior') { ini = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1); fim = new Date(hoje.getFullYear(), hoje.getMonth(), 0); }
+    else if (preset === '30d') { ini.setDate(hoje.getDate() - 30); }
+    else if (preset === '90d') { ini.setDate(hoje.getDate() - 90); }
+    else if (preset === 'ytd') { ini = new Date(hoje.getFullYear(), 0, 1); }
+    else if (preset === 'ano') { ini = new Date(hoje.getFullYear(), 0, 1); fim = new Date(hoje.getFullYear(), 11, 31); }
+    setFiltros(f => ({ ...f, dataIni: iso(ini), dataFim: iso(fim) }));
+  };
+
+  const PRESETS = [
+    { id: 'hoje', label: 'Hoje' },
+    { id: 'ontem', label: 'Ontem' },
+    { id: 'semana', label: 'Esta semana' },
+    { id: 'mes', label: 'Este mês' },
+    { id: 'mes_anterior', label: 'Mês anterior' },
+    { id: '30d', label: 'Últimos 30 dias' },
+    { id: '90d', label: 'Últimos 90 dias' },
+    { id: 'ytd', label: 'Ano até hoje' },
+    { id: 'ano', label: 'Este ano' },
+  ];
+
+  // ===== KPI dashboard (visão geral) =====
+  const [dashPeriodo, setDashPeriodo] = useState<'mes' | 'mes_anterior' | '30d' | 'ano'>('mes');
+  const [categoriaFilter, setCategoriaFilter] = useState<string>('Todas');
+
+  const kpiData = useMemo(() => {
+    const hoje = new Date();
+    let ini: Date, fim: Date;
+    if (dashPeriodo === 'mes') { ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1); fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0); }
+    else if (dashPeriodo === 'mes_anterior') { ini = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1); fim = new Date(hoje.getFullYear(), hoje.getMonth(), 0); }
+    else if (dashPeriodo === '30d') { ini = new Date(hoje); ini.setDate(hoje.getDate() - 30); fim = hoje; }
+    else { ini = new Date(hoje.getFullYear(), 0, 1); fim = new Date(hoje.getFullYear(), 11, 31); }
+    const iniS = iso(ini), fimS = iso(fim);
+    // período anterior de mesma duração (para variação)
+    const diffMs = fim.getTime() - ini.getTime();
+    const prevFim = new Date(ini.getTime() - 86400000);
+    const prevIni = new Date(prevFim.getTime() - diffMs);
+    const prevIniS = iso(prevIni), prevFimS = iso(prevFim);
+
+    const inRng = (d: string, a: string, b: string) => d >= a && d <= b;
+    const cur = (shifts as any[]).filter(s => inRng(s.data, iniS, fimS));
+    const prev = (shifts as any[]).filter(s => inRng(s.data, prevIniS, prevFimS));
+
+    const horasCur = cur.filter(isPlantaoContabilizavel).reduce((a, s) => a + Number(s.carga_horaria || 0), 0);
+    const horasPrev = prev.filter(isPlantaoContabilizavel).reduce((a, s) => a + Number(s.carga_horaria || 0), 0);
+    const faltasCur = cur.filter(s => s.faltou).length;
+    const faltasPrev = prev.filter(s => s.faltou).length;
+    const totalCur = cur.length || 1;
+    const totalPrev = prev.length || 1;
+    const canceladosCur = cur.filter(s => s.status === 'cancelado').length;
+
+    const swapsCur = (swaps as any[]).filter(s => inRng((s.created_at || '').slice(0, 10), iniS, fimS));
+    const swapsPrev = (swaps as any[]).filter(s => inRng((s.created_at || '').slice(0, 10), prevIniS, prevFimS));
+    const aprovCur = swapsCur.filter(s => ['aprovada', 'concluida'].includes(s.status)).length;
+    const pendCur = swapsCur.filter(s => ['solicitada', 'aguardando_resposta', 'aguardando_aprovacao', 'aceita'].includes(s.status)).length;
+
+    const profAtivos = (professionals as any[]).filter(p => p.status === 'ativo').length;
+
+    // evolução por mês (últimos 6)
+    const evol: { mes: string; horas: number; plantoes: number; faltas: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+      const label = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const list = (shifts as any[]).filter(s => (s.data || '').startsWith(key));
+      evol.push({
+        mes: label,
+        horas: list.filter(isPlantaoContabilizavel).reduce((a, s) => a + Number(s.carga_horaria || 0), 0),
+        plantoes: list.length,
+        faltas: list.filter(s => s.faltou).length,
+      });
+    }
+
+    // top setores no período
+    const bySetor: Record<string, { nome: string; horas: number; plantoes: number }> = {};
+    cur.forEach(s => {
+      const nome = (s.sectors as any)?.nome || 'Sem setor';
+      const k = s.setor_id || 'x';
+      if (!bySetor[k]) bySetor[k] = { nome, horas: 0, plantoes: 0 };
+      bySetor[k].plantoes++;
+      if (isPlantaoContabilizavel(s)) bySetor[k].horas += Number(s.carga_horaria || 0);
+    });
+    const topSetores = Object.values(bySetor).sort((a, b) => b.horas - a.horas).slice(0, 6);
+
+    const varPct = (a: number, b: number) => b === 0 ? (a > 0 ? 100 : 0) : ((a - b) / b) * 100;
+
+    return {
+      horasCur, horasPrev, varHoras: varPct(horasCur, horasPrev),
+      plantoes: cur.length, plantoesPrev: prev.length, varPlantoes: varPct(cur.length, prev.length),
+      faltasCur, faltasPrev, taxaAbs: (faltasCur / totalCur) * 100, taxaAbsPrev: (faltasPrev / totalPrev) * 100,
+      canceladosCur, taxaCanc: (canceladosCur / totalCur) * 100,
+      swapsCur: swapsCur.length, swapsPrev: swapsPrev.length, varSwaps: varPct(swapsCur.length, swapsPrev.length),
+      aprovCur, taxaAprov: swapsCur.length ? (aprovCur / swapsCur.length) * 100 : 0,
+      pendCur,
+      profAtivos,
+      evol,
+      topSetores,
+      periodoLabel: `${iso(ini).split('-').reverse().join('/')} — ${iso(fim).split('-').reverse().join('/')}`,
+    };
+  }, [shifts, swaps, professionals, dashPeriodo]);
+
+  const categorias = useMemo(() => ['Todas', ...Array.from(new Set(reports.map(r => (r as any).categoria || 'Geral')))], []);
+  const reportsFiltrados = useMemo(
+    () => categoriaFilter === 'Todas' ? reports : reports.filter(r => (r as any).categoria === categoriaFilter),
+    [categoriaFilter]
+  );
+
+  const KPI = ({ label, value, sub, delta, icon: Icon, tone = 'primary', alert }: { label: string; value: React.ReactNode; sub?: string; delta?: number; icon: any; tone?: 'primary' | 'success' | 'warning' | 'danger'; alert?: boolean }) => {
+    const toneBg = tone === 'success' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+      : tone === 'warning' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+      : tone === 'danger' ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+      : 'bg-primary/10 text-primary';
+    const up = (delta ?? 0) >= 0;
+    return (
+      <div className={`bg-card border ${alert ? 'border-amber-400/60' : 'border-border'} rounded-xl p-4 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elevated)] transition-shadow`}>
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">{label}</div>
+            <div className="font-display font-bold text-2xl text-foreground mt-1">{value}</div>
+            {sub && <div className="text-[11px] text-muted-foreground mt-0.5">{sub}</div>}
+          </div>
+          <div className={`p-2 rounded-lg ${toneBg}`}>
+            <Icon className="h-4 w-4" />
+          </div>
+        </div>
+        {typeof delta === 'number' && isFinite(delta) && (
+          <div className={`mt-2 inline-flex items-center gap-1 text-[11px] font-semibold ${up ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+            {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+            {up ? '+' : ''}{delta.toFixed(1)}% vs período anterior
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="module-title">Relatórios</h1>
-        <p className="text-muted-foreground text-sm mt-1">Filtre, visualize e exporte relatórios operacionais com dados reais</p>
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="module-title">Relatórios</h1>
+          <p className="text-muted-foreground text-sm mt-1">Painel analítico, indicadores e exportação institucional · <span className="text-foreground/70">{kpiData.periodoLabel}</span></p>
+        </div>
+        <div className="inline-flex rounded-lg border border-border bg-card p-1 text-xs">
+          {(['mes', 'mes_anterior', '30d', 'ano'] as const).map(p => (
+            <button key={p} onClick={() => setDashPeriodo(p)}
+              className={`px-3 py-1.5 rounded-md font-medium transition-colors ${dashPeriodo === p ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+              {p === 'mes' ? 'Este mês' : p === 'mes_anterior' ? 'Mês anterior' : p === '30d' ? '30 dias' : 'Ano'}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {reports.map((r, i) => (
-          <motion.div key={r.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} className="bg-card rounded-lg border border-border p-5 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elevated)] transition-shadow">
-            <div className="flex items-start gap-4">
+      {/* ===== KPI Grid ===== */}
+      {canRead && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <KPI label="Horas realizadas" value={`${kpiData.horasCur.toFixed(0)}h`} sub={`vs ${kpiData.horasPrev.toFixed(0)}h antes`} delta={kpiData.varHoras} icon={Clock} tone="primary" />
+          <KPI label="Plantões no período" value={kpiData.plantoes} sub={`${kpiData.profAtivos} profissionais ativos`} delta={kpiData.varPlantoes} icon={Activity} tone="primary" />
+          <KPI label="Taxa de absenteísmo" value={`${kpiData.taxaAbs.toFixed(1)}%`} sub={`${kpiData.faltasCur} faltas registradas`} delta={kpiData.taxaAbs - kpiData.taxaAbsPrev} icon={AlertTriangle} tone={kpiData.taxaAbs > 5 ? 'danger' : 'success'} alert={kpiData.taxaAbs > 5} />
+          <KPI label="Cancelamentos" value={`${kpiData.taxaCanc.toFixed(1)}%`} sub={`${kpiData.canceladosCur} plantões cancelados`} icon={X} tone={kpiData.taxaCanc > 5 ? 'warning' : 'success'} />
+          <KPI label="Trocas solicitadas" value={kpiData.swapsCur} sub={`${kpiData.pendCur} aguardando ação`} delta={kpiData.varSwaps} icon={RefreshCw} tone="primary" />
+          <KPI label="Taxa de aprovação de trocas" value={`${kpiData.taxaAprov.toFixed(0)}%`} sub={`${kpiData.aprovCur} aprovadas`} icon={CheckCircle2} tone="success" />
+          <KPI label="Profissionais ativos" value={kpiData.profAtivos} sub="cadastro atual" icon={Users} tone="primary" />
+          <KPI label="Trocas pendentes" value={kpiData.pendCur} sub="requerem análise" icon={AlertTriangle} tone={kpiData.pendCur > 0 ? 'warning' : 'success'} alert={kpiData.pendCur > 0} />
+        </div>
+      )}
+
+      {/* ===== Charts row ===== */}
+      {canRead && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2 bg-card border border-border rounded-xl p-4 shadow-[var(--shadow-card)]">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-display font-semibold text-sm">Evolução (últimos 6 meses)</h3>
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Horas · Plantões · Faltas</span>
+            </div>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={kpiData.evol}>
+                  <defs>
+                    <linearGradient id="gradHoras" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
+                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="mes" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                  <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Area type="monotone" dataKey="horas" name="Horas" stroke="hsl(var(--primary))" fill="url(#gradHoras)" strokeWidth={2} />
+                  <Line type="monotone" dataKey="plantoes" name="Plantões" stroke="hsl(var(--accent))" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="faltas" name="Faltas" stroke="hsl(0 84% 60%)" strokeWidth={2} dot={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 shadow-[var(--shadow-card)]">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-display font-semibold text-sm">Top setores</h3>
+              <Building2 className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={kpiData.topSetores} layout="vertical" margin={{ left: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+                  <YAxis type="category" dataKey="nome" tick={{ fontSize: 10, fill: 'hsl(var(--foreground))' }} width={90} />
+                  <Tooltip formatter={(v: number) => `${v.toFixed(1)}h`} contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
+                  <Bar dataKey="horas" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Catálogo de relatórios ===== */}
+      <div className="flex items-center justify-between flex-wrap gap-2 pt-2">
+        <h2 className="font-display font-semibold text-base flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> Catálogo de relatórios</h2>
+        <div className="flex flex-wrap gap-1.5">
+          {categorias.map(c => (
+            <button key={c} onClick={() => setCategoriaFilter(c)}
+              className={`px-3 py-1 rounded-full text-[11px] font-medium border transition-colors ${categoriaFilter === c ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-muted-foreground hover:text-foreground'}`}>
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {reportsFiltrados.map((r, i) => (
+          <motion.div key={r.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }} className="bg-card rounded-xl border border-border p-5 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elevated)] hover:-translate-y-0.5 transition-all">
+            <div className="flex items-start gap-3">
               <span className="text-2xl">{r.icon}</span>
-              <div className="flex-1">
-                <h3 className="font-display font-semibold text-foreground">{r.nome}</h3>
-                <p className="text-sm text-muted-foreground mt-1">{r.descricao}</p>
-                <div className="flex gap-2 mt-4 flex-wrap">
-                  <button onClick={() => openReportModal(r)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90">
-                    <Filter className="h-3 w-3" /> Gerar relatório
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-display font-semibold text-foreground text-sm">{r.nome}</h3>
+                  <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{(r as any).categoria}</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{r.descricao}</p>
+                <div className="flex gap-2 mt-3 flex-wrap">
+                  <button onClick={() => openReportModal(r)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 active:scale-[0.98] transition">
+                    <Filter className="h-3 w-3" /> Gerar
                   </button>
                   {r.hasChart && (
                     <button onClick={() => setChartReport(chartReport === r.id ? null : r.id)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${chartReport === r.id ? 'bg-primary text-primary-foreground' : 'border border-border text-foreground hover:bg-muted'}`}>
@@ -756,6 +988,7 @@ export default function RelatoriosPage() {
           </motion.div>
         ))}
       </div>
+
 
       {/* Modal: Filtros + Preview + Ações */}
       <Dialog open={!!modalReport} onOpenChange={o => !o && closeModal()}>
