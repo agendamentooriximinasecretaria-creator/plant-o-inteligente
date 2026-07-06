@@ -26,15 +26,24 @@ const STATUS_TROCA = ['solicitada', 'aguardando_resposta', 'aguardando_aprovacao
 type FormatoExport = 'pdf' | 'excel' | 'csv';
 
 const reports = [
-  { id: 'profissionais', nome: 'Relatório de Profissionais', descricao: 'Lista completa de profissionais cadastrados', icon: '👥', kind: 'professionals' as const },
-  { id: 'plantoes', nome: 'Relatório de Plantões', descricao: 'Todos os plantões organizados por período', icon: '📋', kind: 'shifts' as const },
-  { id: 'horas_profissional', nome: 'Horas por Profissional', descricao: 'Total de horas trabalhadas por profissional', icon: '⏱️', hasChart: true, kind: 'shifts' as const },
-  { id: 'trocas', nome: 'Relatório de Trocas', descricao: 'Histórico completo de trocas de plantão', icon: '🔄', kind: 'swaps' as const },
-  { id: 'setores', nome: 'Relatório por Setor', descricao: 'Plantões agrupados por setor', icon: '🏥', hasChart: true, kind: 'shifts' as const },
-  { id: 'cancelados', nome: 'Relatório de Plantões Cancelados', descricao: 'Plantões que foram cancelados', icon: '❌', kind: 'shifts' as const },
-  { id: 'escala_mensal', nome: 'Escala Mensal Consolidada', descricao: 'Grid profissional × dia do mês', icon: '📆', kind: 'shifts' as const },
-  { id: 'analise_trocas', nome: 'Análise de Trocas', descricao: 'Estatísticas e taxa de aprovação', icon: '📊', hasChart: true, kind: 'swaps' as const },
-  { id: 'cobertura_setor', nome: 'Cobertura por Setor', descricao: 'Plantões por setor com visualização', icon: '📈', hasChart: true, kind: 'shifts' as const },
+  { id: 'profissionais', nome: 'Relatório de Profissionais', descricao: 'Lista completa de profissionais cadastrados', icon: '👥', kind: 'professionals' as const, categoria: 'Cadastros' },
+  { id: 'plantoes', nome: 'Relatório de Plantões', descricao: 'Todos os plantões organizados por período', icon: '📋', kind: 'shifts' as const, categoria: 'Operacional' },
+  { id: 'horas_profissional', nome: 'Horas por Profissional', descricao: 'Total de horas trabalhadas por profissional', icon: '⏱️', hasChart: true, kind: 'shifts' as const, categoria: 'Operacional' },
+  { id: 'trocas', nome: 'Relatório de Trocas', descricao: 'Histórico completo de trocas de plantão', icon: '🔄', kind: 'swaps' as const, categoria: 'Trocas' },
+  { id: 'setores', nome: 'Relatório por Setor', descricao: 'Plantões agrupados por setor', icon: '🏥', hasChart: true, kind: 'shifts' as const, categoria: 'Operacional' },
+  { id: 'cancelados', nome: 'Relatório de Plantões Cancelados', descricao: 'Plantões que foram cancelados', icon: '❌', kind: 'shifts' as const, categoria: 'Qualidade' },
+  { id: 'escala_mensal', nome: 'Escala Mensal Consolidada', descricao: 'Grid profissional × dia do mês', icon: '📆', kind: 'shifts' as const, categoria: 'Operacional' },
+  { id: 'analise_trocas', nome: 'Análise de Trocas', descricao: 'Estatísticas e taxa de aprovação', icon: '📊', hasChart: true, kind: 'swaps' as const, categoria: 'Trocas' },
+  { id: 'cobertura_setor', nome: 'Cobertura por Setor', descricao: 'Plantões por setor com visualização', icon: '📈', hasChart: true, kind: 'shifts' as const, categoria: 'Operacional' },
+  // ===== Novos relatórios analíticos =====
+  { id: 'absenteismo', nome: 'Absenteísmo (Faltas)', descricao: 'Faltas por profissional, taxa e ranking', icon: '🚫', hasChart: true, kind: 'shifts' as const, categoria: 'Qualidade' },
+  { id: 'atrasos', nome: 'Pontualidade & Atrasos', descricao: 'Atrasos registrados no check-in por profissional', icon: '⏰', hasChart: true, kind: 'shifts' as const, categoria: 'Qualidade' },
+  { id: 'checkin_compliance', nome: 'Compliance de Check-in', descricao: '% de plantões com check-in/check-out registrado', icon: '✅', hasChart: true, kind: 'shifts' as const, categoria: 'Qualidade' },
+  { id: 'ranking_horas', nome: 'Ranking de Produtividade', descricao: 'Top profissionais por horas realizadas', icon: '🏆', hasChart: true, kind: 'shifts' as const, categoria: 'Analítico' },
+  { id: 'plantoes_por_tipo', nome: 'Distribuição por Tipo de Plantão', descricao: 'Diurno, noturno, sobreaviso, 12h, 24h', icon: '🌓', hasChart: true, kind: 'shifts' as const, categoria: 'Analítico' },
+  { id: 'trocas_por_profissional', nome: 'Trocas por Profissional', descricao: 'Solicitadas vs recebidas por profissional', icon: '👥', hasChart: true, kind: 'swaps' as const, categoria: 'Trocas' },
+  { id: 'carga_semanal', nome: 'Carga Horária Semanal Média', descricao: 'Horas/semana por profissional (alerta >60h)', icon: '📅', kind: 'shifts' as const, categoria: 'Analítico' },
+  { id: 'evolucao_mensal', nome: 'Evolução Mensal de Plantões', descricao: 'Série temporal de plantões e horas por mês', icon: '📉', hasChart: true, kind: 'shifts' as const, categoria: 'Analítico' },
 ];
 
 type ReportDef = (typeof reports)[number];
