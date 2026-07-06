@@ -1002,6 +1002,22 @@ export default function RelatoriosPage() {
 
           {modalReport && (
             <div className="space-y-5">
+              {/* Presets de período */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Período rápido:</span>
+                {PRESETS.map(p => (
+                  <button key={p.id} type="button" onClick={() => applyPreset(p.id)}
+                    className="px-2.5 py-1 rounded-full text-[11px] font-medium border border-border bg-card text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors">
+                    {p.label}
+                  </button>
+                ))}
+                {(filtros.dataIni || filtros.dataFim) && (
+                  <button type="button" onClick={() => setFiltros(f => ({ ...f, dataIni: '', dataFim: '' }))}
+                    className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-muted text-foreground hover:bg-muted/80">
+                    <X className="h-3 w-3 inline mr-1" />Limpar período
+                  </button>
+                )}
+              </div>
               {/* Filtros */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
