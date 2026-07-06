@@ -334,6 +334,137 @@ export default function RelatoriosPage() {
         const taxa = total > 0 ? ((aprovadas / total) * 100).toFixed(1) : '0';
         return { columns: ['Métrica', 'Valor'], rows: [['Total de Trocas', String(total)], ['Aprovadas/Concluídas', String(aprovadas)], ['Taxa de Aprovação', `${taxa}%`], ['Rejeitadas', String(filteredSwaps.filter((s: any) => ['rejeitada', 'recusada'].includes(s.status)).length)], ['Pendentes', String(filteredSwaps.filter((s: any) => ['solicitada', 'aguardando_resposta', 'aguardando_aprovacao'].includes(s.status)).length)]] };
       }
+      case 'absenteismo': {
+        const byProf: Record<string, { nome: string; total: number; faltas: number }> = {};
+        filteredShifts.forEach((s: any) => {
+          const nome = (s.professionals as any)?.nome || 'Desconhecido';
+          if (!byProf[s.profissional_id]) byProf[s.profissional_id] = { nome, total: 0, faltas: 0 };
+          byProf[s.profissional_id].total++;
+          if (s.faltou) byProf[s.profissional_id].faltas++;
+        });
+        const rows = Object.values(byProf)
+          .filter(p => p.total > 0)
+          .sort((a, b) => (b.faltas / b.total) - (a.faltas / a.total))
+          .map(p => [p.nome, String(p.total), String(p.faltas), `${((p.faltas / p.total) * 100).toFixed(1)}%`]);
+        return { columns: ['Profissional', 'Plantões', 'Faltas', 'Taxa de Absenteísmo'], rows };
+      }
+      case 'atrasos': {
+        const byProf: Record<string, { nome: string; qtd: number; minutos: number }> = {};
+        filteredShifts.forEach((s: any) => {
+          if (!s.atraso_minutos || Number(s.atraso_minutos) <= 0) return;
+          const nome = (s.professionals as any)?.nome || 'Desconhecido';
+          if (!byProf[s.profissional_id]) byProf[s.profissional_id] = { nome, qtd: 0, minutos: 0 };
+          byProf[s.profissional_id].qtd++;
+          byProf[s.profissional_id].minutos += Number(s.atraso_minutos);
+        });
+        const rows = Object.values(byProf)
+          .sort((a, b) => b.minutos - a.minutos)
+          .map(p => [p.nome, String(p.qtd), `${p.minutos} min`, `${(p.minutos / p.qtd).toFixed(1)} min`]);
+        return { columns: ['Profissional', 'Ocorrências', 'Total Atraso', 'Média por ocorrência'], rows };
+      }
+      case 'checkin_compliance': {
+        const byProf: Record<string, { nome: string; total: number; comCheckin: number; comCheckout: number }> = {};
+        filteredShifts.forEach((s: any) => {
+          if (!isPlantaoContabilizavel(s)) return;
+          const nome = (s.professionals as any)?.nome || 'Desconhecido';
+          if (!byProf[s.profissional_id]) byProf[s.profissional_id] = { nome, total: 0, comCheckin: 0, comCheckout: 0 };
+          byProf[s.profissional_id].total++;
+          if (s.checkin_em) byProf[s.profissional_id].comCheckin++;
+          if (s.checkout_em) byProf[s.profissional_id].comCheckout++;
+        });
+        const rows = Object.values(byProf)
+          .filter(p => p.total > 0)
+          .sort((a, b) => (a.comCheckin / a.total) - (b.comCheckin / b.total))
+          .map(p => [p.nome, String(p.total), `${((p.comCheckin / p.total) * 100).toFixed(0)}%`, `${((p.comCheckout / p.total) * 100).toFixed(0)}%`]);
+        return { columns: ['Profissional', 'Plantões', '% Check-in', '% Check-out'], rows };
+      }
+      case 'ranking_horas': {
+        const byProf: Record<string, { nome: string; hours: number; count: number }> = {};
+        filteredShifts.forEach((s: any) => {
+          if (!isPlantaoContabilizavel(s)) return;
+          const nome = (s.professionals as any)?.nome || 'Desconhecido';
+          if (!byProf[s.profissional_id]) byProf[s.profissional_id] = { nome, hours: 0, count: 0 };
+          byProf[s.profissional_id].hours += Number(s.carga_horaria || 0);
+          byProf[s.profissional_id].count++;
+        });
+        const ordered = Object.values(byProf).sort((a, b) => b.hours - a.hours);
+        const totalHoras = ordered.reduce((a, p) => a + p.hours, 0);
+        const rows = ordered.map((p, i) => [`${i + 1}º`, p.nome, String(p.count), `${p.hours.toFixed(1)}h`, `${totalHoras ? ((p.hours / totalHoras) * 100).toFixed(1) : '0'}%`]);
+        return { columns: ['#', 'Profissional', 'Plantões', 'Horas', '% do Total'], rows, totalHoras };
+      }
+      case 'plantoes_por_tipo': {
+        const byTipo: Record<string, { count: number; horas: number }> = {};
+        filteredShifts.forEach((s: any) => {
+          const t = s.tipo_plantao || 'não definido';
+          if (!byTipo[t]) byTipo[t] = { count: 0, horas: 0 };
+          byTipo[t].count++;
+          if (isPlantaoContabilizavel(s)) byTipo[t].horas += Number(s.carga_horaria || 0);
+        });
+        const totalHoras = Object.values(byTipo).reduce((a, b) => a + b.horas, 0);
+        const rows = Object.entries(byTipo)
+          .sort((a, b) => b[1].count - a[1].count)
+          .map(([t, v]) => [t, String(v.count), `${v.horas.toFixed(1)}h`]);
+        return { columns: ['Tipo de Plantão', 'Quantidade', 'Horas'], rows, totalHoras };
+      }
+      case 'trocas_por_profissional': {
+        const byProf: Record<string, { nome: string; solicitadas: number; recebidas: number; aprovadas: number }> = {};
+        const nomeById: Record<string, string> = {};
+        (professionals as any[]).forEach(p => { nomeById[p.id] = p.nome; });
+        filteredSwaps.forEach((s: any) => {
+          if (s.solicitante_id) {
+            const n = (s.solicitante as any)?.nome || nomeById[s.solicitante_id] || '—';
+            if (!byProf[s.solicitante_id]) byProf[s.solicitante_id] = { nome: n, solicitadas: 0, recebidas: 0, aprovadas: 0 };
+            byProf[s.solicitante_id].solicitadas++;
+            if (['aprovada', 'concluida'].includes(s.status)) byProf[s.solicitante_id].aprovadas++;
+          }
+          if (s.destinatario_id) {
+            const n = (s.destinatario as any)?.nome || nomeById[s.destinatario_id] || '—';
+            if (!byProf[s.destinatario_id]) byProf[s.destinatario_id] = { nome: n, solicitadas: 0, recebidas: 0, aprovadas: 0 };
+            byProf[s.destinatario_id].recebidas++;
+          }
+        });
+        const rows = Object.values(byProf)
+          .sort((a, b) => (b.solicitadas + b.recebidas) - (a.solicitadas + a.recebidas))
+          .map(p => [p.nome, String(p.solicitadas), String(p.recebidas), String(p.aprovadas), `${p.solicitadas ? ((p.aprovadas / p.solicitadas) * 100).toFixed(0) : '0'}%`]);
+        return { columns: ['Profissional', 'Solicitadas', 'Recebidas', 'Aprovadas', 'Taxa aprov.'], rows };
+      }
+      case 'carga_semanal': {
+        const byProf: Record<string, { nome: string; semanas: Record<string, number> }> = {};
+        filteredShifts.forEach((s: any) => {
+          if (!isPlantaoContabilizavel(s)) return;
+          const d = new Date(s.data + 'T12:00:00');
+          const dow = d.getDay();
+          const mon = new Date(d); mon.setDate(d.getDate() - ((dow + 6) % 7));
+          const wKey = mon.toISOString().slice(0, 10);
+          const nome = (s.professionals as any)?.nome || 'Desconhecido';
+          if (!byProf[s.profissional_id]) byProf[s.profissional_id] = { nome, semanas: {} };
+          byProf[s.profissional_id].semanas[wKey] = (byProf[s.profissional_id].semanas[wKey] || 0) + Number(s.carga_horaria || 0);
+        });
+        const rows = Object.values(byProf).map(p => {
+          const vals = Object.values(p.semanas);
+          const media = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+          const max = vals.length ? Math.max(...vals) : 0;
+          const alerta = max > 60 ? '⚠️ Excedeu 60h' : (media > 44 ? '⚠️ Acima CLT' : 'OK');
+          return [p.nome, String(vals.length), `${media.toFixed(1)}h`, `${max.toFixed(1)}h`, alerta];
+        }).sort((a, b) => parseFloat(b[3]) - parseFloat(a[3]));
+        return { columns: ['Profissional', 'Semanas', 'Média/sem', 'Pico', 'Status'], rows };
+      }
+      case 'evolucao_mensal': {
+        const byMonth: Record<string, { count: number; horas: number; faltas: number }> = {};
+        filteredShifts.forEach((s: any) => {
+          const m = (s.data || '').slice(0, 7);
+          if (!m) return;
+          if (!byMonth[m]) byMonth[m] = { count: 0, horas: 0, faltas: 0 };
+          byMonth[m].count++;
+          if (isPlantaoContabilizavel(s)) byMonth[m].horas += Number(s.carga_horaria || 0);
+          if (s.faltou) byMonth[m].faltas++;
+        });
+        const totalHoras = Object.values(byMonth).reduce((a, b) => a + b.horas, 0);
+        const rows = Object.entries(byMonth)
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([m, v]) => [m, String(v.count), `${v.horas.toFixed(1)}h`, String(v.faltas)]);
+        return { columns: ['Mês', 'Plantões', 'Horas', 'Faltas'], rows, totalHoras };
+      }
       default: return { columns: [], rows: [] };
     }
   };
