@@ -935,6 +935,29 @@ export default function RelatoriosPage() {
         </div>
       );
     }
+    if (reportId === 'trocas_por_profissional' && trocasPorProfChart.length > 0) {
+      return (
+        <div className="mt-4 space-y-4">
+          <div className="rounded-lg border border-border p-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Solicitadas vs recebidas por profissional</p>
+            <div style={{ height: Math.max(260, trocasPorProfChart.length * 34) }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={trocasPorProfChart} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                  <YAxis type="category" dataKey="nome" tick={{ fontSize: 10 }} width={160} interval={0} />
+                  <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="solicitadas" name="Solicitadas" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} barSize={12} />
+                  <Bar dataKey="recebidas" name="Recebidas" fill="hsl(var(--chart-2))" radius={[0, 4, 4, 0]} barSize={12} />
+                  <Bar dataKey="aprovadas" name="Aprovadas" fill="hsl(var(--chart-3))" radius={[0, 4, 4, 0]} barSize={12} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      );
+    }
     if ((reportId === 'analise_trocas' || reportId === 'trocas') && trocasAnalytics.total > 0) {
       const a = trocasAnalytics;
       const fmtTempo = (h: number) => h < 24 ? `${h.toFixed(1)}h` : `${(h / 24).toFixed(1)}d`;
