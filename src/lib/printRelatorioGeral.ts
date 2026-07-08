@@ -68,7 +68,6 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
 
   const maxSetorH = Math.max(1, ...data.coberturaSetor.map(s => s.horas));
   const coberturaHtml = data.coberturaSetor
-    .slice(0, 10)
     .map(
       s => `<tr>
         <td>${esc(s.nome)}</td>
@@ -80,7 +79,6 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
     .join("");
 
   const absHtml = data.absenteismoTop
-    .slice(0, 8)
     .map(
       p => `<tr>
         <td>${esc(p.nome)}</td>
