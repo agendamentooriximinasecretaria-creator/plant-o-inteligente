@@ -475,26 +475,73 @@ export default function RelatoriosPage() {
         return { columns: ['Tipo de Plantão', 'Quantidade', 'Horas'], rows, totalHoras };
       }
       case 'trocas_por_profissional': {
-        const byProf: Record<string, { nome: string; solicitadas: number; recebidas: number; aprovadas: number }> = {};
-        const nomeById: Record<string, string> = {};
-        (professionals as any[]).forEach(p => { nomeById[p.id] = p.nome; });
+        type Agg = { nome: string; profissao: string; unidade: string; setor: string; solicitadas: number; recebidas: number; aprovadas: number; rejeitadas: number; canceladas: number; pendentes: number; administrativas: number; horas: number };
+        const byKey: Record<string, Agg> = {};
+        const profMap: Record<string, any> = {};
+        (professionals as any[]).forEach(p => { profMap[p.id] = p; });
+        const setorNome = (id?: string) => (sectors as any[]).find(x => x.id === id)?.nome || '—';
+        const unidadeNome = (id?: string) => (units as any[]).find(x => x.id === id)?.nome || '—';
+        const upsert = (profId: string, setor: string, unidade: string, nome: string, profissao: string) => {
+          const k = `${profId}||${setor}`;
+          if (!byKey[k]) byKey[k] = { nome, profissao, unidade, setor, solicitadas: 0, recebidas: 0, aprovadas: 0, rejeitadas: 0, canceladas: 0, pendentes: 0, administrativas: 0, horas: 0 };
+          return byKey[k];
+        };
+        const bucketStatus = (agg: Agg, status: string) => {
+          if (['aprovada', 'concluida'].includes(status)) agg.aprovadas++;
+          else if (['rejeitada', 'recusada'].includes(status)) agg.rejeitadas++;
+          else if (status === 'cancelada') agg.canceladas++;
+          else agg.pendentes++;
+        };
         filteredSwaps.forEach((s: any) => {
+          const setor = (s.shift as any)?.sectors?.nome || setorNome(profMap[s.solicitante_id]?.setor_principal_id) || 'Sem setor';
+          const unid = (s.shift as any)?.units?.nome || unidadeNome(profMap[s.solicitante_id]?.unidade_principal_id) || '—';
+          const carga = Number((s.shift as any)?.carga_horaria || 0);
           if (s.solicitante_id) {
-            const n = (s.solicitante as any)?.nome || nomeById[s.solicitante_id] || '—';
-            if (!byProf[s.solicitante_id]) byProf[s.solicitante_id] = { nome: n, solicitadas: 0, recebidas: 0, aprovadas: 0 };
-            byProf[s.solicitante_id].solicitadas++;
-            if (['aprovada', 'concluida'].includes(s.status)) byProf[s.solicitante_id].aprovadas++;
+            const p = profMap[s.solicitante_id];
+            const agg = upsert(s.solicitante_id, setor, unid, (s.solicitante as any)?.nome || p?.nome || '—', PROFISSAO_LABELS[p?.profissao] || p?.profissao || '—');
+            agg.solicitadas++;
+            bucketStatus(agg, s.status);
+            if (s.tipo === 'administrativa') agg.administrativas++;
+            if (['aprovada', 'concluida'].includes(s.status)) agg.horas += carga;
           }
           if (s.destinatario_id) {
-            const n = (s.destinatario as any)?.nome || nomeById[s.destinatario_id] || '—';
-            if (!byProf[s.destinatario_id]) byProf[s.destinatario_id] = { nome: n, solicitadas: 0, recebidas: 0, aprovadas: 0 };
-            byProf[s.destinatario_id].recebidas++;
+            const p = profMap[s.destinatario_id];
+            const setorDest = (s.shift_destino as any)?.sectors?.nome || setor;
+            const agg = upsert(s.destinatario_id, setorDest, unid, (s.destinatario as any)?.nome || p?.nome || '—', PROFISSAO_LABELS[p?.profissao] || p?.profissao || '—');
+            agg.recebidas++;
           }
         });
-        const rows = Object.values(byProf)
-          .sort((a, b) => (b.solicitadas + b.recebidas) - (a.solicitadas + a.recebidas))
-          .map(p => [p.nome, String(p.solicitadas), String(p.recebidas), String(p.aprovadas), `${p.solicitadas ? ((p.aprovadas / p.solicitadas) * 100).toFixed(0) : '0'}%`]);
-        return { columns: ['Profissional', 'Solicitadas', 'Recebidas', 'Aprovadas', 'Taxa aprov.'], rows };
+        const list = Object.values(byKey).sort((a, b) => (b.solicitadas + b.recebidas) - (a.solicitadas + a.recebidas) || a.nome.localeCompare(b.nome));
+        const rows = list.map(p => [
+          p.nome,
+          p.profissao,
+          p.unidade,
+          p.setor,
+          String(p.solicitadas),
+          String(p.recebidas),
+          String(p.aprovadas),
+          String(p.rejeitadas),
+          String(p.pendentes),
+          String(p.canceladas),
+          String(p.administrativas),
+          `${p.horas.toFixed(1)}h`,
+          `${p.solicitadas ? ((p.aprovadas / p.solicitadas) * 100).toFixed(0) : '0'}%`,
+        ]);
+        // Linha de totais
+        if (list.length > 0) {
+          const tot = list.reduce((a, p) => ({
+            solicitadas: a.solicitadas + p.solicitadas, recebidas: a.recebidas + p.recebidas,
+            aprovadas: a.aprovadas + p.aprovadas, rejeitadas: a.rejeitadas + p.rejeitadas,
+            pendentes: a.pendentes + p.pendentes, canceladas: a.canceladas + p.canceladas,
+            administrativas: a.administrativas + p.administrativas, horas: a.horas + p.horas,
+          }), { solicitadas: 0, recebidas: 0, aprovadas: 0, rejeitadas: 0, pendentes: 0, canceladas: 0, administrativas: 0, horas: 0 });
+          rows.push(['TOTAL GERAL', '', '', '', String(tot.solicitadas), String(tot.recebidas), String(tot.aprovadas), String(tot.rejeitadas), String(tot.pendentes), String(tot.canceladas), String(tot.administrativas), `${tot.horas.toFixed(1)}h`, `${tot.solicitadas ? ((tot.aprovadas / tot.solicitadas) * 100).toFixed(0) : '0'}%`]);
+        }
+        return {
+          columns: ['Profissional', 'Profissão', 'Unidade', 'Setor', 'Solicitadas', 'Recebidas', 'Aprovadas', 'Rejeitadas', 'Pendentes', 'Canceladas', 'Administrativas', 'Horas envolvidas', 'Taxa aprov.'],
+          rows,
+          totalHoras: list.reduce((a, p) => a + p.horas, 0),
+        };
       }
       case 'carga_semanal': {
         const byProf: Record<string, { nome: string; semanas: Record<string, number> }> = {};
