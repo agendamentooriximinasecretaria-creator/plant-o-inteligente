@@ -1,5 +1,4 @@
-// Documento executivo consolidado — "Relatório Geral".
-// Reaproveita cabeçalho/rodapé/assinatura e CSS base institucional.
+// Documento executivo consolidado — "Relatório Geral" organizado por categoria.
 
 import { DOCUMENT_CSS_BASE } from "./documentStyle";
 import { buildHeaderHtml, buildSignatureHtml, buildFooterHtml } from "./documentTemplates";
@@ -7,15 +6,40 @@ import type { StampData } from "./pdfStampUtils";
 import type { RelatorioGeralData } from "./parecerAutomatico";
 
 const esc = (s: unknown) =>
-  String(s ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 const bar = (value: number, max: number) => {
   const w = max > 0 ? Math.max(2, Math.min(100, (value / max) * 100)) : 0;
   return `<div class="bar-track"><div class="bar-fill" style="width:${w.toFixed(1)}%"></div></div>`;
 };
+
+const table = (
+  cols: { label: string; width?: string; align?: "left" | "right" | "center" }[],
+  rowsHtml: string,
+  emptyMsg = "Sem dados no período."
+) => `<table>
+  <colgroup>${cols.map(c => `<col style="width:${c.width || "auto"}"/>`).join("")}</colgroup>
+  <thead><tr>${cols.map(c => `<th style="text-align:${c.align || "left"}">${esc(c.label)}</th>`).join("")}</tr></thead>
+  <tbody>${rowsHtml || `<tr><td colspan="${cols.length}" class="empty" style="text-align:center">${esc(emptyMsg)}</td></tr>`}</tbody>
+</table>`;
+
+const category = (num: number, title: string, subtitle: string, inner: string) => `
+  <section class="category" data-pdf-section="cat-${num}">
+    <div class="cat-header"><span class="cat-num">${num}</span><div><h2>${esc(title)}</h2><span class="cat-sub">${esc(subtitle)}</span></div></div>
+    ${inner}
+  </section>`;
+
+const block = (title: string, inner: string) => `
+  <div class="block">
+    <h3>${esc(title)}</h3>
+    ${inner}
+  </div>`;
+
+const kv = (items: { label: string; valor: string | number; alerta?: boolean }[]) =>
+  `<div class="kv-grid">${items.map(i => `<div class="kv ${i.alerta ? "kv-alert" : ""}">
+    <div class="kv-label">${esc(i.label)}</div>
+    <div class="kv-value">${esc(i.valor)}</div>
+  </div>`).join("")}</div>`;
 
 export interface RelatorioGeralPrintOptions {
   data: RelatorioGeralData;
@@ -39,99 +63,225 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
     issuer: emitidoPor,
   });
 
-  const kpisHtml = data.kpisPrincipais
-    .map(k => {
-      const var_ =
-        typeof k.variacao === "number" && isFinite(k.variacao)
-          ? `<div class="kpi-var ${k.variacao >= 0 ? "up" : "down"}">${k.variacao >= 0 ? "+" : ""}${k.variacao.toFixed(1)}% vs anterior</div>`
-          : "";
-      return `<div class="kpi ${k.alerta ? "kpi-alert" : ""}">
-        <div class="kpi-label">${esc(k.label)}</div>
-        <div class="kpi-value">${esc(k.valor)}</div>
-        ${var_}
-      </div>`;
-    })
-    .join("");
-
-  const maxEvolH = Math.max(1, ...data.evolucaoMensal.map(e => e.horas));
-  const evolucaoHtml = data.evolucaoMensal
-    .map(
-      e => `<tr>
-        <td class="td-mes">${esc(e.mes)}</td>
-        <td>${bar(e.horas, maxEvolH)}</td>
-        <td class="td-num">${e.horas.toFixed(0)}h</td>
-        <td class="td-num">${e.plantoes}</td>
-        <td class="td-num">${e.faltas}</td>
-      </tr>`
-    )
-    .join("");
-
-  const maxSetorH = Math.max(1, ...data.coberturaSetor.map(s => s.horas));
-  const coberturaHtml = data.coberturaSetor
-    .map(
-      s => `<tr>
-        <td>${esc(s.nome)}</td>
-        <td>${bar(s.horas, maxSetorH)}</td>
-        <td class="td-num">${s.horas.toFixed(0)}h</td>
-        <td class="td-num">${s.count}</td>
-      </tr>`
-    )
-    .join("");
-
-  const absHtml = data.absenteismoTop
-    .map(
-      p => `<tr>
-        <td>${esc(p.nome)}</td>
-        <td class="td-num">${p.total}</td>
-        <td class="td-num">${p.faltas}</td>
-        <td class="td-num ${p.taxa > 5 ? "text-danger" : ""}">${p.taxa.toFixed(1)}%</td>
-      </tr>`
-    )
-    .join("");
-
-  const maxRankH = Math.max(1, ...data.rankingHoras.map(p => p.horas));
-  const rankingHtml = data.rankingHoras
-    .map(
-      p => `<tr>
-        <td>${esc(p.nome)}</td>
-        <td>${bar(p.horas, maxRankH)}</td>
-        <td class="td-num">${p.horas.toFixed(0)}h</td>
-        <td class="td-num">${p.plantoes}</td>
-      </tr>`
-    )
-    .join("");
-
-  const cancHtml = data.cancelamentos
-    .map(p => `<tr><td>${esc(p.nome)}</td><td class="td-num">${p.qtd}</td></tr>`)
-    .join("");
-
-  const picoHtml = data.cargaPicoAlerta
-    .map(p => `<tr><td>${esc(p.nome)}</td><td class="td-num text-danger">${p.picoH.toFixed(1)}h</td></tr>`)
-    .join("");
+  const kpisHtml = data.kpisPrincipais.map(k => {
+    const var_ = typeof k.variacao === "number" && isFinite(k.variacao)
+      ? `<div class="kpi-var ${k.variacao >= 0 ? "up" : "down"}">${k.variacao >= 0 ? "+" : ""}${k.variacao.toFixed(1)}% vs anterior</div>`
+      : "";
+    return `<div class="kpi ${k.alerta ? "kpi-alert" : ""}">
+      <div class="kpi-label">${esc(k.label)}</div>
+      <div class="kpi-value">${esc(k.valor)}</div>${var_}
+    </div>`;
+  }).join("");
 
   const parecer = data.parecer;
   const listOr = (items: string[], empty: string, cls: string) =>
     items.length
       ? `<ul class="${cls}">${items.map(i => `<li>${esc(i)}</li>`).join("")}</ul>`
       : `<p class="empty">${esc(empty)}</p>`;
-
   const numberedList = (items: string[]) =>
     items.length
       ? `<ol class="reco-list">${items.map(i => `<li>${esc(i)}</li>`).join("")}</ol>`
       : `<p class="empty">Nenhuma recomendação para este período.</p>`;
 
-  const assinaturasHtml = incluirAssinatura
-    ? buildSignatureHtml({ responsavel, responsavelTecnico })
+  // ===== 1. CADASTROS =====
+  const cad = data.cadastros;
+  const cadastrosHtml = category(1, "Cadastros", "Base institucional de profissionais, unidades e setores",
+    kv([
+      { label: "Profissionais (total)", valor: cad.totalProfissionais },
+      { label: "Ativos", valor: cad.ativos },
+      { label: "Inativos", valor: cad.inativos, alerta: cad.inativos > 0 && cad.inativos / Math.max(1, cad.totalProfissionais) > 0.2 },
+      { label: "Unidades", valor: cad.totalUnidades },
+      { label: "Setores", valor: cad.totalSetores },
+    ]) +
+    block("Distribuição por profissão",
+      table(
+        [{ label: "Profissão", width: "70%" }, { label: "Quantidade", width: "30%", align: "right" }],
+        cad.porProfissao.map(p => `<tr><td>${esc(p.nome)}</td><td class="td-num">${p.count}</td></tr>`).join("")
+      )
+    )
+  );
+
+  // ===== 2. OPERACIONAL =====
+  const op = data.operacional;
+  const maxCob = Math.max(1, ...op.coberturaSetor.map(s => s.horas));
+  const maxTipo = Math.max(1, ...op.porTipoPlantao.map(t => t.horas));
+  const operacionalHtml = category(2, "Operacional", "Plantões, cobertura, distribuição por tipo e por setor",
+    kv([
+      { label: "Plantões (total)", valor: op.totalPlantoes },
+      { label: "Horas contabilizadas", valor: `${op.horasContabilizadas.toFixed(0)}h` },
+      { label: "Setores com plantão", valor: op.coberturaSetor.length },
+      { label: "Tipos de plantão", valor: op.porTipoPlantao.length },
+    ]) +
+    block("Plantões por status",
+      table(
+        [{ label: "Status", width: "70%" }, { label: "Quantidade", width: "30%", align: "right" }],
+        op.porStatus.map(s => `<tr><td>${esc(s.nome)}</td><td class="td-num">${s.count}</td></tr>`).join("")
+      )
+    ) +
+    block("Distribuição por tipo de plantão",
+      table(
+        [{ label: "Tipo", width: "30%" }, { label: "Horas", width: "40%" }, { label: "Horas", width: "15%", align: "right" }, { label: "Qtd", width: "15%", align: "right" }],
+        op.porTipoPlantao.map(t => `<tr>
+          <td>${esc(t.nome)}</td>
+          <td>${bar(t.horas, maxTipo)}</td>
+          <td class="td-num">${t.horas.toFixed(0)}h</td>
+          <td class="td-num">${t.count}</td>
+        </tr>`).join("")
+      )
+    ) +
+    block("Cobertura por setor",
+      table(
+        [{ label: "Setor", width: "30%" }, { label: "Horas", width: "40%" }, { label: "Horas", width: "15%", align: "right" }, { label: "Plantões", width: "15%", align: "right" }],
+        op.coberturaSetor.map(s => `<tr>
+          <td>${esc(s.nome)}</td>
+          <td>${bar(s.horas, maxCob)}</td>
+          <td class="td-num">${s.horas.toFixed(0)}h</td>
+          <td class="td-num">${s.count}</td>
+        </tr>`).join("")
+      )
+    )
+  );
+
+  // ===== 3. QUALIDADE =====
+  const q = data.qualidade;
+  const qualidadeHtml = category(3, "Qualidade", "Absenteísmo, pontualidade, compliance e cancelamentos",
+    kv([
+      { label: "Absenteísmo", valor: `${q.taxaAbsenteismo.toFixed(1)}%`, alerta: q.taxaAbsenteismo > 5 },
+      { label: "Faltas registradas", valor: q.faltas },
+      { label: "Cancelamentos", valor: `${q.taxaCancelamento.toFixed(1)}%`, alerta: q.taxaCancelamento > 5 },
+      { label: "Plantões cancelados", valor: q.cancelados },
+      { label: "Compliance check-in", valor: `${q.compliance.pctCheckin.toFixed(1)}%`, alerta: q.compliance.pctCheckin < 70 },
+      { label: "Compliance check-out", valor: `${q.compliance.pctCheckout.toFixed(1)}%`, alerta: q.compliance.pctCheckout < 70 },
+    ]) +
+    block("Top absenteísmo por profissional",
+      table(
+        [{ label: "Profissional", width: "50%" }, { label: "Plantões", width: "17%", align: "right" }, { label: "Faltas", width: "16%", align: "right" }, { label: "Taxa", width: "17%", align: "right" }],
+        q.absenteismoTop.map(p => `<tr>
+          <td>${esc(p.nome)}</td>
+          <td class="td-num">${p.total}</td>
+          <td class="td-num">${p.faltas}</td>
+          <td class="td-num ${p.taxa > 5 ? "text-danger" : ""}">${p.taxa.toFixed(1)}%</td>
+        </tr>`).join(""),
+        "Sem faltas registradas."
+      )
+    ) +
+    block("Pontualidade — atrasos por profissional",
+      table(
+        [{ label: "Profissional", width: "50%" }, { label: "Ocorrências", width: "17%", align: "right" }, { label: "Total atraso", width: "16%", align: "right" }, { label: "Média", width: "17%", align: "right" }],
+        q.atrasos.map(p => `<tr>
+          <td>${esc(p.nome)}</td>
+          <td class="td-num">${p.qtd}</td>
+          <td class="td-num">${p.minutos} min</td>
+          <td class="td-num">${p.media.toFixed(1)} min</td>
+        </tr>`).join(""),
+        "Sem atrasos registrados."
+      )
+    ) +
+    block("Cancelamentos por profissional",
+      table(
+        [{ label: "Profissional", width: "75%" }, { label: "Cancelamentos", width: "25%", align: "right" }],
+        q.cancelamentosPorProf.map(p => `<tr><td>${esc(p.nome)}</td><td class="td-num">${p.count}</td></tr>`).join(""),
+        "Sem cancelamentos no período."
+      )
+    )
+  );
+
+  // ===== 4. TROCAS =====
+  const tr = data.trocas;
+  const trocasHtml = category(4, "Trocas", "Análise de solicitações, aprovações e motivos",
+    kv([
+      { label: "Total", valor: tr.total },
+      { label: "Aprovadas", valor: tr.aprovadas },
+      { label: "Rejeitadas", valor: tr.rejeitadas },
+      { label: "Canceladas", valor: tr.canceladas },
+      { label: "Pendentes", valor: tr.pendentes, alerta: tr.pendentes > 5 },
+      { label: "Taxa de aprovação", valor: `${tr.taxaAprov.toFixed(1)}%`, alerta: tr.total > 0 && tr.taxaAprov < 70 },
+      { label: "Tempo médio", valor: `${tr.tempoMedioH.toFixed(1)}h` },
+    ]) +
+    block("Distribuição por tipo",
+      table(
+        [{ label: "Tipo", width: "70%" }, { label: "Quantidade", width: "30%", align: "right" }],
+        `<tr><td>Direta</td><td class="td-num">${tr.porTipo.direta}</td></tr>
+         <tr><td>Grupo</td><td class="td-num">${tr.porTipo.grupo}</td></tr>
+         <tr><td>Administrativa</td><td class="td-num">${tr.porTipo.administrativa}</td></tr>`
+      )
+    ) +
+    block("Top solicitantes",
+      table(
+        [{ label: "Profissional", width: "75%" }, { label: "Solicitações", width: "25%", align: "right" }],
+        tr.topSolicitantes.map(p => `<tr><td>${esc(p.nome)}</td><td class="td-num">${p.count}</td></tr>`).join(""),
+        "Sem solicitações de troca no período."
+      )
+    ) +
+    block("Top motivos de troca",
+      table(
+        [{ label: "Motivo", width: "75%" }, { label: "Ocorrências", width: "25%", align: "right" }],
+        tr.topMotivos.map(m => `<tr><td>${esc(m.nome)}</td><td class="td-num">${m.count}</td></tr>`).join(""),
+        "Sem motivos registrados."
+      )
+    )
+  );
+
+  // ===== 5. ANALÍTICO =====
+  const an = data.analitico;
+  const maxRank = Math.max(1, ...an.rankingHoras.map(p => p.horas));
+  const maxEvol = Math.max(1, ...an.evolucaoMensal.map(e => e.horas));
+  const analiticoHtml = category(5, "Analítico", "Produtividade, carga semanal e evolução histórica",
+    block("Ranking de horas por profissional",
+      table(
+        [{ label: "Profissional", width: "40%" }, { label: "Horas", width: "35%" }, { label: "Horas", width: "12%", align: "right" }, { label: "Plantões", width: "13%", align: "right" }],
+        an.rankingHoras.map(p => `<tr>
+          <td>${esc(p.nome)}</td>
+          <td>${bar(p.horas, maxRank)}</td>
+          <td class="td-num">${p.horas.toFixed(0)}h</td>
+          <td class="td-num">${p.plantoes}</td>
+        </tr>`).join("")
+      )
+    ) +
+    block("Carga horária semanal por profissional",
+      table(
+        [
+          { label: "Profissional", width: "40%" },
+          { label: "Semanas", width: "12%", align: "right" },
+          { label: "Média/sem", width: "16%", align: "right" },
+          { label: "Pico", width: "12%", align: "right" },
+          { label: "Status", width: "20%" },
+        ],
+        an.cargaSemanal.map(p => `<tr>
+          <td>${esc(p.nome)}</td>
+          <td class="td-num">${p.semanas}</td>
+          <td class="td-num">${p.media.toFixed(1)}h</td>
+          <td class="td-num ${p.pico > 60 ? "text-danger" : ""}">${p.pico.toFixed(1)}h</td>
+          <td>${esc(p.alerta)}</td>
+        </tr>`).join("")
+      )
+    ) +
+    (an.cargaPicoAlerta.length ? block("Profissionais com pico semanal acima de 60h",
+      table(
+        [{ label: "Profissional", width: "70%" }, { label: "Pico", width: "30%", align: "right" }],
+        an.cargaPicoAlerta.map(p => `<tr><td>${esc(p.nome)}</td><td class="td-num text-danger">${p.picoH.toFixed(1)}h</td></tr>`).join("")
+      )
+    ) : "") +
+    block("Evolução mensal (últimos 6 meses)",
+      table(
+        [{ label: "Mês", width: "14%" }, { label: "Horas realizadas", width: "44%" }, { label: "Horas", width: "14%", align: "right" }, { label: "Plantões", width: "14%", align: "right" }, { label: "Faltas", width: "14%", align: "right" }],
+        an.evolucaoMensal.map(e => `<tr>
+          <td class="td-mes">${esc(e.mes)}</td>
+          <td>${bar(e.horas, maxEvol)}</td>
+          <td class="td-num">${e.horas.toFixed(0)}h</td>
+          <td class="td-num">${e.plantoes}</td>
+          <td class="td-num">${e.faltas}</td>
+        </tr>`).join("")
+      )
+    )
+  );
+
+  const custoHtml = typeof data.custoTotal === "number"
+    ? `<section class="block" data-pdf-section="custo"><h3>Custo total estimado</h3><p class="custo-valor">${data.custoTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p></section>`
     : "";
 
+  const assinaturasHtml = incluirAssinatura ? buildSignatureHtml({ responsavel, responsavelTecnico }) : "";
   const footerHtml = buildFooterHtml(sistema);
-  const custoHtml =
-    typeof data.custoTotal === "number"
-      ? `<section class="block" data-pdf-section="custo">
-          <h3>Custo total estimado</h3>
-          <p class="custo-valor">${data.custoTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>
-        </section>`
-      : "";
 
   return `<!doctype html>
 <html lang="pt-BR">
@@ -140,7 +290,7 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
 <title>Relatório Geral Executivo — ${esc(data.periodo.label)}</title>
 <style>
   ${DOCUMENT_CSS_BASE}
-  .toolbar { position: sticky; top: 0; background:#fff; padding:12px 0; border-bottom:1px solid #e5e7eb; margin-bottom:16px; display:flex; gap:10px; }
+  .toolbar { position: sticky; top: 0; background:#fff; padding:12px 0; border-bottom:1px solid #e5e7eb; margin-bottom:16px; display:flex; gap:10px; z-index: 20; }
   .toolbar button { background:#0e7490; color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:13px; font-weight:600; }
   .toolbar button.secondary { background:#fff; color:#111; border:1px solid #cbd5e1; }
 
@@ -151,13 +301,24 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
   .kpi { border:1px solid #e2e8f0; border-radius:8px; padding:10px; background:#fff; page-break-inside:avoid; }
   .kpi-alert { border-color:#f59e0b; background:#fffbeb; }
   .kpi-label { font-size:8pt; text-transform:uppercase; color:#64748b; font-weight:600; }
-  .kpi-value { font-size:15pt; font-weight:800; color:#0f172a; margin-top:2px; }
+  .kpi-value { font-size:14pt; font-weight:800; color:#0f172a; margin-top:2px; }
   .kpi-var { font-size:8.5pt; margin-top:2px; font-weight:600; }
-  .kpi-var.up { color:#059669; }
-  .kpi-var.down { color:#dc2626; }
+  .kpi-var.up { color:#059669; } .kpi-var.down { color:#dc2626; }
 
-  .block { margin:16px 0; page-break-inside:avoid; }
-  .block h3 { font-size:11pt; color:#0e7490; text-transform:uppercase; letter-spacing:.5px; border-bottom:1px solid #e2e8f0; padding-bottom:4px; margin:0 0 8px; }
+  .category { margin-top: 22px; page-break-before: auto; }
+  .cat-header { display:flex; align-items:center; gap:10px; border-bottom:2px solid #0e7490; padding-bottom:6px; margin-bottom:10px; }
+  .cat-num { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; background:#0e7490; color:#fff; font-weight:800; font-size:12pt; flex-shrink:0; }
+  .cat-header h2 { margin:0; font-size:13pt; color:#0e7490; text-transform:uppercase; letter-spacing:.5px; }
+  .cat-sub { font-size:9pt; color:#64748b; }
+
+  .block { margin:12px 0 16px; page-break-inside:auto; }
+  .block h3 { font-size:10.5pt; color:#0f172a; text-transform:uppercase; letter-spacing:.4px; margin:8px 0 6px; border-left:3px solid #0e7490; padding-left:8px; }
+
+  .kv-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin:8px 0 10px; }
+  .kv { border:1px solid #e2e8f0; border-radius:6px; padding:8px 10px; background:#f8fafc; }
+  .kv-alert { border-color:#f59e0b; background:#fffbeb; }
+  .kv-label { font-size:7.5pt; text-transform:uppercase; color:#64748b; font-weight:600; }
+  .kv-value { font-size:13pt; font-weight:800; color:#0f172a; margin-top:2px; }
 
   .atencao-list li { color:#7c2d12; margin-bottom:4px; }
   .positivo-list li { color:#065f46; margin-bottom:4px; }
@@ -170,15 +331,9 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
   .td-mes { font-weight:600; text-transform:capitalize; }
   .text-danger { color:#dc2626; font-weight:700; }
 
-  .trocas-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; }
-  .trocas-grid .kpi-value { font-size:14pt; }
-
   .custo-valor { font-size:18pt; font-weight:800; color:#0e7490; margin:6px 0; }
 
-  @media print {
-    .no-print { display:none !important; }
-    .kpi-grid { grid-template-columns:repeat(4, 1fr); }
-  }
+  @media print { .no-print { display:none !important; } }
 </style>
 </head>
 <body>
@@ -199,15 +354,6 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
     <div class="kpi-grid">${kpisHtml}</div>
   </section>
 
-  <section class="block" data-pdf-section="evolucao">
-    <h3>Evolução mensal (últimos 6 meses)</h3>
-    <table>
-      <colgroup><col style="width:14%"/><col style="width:44%"/><col style="width:14%"/><col style="width:14%"/><col style="width:14%"/></colgroup>
-      <thead><tr><th>Mês</th><th>Horas realizadas</th><th>Horas</th><th>Plantões</th><th>Faltas</th></tr></thead>
-      <tbody>${evolucaoHtml || `<tr><td colspan="5" class="empty" style="text-align:center">Sem dados no período.</td></tr>`}</tbody>
-    </table>
-  </section>
-
   <section class="block" data-pdf-section="atencao">
     <h3>Pontos de atenção</h3>
     ${listOr(parecer.pontosAtencao, "Nenhum ponto crítico identificado neste período.", "atencao-list")}
@@ -223,62 +369,11 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
     ${numberedList(parecer.recomendacoes)}
   </section>
 
-  <section class="block" data-pdf-section="setores">
-    <h3>Cobertura por setor</h3>
-    <table>
-      <colgroup><col style="width:30%"/><col style="width:40%"/><col style="width:15%"/><col style="width:15%"/></colgroup>
-      <thead><tr><th>Setor</th><th>Horas totais</th><th>Horas</th><th>Plantões</th></tr></thead>
-      <tbody>${coberturaHtml || `<tr><td colspan="4" class="empty" style="text-align:center">Sem dados de setores.</td></tr>`}</tbody>
-    </table>
-  </section>
-
-  <section class="block" data-pdf-section="absenteismo">
-    <h3>Top absenteísmo</h3>
-    <table>
-      <colgroup><col style="width:50%"/><col style="width:17%"/><col style="width:16%"/><col style="width:17%"/></colgroup>
-      <thead><tr><th>Profissional</th><th>Plantões</th><th>Faltas</th><th>Taxa</th></tr></thead>
-      <tbody>${absHtml || `<tr><td colspan="4" class="empty" style="text-align:center">Sem faltas registradas.</td></tr>`}</tbody>
-    </table>
-  </section>
-
-  <section class="block" data-pdf-section="ranking">
-    <h3>Ranking de horas por profissional</h3>
-    <table>
-      <colgroup><col style="width:40%"/><col style="width:35%"/><col style="width:12%"/><col style="width:13%"/></colgroup>
-      <thead><tr><th>Profissional</th><th>Horas realizadas</th><th>Horas</th><th>Plantões</th></tr></thead>
-      <tbody>${rankingHtml || `<tr><td colspan="4" class="empty" style="text-align:center">Sem plantões no período.</td></tr>`}</tbody>
-    </table>
-  </section>
-
-  ${picoHtml ? `<section class="block" data-pdf-section="picos">
-    <h3>Profissionais com pico semanal acima de 60h</h3>
-    <table>
-      <colgroup><col style="width:70%"/><col style="width:30%"/></colgroup>
-      <thead><tr><th>Profissional</th><th>Pico semanal</th></tr></thead>
-      <tbody>${picoHtml}</tbody>
-    </table>
-  </section>` : ""}
-
-  ${cancHtml ? `<section class="block" data-pdf-section="cancelamentos">
-    <h3>Cancelamentos por profissional</h3>
-    <table>
-      <colgroup><col style="width:75%"/><col style="width:25%"/></colgroup>
-      <thead><tr><th>Profissional</th><th>Cancelamentos</th></tr></thead>
-      <tbody>${cancHtml}</tbody>
-    </table>
-  </section>` : ""}
-
-
-  <section class="block" data-pdf-section="trocas">
-    <h3>Resumo de trocas</h3>
-    <div class="trocas-grid">
-      <div class="kpi"><div class="kpi-label">Total</div><div class="kpi-value">${data.trocasResumo.total}</div></div>
-      <div class="kpi"><div class="kpi-label">Taxa aprovação</div><div class="kpi-value">${data.trocasResumo.taxaAprov.toFixed(1)}%</div></div>
-      <div class="kpi ${data.trocasResumo.pendentes > 5 ? "kpi-alert" : ""}"><div class="kpi-label">Pendentes</div><div class="kpi-value">${data.trocasResumo.pendentes}</div></div>
-      <div class="kpi"><div class="kpi-label">Tempo médio</div><div class="kpi-value">${data.trocasResumo.tempoMedioH.toFixed(1)}h</div></div>
-    </div>
-  </section>
-
+  ${cadastrosHtml}
+  ${operacionalHtml}
+  ${qualidadeHtml}
+  ${trocasHtml}
+  ${analiticoHtml}
   ${custoHtml}
 
   ${assinaturasHtml ? `<section data-pdf-section="assinaturas">${assinaturasHtml}</section>` : ""}
@@ -293,10 +388,7 @@ export function abrirRelatorioGeral(opts: RelatorioGeralPrintOptions): boolean {
   if (!w) return false;
   let html = buildRelatorioGeralHtml(opts);
   if (opts.autoPrint) {
-    html = html.replace(
-      "</body>",
-      "<script>window.onload=()=>setTimeout(()=>window.print(),300)</script></body>"
-    );
+    html = html.replace("</body>", "<script>window.onload=()=>setTimeout(()=>window.print(),300)</script></body>");
   }
   w.document.write(html);
   w.document.close();
