@@ -193,6 +193,17 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
         </tr>`).join("")
       )
     ) +
+    block("Top setores por carga operacional",
+      table(
+        [{ label: "Setor", width: "30%" }, { label: "Carga relativa", width: "40%" }, { label: "Horas", width: "15%", align: "right" }, { label: "Plantões", width: "15%", align: "right" }],
+        op.topSetores.map(s => `<tr>
+          <td>${esc(s.nome)}</td>
+          <td>${bar(s.horas, Math.max(1, ...op.topSetores.map(x => x.horas)))}</td>
+          <td class="td-num">${s.horas.toFixed(0)}h</td>
+          <td class="td-num">${s.plantoes}</td>
+        </tr>`).join("")
+      )
+    ) +
     block("Plantões detalhados do período",
       table(
         [
@@ -319,6 +330,13 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
         "Sem cancelamentos no período."
       )
     ) +
+    block("Cancelamentos por setor",
+      table(
+        [{ label: "Setor", width: "75%" }, { label: "Cancelamentos", width: "25%", align: "right" }],
+        q.cancelamentosPorSetor.map(p => `<tr><td>${esc(p.nome)}</td><td class="td-num">${p.count}</td></tr>`).join(""),
+        "Sem cancelamentos por setor no período."
+      )
+    ) +
     block("Plantões cancelados detalhados",
       table(
         [
@@ -377,6 +395,13 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
         [{ label: "Profissional", width: "75%" }, { label: "Solicitações", width: "25%", align: "right" }],
         tr.topSolicitantes.map(p => `<tr><td>${esc(p.nome)}</td><td class="td-num">${p.count}</td></tr>`).join(""),
         "Sem solicitações de troca no período."
+      )
+    ) +
+    block("Top destinatários",
+      table(
+        [{ label: "Profissional", width: "75%" }, { label: "Recebidas", width: "25%", align: "right" }],
+        tr.topDestinatarios.map(p => `<tr><td>${esc(p.nome)}</td><td class="td-num">${p.count}</td></tr>`).join(""),
+        "Sem destinatários de troca no período."
       )
     ) +
     block("Top motivos de troca",
@@ -457,12 +482,13 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
   const analiticoHtml = category(5, "Analítico", "Produtividade, carga semanal e evolução histórica",
     block("Ranking de horas por profissional",
       table(
-        [{ label: "Profissional", width: "40%" }, { label: "Horas", width: "35%" }, { label: "Horas", width: "12%", align: "right" }, { label: "Plantões", width: "13%", align: "right" }],
+        [{ label: "Profissional", width: "34%" }, { label: "Horas", width: "34%" }, { label: "Horas", width: "11%", align: "right" }, { label: "Plantões", width: "11%", align: "right" }, { label: "% Total", width: "10%", align: "right" }],
         an.rankingHoras.map(p => `<tr>
           <td>${esc(p.nome)}</td>
           <td>${bar(p.horas, maxRank)}</td>
           <td class="td-num">${p.horas.toFixed(0)}h</td>
           <td class="td-num">${p.plantoes}</td>
+          <td class="td-num">${p.pctTotal.toFixed(1)}%</td>
         </tr>`).join("")
       )
     ) +
@@ -490,7 +516,13 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
         an.cargaPicoAlerta.map(p => `<tr><td>${esc(p.nome)}</td><td class="td-num text-danger">${p.picoH.toFixed(1)}h</td></tr>`).join("")
       )
     ) : "") +
-    block("Evolução mensal (últimos 6 meses)",
+    (an.cargaCLTAlerta.length ? block("Profissionais com média semanal acima de 44h",
+      table(
+        [{ label: "Profissional", width: "50%" }, { label: "Média semanal", width: "25%", align: "right" }, { label: "Pico semanal", width: "25%", align: "right" }],
+        an.cargaCLTAlerta.map(p => `<tr><td>${esc(p.nome)}</td><td class="td-num text-danger">${p.mediaH.toFixed(1)}h</td><td class="td-num">${p.picoH.toFixed(1)}h</td></tr>`).join("")
+      )
+    ) : "") +
+    block("Evolução mensal do período",
       table(
         [{ label: "Mês", width: "14%" }, { label: "Horas realizadas", width: "44%" }, { label: "Horas", width: "14%", align: "right" }, { label: "Plantões", width: "14%", align: "right" }, { label: "Faltas", width: "14%", align: "right" }],
         an.evolucaoMensal.map(e => `<tr>
