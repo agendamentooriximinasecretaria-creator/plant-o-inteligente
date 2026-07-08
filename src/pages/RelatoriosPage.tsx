@@ -1471,6 +1471,14 @@ export default function RelatoriosPage() {
       cancMap[s.profissional_id].count++;
     });
     const cancelamentosPorProf = Object.values(cancMap).sort((a, b) => b.count - a.count);
+    const cancSetorMap: Record<string, number> = {};
+    cur.filter((s: any) => s.status === 'cancelado').forEach((s: any) => {
+      const nome = (s.sectors as any)?.nome || setorNome(s.setor_id) || 'Sem setor';
+      cancSetorMap[nome] = (cancSetorMap[nome] || 0) + 1;
+    });
+    const cancelamentosPorSetor = Object.entries(cancSetorMap)
+      .map(([nome, count]) => ({ nome, count }))
+      .sort((a, b) => b.count - a.count || a.nome.localeCompare(b.nome));
     const cancelamentosDetalhados = cur.filter((s: any) => s.status === 'cancelado').map((s: any) => ({
       profissional: (s.professionals as any)?.nome || '—',
       setor: (s.sectors as any)?.nome || setorNome(s.setor_id),
@@ -1505,6 +1513,16 @@ export default function RelatoriosPage() {
       solMap[id].count++;
     });
     const topSolicitantes = Object.values(solMap).sort((a, b) => b.count - a.count);
+
+    const destMap: Record<string, { nome: string; count: number }> = {};
+    swapsCur.forEach(s => {
+      const id = s.destinatario_id;
+      const nome = (s.destinatario as any)?.nome || '—';
+      if (!id) return;
+      if (!destMap[id]) destMap[id] = { nome, count: 0 };
+      destMap[id].count++;
+    });
+    const topDestinatarios = Object.values(destMap).sort((a, b) => b.count - a.count);
 
     const motMap: Record<string, number> = {};
     swapsCur.forEach(s => {
@@ -1595,6 +1613,7 @@ export default function RelatoriosPage() {
       porStatus: trocasPorStatus,
       porTipo: { direta, grupo, administrativa: admins },
       topSolicitantes,
+      topDestinatarios,
       topMotivos,
       porProfissional: trocasPorProfissional,
       trocasDetalhadas,
@@ -1608,7 +1627,10 @@ export default function RelatoriosPage() {
       horasMap[s.profissional_id].plantoes++;
       if (isPlantaoContabilizavel(s)) horasMap[s.profissional_id].horas += Number(s.carga_horaria || 0);
     });
-    const rankingHoras = Object.values(horasMap).sort((a, b) => b.horas - a.horas);
+    const totalHorasRanking = Object.values(horasMap).reduce((acc, p) => acc + p.horas, 0);
+    const rankingHoras = Object.values(horasMap)
+      .map(p => ({ ...p, pctTotal: totalHorasRanking ? (p.horas / totalHorasRanking) * 100 : 0 }))
+      .sort((a, b) => b.horas - a.horas);
 
     const cargaMap: Record<string, { nome: string; semanas: Record<string, number> }> = {};
     cur.forEach((s: any) => {
@@ -1629,6 +1651,22 @@ export default function RelatoriosPage() {
       return { nome: p.nome, semanas: vals.length, media, pico, alerta };
     }).sort((a, b) => b.pico - a.pico);
     const cargaPicoAlerta = cargaSemanal.filter(p => p.pico > 60).map(p => ({ nome: p.nome, picoH: p.pico }));
+    const cargaCLTAlerta = cargaSemanal
+      .filter(p => p.media > 44 && p.pico <= 60)
+      .map(p => ({ nome: p.nome, mediaH: p.media, picoH: p.pico }));
+
+    const evolPeriodoMap: Record<string, { horas: number; plantoes: number; faltas: number }> = {};
+    cur.forEach((s: any) => {
+      const mesKey = (s.data || '').slice(0, 7);
+      if (!mesKey) return;
+      if (!evolPeriodoMap[mesKey]) evolPeriodoMap[mesKey] = { horas: 0, plantoes: 0, faltas: 0 };
+      evolPeriodoMap[mesKey].plantoes++;
+      if (isPlantaoContabilizavel(s)) evolPeriodoMap[mesKey].horas += Number(s.carga_horaria || 0);
+      if (s.faltou) evolPeriodoMap[mesKey].faltas++;
+    });
+    const evolucaoMensalPeriodo = Object.entries(evolPeriodoMap)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([mes, v]) => ({ mes, horas: v.horas, plantoes: v.plantoes, faltas: v.faltas }));
 
     const kpisPrincipais = [
       { label: 'Horas realizadas', valor: `${kpiData.horasCur.toFixed(0)}h`, variacao: kpiData.varHoras },
@@ -1694,6 +1732,7 @@ export default function RelatoriosPage() {
         compliance,
         compliancePorProf,
         cancelamentosPorProf,
+        cancelamentosPorSetor,
         faltasDetalhadas,
         cancelamentosDetalhados,
       },
@@ -1702,7 +1741,8 @@ export default function RelatoriosPage() {
         rankingHoras,
         cargaSemanal,
         cargaPicoAlerta,
-        evolucaoMensal: kpiData.evol,
+        cargaCLTAlerta,
+        evolucaoMensal: evolucaoMensalPeriodo,
       },
     };
     return { ...base, parecer: gerarParecer(base) };
