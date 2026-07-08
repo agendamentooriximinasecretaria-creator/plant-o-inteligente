@@ -2,17 +2,38 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
-export function exportToPDF(title: string, columns: string[], rows: string[][], filename: string) {
+export function exportToPDF(title: string, columns: string[], rows: string[][], filename: string, chartImages: string[] = []) {
   const doc = new jsPDF();
   doc.setFontSize(16);
   doc.text(title, 14, 20);
   doc.setFontSize(9);
   doc.text(`Emitido em: ${new Date().toLocaleString('pt-BR')}`, 14, 28);
-  
+
+  let startY = 35;
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  chartImages.forEach((img) => {
+    try {
+      // Detect image dimensions from data URL to preserve aspect ratio
+      const props = (doc as any).getImageProperties ? (doc as any).getImageProperties(img) : null;
+      const maxW = pageWidth - 28;
+      const w = maxW;
+      const h = props ? (props.height * w) / props.width : 90;
+      if (startY + h > doc.internal.pageSize.getHeight() - 15) {
+        doc.addPage();
+        startY = 15;
+      }
+      doc.addImage(img, 'PNG', 14, startY, w, h);
+      startY += h + 6;
+    } catch (e) {
+      // ignore chart failures
+    }
+  });
+
   autoTable(doc, {
     head: [columns],
     body: rows,
-    startY: 35,
+    startY,
     styles: { fontSize: 8, cellPadding: 2 },
     headStyles: { fillColor: [14, 116, 144] },
   });
