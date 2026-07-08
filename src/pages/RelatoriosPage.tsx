@@ -1273,6 +1273,129 @@ export default function RelatoriosPage() {
     );
   };
 
+  // ===== Relatório Geral (executivo) =====
+  const buildRelatorioGeralData = (): RelatorioGeralData => {
+    const hoje = new Date();
+    let ini: Date, fim: Date;
+    if (dashPeriodo === 'mes') { ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1); fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0); }
+    else if (dashPeriodo === 'mes_anterior') { ini = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1); fim = new Date(hoje.getFullYear(), hoje.getMonth(), 0); }
+    else if (dashPeriodo === '30d') { ini = new Date(hoje); ini.setDate(hoje.getDate() - 30); fim = hoje; }
+    else { ini = new Date(hoje.getFullYear(), 0, 1); fim = new Date(hoje.getFullYear(), 11, 31); }
+    const iniS = iso(ini), fimS = iso(fim);
+    const inRng = (d: string) => d >= iniS && d <= fimS;
+
+    const cur = (shifts as any[]).filter(s => inRng(s.data));
+
+    // Absenteísmo por profissional
+    const absMap: Record<string, { nome: string; total: number; faltas: number }> = {};
+    cur.forEach((s: any) => {
+      const nome = (s.professionals as any)?.nome || 'Desconhecido';
+      if (!absMap[s.profissional_id]) absMap[s.profissional_id] = { nome, total: 0, faltas: 0 };
+      absMap[s.profissional_id].total++;
+      if (s.faltou) absMap[s.profissional_id].faltas++;
+    });
+    const absenteismoTop = Object.values(absMap)
+      .filter(p => p.faltas > 0 && p.total > 0)
+      .map(p => ({ nome: p.nome, taxa: (p.faltas / p.total) * 100, faltas: p.faltas, total: p.total }))
+      .sort((a, b) => b.taxa - a.taxa);
+
+    // Cobertura por setor
+    const setMap: Record<string, { nome: string; count: number; horas: number }> = {};
+    cur.forEach((s: any) => {
+      const nome = (s.sectors as any)?.nome || 'Sem setor';
+      const k = s.setor_id || 'x';
+      if (!setMap[k]) setMap[k] = { nome, count: 0, horas: 0 };
+      setMap[k].count++;
+      if (isPlantaoContabilizavel(s)) setMap[k].horas += Number(s.carga_horaria || 0);
+    });
+    const coberturaSetor = Object.values(setMap).sort((a, b) => b.horas - a.horas);
+
+    // Carga semanal — picos >60h
+    const cargaMap: Record<string, { nome: string; semanas: Record<string, number> }> = {};
+    cur.forEach((s: any) => {
+      if (!isPlantaoContabilizavel(s)) return;
+      const d = new Date(s.data + 'T12:00:00');
+      const dow = d.getDay();
+      const mon = new Date(d); mon.setDate(d.getDate() - ((dow + 6) % 7));
+      const wKey = mon.toISOString().slice(0, 10);
+      const nome = (s.professionals as any)?.nome || '—';
+      if (!cargaMap[s.profissional_id]) cargaMap[s.profissional_id] = { nome, semanas: {} };
+      cargaMap[s.profissional_id].semanas[wKey] = (cargaMap[s.profissional_id].semanas[wKey] || 0) + Number(s.carga_horaria || 0);
+    });
+    const cargaPicoAlerta = Object.values(cargaMap)
+      .map(p => ({ nome: p.nome, picoH: Math.max(0, ...Object.values(p.semanas)) }))
+      .filter(p => p.picoH > 60)
+      .sort((a, b) => b.picoH - a.picoH);
+
+    // Trocas resumo (mesmo dashPeriodo)
+    const swapsCur = (swaps as any[]).filter(s => inRng((s.created_at || '').slice(0, 10)));
+    const aprov = swapsCur.filter(s => ['aprovada', 'concluida'].includes(s.status)).length;
+    const pend = swapsCur.filter(s => ['solicitada', 'aguardando_resposta', 'aguardando_aprovacao', 'aceita'].includes(s.status)).length;
+    const resolvidas = swapsCur.filter(s => s.aprovado_em || s.rejeitado_em);
+    const somaH = resolvidas.reduce((a, s) => a + Math.max(0, (new Date(s.aprovado_em || s.rejeitado_em).getTime() - new Date(s.created_at).getTime()) / 3600000), 0);
+    const tempoMedioH = resolvidas.length ? somaH / resolvidas.length : 0;
+    const trocasResumo = {
+      total: swapsCur.length,
+      taxaAprov: swapsCur.length ? (aprov / swapsCur.length) * 100 : 0,
+      pendentes: pend,
+      tempoMedioH,
+    };
+
+    const kpisPrincipais = [
+      { label: 'Horas realizadas', valor: `${kpiData.horasCur.toFixed(0)}h`, variacao: kpiData.varHoras },
+      { label: 'Plantões', valor: String(kpiData.plantoes), variacao: kpiData.varPlantoes },
+      { label: 'Profissionais ativos', valor: String(kpiData.profAtivos) },
+      { label: 'Absenteísmo', valor: `${kpiData.taxaAbs.toFixed(1)}%`, alerta: kpiData.taxaAbs > 5 },
+      { label: 'Cancelamentos', valor: `${kpiData.taxaCanc.toFixed(1)}%`, alerta: kpiData.taxaCanc > 5 },
+      { label: 'Trocas solicitadas', valor: String(kpiData.swapsCur), variacao: kpiData.varSwaps },
+      { label: 'Taxa aprovação trocas', valor: `${kpiData.taxaAprov.toFixed(0)}%` },
+      { label: 'Trocas pendentes', valor: String(kpiData.pendCur), alerta: kpiData.pendCur > 5 },
+    ];
+
+    const totais = {
+      plantoes: kpiData.plantoes,
+      horas: kpiData.horasCur,
+      horasPrev: kpiData.horasPrev,
+      variacaoHoras: kpiData.varHoras,
+      profAtivos: kpiData.profAtivos,
+      taxaAbsenteismo: kpiData.taxaAbs,
+      taxaAbsenteismoPrev: kpiData.taxaAbsPrev,
+      taxaCancelamento: kpiData.taxaCanc,
+      faltas: kpiData.faltasCur,
+      cancelados: kpiData.canceladosCur,
+    };
+
+    const periodoLabel = `${iso(ini).split('-').reverse().join('/')} — ${iso(fim).split('-').reverse().join('/')}`;
+
+    const base = {
+      periodo: { label: periodoLabel, ini: iniS, fim: fimS },
+      kpisPrincipais,
+      evolucaoMensal: kpiData.evol,
+      topSetores: kpiData.topSetores,
+      absenteismoTop,
+      coberturaSetor,
+      cargaPicoAlerta,
+      trocasResumo,
+      totais,
+    };
+    return { ...base, parecer: gerarParecer(base) };
+  };
+
+  const gerarRelatorioGeral = (autoPrint: boolean) => {
+    if (!canRead) { toast.error('Sem permissão para gerar relatórios.'); return; }
+    try {
+      const data = buildRelatorioGeralData();
+      const ok = abrirRelatorioGeral({
+        data,
+        emitidoPor: profileName || undefined,
+        autoPrint,
+      });
+      if (!ok) toast.error('Habilite pop-ups para abrir o relatório.');
+    } catch (e: any) {
+      toast.error('Erro ao gerar relatório geral: ' + (e?.message || e));
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between flex-wrap gap-3">
