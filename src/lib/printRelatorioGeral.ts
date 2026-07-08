@@ -68,7 +68,6 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
 
   const maxSetorH = Math.max(1, ...data.coberturaSetor.map(s => s.horas));
   const coberturaHtml = data.coberturaSetor
-    .slice(0, 10)
     .map(
       s => `<tr>
         <td>${esc(s.nome)}</td>
@@ -80,7 +79,6 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
     .join("");
 
   const absHtml = data.absenteismoTop
-    .slice(0, 8)
     .map(
       p => `<tr>
         <td>${esc(p.nome)}</td>
@@ -89,6 +87,26 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
         <td class="td-num ${p.taxa > 5 ? "text-danger" : ""}">${p.taxa.toFixed(1)}%</td>
       </tr>`
     )
+    .join("");
+
+  const maxRankH = Math.max(1, ...data.rankingHoras.map(p => p.horas));
+  const rankingHtml = data.rankingHoras
+    .map(
+      p => `<tr>
+        <td>${esc(p.nome)}</td>
+        <td>${bar(p.horas, maxRankH)}</td>
+        <td class="td-num">${p.horas.toFixed(0)}h</td>
+        <td class="td-num">${p.plantoes}</td>
+      </tr>`
+    )
+    .join("");
+
+  const cancHtml = data.cancelamentos
+    .map(p => `<tr><td>${esc(p.nome)}</td><td class="td-num">${p.qtd}</td></tr>`)
+    .join("");
+
+  const picoHtml = data.cargaPicoAlerta
+    .map(p => `<tr><td>${esc(p.nome)}</td><td class="td-num text-danger">${p.picoH.toFixed(1)}h</td></tr>`)
     .join("");
 
   const parecer = data.parecer;
@@ -222,6 +240,34 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
       <tbody>${absHtml || `<tr><td colspan="4" class="empty" style="text-align:center">Sem faltas registradas.</td></tr>`}</tbody>
     </table>
   </section>
+
+  <section class="block" data-pdf-section="ranking">
+    <h3>Ranking de horas por profissional</h3>
+    <table>
+      <colgroup><col style="width:40%"/><col style="width:35%"/><col style="width:12%"/><col style="width:13%"/></colgroup>
+      <thead><tr><th>Profissional</th><th>Horas realizadas</th><th>Horas</th><th>Plantões</th></tr></thead>
+      <tbody>${rankingHtml || `<tr><td colspan="4" class="empty" style="text-align:center">Sem plantões no período.</td></tr>`}</tbody>
+    </table>
+  </section>
+
+  ${picoHtml ? `<section class="block" data-pdf-section="picos">
+    <h3>Profissionais com pico semanal acima de 60h</h3>
+    <table>
+      <colgroup><col style="width:70%"/><col style="width:30%"/></colgroup>
+      <thead><tr><th>Profissional</th><th>Pico semanal</th></tr></thead>
+      <tbody>${picoHtml}</tbody>
+    </table>
+  </section>` : ""}
+
+  ${cancHtml ? `<section class="block" data-pdf-section="cancelamentos">
+    <h3>Cancelamentos por profissional</h3>
+    <table>
+      <colgroup><col style="width:75%"/><col style="width:25%"/></colgroup>
+      <thead><tr><th>Profissional</th><th>Cancelamentos</th></tr></thead>
+      <tbody>${cancHtml}</tbody>
+    </table>
+  </section>` : ""}
+
 
   <section class="block" data-pdf-section="trocas">
     <h3>Resumo de trocas</h3>

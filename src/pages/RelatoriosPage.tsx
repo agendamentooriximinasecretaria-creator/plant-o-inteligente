@@ -1365,6 +1365,25 @@ export default function RelatoriosPage() {
       cancelados: kpiData.canceladosCur,
     };
 
+    // Ranking de horas por profissional
+    const horasMap: Record<string, { nome: string; horas: number; plantoes: number }> = {};
+    cur.forEach((s: any) => {
+      const nome = (s.professionals as any)?.nome || 'Desconhecido';
+      if (!horasMap[s.profissional_id]) horasMap[s.profissional_id] = { nome, horas: 0, plantoes: 0 };
+      horasMap[s.profissional_id].plantoes++;
+      if (isPlantaoContabilizavel(s)) horasMap[s.profissional_id].horas += Number(s.carga_horaria || 0);
+    });
+    const rankingHoras = Object.values(horasMap).sort((a, b) => b.horas - a.horas);
+
+    // Cancelamentos por profissional
+    const cancMap: Record<string, { nome: string; qtd: number }> = {};
+    cur.filter((s: any) => s.status === 'cancelado').forEach((s: any) => {
+      const nome = (s.professionals as any)?.nome || 'Desconhecido';
+      if (!cancMap[s.profissional_id]) cancMap[s.profissional_id] = { nome, qtd: 0 };
+      cancMap[s.profissional_id].qtd++;
+    });
+    const cancelamentos = Object.values(cancMap).sort((a, b) => b.qtd - a.qtd);
+
     const periodoLabel = `${iso(ini).split('-').reverse().join('/')} — ${iso(fim).split('-').reverse().join('/')}`;
 
     const base = {
@@ -1375,6 +1394,8 @@ export default function RelatoriosPage() {
       absenteismoTop,
       coberturaSetor,
       cargaPicoAlerta,
+      rankingHoras,
+      cancelamentos,
       trocasResumo,
       totais,
     };
