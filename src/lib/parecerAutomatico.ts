@@ -9,6 +9,8 @@ export interface RelatorioGeralData {
   absenteismoTop: { nome: string; taxa: number; faltas: number; total: number }[];
   coberturaSetor: { nome: string; count: number; horas: number }[];
   cargaPicoAlerta: { nome: string; picoH: number }[];
+  rankingHoras: { nome: string; horas: number; plantoes: number }[];
+  cancelamentos: { nome: string; qtd: number }[];
   trocasResumo: { total: number; taxaAprov: number; pendentes: number; tempoMedioH: number };
   totais: {
     plantoes: number;
