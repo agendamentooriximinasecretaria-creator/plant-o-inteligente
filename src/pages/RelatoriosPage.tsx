@@ -1531,6 +1531,34 @@ export default function RelatoriosPage() {
     });
     const topMotivos = Object.entries(motMap).map(([nome, count]) => ({ nome, count })).sort((a, b) => b.count - a.count);
 
+    // Trocas por setor / unidade / profissão / evolução mensal
+    const trocaSetorMap: Record<string, number> = {};
+    const trocaUnidMap: Record<string, number> = {};
+    const trocaProfissaoMap: Record<string, number> = {};
+    const trocaEvolMap: Record<string, { total: number; aprovadas: number; rejeitadas: number; pendentes: number }> = {};
+    swapsCur.forEach((s: any) => {
+      const shift = (s.shift as any) || {};
+      const setorNm = shift.sectors?.nome || setorNome(shift.setor_id || profMap[s.solicitante_id]?.setor_principal_id) || 'Sem setor';
+      const unidNm = shift.units?.nome || unidadeNome(shift.unidade_id || profMap[s.solicitante_id]?.unidade_principal_id) || '—';
+      trocaSetorMap[setorNm] = (trocaSetorMap[setorNm] || 0) + 1;
+      trocaUnidMap[unidNm] = (trocaUnidMap[unidNm] || 0) + 1;
+      const p = profMap[s.solicitante_id];
+      const profNm = PROFISSAO_LABELS[p?.profissao] || p?.profissao || '—';
+      trocaProfissaoMap[profNm] = (trocaProfissaoMap[profNm] || 0) + 1;
+      const mesKey = (s.created_at || '').slice(0, 7);
+      if (mesKey) {
+        if (!trocaEvolMap[mesKey]) trocaEvolMap[mesKey] = { total: 0, aprovadas: 0, rejeitadas: 0, pendentes: 0 };
+        trocaEvolMap[mesKey].total++;
+        if (['aprovada', 'concluida'].includes(s.status)) trocaEvolMap[mesKey].aprovadas++;
+        else if (['rejeitada', 'recusada'].includes(s.status)) trocaEvolMap[mesKey].rejeitadas++;
+        else if (['solicitada', 'aguardando_resposta', 'aguardando_aprovacao', 'aceita'].includes(s.status)) trocaEvolMap[mesKey].pendentes++;
+      }
+    });
+    const trocasPorSetor = Object.entries(trocaSetorMap).map(([nome, count]) => ({ nome, count })).sort((a, b) => b.count - a.count);
+    const trocasPorUnidade = Object.entries(trocaUnidMap).map(([nome, count]) => ({ nome, count })).sort((a, b) => b.count - a.count);
+    const trocasPorProfissao = Object.entries(trocaProfissaoMap).map(([nome, count]) => ({ nome, count })).sort((a, b) => b.count - a.count);
+    const trocasEvolucaoMensal = Object.entries(trocaEvolMap).sort((a, b) => a[0].localeCompare(b[0])).map(([mes, v]) => ({ mes, ...v }));
+
     type TrocaProfAgg = { nome: string; profissao: string; unidade: string; setor: string; solicitadas: number; recebidas: number; aprovadas: number; rejeitadas: number; canceladas: number; pendentes: number; administrativas: number; horas: number };
     const profMap: Record<string, any> = {};
     profList.forEach((p: any) => { profMap[p.id] = p; });
@@ -1612,6 +1640,10 @@ export default function RelatoriosPage() {
       tempoMedioH,
       porStatus: trocasPorStatus,
       porTipo: { direta, grupo, administrativa: admins },
+      porSetor: trocasPorSetor,
+      porUnidade: trocasPorUnidade,
+      porProfissao: trocasPorProfissao,
+      evolucaoMensal: trocasEvolucaoMensal,
       topSolicitantes,
       topDestinatarios,
       topMotivos,

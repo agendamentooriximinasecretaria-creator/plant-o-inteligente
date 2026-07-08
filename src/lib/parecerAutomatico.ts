@@ -82,6 +82,10 @@ export interface TrocasData {
   tempoMedioH: number;
   porStatus: NamedCount[];
   porTipo: { direta: number; grupo: number; administrativa: number };
+  porSetor: NamedCount[];
+  porUnidade: NamedCount[];
+  porProfissao: NamedCount[];
+  evolucaoMensal: { mes: string; total: number; aprovadas: number; rejeitadas: number; pendentes: number }[];
   topSolicitantes: NamedCount[];
   topDestinatarios: NamedCount[];
   topMotivos: NamedCount[];
