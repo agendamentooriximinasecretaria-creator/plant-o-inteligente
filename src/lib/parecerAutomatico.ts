@@ -65,6 +65,7 @@ export interface QualidadeData {
   compliance: { totalPlantoes: number; comCheckin: number; comCheckout: number; pctCheckin: number; pctCheckout: number };
   compliancePorProf: { nome: string; total: number; comCheckin: number; comCheckout: number; pctCheckin: number; pctCheckout: number }[];
   cancelamentosPorProf: NamedCount[];
+  cancelamentosPorSetor: NamedCount[];
   faltasDetalhadas: { profissional: string; setor: string; unidade: string; data: string; horario: string; tipo: string }[];
   cancelamentosDetalhados: { profissional: string; setor: string; unidade: string; data: string; horario: string; carga: string; tipo: string }[];
 }
@@ -82,6 +83,7 @@ export interface TrocasData {
   porStatus: NamedCount[];
   porTipo: { direta: number; grupo: number; administrativa: number };
   topSolicitantes: NamedCount[];
+  topDestinatarios: NamedCount[];
   topMotivos: NamedCount[];
   porProfissional: {
     nome: string;
@@ -116,9 +118,10 @@ export interface TrocasData {
 }
 
 export interface AnaliticoData {
-  rankingHoras: { nome: string; horas: number; plantoes: number }[];
+  rankingHoras: { nome: string; horas: number; plantoes: number; pctTotal: number }[];
   cargaSemanal: { nome: string; semanas: number; media: number; pico: number; alerta: string }[];
   cargaPicoAlerta: { nome: string; picoH: number }[];
+  cargaCLTAlerta: { nome: string; mediaH: number; picoH: number }[];
   evolucaoMensal: { mes: string; horas: number; plantoes: number; faltas: number }[];
 }
 
@@ -201,9 +204,20 @@ export function gerarParecer(
     recomendacoes.push(`Revisar distribuição de carga desses profissionais na próxima escala e limitar plantões extras.`);
   }
 
+  if (data.analitico.cargaCLTAlerta.length > 0) {
+    const top = data.analitico.cargaCLTAlerta.slice(0, 3).map(p => `${p.nome} (${p.mediaH.toFixed(0)}h/sem)`).join(", ");
+    pontosAtencao.push(`${data.analitico.cargaCLTAlerta.length} profissional(is) com média semanal acima de 44h: ${top}.`);
+    recomendacoes.push(`Monitorar carga média semanal e redistribuir plantões antes que ultrapassem o pico de 60h.`);
+  }
+
   if (tr.total > 0 && tr.taxaAprov < 70) {
     pontosAtencao.push(`Taxa de aprovação de trocas de ${pct(tr.taxaAprov)} está baixa — processo lento ou critérios pouco claros.`);
     recomendacoes.push(`Rever critérios de aprovação de trocas e agilizar análise pelos coordenadores.`);
+  }
+
+  if (tr.total > 0 && tr.taxaRej > 20) {
+    pontosAtencao.push(`Taxa de rejeição de trocas de ${pct(tr.taxaRej)} — indica incompatibilidade de solicitações ou necessidade de orientação aos profissionais.`);
+    recomendacoes.push(`Mapear motivos de rejeição mais frequentes e orientar os solicitantes antes da abertura de novas trocas.`);
   }
 
   if (tr.pendentes > 5) {
