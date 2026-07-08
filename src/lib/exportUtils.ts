@@ -13,12 +13,14 @@ export function exportToPDF(title: string, columns: string[], rows: string[][], 
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
-  doc.text(title, MARGIN_L, MARGIN_T);
+  const titleLines = doc.splitTextToSize(title, contentW);
+  doc.text(titleLines, MARGIN_L, MARGIN_T);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.text(`Emitido em: ${new Date().toLocaleString('pt-BR')}`, MARGIN_L, MARGIN_T + 6);
+  const titleH = titleLines.length * 6;
+  doc.text(`Emitido em: ${new Date().toLocaleString('pt-BR')}`, MARGIN_L, MARGIN_T + titleH);
 
-  let startY = MARGIN_T + 12;
+  let startY = MARGIN_T + titleH + 6;
 
   chartImages.forEach((img) => {
     try {
@@ -45,10 +47,26 @@ export function exportToPDF(title: string, columns: string[], rows: string[][], 
     body: rows,
     startY,
     margin: { left: MARGIN_L, right: MARGIN_R, top: MARGIN_T, bottom: MARGIN_B },
-    styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak', valign: 'top' },
-    headStyles: { fillColor: [14, 116, 144], halign: 'left' },
+    styles: {
+      fontSize: 8,
+      cellPadding: 2,
+      overflow: 'linebreak',
+      valign: 'top',
+      cellWidth: 'wrap',
+      minCellHeight: 6,
+    },
+    headStyles: {
+      fillColor: [14, 116, 144],
+      halign: 'left',
+      overflow: 'linebreak',
+      cellWidth: 'wrap',
+      fontStyle: 'bold',
+    },
+    bodyStyles: { overflow: 'linebreak' },
     showHead: 'everyPage',
     tableWidth: contentW,
+    horizontalPageBreak: true,
+    rowPageBreak: 'auto',
   });
 
   doc.save(`${filename}.pdf`);
