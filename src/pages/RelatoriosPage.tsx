@@ -86,6 +86,25 @@ export default function RelatoriosPage() {
   const [chartReport, setChartReport] = useState<string | null>(null);
   const [modalReport, setModalReport] = useState<ReportDef | null>(null);
   const [filtros, setFiltros] = useState<Filtros>(filtrosVazios);
+  const chartCaptureRef = useRef<HTMLDivElement>(null);
+
+  const captureChartImages = async (): Promise<string[]> => {
+    const root = chartCaptureRef.current;
+    if (!root) return [];
+    // Give Recharts a tick to layout in case it was just mounted
+    await new Promise(r => setTimeout(r, 250));
+    const blocks = Array.from(root.querySelectorAll<HTMLElement>('[data-chart-block]'));
+    const targets = blocks.length ? blocks : [root];
+    const images: string[] = [];
+    for (const el of targets) {
+      if (!el.offsetWidth || !el.offsetHeight) continue;
+      try {
+        const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', logging: false, useCORS: true });
+        images.push(canvas.toDataURL('image/png'));
+      } catch { /* ignore */ }
+    }
+    return images;
+  };
 
   useRealtimeInvalidation({
     tables: ["shifts", "shift_swaps", "professionals", "sectors", "units"],
