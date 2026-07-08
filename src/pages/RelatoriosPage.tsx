@@ -102,7 +102,18 @@ export default function RelatoriosPage() {
   });
   const { data: swaps = [] } = useQuery({
     queryKey: ['swaps-report'],
-    queryFn: async () => { const { data } = await supabase.from('shift_swaps').select('*, solicitante:solicitante_id(nome), destinatario:destinatario_id(nome)').order('created_at', { ascending: false }); return data || []; }
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('shift_swaps')
+        .select(`*,
+          solicitante:solicitante_id(nome, profissao),
+          destinatario:destinatario_id(nome, profissao),
+          shift:shift_id(data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, sectors:setor_id(nome), units:unidade_id(nome)),
+          shift_destino:shift_id_destino(data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, sectors:setor_id(nome))
+        `)
+        .order('created_at', { ascending: false });
+      return data || [];
+    }
   });
   const { data: units = [] } = useQuery({ queryKey: ['units-rep'], queryFn: async () => { const { data } = await supabase.from('units').select('id, nome').order('nome'); return data || []; } });
   const { data: sectors = [] } = useQuery({ queryKey: ['sectors-rep'], queryFn: async () => { const { data } = await supabase.from('sectors').select('id, nome, unidade_id').order('nome'); return data || []; } });
