@@ -93,10 +93,12 @@ export function buildRelatorioHtml(
         .join(" | ")
     : `Nenhum filtro aplicado`;
 
+  const cellHtml = (value: unknown) => escapeHtml(String(value ?? "")).replace(/\n/g, "<br />");
+
   const trs = rows.length
     ? rows
         .map(
-          r => `<tr>${r.map((c, i) => `<td class="${columnClass(columns[i] || "")}">${escapeHtml(String(c ?? ""))}</td>`).join("")}</tr>`
+          r => `<tr>${r.map((c, i) => `<td class="${columnClass(columns[i] || "")}">${cellHtml(c)}</td>`).join("")}</tr>`
         )
         .join("")
     : `<tr><td colspan="${columns.length}" style="text-align:center;color:#777;padding:20px">Nenhum registro encontrado.</td></tr>`;
