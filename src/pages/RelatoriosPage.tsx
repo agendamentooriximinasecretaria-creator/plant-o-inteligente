@@ -1403,13 +1403,25 @@ export default function RelatoriosPage() {
           <h1 className="module-title">Relatórios</h1>
           <p className="text-muted-foreground text-sm mt-1">Painel analítico, indicadores e exportação institucional · <span className="text-foreground/70">{kpiData.periodoLabel}</span></p>
         </div>
-        <div className="inline-flex rounded-lg border border-border bg-card p-1 text-xs">
-          {(['mes', 'mes_anterior', '30d', 'ano'] as const).map(p => (
-            <button key={p} onClick={() => setDashPeriodo(p)}
-              className={`px-3 py-1.5 rounded-md font-medium transition-colors ${dashPeriodo === p ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
-              {p === 'mes' ? 'Este mês' : p === 'mes_anterior' ? 'Mês anterior' : p === '30d' ? '30 dias' : 'Ano'}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="inline-flex rounded-lg border border-border bg-card p-1 text-xs">
+            {(['mes', 'mes_anterior', '30d', 'ano'] as const).map(p => (
+              <button key={p} onClick={() => setDashPeriodo(p)}
+                className={`px-3 py-1.5 rounded-md font-medium transition-colors ${dashPeriodo === p ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                {p === 'mes' ? 'Este mês' : p === 'mes_anterior' ? 'Mês anterior' : p === '30d' ? '30 dias' : 'Ano'}
+              </button>
+            ))}
+          </div>
+          {canRead && (
+            <button
+              onClick={() => gerarRelatorioGeral(false)}
+              title="Relatório executivo consolidado com parecer automático"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold shadow-sm hover:bg-primary/90 transition-colors"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              Relatório Geral
             </button>
-          ))}
+          )}
         </div>
       </div>
 
