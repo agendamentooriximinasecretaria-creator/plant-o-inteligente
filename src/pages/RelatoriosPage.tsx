@@ -703,7 +703,8 @@ export default function RelatoriosPage() {
   const acaoVisualizar = async () => {
     if (!modalReport || !preview) return;
     const cab = await buildCab();
-    const ok = abrirVisualizacaoRelatorio(cab, preview.columns, preview.rows, false);
+    const charts = await captureChartImages();
+    const ok = abrirVisualizacaoRelatorio(cab, preview.columns, preview.rows, false, charts);
     if (!ok) toast.error('Bloqueio de pop-up. Permita janelas para visualizar.');
     else logAudit(`Relatório visualizado: ${modalReport.nome}`, 'relatorios', { reportId: modalReport.id });
   };
@@ -711,7 +712,8 @@ export default function RelatoriosPage() {
   const acaoImprimir = async () => {
     if (!modalReport || !preview) return;
     const cab = await buildCab();
-    const ok = abrirVisualizacaoRelatorio(cab, preview.columns, preview.rows, true);
+    const charts = await captureChartImages();
+    const ok = abrirVisualizacaoRelatorio(cab, preview.columns, preview.rows, true, charts);
     if (!ok) toast.error('Bloqueio de pop-up. Permita janelas para imprimir.');
     else logAudit(`Relatório impresso: ${modalReport.nome}`, 'relatorios', { reportId: modalReport.id });
   };
@@ -726,9 +728,14 @@ export default function RelatoriosPage() {
     try {
       if (preview.rows.length === 0) { toast.warning('Nenhum dado para exportar com os filtros aplicados.'); return; }
       const filename = `${modalReport.id}_${new Date().toISOString().slice(0, 10)}`;
-      if (formato === 'pdf') exportToPDF(modalReport.nome, preview.columns, preview.rows, filename);
+      const charts = formato === 'pdf' ? await captureChartImages() : [];
+      if (formato === 'pdf') exportToPDF(modalReport.nome, preview.columns, preview.rows, filename, charts);
       else if (formato === 'excel') exportToExcel(modalReport.nome, preview.columns, preview.rows, filename);
       else exportToCSV(preview.columns, preview.rows, filename);
+      toast.success(`${modalReport.nome} exportado em ${formato.toUpperCase()}`);
+      await logAudit(`Relatório exportado: ${modalReport.nome} (${formato.toUpperCase()})`, 'relatorios', { reportId: modalReport.id, formato, total: preview.rows.length });
+    } catch (e: any) {
+      toast.error('Erro na exportação: ' + e.message);
       toast.success(`${modalReport.nome} exportado em ${formato.toUpperCase()}`);
       await logAudit(`Relatório exportado: ${modalReport.nome} (${formato.toUpperCase()})`, 'relatorios', { reportId: modalReport.id, formato, total: preview.rows.length });
     } catch (e: any) {
