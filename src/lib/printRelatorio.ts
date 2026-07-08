@@ -83,6 +83,9 @@ export function buildRelatorioHtml(
   
   .filtros-area { background: #f8fafc; padding: 10px 15px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 10pt; color: #475569; margin-bottom: 20px; }
   .totais-resumo { margin: 20px 0; font-size: 11pt; font-weight: bold; color: #0e7490; border-top: 2px solid #eee; padding-top: 10px; }
+  .charts-area { margin: 20px 0; page-break-inside: avoid; }
+  .charts-area h3 { font-size: 11pt; color: #0e7490; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .5px; }
+  .charts-area img { max-width: 100%; height: auto; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; background: #fff; }
   
   table th { text-transform: uppercase; font-size: 9pt; background: #e2e8f0; }
   table td { font-size: 9pt; }
@@ -99,6 +102,8 @@ export function buildRelatorioHtml(
   <div class="filtros-area">
     <strong>Filtros aplicados:</strong> ${filtrosStr}
   </div>
+
+  ${chartImages.length ? `<div class="charts-area"><h3>Análise gráfica</h3>${chartImages.map(src => `<img src="${src}" alt="Gráfico do relatório" />`).join("")}</div>` : ""}
 
   <table>
     <thead><tr>${columns.map(c => `<th>${escapeHtml(c)}</th>`).join("")}</tr></thead>
