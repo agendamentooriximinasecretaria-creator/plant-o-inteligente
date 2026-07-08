@@ -133,6 +133,7 @@ export default function RelatoriosPage() {
       .from('professionals_safe')
       .select('id, nome, profissao, especialidade, telefone, email, status, setor_principal_id, unidade_principal_id, conselho, registro, documento_numero, documento_conselho')
       .order('nome')
+      .order('id')
       .range(from, to))
   });
   const { data: shifts = [] } = useQuery({
@@ -142,6 +143,7 @@ export default function RelatoriosPage() {
           .from('shifts')
           .select('*, professionals:profissional_id(nome, profissao, conselho, registro, documento_conselho, documento_numero), sectors:setor_id(nome), units:unidade_id(nome)')
           .order('data', { ascending: false })
+          .order('id', { ascending: false })
           .range(from, to));
     }
   });
@@ -157,12 +159,13 @@ export default function RelatoriosPage() {
             shift_destino:shift_id_destino(data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, setor_id, unidade_id, sectors:setor_id(nome), units:unidade_id(nome))
           `)
           .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
           .range(from, to));
     }
   });
-  const { data: units = [] } = useQuery({ queryKey: ['units-rep'], queryFn: async () => fetchAllPages<any>((from, to) => supabase.from('units').select('id, nome').order('nome').range(from, to)) });
-  const { data: sectors = [] } = useQuery({ queryKey: ['sectors-rep'], queryFn: async () => fetchAllPages<any>((from, to) => supabase.from('sectors').select('id, nome, unidade_id').order('nome').range(from, to)) });
-  const { data: shiftTypes = [] } = useQuery({ queryKey: ['shift-types-rep'], queryFn: async () => fetchAllPages<any>((from, to) => supabase.from('shift_types').select('sigla, nome').eq('ativo', true).order('ordem').range(from, to)) });
+  const { data: units = [] } = useQuery({ queryKey: ['units-rep'], queryFn: async () => fetchAllPages<any>((from, to) => supabase.from('units').select('id, nome').order('nome').order('id').range(from, to)) });
+  const { data: sectors = [] } = useQuery({ queryKey: ['sectors-rep'], queryFn: async () => fetchAllPages<any>((from, to) => supabase.from('sectors').select('id, nome, unidade_id').order('nome').order('id').range(from, to)) });
+  const { data: shiftTypes = [] } = useQuery({ queryKey: ['shift-types-rep'], queryFn: async () => fetchAllPages<any>((from, to) => supabase.from('shift_types').select('sigla, nome').eq('ativo', true).order('ordem').order('sigla').range(from, to)) });
   const { data: settings = {} } = useQuery({
     queryKey: ['system-settings'],
     queryFn: async () => {
@@ -565,7 +568,8 @@ export default function RelatoriosPage() {
           if (s.destinatario_id) {
             const p = profMap[s.destinatario_id];
             const setorDest = (s.shift_destino as any)?.sectors?.nome || setor;
-            const agg = upsert(s.destinatario_id, setorDest, unid, (s.destinatario as any)?.nome || p?.nome || '—', PROFISSAO_LABELS[p?.profissao] || p?.profissao || '—');
+            const unidDest = (s.shift_destino as any)?.units?.nome || unidadeNome(p?.unidade_principal_id) || unid;
+            const agg = upsert(s.destinatario_id, setorDest, unidDest, (s.destinatario as any)?.nome || p?.nome || '—', PROFISSAO_LABELS[p?.profissao] || p?.profissao || '—');
             agg.recebidas++;
           }
         });
@@ -874,9 +878,11 @@ export default function RelatoriosPage() {
       return nome.length > 22 ? nome.slice(0, 20) + '…' : nome;
     };
     const bySol: Record<string, { nome: string; count: number }> = {};
+    const nomeById: Record<string, string> = {};
+    (professionals as any[]).forEach((p: any) => { nomeById[p.id] = p.nome; });
     src.forEach(s => {
       const id = s.solicitante_id;
-      const nome = shortName((s.solicitante as any)?.nome || '—');
+      const nome = shortName((s.solicitante as any)?.nome || nomeById[id] || '—');
       if (!id) return;
       if (!bySol[id]) bySol[id] = { nome, count: 0 };
       bySol[id].count++;
@@ -905,7 +911,7 @@ export default function RelatoriosPage() {
     const taxaAprov = total ? (aprovadas / total) * 100 : 0;
 
     return { total, aprovadas, rejeitadas, canceladas, pendentes, administrativas, grupo, diretas, status, tipos, evolucao, topSolicitantes, topMotivos, tempoMedioH, taxaAprov };
-  }, [filteredSwaps]);
+  }, [filteredSwaps, professionals]);
 
   const trocasChartCard = trocasAnalytics.status;
 
