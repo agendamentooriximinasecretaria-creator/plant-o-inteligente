@@ -369,10 +369,38 @@ export default function RelatoriosPage() {
         return { columns: cols, rows, totalHoras: showTotal ? totalGeral : null };
       }
       case 'analise_trocas': {
-        const total = filteredSwaps.length;
-        const aprovadas = filteredSwaps.filter((s: any) => ['aprovada', 'concluida'].includes(s.status)).length;
-        const taxa = total > 0 ? ((aprovadas / total) * 100).toFixed(1) : '0';
-        return { columns: ['Métrica', 'Valor'], rows: [['Total de Trocas', String(total)], ['Aprovadas/Concluídas', String(aprovadas)], ['Taxa de Aprovação', `${taxa}%`], ['Rejeitadas', String(filteredSwaps.filter((s: any) => ['rejeitada', 'recusada'].includes(s.status)).length)], ['Pendentes', String(filteredSwaps.filter((s: any) => ['solicitada', 'aguardando_resposta', 'aguardando_aprovacao'].includes(s.status)).length)]] };
+        const src = filteredSwaps as any[];
+        const total = src.length;
+        const aprov = src.filter(s => ['aprovada', 'concluida'].includes(s.status)).length;
+        const rej = src.filter(s => ['rejeitada', 'recusada'].includes(s.status)).length;
+        const canc = src.filter(s => s.status === 'cancelada').length;
+        const pend = src.filter(s => ['solicitada', 'aguardando_resposta', 'aguardando_aprovacao', 'aceita'].includes(s.status)).length;
+        const adm = src.filter(s => s.tipo === 'administrativa').length;
+        const grupo = src.filter(s => s.tipo === 'grupo').length;
+        const diretas = total - adm - grupo;
+        const taxa = total > 0 ? ((aprov / total) * 100).toFixed(1) : '0';
+        const taxaRej = total > 0 ? ((rej / total) * 100).toFixed(1) : '0';
+        const resolvidas = src.filter(s => s.aprovado_em || s.rejeitado_em);
+        const somaH = resolvidas.reduce((acc, s) => acc + Math.max(0, (new Date(s.aprovado_em || s.rejeitado_em).getTime() - new Date(s.created_at).getTime()) / 3600000), 0);
+        const tempoMedio = resolvidas.length ? (somaH / resolvidas.length) : 0;
+        const fmtT = (h: number) => h < 24 ? `${h.toFixed(1)}h` : `${(h / 24).toFixed(1)}d`;
+        return {
+          columns: ['Métrica', 'Valor'],
+          rows: [
+            ['Total de trocas', String(total)],
+            ['Aprovadas/Concluídas', String(aprov)],
+            ['Rejeitadas', String(rej)],
+            ['Canceladas', String(canc)],
+            ['Pendentes', String(pend)],
+            ['Taxa de aprovação', `${taxa}%`],
+            ['Taxa de rejeição', `${taxaRej}%`],
+            ['Trocas diretas', String(diretas)],
+            ['Trocas em grupo', String(grupo)],
+            ['Trocas administrativas', String(adm)],
+            ['Tempo médio de resolução', resolvidas.length ? fmtT(tempoMedio) : '—'],
+            ['Trocas resolvidas', `${resolvidas.length}/${total}`],
+          ]
+        };
       }
       case 'absenteismo': {
         const byProf: Record<string, { nome: string; total: number; faltas: number }> = {};
