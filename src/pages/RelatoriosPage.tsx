@@ -118,21 +118,45 @@ export default function RelatoriosPage() {
   });
   const { data: shifts = [] } = useQuery({
     queryKey: ['shifts-report'],
-    queryFn: async () => { const { data } = await supabase.from('shifts').select('*, professionals:profissional_id(nome, profissao, conselho, registro, documento_conselho, documento_numero), sectors:setor_id(nome), units:unidade_id(nome)').order('data', { ascending: false }); return data || []; }
+    queryFn: async () => {
+      const pageSize = 1000;
+      const all: any[] = [];
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await supabase
+          .from('shifts')
+          .select('*, professionals:profissional_id(nome, profissao, conselho, registro, documento_conselho, documento_numero), sectors:setor_id(nome), units:unidade_id(nome)')
+          .order('data', { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < pageSize) break;
+      }
+      return all;
+    }
   });
   const { data: swaps = [] } = useQuery({
     queryKey: ['swaps-report'],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('shift_swaps')
-        .select(`*,
-          solicitante:solicitante_id(nome, profissao),
-          destinatario:destinatario_id(nome, profissao),
-          shift:shift_id(data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, sectors:setor_id(nome), units:unidade_id(nome)),
-          shift_destino:shift_id_destino(data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, sectors:setor_id(nome))
-        `)
-        .order('created_at', { ascending: false });
-      return data || [];
+      const pageSize = 1000;
+      const all: any[] = [];
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await supabase
+          .from('shift_swaps')
+          .select(`*,
+            solicitante:solicitante_id(nome, profissao),
+            destinatario:destinatario_id(nome, profissao),
+            shift:shift_id(data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, sectors:setor_id(nome), units:unidade_id(nome)),
+            shift_destino:shift_id_destino(data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, sectors:setor_id(nome))
+          `)
+          .order('created_at', { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < pageSize) break;
+      }
+      return all;
     }
   });
   const { data: units = [] } = useQuery({ queryKey: ['units-rep'], queryFn: async () => { const { data } = await supabase.from('units').select('id, nome').order('nome'); return data || []; } });
