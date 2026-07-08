@@ -29,7 +29,7 @@ const reports = [
   { id: 'profissionais', nome: 'Relatório de Profissionais', descricao: 'Lista completa de profissionais cadastrados', icon: '👥', kind: 'professionals' as const, categoria: 'Cadastros' },
   { id: 'plantoes', nome: 'Relatório de Plantões', descricao: 'Todos os plantões organizados por período', icon: '📋', kind: 'shifts' as const, categoria: 'Operacional' },
   { id: 'horas_profissional', nome: 'Horas por Profissional', descricao: 'Total de horas trabalhadas por profissional', icon: '⏱️', hasChart: true, kind: 'shifts' as const, categoria: 'Operacional' },
-  { id: 'trocas', nome: 'Relatório de Trocas', descricao: 'Histórico completo de trocas de plantão', icon: '🔄', kind: 'swaps' as const, categoria: 'Trocas' },
+  { id: 'trocas', nome: 'Relatório de Trocas', descricao: 'Histórico completo de trocas de plantão', icon: '🔄', hasChart: true, kind: 'swaps' as const, categoria: 'Trocas' },
   { id: 'setores', nome: 'Relatório por Setor', descricao: 'Plantões agrupados por setor', icon: '🏥', hasChart: true, kind: 'shifts' as const, categoria: 'Operacional' },
   { id: 'cancelados', nome: 'Relatório de Plantões Cancelados', descricao: 'Plantões que foram cancelados', icon: '❌', kind: 'shifts' as const, categoria: 'Qualidade' },
   { id: 'escala_mensal', nome: 'Escala Mensal Consolidada', descricao: 'Grid profissional × dia do mês', icon: '📆', kind: 'shifts' as const, categoria: 'Operacional' },
@@ -102,7 +102,18 @@ export default function RelatoriosPage() {
   });
   const { data: swaps = [] } = useQuery({
     queryKey: ['swaps-report'],
-    queryFn: async () => { const { data } = await supabase.from('shift_swaps').select('*, solicitante:solicitante_id(nome), destinatario:destinatario_id(nome)').order('created_at', { ascending: false }); return data || []; }
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('shift_swaps')
+        .select(`*,
+          solicitante:solicitante_id(nome, profissao),
+          destinatario:destinatario_id(nome, profissao),
+          shift:shift_id(data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, sectors:setor_id(nome), units:unidade_id(nome)),
+          shift_destino:shift_id_destino(data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, sectors:setor_id(nome))
+        `)
+        .order('created_at', { ascending: false });
+      return data || [];
+    }
   });
   const { data: units = [] } = useQuery({ queryKey: ['units-rep'], queryFn: async () => { const { data } = await supabase.from('units').select('id, nome').order('nome'); return data || []; } });
   const { data: sectors = [] } = useQuery({ queryKey: ['sectors-rep'], queryFn: async () => { const { data } = await supabase.from('sectors').select('id, nome, unidade_id').order('nome'); return data || []; } });
@@ -261,11 +272,40 @@ export default function RelatoriosPage() {
         const totalHoras = Object.values(byProf).reduce((a, p) => a + p.hours, 0);
         return { columns: ['Profissional', 'Plantões', 'Horas Totais'], rows: Object.values(byProf).map(p => [p.nome, String(p.count), `${p.hours.toFixed(1)}h`]), totalHoras };
       }
-      case 'trocas':
-        return {
-          columns: ['Solicitante', 'Destinatário', 'Motivo', 'Status', 'Data'],
-          rows: filteredSwaps.map((s: any) => [(s.solicitante as any)?.nome || '', (s.destinatario as any)?.nome || 'Grupo', s.motivo, s.status, new Date(s.created_at).toLocaleDateString('pt-BR')]),
+      case 'trocas': {
+        const fmtData = (d?: string) => d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+        const fmtDT = (d?: string) => d ? new Date(d).toLocaleString('pt-BR') : '—';
+        const tempoResolucao = (s: any) => {
+          const fim = s.aprovado_em || s.rejeitado_em || (['concluida','cancelada'].includes(s.status) ? s.updated_at : null);
+          if (!fim) return '—';
+          const ms = new Date(fim).getTime() - new Date(s.created_at).getTime();
+          const h = Math.floor(ms / 3600000);
+          if (h < 24) return `${h}h`;
+          const d = Math.floor(h / 24);
+          return `${d}d ${h % 24}h`;
         };
+        return {
+          columns: ['Protocolo', 'Tipo', 'Solicitante', 'Destinatário', 'Unidade', 'Setor', 'Plantão (data)', 'Horário', 'Carga', 'Tipo Plantão', 'Motivo', 'Status', 'Criada em', 'Resolvida em', 'Tempo até resolução', 'Aprovador/Obs.'],
+          rows: filteredSwaps.map((s: any) => [
+            `TRO-${String(s.id).slice(0, 6).toUpperCase()}`,
+            s.tipo === 'administrativa' ? 'Administrativa' : (s.tipo === 'grupo' ? 'Grupo' : 'Direta'),
+            (s.solicitante as any)?.nome || '—',
+            (s.destinatario as any)?.nome || (s.tipo === 'grupo' ? 'Grupo aberto' : '—'),
+            (s.shift as any)?.units?.nome || '—',
+            (s.shift as any)?.sectors?.nome || '—',
+            fmtData((s.shift as any)?.data),
+            (s.shift as any)?.hora_inicio ? `${(s.shift as any).hora_inicio}-${(s.shift as any).hora_fim}` : '—',
+            (s.shift as any)?.carga_horaria ? `${(s.shift as any).carga_horaria}h` : '—',
+            (s.shift as any)?.tipo_plantao || '—',
+            s.motivo || '—',
+            s.status,
+            fmtDT(s.created_at),
+            fmtDT(s.aprovado_em || s.rejeitado_em),
+            tempoResolucao(s),
+            s.observacao_gestor || s.observacao_rejeicao || s.motivo_administrativo || '—',
+          ]),
+        };
+      }
       case 'cancelados':
         return {
           columns: ['Profissional', 'Setor', 'Data', 'Horário', 'Carga'],
@@ -329,10 +369,38 @@ export default function RelatoriosPage() {
         return { columns: cols, rows, totalHoras: showTotal ? totalGeral : null };
       }
       case 'analise_trocas': {
-        const total = filteredSwaps.length;
-        const aprovadas = filteredSwaps.filter((s: any) => ['aprovada', 'concluida'].includes(s.status)).length;
-        const taxa = total > 0 ? ((aprovadas / total) * 100).toFixed(1) : '0';
-        return { columns: ['Métrica', 'Valor'], rows: [['Total de Trocas', String(total)], ['Aprovadas/Concluídas', String(aprovadas)], ['Taxa de Aprovação', `${taxa}%`], ['Rejeitadas', String(filteredSwaps.filter((s: any) => ['rejeitada', 'recusada'].includes(s.status)).length)], ['Pendentes', String(filteredSwaps.filter((s: any) => ['solicitada', 'aguardando_resposta', 'aguardando_aprovacao'].includes(s.status)).length)]] };
+        const src = filteredSwaps as any[];
+        const total = src.length;
+        const aprov = src.filter(s => ['aprovada', 'concluida'].includes(s.status)).length;
+        const rej = src.filter(s => ['rejeitada', 'recusada'].includes(s.status)).length;
+        const canc = src.filter(s => s.status === 'cancelada').length;
+        const pend = src.filter(s => ['solicitada', 'aguardando_resposta', 'aguardando_aprovacao', 'aceita'].includes(s.status)).length;
+        const adm = src.filter(s => s.tipo === 'administrativa').length;
+        const grupo = src.filter(s => s.tipo === 'grupo').length;
+        const diretas = total - adm - grupo;
+        const taxa = total > 0 ? ((aprov / total) * 100).toFixed(1) : '0';
+        const taxaRej = total > 0 ? ((rej / total) * 100).toFixed(1) : '0';
+        const resolvidas = src.filter(s => s.aprovado_em || s.rejeitado_em);
+        const somaH = resolvidas.reduce((acc, s) => acc + Math.max(0, (new Date(s.aprovado_em || s.rejeitado_em).getTime() - new Date(s.created_at).getTime()) / 3600000), 0);
+        const tempoMedio = resolvidas.length ? (somaH / resolvidas.length) : 0;
+        const fmtT = (h: number) => h < 24 ? `${h.toFixed(1)}h` : `${(h / 24).toFixed(1)}d`;
+        return {
+          columns: ['Métrica', 'Valor'],
+          rows: [
+            ['Total de trocas', String(total)],
+            ['Aprovadas/Concluídas', String(aprov)],
+            ['Rejeitadas', String(rej)],
+            ['Canceladas', String(canc)],
+            ['Pendentes', String(pend)],
+            ['Taxa de aprovação', `${taxa}%`],
+            ['Taxa de rejeição', `${taxaRej}%`],
+            ['Trocas diretas', String(diretas)],
+            ['Trocas em grupo', String(grupo)],
+            ['Trocas administrativas', String(adm)],
+            ['Tempo médio de resolução', resolvidas.length ? fmtT(tempoMedio) : '—'],
+            ['Trocas resolvidas', `${resolvidas.length}/${total}`],
+          ]
+        };
       }
       case 'absenteismo': {
         const byProf: Record<string, { nome: string; total: number; faltas: number }> = {};
@@ -653,18 +721,79 @@ export default function RelatoriosPage() {
     return Object.values(bySetor);
   }, [shifts]);
 
-  const trocasChartCard = useMemo(() => {
-    const total = (swaps as any[]).length;
-    const aprovadas = (swaps as any[]).filter((s: any) => s.status === 'aprovada' || s.status === 'concluida').length;
-    const rejeitadas = (swaps as any[]).filter((s: any) => s.status === 'rejeitada' || s.status === 'recusada').length;
-    const pendentes = (swaps as any[]).filter((s: any) => ['solicitada', 'aguardando_resposta', 'aguardando_aprovacao', 'aceita'].includes(s.status)).length;
-    return [
+  // ===== Analytics ricos para relatórios de Trocas =====
+  const trocasAnalytics = useMemo(() => {
+    const src = filteredSwaps as any[];
+    const total = src.length;
+    const aprovadas = src.filter(s => ['aprovada', 'concluida'].includes(s.status)).length;
+    const rejeitadas = src.filter(s => ['rejeitada', 'recusada'].includes(s.status)).length;
+    const canceladas = src.filter(s => s.status === 'cancelada').length;
+    const pendentes = src.filter(s => ['solicitada', 'aguardando_resposta', 'aguardando_aprovacao', 'aceita'].includes(s.status)).length;
+    const administrativas = src.filter(s => s.tipo === 'administrativa').length;
+    const grupo = src.filter(s => s.tipo === 'grupo').length;
+    const diretas = src.filter(s => !s.tipo || s.tipo === 'direto' || s.tipo === 'direta').length;
+
+    const status = [
       { name: 'Aprovadas', value: aprovadas },
-      { name: 'Rejeitadas', value: rejeitadas },
       { name: 'Pendentes', value: pendentes },
-      { name: 'Canceladas', value: total - aprovadas - rejeitadas - pendentes },
+      { name: 'Rejeitadas', value: rejeitadas },
+      { name: 'Canceladas', value: canceladas },
     ].filter(d => d.value > 0);
-  }, [swaps]);
+
+    const tipos = [
+      { name: 'Direta', value: diretas },
+      { name: 'Grupo', value: grupo },
+      { name: 'Administrativa', value: administrativas },
+    ].filter(d => d.value > 0);
+
+    // Evolução mensal
+    const byMonth: Record<string, { mes: string; solicitadas: number; aprovadas: number; rejeitadas: number }> = {};
+    src.forEach(s => {
+      const m = (s.created_at || '').slice(0, 7);
+      if (!m) return;
+      if (!byMonth[m]) byMonth[m] = { mes: m, solicitadas: 0, aprovadas: 0, rejeitadas: 0 };
+      byMonth[m].solicitadas++;
+      if (['aprovada', 'concluida'].includes(s.status)) byMonth[m].aprovadas++;
+      if (['rejeitada', 'recusada'].includes(s.status)) byMonth[m].rejeitadas++;
+    });
+    const evolucao = Object.values(byMonth).sort((a, b) => a.mes.localeCompare(b.mes));
+
+    // Top solicitantes
+    const bySol: Record<string, { nome: string; count: number }> = {};
+    src.forEach(s => {
+      const id = s.solicitante_id;
+      const nome = (s.solicitante as any)?.nome || '—';
+      if (!id) return;
+      if (!bySol[id]) bySol[id] = { nome, count: 0 };
+      bySol[id].count++;
+    });
+    const topSolicitantes = Object.values(bySol).sort((a, b) => b.count - a.count).slice(0, 8);
+
+    // Top motivos (agrupa por primeiras palavras)
+    const byMotivo: Record<string, number> = {};
+    src.forEach(s => {
+      const raw = (s.motivo || 'Não informado').trim().slice(0, 40);
+      byMotivo[raw] = (byMotivo[raw] || 0) + 1;
+    });
+    const topMotivos = Object.entries(byMotivo)
+      .map(([nome, count]) => ({ nome, count }))
+      .sort((a, b) => b.count - a.count).slice(0, 6);
+
+    // Tempo médio de resolução (em horas), considerando só as resolvidas
+    const resolvidas = src.filter(s => s.aprovado_em || s.rejeitado_em);
+    const somaH = resolvidas.reduce((acc, s) => {
+      const fim = new Date(s.aprovado_em || s.rejeitado_em).getTime();
+      const ini = new Date(s.created_at).getTime();
+      return acc + Math.max(0, (fim - ini) / 3600000);
+    }, 0);
+    const tempoMedioH = resolvidas.length ? somaH / resolvidas.length : 0;
+
+    const taxaAprov = total ? (aprovadas / total) * 100 : 0;
+
+    return { total, aprovadas, rejeitadas, canceladas, pendentes, administrativas, grupo, diretas, status, tipos, evolucao, topSolicitantes, topMotivos, tempoMedioH, taxaAprov };
+  }, [filteredSwaps]);
+
+  const trocasChartCard = trocasAnalytics.status;
 
   const renderChart = (reportId: string) => {
     if (reportId === 'horas_profissional' && horasChartCard.length > 0) {
@@ -700,17 +829,121 @@ export default function RelatoriosPage() {
         </div>
       );
     }
-    if (reportId === 'analise_trocas' && trocasChartCard.length > 0) {
+    if ((reportId === 'analise_trocas' || reportId === 'trocas') && trocasAnalytics.total > 0) {
+      const a = trocasAnalytics;
+      const fmtTempo = (h: number) => h < 24 ? `${h.toFixed(1)}h` : `${(h / 24).toFixed(1)}d`;
       return (
-        <div className="h-64 mt-4 flex justify-center">
-          <ResponsiveContainer width={300} height="100%">
-            <PieChart>
-              <Pie data={trocasChartCard} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={11}>
-                {trocasChartCard.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
-              </Pie>
-              <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
-            </PieChart>
-          </ResponsiveContainer>
+        <div className="mt-4 space-y-4">
+          {/* KPIs */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {[
+              { label: 'Total', value: a.total, tone: 'text-primary' },
+              { label: 'Taxa de aprovação', value: `${a.taxaAprov.toFixed(0)}%`, tone: 'text-emerald-600' },
+              { label: 'Pendentes', value: a.pendentes, tone: 'text-amber-600' },
+              { label: 'Tempo médio resolução', value: a.tempoMedioH > 0 ? fmtTempo(a.tempoMedioH) : '—', tone: 'text-sky-600' },
+            ].map((k, i) => (
+              <div key={i} className="rounded-lg border border-border bg-muted/40 px-3 py-2">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{k.label}</p>
+                <p className={`text-lg font-bold ${k.tone}`}>{k.value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Status pie */}
+            {a.status.length > 0 && (
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Status das trocas</p>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={a.status} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={10}>
+                        {a.status.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
+                      </Pie>
+                      <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
+            {/* Tipos */}
+            {a.tipos.length > 0 && (
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Tipos de troca</p>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={a.tipos}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                      <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
+                      <Bar dataKey="value" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Evolução */}
+          {a.evolucao.length > 1 && (
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Evolução mensal</p>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={a.evolucao}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Area type="monotone" dataKey="solicitadas" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.2} />
+                    <Area type="monotone" dataKey="aprovadas" stroke="hsl(var(--chart-2))" fill="hsl(var(--chart-2))" fillOpacity={0.2} />
+                    <Area type="monotone" dataKey="rejeitadas" stroke="hsl(var(--chart-4))" fill="hsl(var(--chart-4))" fillOpacity={0.2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Top solicitantes */}
+            {a.topSolicitantes.length > 0 && (
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Top solicitantes</p>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={a.topSolicitantes} layout="vertical" margin={{ left: 60 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                      <YAxis type="category" dataKey="nome" tick={{ fontSize: 10 }} width={90} />
+                      <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
+                      <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
+            {/* Motivos */}
+            {a.topMotivos.length > 0 && (
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Principais motivos</p>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={a.topMotivos} layout="vertical" margin={{ left: 60 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                      <YAxis type="category" dataKey="nome" tick={{ fontSize: 10 }} width={110} />
+                      <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
+                      <Bar dataKey="count" fill="hsl(var(--chart-3))" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       );
     }
