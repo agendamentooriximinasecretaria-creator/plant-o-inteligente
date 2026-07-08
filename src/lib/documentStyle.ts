@@ -4,8 +4,18 @@
  */
 export const DOCUMENT_CSS_BASE = `
   * { box-sizing: border-box; }
-  @page { size: A4; margin: 20mm; }
-  body { font-family: 'Arial', sans-serif; color: #1a1a1a; margin: 0; padding: 0; font-size: 11pt; line-height: 1.5; }
+  /* Margens ABNT: superior 3cm, esquerda 3cm, inferior 2cm, direita 2cm */
+  @page { size: A4; margin: 30mm 20mm 20mm 30mm; }
+  body { font-family: 'Arial', sans-serif; color: #1a1a1a; margin: 0; padding: 0; font-size: 12pt; line-height: 1.5; text-align: justify; }
+  p { text-align: justify; margin: 0 0 8px; }
+
+  /* Evita cortes entre páginas */
+  h1, h2, h3, h4 { page-break-after: avoid; break-after: avoid; }
+  tr, img, .assinatura-block, .assinatura-item, .charts-area > *, .totais-resumo, .filtros-area {
+    page-break-inside: avoid; break-inside: avoid;
+  }
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
   
   .header-institucional { 
     display: flex; align-items: center; justify-content: space-between; gap: 10px; 
