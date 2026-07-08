@@ -9,6 +9,20 @@ export interface CadastrosData {
   ativos: number;
   inativos: number;
   porProfissao: NamedCount[];
+  porStatus: NamedCount[];
+  porUnidade: NamedCount[];
+  porSetor: NamedCount[];
+  profissionais: {
+    nome: string;
+    profissao: string;
+    conselho: string;
+    especialidade: string;
+    email: string;
+    telefone: string;
+    status: string;
+    unidade: string;
+    setor: string;
+  }[];
   totalUnidades: number;
   totalSetores: number;
 }
@@ -17,9 +31,28 @@ export interface OperacionalData {
   totalPlantoes: number;
   horasContabilizadas: number;
   porStatus: NamedCount[];
+  porUnidade: { nome: string; count: number; horas: number }[];
   porTipoPlantao: { nome: string; count: number; horas: number }[];
   coberturaSetor: { nome: string; count: number; horas: number }[];
   topSetores: { nome: string; horas: number; plantoes: number }[];
+  plantoesDetalhados: {
+    profissional: string;
+    conselho: string;
+    setor: string;
+    unidade: string;
+    data: string;
+    horario: string;
+    carga: string;
+    tipo: string;
+    status: string;
+  }[];
+  escalaMensal: {
+    profissional: string;
+    setor: string;
+    totalHoras: number;
+    dias: Record<string, string>;
+  }[];
+  escalaDias: string[];
 }
 
 export interface QualidadeData {
@@ -30,7 +63,10 @@ export interface QualidadeData {
   absenteismoTop: { nome: string; taxa: number; faltas: number; total: number }[];
   atrasos: { nome: string; qtd: number; minutos: number; media: number }[];
   compliance: { totalPlantoes: number; comCheckin: number; comCheckout: number; pctCheckin: number; pctCheckout: number };
+  compliancePorProf: { nome: string; total: number; comCheckin: number; comCheckout: number; pctCheckin: number; pctCheckout: number }[];
   cancelamentosPorProf: NamedCount[];
+  faltasDetalhadas: { profissional: string; setor: string; unidade: string; data: string; horario: string; tipo: string }[];
+  cancelamentosDetalhados: { profissional: string; setor: string; unidade: string; data: string; horario: string; carga: string; tipo: string }[];
 }
 
 export interface TrocasData {
@@ -40,10 +76,43 @@ export interface TrocasData {
   canceladas: number;
   pendentes: number;
   taxaAprov: number;
+  taxaRej: number;
+  resolvidas: number;
   tempoMedioH: number;
+  porStatus: NamedCount[];
   porTipo: { direta: number; grupo: number; administrativa: number };
   topSolicitantes: NamedCount[];
   topMotivos: NamedCount[];
+  porProfissional: {
+    nome: string;
+    profissao: string;
+    unidade: string;
+    setor: string;
+    solicitadas: number;
+    recebidas: number;
+    aprovadas: number;
+    rejeitadas: number;
+    pendentes: number;
+    canceladas: number;
+    administrativas: number;
+    horas: number;
+    taxaAprov: number;
+  }[];
+  trocasDetalhadas: {
+    protocolo: string;
+    tipo: string;
+    solicitante: string;
+    destinatario: string;
+    unidade: string;
+    setor: string;
+    plantao: string;
+    motivo: string;
+    status: string;
+    criacao: string;
+    resolucao: string;
+    tempo: string;
+    observacao: string;
+  }[];
 }
 
 export interface AnaliticoData {
