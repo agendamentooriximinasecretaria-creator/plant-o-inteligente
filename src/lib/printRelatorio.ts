@@ -36,7 +36,8 @@ const escapeHtml = (s: string) =>
 export function buildRelatorioHtml(
   cab: RelatorioPrintCab,
   columns: string[],
-  rows: string[][]
+  rows: string[][],
+  chartImages: string[] = []
 ): string {
   const sistema = cab.sistema || "GestorPlantão SMS Oriximiná";
   const emissao = new Date().toLocaleString("pt-BR");
