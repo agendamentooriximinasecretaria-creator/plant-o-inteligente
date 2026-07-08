@@ -829,10 +829,16 @@ export default function RelatoriosPage() {
     const evolucao = Object.values(byMonth).sort((a, b) => a.mes.localeCompare(b.mes));
 
     // Top solicitantes
+    const shortName = (full: string) => {
+      const parts = (full || '—').trim().split(/\s+/);
+      if (parts.length <= 2) return full;
+      const nome = `${parts[0]} ${parts[parts.length - 1]}`;
+      return nome.length > 22 ? nome.slice(0, 20) + '…' : nome;
+    };
     const bySol: Record<string, { nome: string; count: number }> = {};
     src.forEach(s => {
       const id = s.solicitante_id;
-      const nome = (s.solicitante as any)?.nome || '—';
+      const nome = shortName((s.solicitante as any)?.nome || '—');
       if (!id) return;
       if (!bySol[id]) bySol[id] = { nome, count: 0 };
       bySol[id].count++;
@@ -842,7 +848,7 @@ export default function RelatoriosPage() {
     // Top motivos (agrupa por primeiras palavras)
     const byMotivo: Record<string, number> = {};
     src.forEach(s => {
-      const raw = (s.motivo || 'Não informado').trim().slice(0, 40);
+      const raw = (s.motivo || 'Não informado').trim().slice(0, 32);
       byMotivo[raw] = (byMotivo[raw] || 0) + 1;
     });
     const topMotivos = Object.entries(byMotivo)
@@ -982,14 +988,14 @@ export default function RelatoriosPage() {
             {a.topSolicitantes.length > 0 && (
               <div className="rounded-lg border border-border p-3">
                 <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Top solicitantes</p>
-                <div className="h-56">
+                <div style={{ height: Math.max(224, a.topSolicitantes.length * 34) }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={a.topSolicitantes} layout="vertical" margin={{ left: 60 }}>
+                    <BarChart data={a.topSolicitantes} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
-                      <YAxis type="category" dataKey="nome" tick={{ fontSize: 10 }} width={90} />
+                      <YAxis type="category" dataKey="nome" tick={{ fontSize: 10 }} width={150} interval={0} />
                       <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
-                      <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} barSize={18} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -1000,14 +1006,14 @@ export default function RelatoriosPage() {
             {a.topMotivos.length > 0 && (
               <div className="rounded-lg border border-border p-3">
                 <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Principais motivos</p>
-                <div className="h-56">
+                <div style={{ height: Math.max(224, a.topMotivos.length * 34) }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={a.topMotivos} layout="vertical" margin={{ left: 60 }}>
+                    <BarChart data={a.topMotivos} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
-                      <YAxis type="category" dataKey="nome" tick={{ fontSize: 10 }} width={110} />
+                      <YAxis type="category" dataKey="nome" tick={{ fontSize: 10 }} width={170} interval={0} />
                       <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
-                      <Bar dataKey="count" fill="hsl(var(--chart-3))" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="count" fill="hsl(var(--chart-3))" radius={[0, 4, 4, 0]} barSize={18} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
