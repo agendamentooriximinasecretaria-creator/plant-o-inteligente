@@ -1443,6 +1443,15 @@ export default function RelatoriosPage() {
                   </div>
                 )}
               </div>
+
+              {/* Container oculto para renderizar gráficos e capturá-los na impressão/PDF */}
+              {modalReport && (
+                <div style={{ position: 'fixed', left: '-10000px', top: 0, width: 900, background: '#fff' }}>
+                  <div ref={chartCaptureRef} data-chart-capture>
+                    {renderChart(modalReport.id)}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
