@@ -169,7 +169,7 @@ export default function RelatoriosPage() {
   const { data: settings = {} } = useQuery({
     queryKey: ['system-settings'],
     queryFn: async () => {
-      const data = await fetchAllPages<any>((from, to) => supabase.from('system_settings').select('*').range(from, to));
+      const data = await fetchAllPages<any>((from, to) => supabase.from('system_settings').select('*').order('key').range(from, to));
       return Object.fromEntries(data.map(s => [s.key, s.value]));
     },
   });
