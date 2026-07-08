@@ -128,11 +128,12 @@ export function abrirVisualizacaoRelatorio(
   cab: RelatorioPrintCab,
   columns: string[],
   rows: string[][],
-  autoPrint = false
+  autoPrint = false,
+  chartImages: string[] = []
 ): boolean {
   const w = window.open("", "_blank", "width=1100,height=780");
   if (!w) return false;
-  let html = buildRelatorioHtml(cab, columns, rows);
+  let html = buildRelatorioHtml(cab, columns, rows, chartImages);
   if (autoPrint) {
     html = html.replace(
       "</body>",
