@@ -89,6 +89,26 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
     )
     .join("");
 
+  const maxRankH = Math.max(1, ...data.rankingHoras.map(p => p.horas));
+  const rankingHtml = data.rankingHoras
+    .map(
+      p => `<tr>
+        <td>${esc(p.nome)}</td>
+        <td>${bar(p.horas, maxRankH)}</td>
+        <td class="td-num">${p.horas.toFixed(0)}h</td>
+        <td class="td-num">${p.plantoes}</td>
+      </tr>`
+    )
+    .join("");
+
+  const cancHtml = data.cancelamentos
+    .map(p => `<tr><td>${esc(p.nome)}</td><td class="td-num">${p.qtd}</td></tr>`)
+    .join("");
+
+  const picoHtml = data.cargaPicoAlerta
+    .map(p => `<tr><td>${esc(p.nome)}</td><td class="td-num text-danger">${p.picoH.toFixed(1)}h</td></tr>`)
+    .join("");
+
   const parecer = data.parecer;
   const listOr = (items: string[], empty: string, cls: string) =>
     items.length
