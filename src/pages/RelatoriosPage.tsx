@@ -68,6 +68,21 @@ const filtrosVazios: Filtros = {
   formato: 'pdf', incluirAssinatura: false,
 };
 
+const fetchAllPages = async <T,>(buildQuery: (from: number, to: number) => any): Promise<T[]> => {
+  const pageSize = 1000;
+  const all: T[] = [];
+
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await buildQuery(from, from + pageSize - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    all.push(...data);
+    if (data.length < pageSize) break;
+  }
+
+  return all;
+};
+
 export default function RelatoriosPage() {
   const { profileName, isMaster, isCoordinator, professionalId: currentProfId } = useAuth();
   const canRead = isMaster || isCoordinator;
@@ -114,59 +129,45 @@ export default function RelatoriosPage() {
 
   const { data: professionals = [] } = useQuery({
     queryKey: ['professionals-rep'],
-    queryFn: async () => { const { data } = await supabase.from('professionals_safe').select('id, nome, profissao, especialidade, telefone, email, status, setor_principal_id, unidade_principal_id, conselho, registro, documento_numero, documento_conselho').order('nome'); return data || []; }
+    queryFn: async () => fetchAllPages<any>((from, to) => supabase
+      .from('professionals_safe')
+      .select('id, nome, profissao, especialidade, telefone, email, status, setor_principal_id, unidade_principal_id, conselho, registro, documento_numero, documento_conselho')
+      .order('nome')
+      .range(from, to))
   });
   const { data: shifts = [] } = useQuery({
     queryKey: ['shifts-report'],
     queryFn: async () => {
-      const pageSize = 1000;
-      const all: any[] = [];
-      for (let from = 0; ; from += pageSize) {
-        const { data, error } = await supabase
+      return fetchAllPages<any>((from, to) => supabase
           .from('shifts')
           .select('*, professionals:profissional_id(nome, profissao, conselho, registro, documento_conselho, documento_numero), sectors:setor_id(nome), units:unidade_id(nome)')
           .order('data', { ascending: false })
-          .range(from, from + pageSize - 1);
-        if (error) throw error;
-        if (!data || data.length === 0) break;
-        all.push(...data);
-        if (data.length < pageSize) break;
-      }
-      return all;
+          .range(from, to));
     }
   });
   const { data: swaps = [] } = useQuery({
     queryKey: ['swaps-report'],
     queryFn: async () => {
-      const pageSize = 1000;
-      const all: any[] = [];
-      for (let from = 0; ; from += pageSize) {
-        const { data, error } = await supabase
+      return fetchAllPages<any>((from, to) => supabase
           .from('shift_swaps')
           .select(`*,
             solicitante:solicitante_id(nome, profissao),
             destinatario:destinatario_id(nome, profissao),
-            shift:shift_id(data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, sectors:setor_id(nome), units:unidade_id(nome)),
-            shift_destino:shift_id_destino(data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, sectors:setor_id(nome))
+            shift:shift_id(data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, setor_id, unidade_id, sectors:setor_id(nome), units:unidade_id(nome)),
+            shift_destino:shift_id_destino(data, hora_inicio, hora_fim, carga_horaria, tipo_plantao, setor_id, unidade_id, sectors:setor_id(nome), units:unidade_id(nome))
           `)
           .order('created_at', { ascending: false })
-          .range(from, from + pageSize - 1);
-        if (error) throw error;
-        if (!data || data.length === 0) break;
-        all.push(...data);
-        if (data.length < pageSize) break;
-      }
-      return all;
+          .range(from, to));
     }
   });
-  const { data: units = [] } = useQuery({ queryKey: ['units-rep'], queryFn: async () => { const { data } = await supabase.from('units').select('id, nome').order('nome'); return data || []; } });
-  const { data: sectors = [] } = useQuery({ queryKey: ['sectors-rep'], queryFn: async () => { const { data } = await supabase.from('sectors').select('id, nome, unidade_id').order('nome'); return data || []; } });
-  const { data: shiftTypes = [] } = useQuery({ queryKey: ['shift-types-rep'], queryFn: async () => { const { data } = await supabase.from('shift_types').select('sigla, nome').eq('ativo', true).order('ordem'); return data || []; } });
+  const { data: units = [] } = useQuery({ queryKey: ['units-rep'], queryFn: async () => fetchAllPages<any>((from, to) => supabase.from('units').select('id, nome').order('nome').range(from, to)) });
+  const { data: sectors = [] } = useQuery({ queryKey: ['sectors-rep'], queryFn: async () => fetchAllPages<any>((from, to) => supabase.from('sectors').select('id, nome, unidade_id').order('nome').range(from, to)) });
+  const { data: shiftTypes = [] } = useQuery({ queryKey: ['shift-types-rep'], queryFn: async () => fetchAllPages<any>((from, to) => supabase.from('shift_types').select('sigla, nome').eq('ativo', true).order('ordem').range(from, to)) });
   const { data: settings = {} } = useQuery({
     queryKey: ['system-settings'],
     queryFn: async () => {
-      const { data } = await supabase.from('system_settings').select('*');
-      return Object.fromEntries((data || []).map(s => [s.key, s.value]));
+      const data = await fetchAllPages<any>((from, to) => supabase.from('system_settings').select('*').range(from, to));
+      return Object.fromEntries(data.map(s => [s.key, s.value]));
     },
   });
   const instituicao = settings.institucional as any || null;
@@ -206,15 +207,28 @@ export default function RelatoriosPage() {
   }, [shifts, filtros]);
 
   const filteredSwaps = useMemo(() => {
+    const profMap: Record<string, any> = {};
+    (professionals as any[]).forEach((p: any) => { profMap[p.id] = p; });
+
     return (swaps as any[]).filter(s => {
       const iso = (s.created_at || '').slice(0, 10);
       if ((filtros.dataIni || filtros.dataFim) && !inRange(iso)) return false;
       if (filtros.status && s.status !== filtros.status) return false;
+      const shift = (s.shift as any) || {};
+      const shiftDestino = (s.shift_destino as any) || {};
+      const solicitante = (s.solicitante as any) || profMap[s.solicitante_id] || {};
+      const destinatario = (s.destinatario as any) || profMap[s.destinatario_id] || {};
+      const unidadeIds = [shift.unidade_id, shiftDestino.unidade_id, profMap[s.solicitante_id]?.unidade_principal_id, profMap[s.destinatario_id]?.unidade_principal_id].filter(Boolean);
+      const setorIds = [shift.setor_id, shiftDestino.setor_id, profMap[s.solicitante_id]?.setor_principal_id, profMap[s.destinatario_id]?.setor_principal_id].filter(Boolean);
+      if (filtros.unidadeId && !unidadeIds.includes(filtros.unidadeId)) return false;
+      if (filtros.setorId && !setorIds.includes(filtros.setorId)) return false;
+      if (filtros.profissao && solicitante.profissao !== filtros.profissao && destinatario.profissao !== filtros.profissao) return false;
+      if (filtros.tipoPlantao && shift.tipo_plantao !== filtros.tipoPlantao && shiftDestino.tipo_plantao !== filtros.tipoPlantao) return false;
       // Profissional: solicitante OU destinatário
       if (filtros.profissionalId && s.solicitante_id !== filtros.profissionalId && s.destinatario_id !== filtros.profissionalId) return false;
       return true;
     });
-  }, [swaps, filtros]);
+  }, [swaps, professionals, filtros]);
 
   const filteredProfessionals = useMemo(() => {
     return (professionals as any[]).filter(p => {
@@ -642,7 +656,7 @@ export default function RelatoriosPage() {
     const { columns, rows, totalHoras } = getReportData(modalReport.id);
     return { columns, rows, totalHoras };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modalReport, filteredShifts, filteredSwaps, filteredProfessionals, filtros.dataIni]);
+  }, [modalReport, filteredShifts, filteredSwaps, filteredProfessionals, filtros]);
 
   const filtrosAplicados = useMemo<RelatorioFiltroAplicado[]>(() => {
     const u = (units as any[]).find(x => x.id === filtros.unidadeId);
@@ -793,27 +807,27 @@ export default function RelatoriosPage() {
   // Reseta setor quando muda unidade
   useEffect(() => { setFiltros(f => ({ ...f, setorId: '' })); }, [filtros.unidadeId]);
 
-  // ===== Charts (cards) — agora usam dataset não filtrado para preview rápido =====
+  // ===== Charts (cards) — usam o mesmo dataset filtrado/exportado para não ocultar dados =====
   const horasChartCard = useMemo(() => {
     const byProf: Record<string, { nome: string; horas: number }> = {};
-    (shifts as any[]).forEach((s: any) => {
+    (filteredShifts as any[]).forEach((s: any) => {
       if (!isPlantaoContabilizavel(s)) return;
       const nome = (s.professionals as any)?.nome || 'Desc.';
       if (!byProf[s.profissional_id]) byProf[s.profissional_id] = { nome, horas: 0 };
       byProf[s.profissional_id].horas += Number(s.carga_horaria || 0);
     });
-    return Object.values(byProf).sort((a, b) => b.horas - a.horas).slice(0, 10);
-  }, [shifts]);
+    return Object.values(byProf).sort((a, b) => b.horas - a.horas);
+  }, [filteredShifts]);
 
   const setorChartCard = useMemo(() => {
     const bySetor: Record<string, { nome: string; count: number }> = {};
-    (shifts as any[]).forEach((s: any) => {
+    (filteredShifts as any[]).forEach((s: any) => {
       const nome = (s.sectors as any)?.nome || 'Desc.';
       if (!bySetor[s.setor_id]) bySetor[s.setor_id] = { nome, count: 0 };
       bySetor[s.setor_id].count++;
     });
     return Object.values(bySetor);
-  }, [shifts]);
+  }, [filteredShifts]);
 
   // ===== Analytics ricos para relatórios de Trocas =====
   const trocasAnalytics = useMemo(() => {
@@ -867,7 +881,7 @@ export default function RelatoriosPage() {
       if (!bySol[id]) bySol[id] = { nome, count: 0 };
       bySol[id].count++;
     });
-    const topSolicitantes = Object.values(bySol).sort((a, b) => b.count - a.count).slice(0, 8);
+    const topSolicitantes = Object.values(bySol).sort((a, b) => b.count - a.count);
 
     // Top motivos (agrupa por primeiras palavras)
     const byMotivo: Record<string, number> = {};
@@ -877,7 +891,7 @@ export default function RelatoriosPage() {
     });
     const topMotivos = Object.entries(byMotivo)
       .map(([nome, count]) => ({ nome, count }))
-      .sort((a, b) => b.count - a.count).slice(0, 6);
+      .sort((a, b) => b.count - a.count);
 
     // Tempo médio de resolução (em horas), considerando só as resolvidas
     const resolvidas = src.filter(s => s.aprovado_em || s.rejeitado_em);
@@ -921,8 +935,7 @@ export default function RelatoriosPage() {
       }
     });
     return Object.values(byProf)
-      .sort((a, b) => (b.solicitadas + b.recebidas) - (a.solicitadas + a.recebidas))
-      .slice(0, 12);
+      .sort((a, b) => (b.solicitadas + b.recebidas) - (a.solicitadas + a.recebidas));
   }, [filteredSwaps, professionals]);
 
   const renderChart = (reportId: string) => {
