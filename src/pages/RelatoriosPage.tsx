@@ -1006,14 +1006,14 @@ export default function RelatoriosPage() {
             {a.topMotivos.length > 0 && (
               <div className="rounded-lg border border-border p-3">
                 <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Principais motivos</p>
-                <div className="h-56">
+                <div style={{ height: Math.max(224, a.topMotivos.length * 34) }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={a.topMotivos} layout="vertical" margin={{ left: 60 }}>
+                    <BarChart data={a.topMotivos} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
-                      <YAxis type="category" dataKey="nome" tick={{ fontSize: 10 }} width={110} />
+                      <YAxis type="category" dataKey="nome" tick={{ fontSize: 10 }} width={170} interval={0} />
                       <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
-                      <Bar dataKey="count" fill="hsl(var(--chart-3))" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="count" fill="hsl(var(--chart-3))" radius={[0, 4, 4, 0]} barSize={18} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
