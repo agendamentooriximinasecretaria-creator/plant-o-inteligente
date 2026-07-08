@@ -829,10 +829,16 @@ export default function RelatoriosPage() {
     const evolucao = Object.values(byMonth).sort((a, b) => a.mes.localeCompare(b.mes));
 
     // Top solicitantes
+    const shortName = (full: string) => {
+      const parts = (full || '—').trim().split(/\s+/);
+      if (parts.length <= 2) return full;
+      const nome = `${parts[0]} ${parts[parts.length - 1]}`;
+      return nome.length > 22 ? nome.slice(0, 20) + '…' : nome;
+    };
     const bySol: Record<string, { nome: string; count: number }> = {};
     src.forEach(s => {
       const id = s.solicitante_id;
-      const nome = (s.solicitante as any)?.nome || '—';
+      const nome = shortName((s.solicitante as any)?.nome || '—');
       if (!id) return;
       if (!bySol[id]) bySol[id] = { nome, count: 0 };
       bySol[id].count++;
@@ -842,7 +848,7 @@ export default function RelatoriosPage() {
     // Top motivos (agrupa por primeiras palavras)
     const byMotivo: Record<string, number> = {};
     src.forEach(s => {
-      const raw = (s.motivo || 'Não informado').trim().slice(0, 40);
+      const raw = (s.motivo || 'Não informado').trim().slice(0, 32);
       byMotivo[raw] = (byMotivo[raw] || 0) + 1;
     });
     const topMotivos = Object.entries(byMotivo)
