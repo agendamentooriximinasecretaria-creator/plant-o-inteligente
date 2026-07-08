@@ -241,6 +241,34 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
     </table>
   </section>
 
+  <section class="block" data-pdf-section="ranking">
+    <h3>Ranking de horas por profissional</h3>
+    <table>
+      <colgroup><col style="width:40%"/><col style="width:35%"/><col style="width:12%"/><col style="width:13%"/></colgroup>
+      <thead><tr><th>Profissional</th><th>Horas realizadas</th><th>Horas</th><th>Plantões</th></tr></thead>
+      <tbody>${rankingHtml || `<tr><td colspan="4" class="empty" style="text-align:center">Sem plantões no período.</td></tr>`}</tbody>
+    </table>
+  </section>
+
+  ${picoHtml ? `<section class="block" data-pdf-section="picos">
+    <h3>Profissionais com pico semanal acima de 60h</h3>
+    <table>
+      <colgroup><col style="width:70%"/><col style="width:30%"/></colgroup>
+      <thead><tr><th>Profissional</th><th>Pico semanal</th></tr></thead>
+      <tbody>${picoHtml}</tbody>
+    </table>
+  </section>` : ""}
+
+  ${cancHtml ? `<section class="block" data-pdf-section="cancelamentos">
+    <h3>Cancelamentos por profissional</h3>
+    <table>
+      <colgroup><col style="width:75%"/><col style="width:25%"/></colgroup>
+      <thead><tr><th>Profissional</th><th>Cancelamentos</th></tr></thead>
+      <tbody>${cancHtml}</tbody>
+    </table>
+  </section>` : ""}
+
+
   <section class="block" data-pdf-section="trocas">
     <h3>Resumo de trocas</h3>
     <div class="trocas-grid">
