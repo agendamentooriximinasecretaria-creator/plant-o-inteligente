@@ -465,11 +465,6 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
         "Sem motivos registrados."
       )
     ) +
-        [{ label: "Motivo", width: "75%" }, { label: "Ocorrências", width: "25%", align: "right" }],
-        tr.topMotivos.map(m => `<tr><td>${esc(m.nome)}</td><td class="td-num">${m.count}</td></tr>`).join(""),
-        "Sem motivos registrados."
-      )
-    ) +
     block("Trocas por profissional",
       table(
         [
