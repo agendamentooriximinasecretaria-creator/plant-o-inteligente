@@ -390,6 +390,60 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
          <tr><td>Administrativa</td><td class="td-num">${tr.porTipo.administrativa}</td></tr>`
       )
     ) +
+    block("Trocas por setor",
+      table(
+        [{ label: "Setor", width: "35%" }, { label: "Volume", width: "45%" }, { label: "Trocas", width: "20%", align: "right" }],
+        tr.porSetor.map(s => `<tr>
+          <td>${esc(s.nome)}</td>
+          <td>${bar(s.count, Math.max(1, ...tr.porSetor.map(x => x.count)))}</td>
+          <td class="td-num">${s.count}</td>
+        </tr>`).join(""),
+        "Sem trocas por setor no período."
+      )
+    ) +
+    block("Trocas por unidade",
+      table(
+        [{ label: "Unidade", width: "35%" }, { label: "Volume", width: "45%" }, { label: "Trocas", width: "20%", align: "right" }],
+        tr.porUnidade.map(u => `<tr>
+          <td>${esc(u.nome)}</td>
+          <td>${bar(u.count, Math.max(1, ...tr.porUnidade.map(x => x.count)))}</td>
+          <td class="td-num">${u.count}</td>
+        </tr>`).join(""),
+        "Sem trocas por unidade no período."
+      )
+    ) +
+    block("Trocas por profissão",
+      table(
+        [{ label: "Profissão", width: "35%" }, { label: "Volume", width: "45%" }, { label: "Trocas", width: "20%", align: "right" }],
+        tr.porProfissao.map(p => `<tr>
+          <td>${esc(p.nome)}</td>
+          <td>${bar(p.count, Math.max(1, ...tr.porProfissao.map(x => x.count)))}</td>
+          <td class="td-num">${p.count}</td>
+        </tr>`).join(""),
+        "Sem dados por profissão."
+      )
+    ) +
+    block("Evolução mensal das trocas",
+      table(
+        [
+          { label: "Mês", width: "16%" },
+          { label: "Volume", width: "34%" },
+          { label: "Total", width: "12%", align: "right" },
+          { label: "Aprovadas", width: "13%", align: "right" },
+          { label: "Rejeitadas", width: "13%", align: "right" },
+          { label: "Pendentes", width: "12%", align: "right" },
+        ],
+        tr.evolucaoMensal.map(e => `<tr>
+          <td class="td-mes">${esc(e.mes)}</td>
+          <td>${bar(e.total, Math.max(1, ...tr.evolucaoMensal.map(x => x.total)))}</td>
+          <td class="td-num">${e.total}</td>
+          <td class="td-num">${e.aprovadas}</td>
+          <td class="td-num">${e.rejeitadas}</td>
+          <td class="td-num">${e.pendentes}</td>
+        </tr>`).join(""),
+        "Sem evolução mensal registrada."
+      )
+    ) +
     block("Top solicitantes",
       table(
         [{ label: "Profissional", width: "75%" }, { label: "Solicitações", width: "25%", align: "right" }],
@@ -406,6 +460,11 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
     ) +
     block("Top motivos de troca",
       table(
+        [{ label: "Motivo", width: "75%" }, { label: "Ocorrências", width: "25%", align: "right" }],
+        tr.topMotivos.map(m => `<tr><td>${esc(m.nome)}</td><td class="td-num">${m.count}</td></tr>`).join(""),
+        "Sem motivos registrados."
+      )
+    ) +
         [{ label: "Motivo", width: "75%" }, { label: "Ocorrências", width: "25%", align: "right" }],
         tr.topMotivos.map(m => `<tr><td>${esc(m.nome)}</td><td class="td-num">${m.count}</td></tr>`).join(""),
         "Sem motivos registrados."
