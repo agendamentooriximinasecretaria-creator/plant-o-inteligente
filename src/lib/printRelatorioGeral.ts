@@ -98,6 +98,48 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
         [{ label: "Profissão", width: "70%" }, { label: "Quantidade", width: "30%", align: "right" }],
         cad.porProfissao.map(p => `<tr><td>${esc(p.nome)}</td><td class="td-num">${p.count}</td></tr>`).join("")
       )
+    ) +
+    block("Distribuição por status cadastral",
+      table(
+        [{ label: "Status", width: "70%" }, { label: "Quantidade", width: "30%", align: "right" }],
+        cad.porStatus.map(p => `<tr><td>${esc(p.nome)}</td><td class="td-num">${p.count}</td></tr>`).join("")
+      )
+    ) +
+    block("Profissionais por unidade",
+      table(
+        [{ label: "Unidade", width: "70%" }, { label: "Profissionais", width: "30%", align: "right" }],
+        cad.porUnidade.map(p => `<tr><td>${esc(p.nome)}</td><td class="td-num">${p.count}</td></tr>`).join("")
+      )
+    ) +
+    block("Profissionais por setor",
+      table(
+        [{ label: "Setor", width: "70%" }, { label: "Profissionais", width: "30%", align: "right" }],
+        cad.porSetor.map(p => `<tr><td>${esc(p.nome)}</td><td class="td-num">${p.count}</td></tr>`).join("")
+      )
+    ) +
+    block("Cadastro nominal completo de profissionais",
+      table(
+        [
+          { label: "Profissional", width: "20%" },
+          { label: "Profissão", width: "13%" },
+          { label: "Conselho", width: "12%" },
+          { label: "Especialidade", width: "13%" },
+          { label: "Unidade", width: "14%" },
+          { label: "Setor", width: "14%" },
+          { label: "Contato", width: "10%" },
+          { label: "Status", width: "4%" },
+        ],
+        cad.profissionais.map(p => `<tr>
+          <td>${esc(p.nome)}</td>
+          <td>${esc(p.profissao)}</td>
+          <td>${esc(p.conselho)}</td>
+          <td>${esc(p.especialidade)}</td>
+          <td>${esc(p.unidade)}</td>
+          <td>${esc(p.setor)}</td>
+          <td>${esc(p.telefone || p.email || "—")}</td>
+          <td>${esc(p.status)}</td>
+        </tr>`).join("")
+      )
     )
   );
 
@@ -129,6 +171,17 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
         </tr>`).join("")
       )
     ) +
+    block("Plantões por unidade",
+      table(
+        [{ label: "Unidade", width: "30%" }, { label: "Horas", width: "40%" }, { label: "Horas", width: "15%", align: "right" }, { label: "Plantões", width: "15%", align: "right" }],
+        op.porUnidade.map(u => `<tr>
+          <td>${esc(u.nome)}</td>
+          <td>${bar(u.horas, Math.max(1, ...op.porUnidade.map(x => x.horas)))}</td>
+          <td class="td-num">${u.horas.toFixed(0)}h</td>
+          <td class="td-num">${u.count}</td>
+        </tr>`).join("")
+      )
+    ) +
     block("Cobertura por setor",
       table(
         [{ label: "Setor", width: "30%" }, { label: "Horas", width: "40%" }, { label: "Horas", width: "15%", align: "right" }, { label: "Plantões", width: "15%", align: "right" }],
@@ -137,6 +190,48 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
           <td>${bar(s.horas, maxCob)}</td>
           <td class="td-num">${s.horas.toFixed(0)}h</td>
           <td class="td-num">${s.count}</td>
+        </tr>`).join("")
+      )
+    ) +
+    block("Plantões detalhados do período",
+      table(
+        [
+          { label: "Profissional", width: "18%" },
+          { label: "Conselho", width: "10%" },
+          { label: "Unidade", width: "13%" },
+          { label: "Setor", width: "13%" },
+          { label: "Data", width: "10%" },
+          { label: "Horário", width: "10%" },
+          { label: "Carga", width: "8%", align: "right" },
+          { label: "Tipo", width: "9%" },
+          { label: "Status", width: "9%" },
+        ],
+        op.plantoesDetalhados.map(s => `<tr>
+          <td>${esc(s.profissional)}</td>
+          <td>${esc(s.conselho)}</td>
+          <td>${esc(s.unidade)}</td>
+          <td>${esc(s.setor)}</td>
+          <td>${esc(s.data)}</td>
+          <td>${esc(s.horario)}</td>
+          <td class="td-num">${esc(s.carga)}</td>
+          <td>${esc(s.tipo)}</td>
+          <td>${esc(s.status)}</td>
+        </tr>`).join("")
+      )
+    ) +
+    block("Escala consolidada — profissional × dias",
+      table(
+        [
+          { label: "Profissional", width: "22%" },
+          { label: "Setor", width: "18%" },
+          { label: "Dias / marcações", width: "45%" },
+          { label: "Total", width: "15%", align: "right" },
+        ],
+        op.escalaMensal.map(p => `<tr>
+          <td>${esc(p.profissional)}</td>
+          <td>${esc(p.setor)}</td>
+          <td>${op.escalaDias.filter(d => p.dias[d]).map(d => `${esc(d)}: ${esc(p.dias[d])}`).join(" · ") || "—"}</td>
+          <td class="td-num">${p.totalHoras.toFixed(1)}h</td>
         </tr>`).join("")
       )
     )
@@ -177,11 +272,74 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
         "Sem atrasos registrados."
       )
     ) +
+    block("Compliance de check-in/check-out por profissional",
+      table(
+        [
+          { label: "Profissional", width: "36%" },
+          { label: "Plantões", width: "16%", align: "right" },
+          { label: "Com check-in", width: "16%", align: "right" },
+          { label: "% Check-in", width: "16%", align: "right" },
+          { label: "% Check-out", width: "16%", align: "right" },
+        ],
+        q.compliancePorProf.map(p => `<tr>
+          <td>${esc(p.nome)}</td>
+          <td class="td-num">${p.total}</td>
+          <td class="td-num">${p.comCheckin}</td>
+          <td class="td-num ${p.pctCheckin < 70 ? "text-danger" : ""}">${p.pctCheckin.toFixed(1)}%</td>
+          <td class="td-num ${p.pctCheckout < 70 ? "text-danger" : ""}">${p.pctCheckout.toFixed(1)}%</td>
+        </tr>`).join(""),
+        "Sem plantões contabilizáveis para compliance."
+      )
+    ) +
+    block("Faltas detalhadas",
+      table(
+        [
+          { label: "Profissional", width: "28%" },
+          { label: "Unidade", width: "20%" },
+          { label: "Setor", width: "20%" },
+          { label: "Data", width: "12%" },
+          { label: "Horário", width: "12%" },
+          { label: "Tipo", width: "8%" },
+        ],
+        q.faltasDetalhadas.map(s => `<tr>
+          <td>${esc(s.profissional)}</td>
+          <td>${esc(s.unidade)}</td>
+          <td>${esc(s.setor)}</td>
+          <td>${esc(s.data)}</td>
+          <td>${esc(s.horario)}</td>
+          <td>${esc(s.tipo)}</td>
+        </tr>`).join(""),
+        "Sem faltas registradas."
+      )
+    ) +
     block("Cancelamentos por profissional",
       table(
         [{ label: "Profissional", width: "75%" }, { label: "Cancelamentos", width: "25%", align: "right" }],
         q.cancelamentosPorProf.map(p => `<tr><td>${esc(p.nome)}</td><td class="td-num">${p.count}</td></tr>`).join(""),
         "Sem cancelamentos no período."
+      )
+    ) +
+    block("Plantões cancelados detalhados",
+      table(
+        [
+          { label: "Profissional", width: "24%" },
+          { label: "Unidade", width: "18%" },
+          { label: "Setor", width: "18%" },
+          { label: "Data", width: "12%" },
+          { label: "Horário", width: "12%" },
+          { label: "Carga", width: "8%", align: "right" },
+          { label: "Tipo", width: "8%" },
+        ],
+        q.cancelamentosDetalhados.map(s => `<tr>
+          <td>${esc(s.profissional)}</td>
+          <td>${esc(s.unidade)}</td>
+          <td>${esc(s.setor)}</td>
+          <td>${esc(s.data)}</td>
+          <td>${esc(s.horario)}</td>
+          <td class="td-num">${esc(s.carga)}</td>
+          <td>${esc(s.tipo)}</td>
+        </tr>`).join(""),
+        "Sem plantões cancelados no período."
       )
     )
   );
@@ -196,8 +354,16 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
       { label: "Canceladas", valor: tr.canceladas },
       { label: "Pendentes", valor: tr.pendentes, alerta: tr.pendentes > 5 },
       { label: "Taxa de aprovação", valor: `${tr.taxaAprov.toFixed(1)}%`, alerta: tr.total > 0 && tr.taxaAprov < 70 },
+      { label: "Taxa de rejeição", valor: `${tr.taxaRej.toFixed(1)}%`, alerta: tr.taxaRej > 20 },
+      { label: "Resolvidas", valor: `${tr.resolvidas}/${tr.total}` },
       { label: "Tempo médio", valor: `${tr.tempoMedioH.toFixed(1)}h` },
     ]) +
+    block("Distribuição por status",
+      table(
+        [{ label: "Status", width: "70%" }, { label: "Quantidade", width: "30%", align: "right" }],
+        tr.porStatus.map(s => `<tr><td>${esc(s.nome)}</td><td class="td-num">${s.count}</td></tr>`).join("")
+      )
+    ) +
     block("Distribuição por tipo",
       table(
         [{ label: "Tipo", width: "70%" }, { label: "Quantidade", width: "30%", align: "right" }],
@@ -218,6 +384,68 @@ export function buildRelatorioGeralHtml(opts: RelatorioGeralPrintOptions): strin
         [{ label: "Motivo", width: "75%" }, { label: "Ocorrências", width: "25%", align: "right" }],
         tr.topMotivos.map(m => `<tr><td>${esc(m.nome)}</td><td class="td-num">${m.count}</td></tr>`).join(""),
         "Sem motivos registrados."
+      )
+    ) +
+    block("Trocas por profissional",
+      table(
+        [
+          { label: "Profissional", width: "17%" },
+          { label: "Profissão", width: "10%" },
+          { label: "Unidade", width: "12%" },
+          { label: "Setor", width: "12%" },
+          { label: "Sol.", width: "6%", align: "right" },
+          { label: "Rec.", width: "6%", align: "right" },
+          { label: "Aprov.", width: "7%", align: "right" },
+          { label: "Rej.", width: "6%", align: "right" },
+          { label: "Pend.", width: "6%", align: "right" },
+          { label: "Canc.", width: "6%", align: "right" },
+          { label: "Adm.", width: "6%", align: "right" },
+          { label: "Horas", width: "6%", align: "right" },
+        ],
+        tr.porProfissional.map(p => `<tr>
+          <td>${esc(p.nome)}</td>
+          <td>${esc(p.profissao)}</td>
+          <td>${esc(p.unidade)}</td>
+          <td>${esc(p.setor)}</td>
+          <td class="td-num">${p.solicitadas}</td>
+          <td class="td-num">${p.recebidas}</td>
+          <td class="td-num">${p.aprovadas}</td>
+          <td class="td-num">${p.rejeitadas}</td>
+          <td class="td-num">${p.pendentes}</td>
+          <td class="td-num">${p.canceladas}</td>
+          <td class="td-num">${p.administrativas}</td>
+          <td class="td-num">${p.horas.toFixed(1)}h</td>
+        </tr>`).join(""),
+        "Sem movimentação por profissional."
+      )
+    ) +
+    block("Histórico completo de trocas",
+      table(
+        [
+          { label: "Protocolo", width: "8%" },
+          { label: "Tipo", width: "8%" },
+          { label: "Solicitante", width: "12%" },
+          { label: "Destinatário", width: "12%" },
+          { label: "Unidade/Setor", width: "14%" },
+          { label: "Plantão", width: "16%" },
+          { label: "Motivo", width: "12%" },
+          { label: "Status", width: "8%" },
+          { label: "Tempo", width: "5%" },
+          { label: "Observação", width: "5%" },
+        ],
+        tr.trocasDetalhadas.map(t => `<tr>
+          <td>${esc(t.protocolo)}</td>
+          <td>${esc(t.tipo)}</td>
+          <td>${esc(t.solicitante)}</td>
+          <td>${esc(t.destinatario)}</td>
+          <td>${esc(t.unidade)}<br>${esc(t.setor)}</td>
+          <td>${esc(t.plantao)}</td>
+          <td>${esc(t.motivo)}</td>
+          <td>${esc(t.status)}</td>
+          <td>${esc(t.tempo)}</td>
+          <td>${esc(t.observacao)}</td>
+        </tr>`).join(""),
+        "Sem trocas no período."
       )
     )
   );
