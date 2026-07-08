@@ -103,7 +103,7 @@ export function buildRelatorioHtml(
     <strong>Filtros aplicados:</strong> ${filtrosStr}
   </div>
 
-  ${chartImages.length ? `<div class="charts-area"><h3>Análise gráfica</h3>${chartImages.map(src => `<img src="${src}" alt="Gráfico do relatório" />`).join("")}</div>` : ""}
+  ${chartImages.length ? `<div class="charts-area"><h3>Análise gráfica</h3>${chartImages.map(src => `<figure style="margin:0 0 12px;page-break-inside:avoid;break-inside:avoid"><img src="${src}" alt="Gráfico do relatório" style="display:block;max-width:100%;height:auto" /></figure>`).join("")}</div>` : ""}
 
   <table>
     <thead><tr>${columns.map(c => `<th>${escapeHtml(c)}</th>`).join("")}</tr></thead>
