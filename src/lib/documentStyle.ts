@@ -31,9 +31,9 @@ export const DOCUMENT_CSS_BASE = `
   .doc-info { display: flex; justify-content: space-between; font-size: 8.5pt; color: #333; margin-bottom: 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
 
   
-  table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 10pt; }
-  th { background: #f8fafc; color: #333; font-weight: 700; text-align: left; padding: 10px; border: 1px solid #ccc; }
-  td { padding: 8px; border: 1px solid #ddd; vertical-align: top; }
+  table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 9pt; table-layout: fixed; word-wrap: break-word; overflow-wrap: anywhere; }
+  th { background: #f8fafc; color: #333; font-weight: 700; text-align: left; padding: 6px; border: 1px solid #ccc; word-wrap: break-word; overflow-wrap: anywhere; }
+  td { padding: 5px 6px; border: 1px solid #ddd; vertical-align: top; word-wrap: break-word; overflow-wrap: anywhere; white-space: normal; }
   
   .assinatura-block { margin-top: 60px; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; }
   .assinatura-item { text-align: center; }
@@ -44,5 +44,9 @@ export const DOCUMENT_CSS_BASE = `
   
   @media print {
     .no-print { display: none !important; }
+    html, body { width: auto; }
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    img { max-width: 100% !important; max-height: 220mm !important; height: auto !important; }
+    table { font-size: 8.5pt; }
   }
 `;

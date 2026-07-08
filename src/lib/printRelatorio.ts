@@ -83,12 +83,14 @@ export function buildRelatorioHtml(
   
   .filtros-area { background: #f8fafc; padding: 10px 15px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 10pt; color: #475569; margin-bottom: 20px; }
   .totais-resumo { margin: 20px 0; font-size: 11pt; font-weight: bold; color: #0e7490; border-top: 2px solid #eee; padding-top: 10px; }
-  .charts-area { margin: 20px 0; page-break-inside: avoid; }
+  .charts-area { margin: 20px 0; }
   .charts-area h3 { font-size: 11pt; color: #0e7490; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .5px; }
-  .charts-area img { max-width: 100%; height: auto; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; background: #fff; }
+  .charts-area figure { margin: 0 0 12px; page-break-inside: avoid; break-inside: avoid; text-align: center; }
+  .charts-area img { max-width: 100%; max-height: 210mm; width: auto; height: auto; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; background: #fff; object-fit: contain; }
   
-  table th { text-transform: uppercase; font-size: 9pt; background: #e2e8f0; }
-  table td { font-size: 9pt; }
+  table { table-layout: fixed; width: 100%; }
+  table th { text-transform: uppercase; font-size: 8.5pt; background: #e2e8f0; word-wrap: break-word; overflow-wrap: anywhere; }
+  table td { font-size: 8.5pt; word-wrap: break-word; overflow-wrap: anywhere; white-space: normal; }
 </style>
 </head>
 <body>
@@ -103,7 +105,7 @@ export function buildRelatorioHtml(
     <strong>Filtros aplicados:</strong> ${filtrosStr}
   </div>
 
-  ${chartImages.length ? `<div class="charts-area"><h3>Análise gráfica</h3>${chartImages.map(src => `<figure style="margin:0 0 12px;page-break-inside:avoid;break-inside:avoid"><img src="${src}" alt="Gráfico do relatório" style="display:block;max-width:100%;height:auto" /></figure>`).join("")}</div>` : ""}
+  ${chartImages.length ? `<div class="charts-area"><h3>Análise gráfica</h3>${chartImages.map(src => `<figure><img src="${src}" alt="Gráfico do relatório" /></figure>`).join("")}</div>` : ""}
 
   <table>
     <thead><tr>${columns.map(c => `<th>${escapeHtml(c)}</th>`).join("")}</tr></thead>
