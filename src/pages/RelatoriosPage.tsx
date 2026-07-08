@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
 import { exportToPDF, exportToExcel, exportToCSV } from "@/lib/exportUtils";
 import { abrirVisualizacaoRelatorio, type RelatorioFiltroAplicado, type RelatorioPrintCab } from "@/lib/printRelatorio";
+import { abrirRelatorioGeral } from "@/lib/printRelatorioGeral";
+import { gerarParecer, type RelatorioGeralData } from "@/lib/parecerAutomatico";
 import { fetchStampData, fetchRTForUnidade, fetchGestorMasterForUnidade, type StampData } from "@/lib/pdfStampUtils";
 import { Download, Loader2, Eye, Printer, FileText, FileSpreadsheet, Mail, Filter, X, TrendingUp, TrendingDown, Users, Clock, Activity, AlertTriangle, CheckCircle2, RefreshCw, Building2, Calendar as CalendarIcon, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
