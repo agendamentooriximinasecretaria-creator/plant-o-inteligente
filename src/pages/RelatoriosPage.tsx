@@ -272,11 +272,40 @@ export default function RelatoriosPage() {
         const totalHoras = Object.values(byProf).reduce((a, p) => a + p.hours, 0);
         return { columns: ['Profissional', 'Plantões', 'Horas Totais'], rows: Object.values(byProf).map(p => [p.nome, String(p.count), `${p.hours.toFixed(1)}h`]), totalHoras };
       }
-      case 'trocas':
-        return {
-          columns: ['Solicitante', 'Destinatário', 'Motivo', 'Status', 'Data'],
-          rows: filteredSwaps.map((s: any) => [(s.solicitante as any)?.nome || '', (s.destinatario as any)?.nome || 'Grupo', s.motivo, s.status, new Date(s.created_at).toLocaleDateString('pt-BR')]),
+      case 'trocas': {
+        const fmtData = (d?: string) => d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+        const fmtDT = (d?: string) => d ? new Date(d).toLocaleString('pt-BR') : '—';
+        const tempoResolucao = (s: any) => {
+          const fim = s.aprovado_em || s.rejeitado_em || (['concluida','cancelada'].includes(s.status) ? s.updated_at : null);
+          if (!fim) return '—';
+          const ms = new Date(fim).getTime() - new Date(s.created_at).getTime();
+          const h = Math.floor(ms / 3600000);
+          if (h < 24) return `${h}h`;
+          const d = Math.floor(h / 24);
+          return `${d}d ${h % 24}h`;
         };
+        return {
+          columns: ['Protocolo', 'Tipo', 'Solicitante', 'Destinatário', 'Unidade', 'Setor', 'Plantão (data)', 'Horário', 'Carga', 'Tipo Plantão', 'Motivo', 'Status', 'Criada em', 'Resolvida em', 'Tempo até resolução', 'Aprovador/Obs.'],
+          rows: filteredSwaps.map((s: any) => [
+            `TRO-${String(s.id).slice(0, 6).toUpperCase()}`,
+            s.tipo === 'administrativa' ? 'Administrativa' : (s.tipo === 'grupo' ? 'Grupo' : 'Direta'),
+            (s.solicitante as any)?.nome || '—',
+            (s.destinatario as any)?.nome || (s.tipo === 'grupo' ? 'Grupo aberto' : '—'),
+            (s.shift as any)?.units?.nome || '—',
+            (s.shift as any)?.sectors?.nome || '—',
+            fmtData((s.shift as any)?.data),
+            (s.shift as any)?.hora_inicio ? `${(s.shift as any).hora_inicio}-${(s.shift as any).hora_fim}` : '—',
+            (s.shift as any)?.carga_horaria ? `${(s.shift as any).carga_horaria}h` : '—',
+            (s.shift as any)?.tipo_plantao || '—',
+            s.motivo || '—',
+            s.status,
+            fmtDT(s.created_at),
+            fmtDT(s.aprovado_em || s.rejeitado_em),
+            tempoResolucao(s),
+            s.observacao_gestor || s.observacao_rejeicao || s.motivo_administrativo || '—',
+          ]),
+        };
+      }
       case 'cancelados':
         return {
           columns: ['Profissional', 'Setor', 'Data', 'Horário', 'Carga'],
