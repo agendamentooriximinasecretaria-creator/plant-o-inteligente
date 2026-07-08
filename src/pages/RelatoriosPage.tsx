@@ -346,25 +346,23 @@ export default function RelatoriosPage() {
           return `${d}d ${h % 24}h`;
         };
         return {
-          columns: ['Protocolo', 'Tipo', 'Solicitante', 'Destinatário', 'Unidade', 'Setor', 'Plantão (data)', 'Horário', 'Carga', 'Tipo Plantão', 'Motivo', 'Status', 'Criada em', 'Resolvida em', 'Tempo até resolução', 'Aprovador/Obs.'],
-          rows: filteredSwaps.map((s: any) => [
-            `TRO-${String(s.id).slice(0, 6).toUpperCase()}`,
-            s.tipo === 'administrativa' ? 'Administrativa' : (s.tipo === 'grupo' ? 'Grupo' : 'Direta'),
-            (s.solicitante as any)?.nome || '—',
-            (s.destinatario as any)?.nome || (s.tipo === 'grupo' ? 'Grupo aberto' : '—'),
-            (s.shift as any)?.units?.nome || '—',
-            (s.shift as any)?.sectors?.nome || '—',
-            fmtData((s.shift as any)?.data),
-            (s.shift as any)?.hora_inicio ? `${(s.shift as any).hora_inicio}-${(s.shift as any).hora_fim}` : '—',
-            (s.shift as any)?.carga_horaria ? `${(s.shift as any).carga_horaria}h` : '—',
-            (s.shift as any)?.tipo_plantao || '—',
-            s.motivo || '—',
-            s.status,
-            fmtDT(s.created_at),
-            fmtDT(s.aprovado_em || s.rejeitado_em),
-            tempoResolucao(s),
-            s.observacao_gestor || s.observacao_rejeicao || s.motivo_administrativo || '—',
-          ]),
+          columns: ['Protocolo', 'Tipo', 'Solicitante / Destinatário', 'Unidade / Setor', 'Plantão', 'Motivo', 'Status', 'Criação / Resolução', 'Tempo', 'Observação'],
+          rows: filteredSwaps.map((s: any) => {
+            const shift = (s.shift as any) || {};
+            const horario = shift.hora_inicio ? `${shift.hora_inicio}-${shift.hora_fim}` : '—';
+            return [
+              `TRO-${String(s.id).slice(0, 6).toUpperCase()}`,
+              s.tipo === 'administrativa' ? 'Administrativa' : (s.tipo === 'grupo' ? 'Grupo' : 'Direta'),
+              `Sol.: ${(s.solicitante as any)?.nome || '—'}\nDest.: ${(s.destinatario as any)?.nome || (s.tipo === 'grupo' ? 'Grupo aberto' : '—')}`,
+              `${shift.units?.nome || '—'}\n${shift.sectors?.nome || '—'}`,
+              `${fmtData(shift.data)}\n${horario}\n${shift.carga_horaria ? `${shift.carga_horaria}h` : '—'} · ${shift.tipo_plantao || '—'}`,
+              s.motivo || '—',
+              s.status,
+              `Criada: ${fmtDT(s.created_at)}\nResolvida: ${fmtDT(s.aprovado_em || s.rejeitado_em)}`,
+              tempoResolucao(s),
+              s.observacao_gestor || s.observacao_rejeicao || s.motivo_administrativo || '—',
+            ];
+          }),
         };
       }
       case 'cancelados':
@@ -947,7 +945,7 @@ export default function RelatoriosPage() {
   const renderChart = (reportId: string) => {
     if (reportId === 'horas_profissional' && horasChartCard.length > 0) {
       return (
-        <div className="h-64 mt-4">
+        <div className="h-64 mt-4" data-chart-block>
           <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Top 10 — Horas por Profissional</p>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={horasChartCard} layout="vertical" margin={{ left: 80 }}>
@@ -963,7 +961,7 @@ export default function RelatoriosPage() {
     }
     if ((reportId === 'setores' || reportId === 'cobertura_setor') && setorChartCard.length > 0) {
       return (
-        <div className="h-64 mt-4">
+        <div className="h-64 mt-4" data-chart-block>
           <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Plantões por Setor</p>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={setorChartCard}>
@@ -981,7 +979,7 @@ export default function RelatoriosPage() {
     if (reportId === 'trocas_por_profissional' && trocasPorProfChart.length > 0) {
       return (
         <div className="mt-4 space-y-4">
-          <div className="rounded-lg border border-border p-3">
+          <div className="rounded-lg border border-border p-3" data-chart-block>
             <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Solicitadas vs recebidas por profissional</p>
             <div style={{ height: Math.max(260, trocasPorProfChart.length * 34) }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -1007,7 +1005,7 @@ export default function RelatoriosPage() {
       return (
         <div className="mt-4 space-y-4">
           {/* KPIs */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2" data-chart-block>
             {[
               { label: 'Total', value: a.total, tone: 'text-primary' },
               { label: 'Taxa de aprovação', value: `${a.taxaAprov.toFixed(0)}%`, tone: 'text-emerald-600' },
@@ -1024,7 +1022,7 @@ export default function RelatoriosPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Status pie */}
             {a.status.length > 0 && (
-              <div className="rounded-lg border border-border p-3">
+              <div className="rounded-lg border border-border p-3" data-chart-block>
                 <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Status das trocas</p>
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%">
@@ -1041,7 +1039,7 @@ export default function RelatoriosPage() {
 
             {/* Tipos */}
             {a.tipos.length > 0 && (
-              <div className="rounded-lg border border-border p-3">
+              <div className="rounded-lg border border-border p-3" data-chart-block>
                 <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Tipos de troca</p>
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%">
@@ -1060,7 +1058,7 @@ export default function RelatoriosPage() {
 
           {/* Evolução */}
           {a.evolucao.length > 1 && (
-            <div className="rounded-lg border border-border p-3">
+            <div className="rounded-lg border border-border p-3" data-chart-block>
               <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Evolução mensal</p>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
@@ -1082,7 +1080,7 @@ export default function RelatoriosPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Top solicitantes */}
             {a.topSolicitantes.length > 0 && (
-              <div className="rounded-lg border border-border p-3">
+              <div className="rounded-lg border border-border p-3" data-chart-block>
                 <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Top solicitantes</p>
                 <div style={{ height: Math.max(224, a.topSolicitantes.length * 34) }}>
                   <ResponsiveContainer width="100%" height="100%">
@@ -1100,7 +1098,7 @@ export default function RelatoriosPage() {
 
             {/* Motivos */}
             {a.topMotivos.length > 0 && (
-              <div className="rounded-lg border border-border p-3">
+              <div className="rounded-lg border border-border p-3" data-chart-block>
                 <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Principais motivos</p>
                 <div style={{ height: Math.max(224, a.topMotivos.length * 34) }}>
                   <ResponsiveContainer width="100%" height="100%">

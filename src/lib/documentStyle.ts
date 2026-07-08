@@ -6,16 +6,20 @@ export const DOCUMENT_CSS_BASE = `
   * { box-sizing: border-box; }
   /* Margens ABNT: superior 3cm, esquerda 3cm, inferior 2cm, direita 2cm */
   @page { size: A4; margin: 30mm 20mm 20mm 30mm; }
+  @page relatorio-wide { size: A4 landscape; margin: 16mm 14mm 14mm 16mm; }
   body { font-family: 'Arial', sans-serif; color: #1a1a1a; margin: 0; padding: 0; font-size: 12pt; line-height: 1.5; text-align: justify; }
+  body.relatorio-wide { font-size: 10pt; }
   p { text-align: justify; margin: 0 0 8px; }
 
   /* Evita cortes entre páginas */
   h1, h2, h3, h4 { page-break-after: avoid; break-after: avoid; }
-  tr, img, .assinatura-block, .assinatura-item, .charts-area > *, .totais-resumo, .filtros-area {
+  img, .assinatura-block, .assinatura-item, .totais-resumo, .filtros-area {
     page-break-inside: avoid; break-inside: avoid;
   }
+  tr { page-break-inside: auto; break-inside: auto; }
   thead { display: table-header-group; }
   tfoot { display: table-footer-group; }
+  [data-pdf-section] { break-inside: auto; page-break-inside: auto; }
   
   .header-institucional { 
     display: flex; align-items: center; justify-content: space-between; gap: 10px; 
@@ -31,9 +35,15 @@ export const DOCUMENT_CSS_BASE = `
   .doc-info { display: flex; justify-content: space-between; font-size: 8.5pt; color: #333; margin-bottom: 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
 
   
-  table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 9pt; table-layout: fixed; word-wrap: break-word; overflow-wrap: anywhere; }
-  th { background: #f8fafc; color: #333; font-weight: 700; text-align: left; padding: 6px; border: 1px solid #ccc; word-wrap: break-word; overflow-wrap: anywhere; }
-  td { padding: 5px 6px; border: 1px solid #ddd; vertical-align: top; word-wrap: break-word; overflow-wrap: anywhere; white-space: normal; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 9pt; table-layout: fixed; word-wrap: break-word; overflow-wrap: anywhere; }
+  th { background: #f8fafc; color: #333; font-weight: 700; text-align: left; padding: 5px; border: 1px solid #ccc; word-wrap: break-word; overflow-wrap: anywhere; hyphens: none; }
+  td { padding: 4px 5px; border: 1px solid #ddd; vertical-align: top; word-wrap: break-word; overflow-wrap: anywhere; white-space: normal; hyphens: none; }
+  .relatorio-wide table { font-size: 6.8pt; margin-top: 10px; table-layout: fixed; }
+  .relatorio-wide th { padding: 3px 2px; line-height: 1.15; }
+  .relatorio-wide td { padding: 3px 2px; line-height: 1.18; }
+  .col-compact { text-align: center; overflow-wrap: normal; word-break: normal; }
+  .col-text { overflow-wrap: break-word; word-break: normal; }
+  .col-long { overflow-wrap: anywhere; word-break: normal; }
   
   .assinatura-block { margin-top: 60px; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; }
   .assinatura-item { text-align: center; }
@@ -44,9 +54,11 @@ export const DOCUMENT_CSS_BASE = `
   
   @media print {
     .no-print { display: none !important; }
+    body.relatorio-wide { page: relatorio-wide; }
     html, body { width: auto; }
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    img { max-width: 100% !important; max-height: 220mm !important; height: auto !important; }
+    img { max-width: 100% !important; height: auto !important; }
     table { font-size: 8.5pt; }
+    .relatorio-wide table { font-size: 6.6pt; }
   }
 `;
