@@ -1285,8 +1285,49 @@ export default function RelatoriosPage() {
     const inRng = (d: string) => d >= iniS && d <= fimS;
 
     const cur = (shifts as any[]).filter(s => inRng(s.data));
+    const swapsCur = (swaps as any[]).filter(s => inRng((s.created_at || '').slice(0, 10)));
 
-    // Absenteísmo por profissional
+    // ===== CADASTROS =====
+    const profList = professionals as any[];
+    const ativos = profList.filter(p => p.status === 'ativo').length;
+    const inativos = profList.length - ativos;
+    const porProfissaoMap: Record<string, number> = {};
+    profList.forEach(p => {
+      const k = p.profissao || 'outro';
+      porProfissaoMap[k] = (porProfissaoMap[k] || 0) + 1;
+    });
+    const porProfissao = Object.entries(porProfissaoMap)
+      .map(([k, count]) => ({ nome: PROFISSAO_LABELS[k] || k, count }))
+      .sort((a, b) => b.count - a.count);
+
+    // ===== OPERACIONAL =====
+    const porStatusMap: Record<string, number> = {};
+    cur.forEach((s: any) => { porStatusMap[s.status || '—'] = (porStatusMap[s.status || '—'] || 0) + 1; });
+    const porStatus = Object.entries(porStatusMap)
+      .map(([nome, count]) => ({ nome, count })).sort((a, b) => b.count - a.count);
+
+    const porTipoMap: Record<string, { nome: string; count: number; horas: number }> = {};
+    cur.forEach((s: any) => {
+      const nome = s.tipo_plantao || '—';
+      if (!porTipoMap[nome]) porTipoMap[nome] = { nome, count: 0, horas: 0 };
+      porTipoMap[nome].count++;
+      if (isPlantaoContabilizavel(s)) porTipoMap[nome].horas += Number(s.carga_horaria || 0);
+    });
+    const porTipoPlantao = Object.values(porTipoMap).sort((a, b) => b.horas - a.horas);
+
+    const setMap: Record<string, { nome: string; count: number; horas: number }> = {};
+    cur.forEach((s: any) => {
+      const nome = (s.sectors as any)?.nome || 'Sem setor';
+      const k = s.setor_id || 'x';
+      if (!setMap[k]) setMap[k] = { nome, count: 0, horas: 0 };
+      setMap[k].count++;
+      if (isPlantaoContabilizavel(s)) setMap[k].horas += Number(s.carga_horaria || 0);
+    });
+    const coberturaSetor = Object.values(setMap).sort((a, b) => b.horas - a.horas);
+
+    const horasContabilizadas = cur.filter(isPlantaoContabilizavel).reduce((a, s) => a + Number(s.carga_horaria || 0), 0);
+
+    // ===== QUALIDADE =====
     const absMap: Record<string, { nome: string; total: number; faltas: number }> = {};
     cur.forEach((s: any) => {
       const nome = (s.professionals as any)?.nome || 'Desconhecido';
@@ -1299,18 +1340,89 @@ export default function RelatoriosPage() {
       .map(p => ({ nome: p.nome, taxa: (p.faltas / p.total) * 100, faltas: p.faltas, total: p.total }))
       .sort((a, b) => b.taxa - a.taxa);
 
-    // Cobertura por setor
-    const setMap: Record<string, { nome: string; count: number; horas: number }> = {};
+    const atrMap: Record<string, { nome: string; qtd: number; minutos: number }> = {};
     cur.forEach((s: any) => {
-      const nome = (s.sectors as any)?.nome || 'Sem setor';
-      const k = s.setor_id || 'x';
-      if (!setMap[k]) setMap[k] = { nome, count: 0, horas: 0 };
-      setMap[k].count++;
-      if (isPlantaoContabilizavel(s)) setMap[k].horas += Number(s.carga_horaria || 0);
+      if (!s.atraso_minutos || Number(s.atraso_minutos) <= 0) return;
+      const nome = (s.professionals as any)?.nome || 'Desconhecido';
+      if (!atrMap[s.profissional_id]) atrMap[s.profissional_id] = { nome, qtd: 0, minutos: 0 };
+      atrMap[s.profissional_id].qtd++;
+      atrMap[s.profissional_id].minutos += Number(s.atraso_minutos);
     });
-    const coberturaSetor = Object.values(setMap).sort((a, b) => b.horas - a.horas);
+    const atrasos = Object.values(atrMap)
+      .map(p => ({ ...p, media: p.qtd ? p.minutos / p.qtd : 0 }))
+      .sort((a, b) => b.minutos - a.minutos);
 
-    // Carga semanal — picos >60h
+    const contab = cur.filter(isPlantaoContabilizavel);
+    const comCheckin = contab.filter((s: any) => s.checkin_em).length;
+    const comCheckout = contab.filter((s: any) => s.checkout_em).length;
+    const compliance = {
+      totalPlantoes: contab.length,
+      comCheckin,
+      comCheckout,
+      pctCheckin: contab.length ? (comCheckin / contab.length) * 100 : 0,
+      pctCheckout: contab.length ? (comCheckout / contab.length) * 100 : 0,
+    };
+
+    const cancMap: Record<string, { nome: string; count: number }> = {};
+    cur.filter((s: any) => s.status === 'cancelado').forEach((s: any) => {
+      const nome = (s.professionals as any)?.nome || 'Desconhecido';
+      if (!cancMap[s.profissional_id]) cancMap[s.profissional_id] = { nome, count: 0 };
+      cancMap[s.profissional_id].count++;
+    });
+    const cancelamentosPorProf = Object.values(cancMap).sort((a, b) => b.count - a.count);
+
+    // ===== TROCAS =====
+    const aprov = swapsCur.filter(s => ['aprovada', 'concluida'].includes(s.status)).length;
+    const rej = swapsCur.filter(s => ['rejeitada', 'recusada'].includes(s.status)).length;
+    const canc = swapsCur.filter(s => s.status === 'cancelada').length;
+    const pend = swapsCur.filter(s => ['solicitada', 'aguardando_resposta', 'aguardando_aprovacao', 'aceita'].includes(s.status)).length;
+    const admins = swapsCur.filter(s => s.tipo === 'administrativa').length;
+    const grupo = swapsCur.filter(s => s.tipo === 'grupo').length;
+    const direta = swapsCur.length - admins - grupo;
+    const resolvidas = swapsCur.filter(s => s.aprovado_em || s.rejeitado_em);
+    const somaH = resolvidas.reduce((a, s) => a + Math.max(0, (new Date(s.aprovado_em || s.rejeitado_em).getTime() - new Date(s.created_at).getTime()) / 3600000), 0);
+    const tempoMedioH = resolvidas.length ? somaH / resolvidas.length : 0;
+
+    const solMap: Record<string, { nome: string; count: number }> = {};
+    swapsCur.forEach(s => {
+      const id = s.solicitante_id;
+      const nome = (s.solicitante as any)?.nome || '—';
+      if (!id) return;
+      if (!solMap[id]) solMap[id] = { nome, count: 0 };
+      solMap[id].count++;
+    });
+    const topSolicitantes = Object.values(solMap).sort((a, b) => b.count - a.count);
+
+    const motMap: Record<string, number> = {};
+    swapsCur.forEach(s => {
+      const raw = ((s.motivo || 'Não informado') as string).trim().slice(0, 48);
+      motMap[raw] = (motMap[raw] || 0) + 1;
+    });
+    const topMotivos = Object.entries(motMap).map(([nome, count]) => ({ nome, count })).sort((a, b) => b.count - a.count);
+
+    const trocasData = {
+      total: swapsCur.length,
+      aprovadas: aprov,
+      rejeitadas: rej,
+      canceladas: canc,
+      pendentes: pend,
+      taxaAprov: swapsCur.length ? (aprov / swapsCur.length) * 100 : 0,
+      tempoMedioH,
+      porTipo: { direta, grupo, administrativa: admins },
+      topSolicitantes,
+      topMotivos,
+    };
+
+    // ===== ANALÍTICO =====
+    const horasMap: Record<string, { nome: string; horas: number; plantoes: number }> = {};
+    cur.forEach((s: any) => {
+      const nome = (s.professionals as any)?.nome || 'Desconhecido';
+      if (!horasMap[s.profissional_id]) horasMap[s.profissional_id] = { nome, horas: 0, plantoes: 0 };
+      horasMap[s.profissional_id].plantoes++;
+      if (isPlantaoContabilizavel(s)) horasMap[s.profissional_id].horas += Number(s.carga_horaria || 0);
+    });
+    const rankingHoras = Object.values(horasMap).sort((a, b) => b.horas - a.horas);
+
     const cargaMap: Record<string, { nome: string; semanas: Record<string, number> }> = {};
     cur.forEach((s: any) => {
       if (!isPlantaoContabilizavel(s)) return;
@@ -1322,24 +1434,14 @@ export default function RelatoriosPage() {
       if (!cargaMap[s.profissional_id]) cargaMap[s.profissional_id] = { nome, semanas: {} };
       cargaMap[s.profissional_id].semanas[wKey] = (cargaMap[s.profissional_id].semanas[wKey] || 0) + Number(s.carga_horaria || 0);
     });
-    const cargaPicoAlerta = Object.values(cargaMap)
-      .map(p => ({ nome: p.nome, picoH: Math.max(0, ...Object.values(p.semanas)) }))
-      .filter(p => p.picoH > 60)
-      .sort((a, b) => b.picoH - a.picoH);
-
-    // Trocas resumo (mesmo dashPeriodo)
-    const swapsCur = (swaps as any[]).filter(s => inRng((s.created_at || '').slice(0, 10)));
-    const aprov = swapsCur.filter(s => ['aprovada', 'concluida'].includes(s.status)).length;
-    const pend = swapsCur.filter(s => ['solicitada', 'aguardando_resposta', 'aguardando_aprovacao', 'aceita'].includes(s.status)).length;
-    const resolvidas = swapsCur.filter(s => s.aprovado_em || s.rejeitado_em);
-    const somaH = resolvidas.reduce((a, s) => a + Math.max(0, (new Date(s.aprovado_em || s.rejeitado_em).getTime() - new Date(s.created_at).getTime()) / 3600000), 0);
-    const tempoMedioH = resolvidas.length ? somaH / resolvidas.length : 0;
-    const trocasResumo = {
-      total: swapsCur.length,
-      taxaAprov: swapsCur.length ? (aprov / swapsCur.length) * 100 : 0,
-      pendentes: pend,
-      tempoMedioH,
-    };
+    const cargaSemanal = Object.values(cargaMap).map(p => {
+      const vals = Object.values(p.semanas);
+      const media = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+      const pico = vals.length ? Math.max(...vals) : 0;
+      const alerta = pico > 60 ? '⚠️ Excedeu 60h' : (media > 44 ? '⚠️ Acima CLT' : 'OK');
+      return { nome: p.nome, semanas: vals.length, media, pico, alerta };
+    }).sort((a, b) => b.pico - a.pico);
+    const cargaPicoAlerta = cargaSemanal.filter(p => p.pico > 60).map(p => ({ nome: p.nome, picoH: p.pico }));
 
     const kpisPrincipais = [
       { label: 'Horas realizadas', valor: `${kpiData.horasCur.toFixed(0)}h`, variacao: kpiData.varHoras },
@@ -1365,39 +1467,45 @@ export default function RelatoriosPage() {
       cancelados: kpiData.canceladosCur,
     };
 
-    // Ranking de horas por profissional
-    const horasMap: Record<string, { nome: string; horas: number; plantoes: number }> = {};
-    cur.forEach((s: any) => {
-      const nome = (s.professionals as any)?.nome || 'Desconhecido';
-      if (!horasMap[s.profissional_id]) horasMap[s.profissional_id] = { nome, horas: 0, plantoes: 0 };
-      horasMap[s.profissional_id].plantoes++;
-      if (isPlantaoContabilizavel(s)) horasMap[s.profissional_id].horas += Number(s.carga_horaria || 0);
-    });
-    const rankingHoras = Object.values(horasMap).sort((a, b) => b.horas - a.horas);
-
-    // Cancelamentos por profissional
-    const cancMap: Record<string, { nome: string; qtd: number }> = {};
-    cur.filter((s: any) => s.status === 'cancelado').forEach((s: any) => {
-      const nome = (s.professionals as any)?.nome || 'Desconhecido';
-      if (!cancMap[s.profissional_id]) cancMap[s.profissional_id] = { nome, qtd: 0 };
-      cancMap[s.profissional_id].qtd++;
-    });
-    const cancelamentos = Object.values(cancMap).sort((a, b) => b.qtd - a.qtd);
-
     const periodoLabel = `${iso(ini).split('-').reverse().join('/')} — ${iso(fim).split('-').reverse().join('/')}`;
 
     const base = {
       periodo: { label: periodoLabel, ini: iniS, fim: fimS },
       kpisPrincipais,
-      evolucaoMensal: kpiData.evol,
-      topSetores: kpiData.topSetores,
-      absenteismoTop,
-      coberturaSetor,
-      cargaPicoAlerta,
-      rankingHoras,
-      cancelamentos,
-      trocasResumo,
       totais,
+      cadastros: {
+        totalProfissionais: profList.length,
+        ativos,
+        inativos,
+        porProfissao,
+        totalUnidades: (units as any[]).length,
+        totalSetores: (sectors as any[]).length,
+      },
+      operacional: {
+        totalPlantoes: cur.length,
+        horasContabilizadas,
+        porStatus,
+        porTipoPlantao,
+        coberturaSetor,
+        topSetores: kpiData.topSetores,
+      },
+      qualidade: {
+        taxaAbsenteismo: kpiData.taxaAbs,
+        faltas: kpiData.faltasCur,
+        taxaCancelamento: kpiData.taxaCanc,
+        cancelados: kpiData.canceladosCur,
+        absenteismoTop,
+        atrasos,
+        compliance,
+        cancelamentosPorProf,
+      },
+      trocas: trocasData,
+      analitico: {
+        rankingHoras,
+        cargaSemanal,
+        cargaPicoAlerta,
+        evolucaoMensal: kpiData.evol,
+      },
     };
     return { ...base, parecer: gerarParecer(base) };
   };
