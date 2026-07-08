@@ -131,11 +131,11 @@ export function buildRelatorioHtml(
   
   .filtros-area { background: #f8fafc; padding: 10px 15px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 10pt; color: #475569; margin-bottom: 14px; }
   .totais-resumo { margin: 16px 0; font-size: 11pt; font-weight: bold; color: #0e7490; border-top: 2px solid #eee; padding-top: 10px; }
-  .charts-area { margin: 12px 0 16px; }
-  .charts-area h3 { font-size: 11pt; color: #0e7490; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .5px; }
-  .charts-area figure { margin: 0 0 10px; page-break-inside: avoid; break-inside: avoid; text-align: center; }
-  .charts-area img { display: block; max-width: 100%; max-height: 170mm; width: auto; height: auto; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px; background: #fff; object-fit: contain; }
-  .relatorio-wide .charts-area img { max-height: 145mm; }
+  .charts-area { margin: 8px 0 12px; }
+  .charts-area h3 { font-size: 11pt; color: #0e7490; margin: 0 0 6px; text-transform: uppercase; letter-spacing: .5px; }
+  .charts-area figure { margin: 0 0 8px; page-break-inside: auto; break-inside: auto; text-align: center; }
+  .charts-area img { display: block; max-width: 100%; max-height: 110mm; width: auto; height: auto; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 6px; padding: 4px; background: #fff; object-fit: contain; page-break-inside: avoid; break-inside: avoid; }
+  .relatorio-wide .charts-area img { max-height: 95mm; }
   
   table { table-layout: fixed; width: 100%; }
   table th { text-transform: uppercase; font-size: 8.5pt; background: #e2e8f0; word-wrap: break-word; overflow-wrap: anywhere; }
