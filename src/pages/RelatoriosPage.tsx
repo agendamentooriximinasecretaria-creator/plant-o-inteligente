@@ -693,18 +693,79 @@ export default function RelatoriosPage() {
     return Object.values(bySetor);
   }, [shifts]);
 
-  const trocasChartCard = useMemo(() => {
-    const total = (swaps as any[]).length;
-    const aprovadas = (swaps as any[]).filter((s: any) => s.status === 'aprovada' || s.status === 'concluida').length;
-    const rejeitadas = (swaps as any[]).filter((s: any) => s.status === 'rejeitada' || s.status === 'recusada').length;
-    const pendentes = (swaps as any[]).filter((s: any) => ['solicitada', 'aguardando_resposta', 'aguardando_aprovacao', 'aceita'].includes(s.status)).length;
-    return [
+  // ===== Analytics ricos para relatórios de Trocas =====
+  const trocasAnalytics = useMemo(() => {
+    const src = filteredSwaps as any[];
+    const total = src.length;
+    const aprovadas = src.filter(s => ['aprovada', 'concluida'].includes(s.status)).length;
+    const rejeitadas = src.filter(s => ['rejeitada', 'recusada'].includes(s.status)).length;
+    const canceladas = src.filter(s => s.status === 'cancelada').length;
+    const pendentes = src.filter(s => ['solicitada', 'aguardando_resposta', 'aguardando_aprovacao', 'aceita'].includes(s.status)).length;
+    const administrativas = src.filter(s => s.tipo === 'administrativa').length;
+    const grupo = src.filter(s => s.tipo === 'grupo').length;
+    const diretas = src.filter(s => !s.tipo || s.tipo === 'direto' || s.tipo === 'direta').length;
+
+    const status = [
       { name: 'Aprovadas', value: aprovadas },
-      { name: 'Rejeitadas', value: rejeitadas },
       { name: 'Pendentes', value: pendentes },
-      { name: 'Canceladas', value: total - aprovadas - rejeitadas - pendentes },
+      { name: 'Rejeitadas', value: rejeitadas },
+      { name: 'Canceladas', value: canceladas },
     ].filter(d => d.value > 0);
-  }, [swaps]);
+
+    const tipos = [
+      { name: 'Direta', value: diretas },
+      { name: 'Grupo', value: grupo },
+      { name: 'Administrativa', value: administrativas },
+    ].filter(d => d.value > 0);
+
+    // Evolução mensal
+    const byMonth: Record<string, { mes: string; solicitadas: number; aprovadas: number; rejeitadas: number }> = {};
+    src.forEach(s => {
+      const m = (s.created_at || '').slice(0, 7);
+      if (!m) return;
+      if (!byMonth[m]) byMonth[m] = { mes: m, solicitadas: 0, aprovadas: 0, rejeitadas: 0 };
+      byMonth[m].solicitadas++;
+      if (['aprovada', 'concluida'].includes(s.status)) byMonth[m].aprovadas++;
+      if (['rejeitada', 'recusada'].includes(s.status)) byMonth[m].rejeitadas++;
+    });
+    const evolucao = Object.values(byMonth).sort((a, b) => a.mes.localeCompare(b.mes));
+
+    // Top solicitantes
+    const bySol: Record<string, { nome: string; count: number }> = {};
+    src.forEach(s => {
+      const id = s.solicitante_id;
+      const nome = (s.solicitante as any)?.nome || '—';
+      if (!id) return;
+      if (!bySol[id]) bySol[id] = { nome, count: 0 };
+      bySol[id].count++;
+    });
+    const topSolicitantes = Object.values(bySol).sort((a, b) => b.count - a.count).slice(0, 8);
+
+    // Top motivos (agrupa por primeiras palavras)
+    const byMotivo: Record<string, number> = {};
+    src.forEach(s => {
+      const raw = (s.motivo || 'Não informado').trim().slice(0, 40);
+      byMotivo[raw] = (byMotivo[raw] || 0) + 1;
+    });
+    const topMotivos = Object.entries(byMotivo)
+      .map(([nome, count]) => ({ nome, count }))
+      .sort((a, b) => b.count - a.count).slice(0, 6);
+
+    // Tempo médio de resolução (em horas), considerando só as resolvidas
+    const resolvidas = src.filter(s => s.aprovado_em || s.rejeitado_em);
+    const somaH = resolvidas.reduce((acc, s) => {
+      const fim = new Date(s.aprovado_em || s.rejeitado_em).getTime();
+      const ini = new Date(s.created_at).getTime();
+      return acc + Math.max(0, (fim - ini) / 3600000);
+    }, 0);
+    const tempoMedioH = resolvidas.length ? somaH / resolvidas.length : 0;
+
+    const taxaAprov = total ? (aprovadas / total) * 100 : 0;
+
+    return { total, aprovadas, rejeitadas, canceladas, pendentes, administrativas, grupo, diretas, status, tipos, evolucao, topSolicitantes, topMotivos, tempoMedioH, taxaAprov };
+  }, [filteredSwaps]);
+
+  const trocasChartCard = trocasAnalytics.status;
 
   const renderChart = (reportId: string) => {
     if (reportId === 'horas_profissional' && horasChartCard.length > 0) {
