@@ -871,6 +871,36 @@ export default function RelatoriosPage() {
 
   const trocasChartCard = trocasAnalytics.status;
 
+  // Dados agregados para "Trocas por Profissional" (solicitadas vs recebidas vs aprovadas)
+  const trocasPorProfChart = useMemo(() => {
+    const shortName = (full: string) => {
+      const parts = (full || '—').trim().split(/\s+/);
+      const nome = parts.length <= 2 ? full : `${parts[0]} ${parts[parts.length - 1]}`;
+      return nome.length > 22 ? nome.slice(0, 20) + '…' : nome;
+    };
+    const byProf: Record<string, { nome: string; solicitadas: number; recebidas: number; aprovadas: number }> = {};
+    const nomeById: Record<string, string> = {};
+    (professionals as any[]).forEach((p: any) => { nomeById[p.id] = p.nome; });
+    (filteredSwaps as any[]).forEach((s: any) => {
+      if (s.solicitante_id) {
+        const raw = (s.solicitante as any)?.nome || nomeById[s.solicitante_id] || '—';
+        const nome = shortName(raw);
+        if (!byProf[s.solicitante_id]) byProf[s.solicitante_id] = { nome, solicitadas: 0, recebidas: 0, aprovadas: 0 };
+        byProf[s.solicitante_id].solicitadas++;
+        if (['aprovada', 'concluida'].includes(s.status)) byProf[s.solicitante_id].aprovadas++;
+      }
+      if (s.destinatario_id) {
+        const raw = (s.destinatario as any)?.nome || nomeById[s.destinatario_id] || '—';
+        const nome = shortName(raw);
+        if (!byProf[s.destinatario_id]) byProf[s.destinatario_id] = { nome, solicitadas: 0, recebidas: 0, aprovadas: 0 };
+        byProf[s.destinatario_id].recebidas++;
+      }
+    });
+    return Object.values(byProf)
+      .sort((a, b) => (b.solicitadas + b.recebidas) - (a.solicitadas + a.recebidas))
+      .slice(0, 12);
+  }, [filteredSwaps, professionals]);
+
   const renderChart = (reportId: string) => {
     if (reportId === 'horas_profissional' && horasChartCard.length > 0) {
       return (
@@ -902,6 +932,29 @@ export default function RelatoriosPage() {
               <Legend />
             </BarChart>
           </ResponsiveContainer>
+        </div>
+      );
+    }
+    if (reportId === 'trocas_por_profissional' && trocasPorProfChart.length > 0) {
+      return (
+        <div className="mt-4 space-y-4">
+          <div className="rounded-lg border border-border p-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Solicitadas vs recebidas por profissional</p>
+            <div style={{ height: Math.max(260, trocasPorProfChart.length * 34) }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={trocasPorProfChart} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                  <YAxis type="category" dataKey="nome" tick={{ fontSize: 10 }} width={160} interval={0} />
+                  <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="solicitadas" name="Solicitadas" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} barSize={12} />
+                  <Bar dataKey="recebidas" name="Recebidas" fill="hsl(var(--chart-2))" radius={[0, 4, 4, 0]} barSize={12} />
+                  <Bar dataKey="aprovadas" name="Aprovadas" fill="hsl(var(--chart-3))" radius={[0, 4, 4, 0]} barSize={12} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
       );
     }
