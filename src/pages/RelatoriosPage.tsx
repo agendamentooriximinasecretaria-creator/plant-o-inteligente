@@ -871,6 +871,36 @@ export default function RelatoriosPage() {
 
   const trocasChartCard = trocasAnalytics.status;
 
+  // Dados agregados para "Trocas por Profissional" (solicitadas vs recebidas vs aprovadas)
+  const trocasPorProfChart = useMemo(() => {
+    const shortName = (full: string) => {
+      const parts = (full || '—').trim().split(/\s+/);
+      const nome = parts.length <= 2 ? full : `${parts[0]} ${parts[parts.length - 1]}`;
+      return nome.length > 22 ? nome.slice(0, 20) + '…' : nome;
+    };
+    const byProf: Record<string, { nome: string; solicitadas: number; recebidas: number; aprovadas: number }> = {};
+    const nomeById: Record<string, string> = {};
+    (professionals as any[]).forEach((p: any) => { nomeById[p.id] = p.nome; });
+    (filteredSwaps as any[]).forEach((s: any) => {
+      if (s.solicitante_id) {
+        const raw = (s.solicitante as any)?.nome || nomeById[s.solicitante_id] || '—';
+        const nome = shortName(raw);
+        if (!byProf[s.solicitante_id]) byProf[s.solicitante_id] = { nome, solicitadas: 0, recebidas: 0, aprovadas: 0 };
+        byProf[s.solicitante_id].solicitadas++;
+        if (['aprovada', 'concluida'].includes(s.status)) byProf[s.solicitante_id].aprovadas++;
+      }
+      if (s.destinatario_id) {
+        const raw = (s.destinatario as any)?.nome || nomeById[s.destinatario_id] || '—';
+        const nome = shortName(raw);
+        if (!byProf[s.destinatario_id]) byProf[s.destinatario_id] = { nome, solicitadas: 0, recebidas: 0, aprovadas: 0 };
+        byProf[s.destinatario_id].recebidas++;
+      }
+    });
+    return Object.values(byProf)
+      .sort((a, b) => (b.solicitadas + b.recebidas) - (a.solicitadas + a.recebidas))
+      .slice(0, 12);
+  }, [filteredSwaps, professionals]);
+
   const renderChart = (reportId: string) => {
     if (reportId === 'horas_profissional' && horasChartCard.length > 0) {
       return (
