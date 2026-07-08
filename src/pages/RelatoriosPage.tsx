@@ -1442,7 +1442,7 @@ export default function RelatoriosPage() {
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">Setor</label>
-                  <select value={filtros.setorId} onChange={e => setFiltros(f => ({ ...f, setorId: e.target.value }))} className={inputClass} disabled={!filtros.unidadeId && setoresFiltrados.length > 30}>
+                  <select value={filtros.setorId} onChange={e => setFiltros(f => ({ ...f, setorId: e.target.value }))} className={inputClass}>
                     <option value="">Todos</option>
                     {setoresFiltrados.map((s: any) => <option key={s.id} value={s.id}>{s.nome}</option>)}
                   </select>
