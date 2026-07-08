@@ -736,10 +736,6 @@ export default function RelatoriosPage() {
       await logAudit(`Relatório exportado: ${modalReport.nome} (${formato.toUpperCase()})`, 'relatorios', { reportId: modalReport.id, formato, total: preview.rows.length });
     } catch (e: any) {
       toast.error('Erro na exportação: ' + e.message);
-      toast.success(`${modalReport.nome} exportado em ${formato.toUpperCase()}`);
-      await logAudit(`Relatório exportado: ${modalReport.nome} (${formato.toUpperCase()})`, 'relatorios', { reportId: modalReport.id, formato, total: preview.rows.length });
-    } catch (e: any) {
-      toast.error('Erro na exportação: ' + e.message);
     } finally {
       setExporting('');
     }
