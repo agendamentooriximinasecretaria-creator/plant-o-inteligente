@@ -2938,17 +2938,17 @@ export default function EscalaPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (saveMutation.isPending || conflictWarnings.length > 0 || restWarnings.length > 0 || form.profissional_ids.length === 0 || form.setor_ids.length === 0) return;
+                    if (saveMutation.isPending || conflictWarnings.length > 0 || (!isMaster && restWarnings.length > 0) || form.profissional_ids.length === 0 || form.setor_ids.length === 0) return;
                     keepOpenAfterSaveRef.current = true;
                     saveMutation.mutate(form);
                   }}
-                  disabled={saveMutation.isPending || conflictWarnings.length > 0 || restWarnings.length > 0 || form.profissional_ids.length === 0 || form.setor_ids.length === 0}
+                  disabled={saveMutation.isPending || conflictWarnings.length > 0 || (!isMaster && restWarnings.length > 0) || form.profissional_ids.length === 0 || form.setor_ids.length === 0}
                   className="px-6 py-2.5 rounded-xl border border-primary/40 text-sm font-medium text-primary hover:bg-primary/10 disabled:opacity-50 transition-colors"
                 >
                   Salvar e adicionar outro
                 </button>
               )}
-              <button type="submit" disabled={saveMutation.isPending || conflictWarnings.length > 0 || restWarnings.length > 0 || form.profissional_ids.length === 0 || form.setor_ids.length === 0} className="px-8 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 disabled:opacity-50 shadow-md shadow-primary/20 transition-all">
+              <button type="submit" disabled={saveMutation.isPending || conflictWarnings.length > 0 || (!isMaster && restWarnings.length > 0) || form.profissional_ids.length === 0 || form.setor_ids.length === 0} className="px-8 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 disabled:opacity-50 shadow-md shadow-primary/20 transition-all">
                 {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : editingId ? 'Salvar Alteração' : 'Confirmar Lançamento em Massa'}
               </button>
             </div>
