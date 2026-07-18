@@ -2915,8 +2915,8 @@ export default function EscalaPage() {
             {restWarnings.length > 0 && (
               <div className="space-y-1">
                 {restWarnings.map((w, i) => (
-                  <div key={i} className="flex items-start gap-2 p-2 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive font-medium">
-                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" /> <span>{w}</span>
+                  <div key={i} className={`flex items-start gap-2 p-2 rounded-lg text-sm font-medium ${isMaster ? 'bg-warning/10 border border-warning/30 text-warning' : 'bg-destructive/10 border border-destructive/30 text-destructive'}`}>
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" /> <span>{w}{isMaster ? ' — Gestor Master pode salvar mesmo assim.' : ''}</span>
                   </div>
                 ))}
               </div>
