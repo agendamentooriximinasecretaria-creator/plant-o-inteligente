@@ -751,16 +751,16 @@ export default function EscalaPage() {
       }
 
       if (restRes.error) out.push(`${nome}: falha ao revalidar descanso (${restRes.error.message}).`);
-      else if (restRes.data && restRes.data.length > 0) {
+      else if (restRes.data && restRes.data.length > 0 && !isMaster) {
         const gap = Number((restRes.data[0] as any).gap_horas).toFixed(1);
         out.push(`${nome}: descanso de ${gap}h (mínimo ${descansoMinimo}h).`);
       }
 
       const horasDia = (doDiaRes.data || []).reduce((s: number, r: any) => s + Number(r.carga_horaria || 0), 0) + novaCarga;
-      if (horasDia > limiteDia) out.push(`${nome}: excede limite diário (${horasDia.toFixed(1)}h > ${limiteDia}h).`);
+      if (horasDia > limiteDia && !isMaster) out.push(`${nome}: excede limite diário (${horasDia.toFixed(1)}h > ${limiteDia}h).`);
 
       const horasSem = (doSemRes.data || []).reduce((s: number, r: any) => s + Number(r.carga_horaria || 0), 0) + novaCarga;
-      if (horasSem > limiteSemana) out.push(`${nome}: excede limite semanal (${horasSem.toFixed(1)}h > ${limiteSemana}h).`);
+      if (horasSem > limiteSemana && !isMaster) out.push(`${nome}: excede limite semanal (${horasSem.toFixed(1)}h > ${limiteSemana}h).`);
 
       return out;
     };
