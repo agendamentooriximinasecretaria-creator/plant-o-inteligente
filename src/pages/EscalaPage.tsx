@@ -751,16 +751,16 @@ export default function EscalaPage() {
       }
 
       if (restRes.error) out.push(`${nome}: falha ao revalidar descanso (${restRes.error.message}).`);
-      else if (restRes.data && restRes.data.length > 0) {
+      else if (restRes.data && restRes.data.length > 0 && !isMaster) {
         const gap = Number((restRes.data[0] as any).gap_horas).toFixed(1);
         out.push(`${nome}: descanso de ${gap}h (mínimo ${descansoMinimo}h).`);
       }
 
       const horasDia = (doDiaRes.data || []).reduce((s: number, r: any) => s + Number(r.carga_horaria || 0), 0) + novaCarga;
-      if (horasDia > limiteDia) out.push(`${nome}: excede limite diário (${horasDia.toFixed(1)}h > ${limiteDia}h).`);
+      if (horasDia > limiteDia && !isMaster) out.push(`${nome}: excede limite diário (${horasDia.toFixed(1)}h > ${limiteDia}h).`);
 
       const horasSem = (doSemRes.data || []).reduce((s: number, r: any) => s + Number(r.carga_horaria || 0), 0) + novaCarga;
-      if (horasSem > limiteSemana) out.push(`${nome}: excede limite semanal (${horasSem.toFixed(1)}h > ${limiteSemana}h).`);
+      if (horasSem > limiteSemana && !isMaster) out.push(`${nome}: excede limite semanal (${horasSem.toFixed(1)}h > ${limiteSemana}h).`);
 
       return out;
     };
@@ -2915,8 +2915,8 @@ export default function EscalaPage() {
             {restWarnings.length > 0 && (
               <div className="space-y-1">
                 {restWarnings.map((w, i) => (
-                  <div key={i} className="flex items-start gap-2 p-2 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive font-medium">
-                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" /> <span>{w}</span>
+                  <div key={i} className={`flex items-start gap-2 p-2 rounded-lg text-sm font-medium ${isMaster ? 'bg-warning/10 border border-warning/30 text-warning' : 'bg-destructive/10 border border-destructive/30 text-destructive'}`}>
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" /> <span>{w}{isMaster ? ' — Gestor Master pode salvar mesmo assim.' : ''}</span>
                   </div>
                 ))}
               </div>
@@ -2938,17 +2938,17 @@ export default function EscalaPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (saveMutation.isPending || conflictWarnings.length > 0 || restWarnings.length > 0 || form.profissional_ids.length === 0 || form.setor_ids.length === 0) return;
+                    if (saveMutation.isPending || conflictWarnings.length > 0 || (!isMaster && restWarnings.length > 0) || form.profissional_ids.length === 0 || form.setor_ids.length === 0) return;
                     keepOpenAfterSaveRef.current = true;
                     saveMutation.mutate(form);
                   }}
-                  disabled={saveMutation.isPending || conflictWarnings.length > 0 || restWarnings.length > 0 || form.profissional_ids.length === 0 || form.setor_ids.length === 0}
+                  disabled={saveMutation.isPending || conflictWarnings.length > 0 || (!isMaster && restWarnings.length > 0) || form.profissional_ids.length === 0 || form.setor_ids.length === 0}
                   className="px-6 py-2.5 rounded-xl border border-primary/40 text-sm font-medium text-primary hover:bg-primary/10 disabled:opacity-50 transition-colors"
                 >
                   Salvar e adicionar outro
                 </button>
               )}
-              <button type="submit" disabled={saveMutation.isPending || conflictWarnings.length > 0 || restWarnings.length > 0 || form.profissional_ids.length === 0 || form.setor_ids.length === 0} className="px-8 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 disabled:opacity-50 shadow-md shadow-primary/20 transition-all">
+              <button type="submit" disabled={saveMutation.isPending || conflictWarnings.length > 0 || (!isMaster && restWarnings.length > 0) || form.profissional_ids.length === 0 || form.setor_ids.length === 0} className="px-8 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 disabled:opacity-50 shadow-md shadow-primary/20 transition-all">
                 {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : editingId ? 'Salvar Alteração' : 'Confirmar Lançamento em Massa'}
               </button>
             </div>
