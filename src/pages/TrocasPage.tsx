@@ -337,6 +337,47 @@ export default function TrocasPage() {
     const { data: troca, error: fetchErr } = await supabase.from('shift_swaps').select('*').eq('id', trocaId).single();
     if (fetchErr || !troca) throw new Error('Troca não encontrada');
 
+    // Buscar detalhes dos plantões envolvidos para validar conflito antes de reatribuir
+    const shiftIds = [troca.shift_id, troca.shift_id_destino].filter(Boolean) as string[];
+    const { data: shiftsInvolved, error: sErr } = await supabase
+      .from('shifts')
+      .select('id, data, hora_inicio, hora_fim, profissional_id, tipo_plantao')
+      .in('id', shiftIds);
+    if (sErr) throw new Error(`Erro ao carregar plantões: ${sErr.message}`);
+    const byId: Record<string, any> = Object.fromEntries((shiftsInvolved || []).map((s: any) => [s.id, s]));
+
+    // Nomes para mensagem
+    const { data: profs } = await supabase.from('professionals_safe').select('id, nome')
+      .in('id', [troca.solicitante_id, troca.destinatario_id]);
+    const nameOf = (id: string) => (profs || []).find((p: any) => p.id === id)?.nome || 'profissional';
+
+    // Validar conflito: destinatário assumindo shift_id / solicitante assumindo shift_id_destino
+    const assignments: { shiftId: string; newOwner: string }[] = troca.shift_id_destino
+      ? [
+          { shiftId: troca.shift_id, newOwner: troca.destinatario_id },
+          { shiftId: troca.shift_id_destino, newOwner: troca.solicitante_id },
+        ]
+      : [{ shiftId: troca.shift_id, newOwner: troca.destinatario_id }];
+
+    for (const a of assignments) {
+      const sh = byId[a.shiftId];
+      if (!sh) throw new Error('Plantão da troca não encontrado (pode ter sido excluído). Cancele e refaça.');
+      const { data: conflicts, error: cErr } = await (supabase as any).rpc('check_shift_conflict', {
+        p_profissional_id: a.newOwner,
+        p_data: sh.data,
+        p_hora_inicio: sh.hora_inicio,
+        p_hora_fim: sh.hora_fim,
+        p_exclude_id: a.shiftId,
+      });
+      if (cErr) throw new Error(`Erro ao validar conflito: ${cErr.message}`);
+      if (conflicts && conflicts.length > 0) {
+        const c = conflicts[0];
+        throw new Error(
+          `Conflito de horário: ${nameOf(a.newOwner)} já possui plantão em ${new Date(`${sh.data}T12:00:00`).toLocaleDateString('pt-BR')} das ${String(c.conflicting_start).slice(0,5)} às ${String(c.conflicting_end).slice(0,5)}. Aprovação bloqueada — ajuste a escala antes.`,
+        );
+      }
+    }
+
     if (troca.shift_id_destino) {
       const [updateA, updateB] = await Promise.all([
         supabase.from('shifts').update({ profissional_id: troca.destinatario_id, updated_at: new Date().toISOString() }).eq('id', troca.shift_id),
@@ -363,6 +404,7 @@ export default function TrocasPage() {
       solicitante_id: troca.solicitante_id, destinatario_id: troca.destinatario_id,
     });
   };
+
 
   const updateSwap = useMutation({
     mutationFn: async ({ id, status, motivo }: { id: string; status: string; motivo?: string }) => {
