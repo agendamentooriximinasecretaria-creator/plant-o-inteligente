@@ -1562,8 +1562,6 @@ export default function RelatoriosPage() {
     const trocasEvolucaoMensal = Object.entries(trocaEvolMap).sort((a, b) => a[0].localeCompare(b[0])).map(([mes, v]) => ({ mes, ...v }));
 
     type TrocaProfAgg = { nome: string; profissao: string; unidade: string; setor: string; solicitadas: number; recebidas: number; aprovadas: number; rejeitadas: number; canceladas: number; pendentes: number; administrativas: number; horas: number };
-    const profMap: Record<string, any> = {};
-    profList.forEach((p: any) => { profMap[p.id] = p; });
     const trocaProfMap: Record<string, TrocaProfAgg> = {};
     const upsertTrocaProf = (profId: string, setor: string, unidade: string, nome: string, profissao: string) => {
       const k = `${profId}||${setor}`;
