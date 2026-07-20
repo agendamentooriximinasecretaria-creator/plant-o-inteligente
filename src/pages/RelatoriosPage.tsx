@@ -1532,6 +1532,8 @@ export default function RelatoriosPage() {
     const topMotivos = Object.entries(motMap).map(([nome, count]) => ({ nome, count })).sort((a, b) => b.count - a.count);
 
     // Trocas por setor / unidade / profissão / evolução mensal
+    const profMap: Record<string, any> = {};
+    profList.forEach((p: any) => { profMap[p.id] = p; });
     const trocaSetorMap: Record<string, number> = {};
     const trocaUnidMap: Record<string, number> = {};
     const trocaProfissaoMap: Record<string, number> = {};
