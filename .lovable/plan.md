@@ -1,26 +1,44 @@
-Plano para corrigir a impressão e exportação PDF dos relatórios:
+# SSO como cliente do HSM Gestão (Plantão Inteligente)
 
-1. Corrigir a causa principal do PDF enviado
-- O PDF mostra duas origens de bagunça: os gráficos são capturados como um bloco gigante e viram páginas mal distribuídas, e tabelas largas como “Relatório de Trocas” são forçadas em A4 retrato, deixando colunas estreitas demais e texto quebrado letra por letra.
-- A primeira página também fica quase vazia porque o bloco de gráficos é empurrado inteiro para a página seguinte por regra de quebra.
+## Arquitetura atual (análise)
 
-2. Ajustar impressão HTML dos relatórios
-- Separar cabeçalho, filtros, cada gráfico, tabela, totais, assinatura e rodapé em seções próprias de impressão.
-- Remover `break-inside: avoid` de blocos grandes que não cabem na página e manter essa regra apenas em elementos pequenos.
-- Fazer os gráficos imprimirem em tamanho controlado, um por seção quando necessário, sem empurrar conteúdo para páginas vazias.
-- Para tabelas com muitas colunas, mudar automaticamente para A4 paisagem e reduzir fonte/altura de célula só nesses relatórios largos.
+- Autenticação: e-mail/senha via backend gerenciado (Auth). O formulário em `LoginPage` chama `signIn` → `signInWithPassword`.
+- Sessão: criada e persistida pelo cliente de auth; `AuthProvider` (`src/hooks/useAuth.tsx`) escuta `onAuthStateChange`, carrega `profiles` (role, profissional_id, ativo) e faz logout automático se não houver perfil ativo.
+- Autorização: guardas de rota em `App.tsx` (`ManagerOnly`, `MasterOnly`, `ProfessionalOnly`) + RLS no banco (`has_role`, `is_manager`).
+- Auditoria: tabela `audit_logs` (modulo, acao, user_id, usuario_nome, status, detalhes).
+- Backend: Edge Functions (ex.: `user-admin`) com privilégio de serviço apenas no servidor.
 
-3. Ajustar exportação PDF direta
-- Detectar quantidade de colunas antes de criar o PDF.
-- Usar paisagem para tabelas largas e retrato para relatórios simples.
-- Definir larguras proporcionais por tipo de coluna no relatório de trocas: protocolo/tipo/datas/status estreitos; nomes, setor, unidade, motivo e observação com mais espaço.
-- Trocar a quebra agressiva por ajuste profissional: fonte menor em tabelas largas, `overflow: linebreak`, margem ABNT compatível e sem texto letra por letra.
-- Adicionar título, emissão e gráficos com paginação previsível, sem deixar páginas iniciais vazias.
+Ponto de integração: o SSO só precisa produzir uma sessão de auth idêntica à do login por senha. Tudo depois (perfil, guardas, RLS, cálculos) permanece inalterado. Nada do login atual é tocado.
 
-4. Corrigir especificamente o Relatório de Trocas
-- Reduzir e reorganizar as colunas impressas/exportadas para caberem com legibilidade: manter todos os dados importantes, mas com cabeçalhos curtos e larguras próprias.
-- Preservar informações como protocolo, tipo, solicitante, destinatário, unidade, setor, plantão, horário, carga, motivo, status, criação/resolução, tempo e observação.
+## Fases
 
-5. Validar com o PDF enviado como referência
-- Gerar/inspecionar novamente a saída visual após a correção.
-- Conferir se não há páginas vazias indevidas, texto cortado, colunas quebrando letra por letra, gráficos cortados ou tabelas desalinhadas.
+### Fase 1 — Base de dados e configuração
+- Tabela `sso_providers`: issuer, audience, `jwks_url` (ou chave pública), algoritmos permitidos, `auto_provision` (bool), `default_role`, ativo. Permite outros sistemas no futuro sem reescrever nada.
+- Tabela `sso_replay_guard`: `jti`, `nonce`, issuer, `expires_at` (único por issuer+jti) para bloquear replay.
+- RLS: leitura/escrita apenas para Gestor Master; Edge Functions usam papel de serviço. GRANTs explícitos.
+
+### Fase 2 — Endpoint `/auth/sso` (Edge Function `auth-sso`)
+- Recebe o JWT do HSM (POST body ou query em redirect).
+- Valida: assinatura (JWKS com cache e rotação de chaves), `alg` na allowlist (rejeita `none`/HS quando o provedor é RS/ES), `exp`/`iat`/`nbf` com tolerância curta, `iss`, `aud`, `nonce` e `jti` (consumo único).
+- Localiza usuário pelo e-mail. Se existe → cria sessão. Se não existe → bloqueia, salvo `auto_provision` habilitado pelo administrador (nunca por padrão).
+- Emissão da sessão: gera um link/token de sessão pelo servidor (admin API) e devolve ao cliente para estabelecer exatamente a mesma sessão do login convencional.
+- Erros: mensagem genérica ao cliente + motivo detalhado só na auditoria; redireciona para `/login`.
+
+### Fase 3 — Rota de front `/auth/sso`
+- Página dedicada (fora das rotas protegidas) que envia o token ao endpoint, estabelece a sessão e redireciona para `/dashboard` (ou `next` validado como caminho relativo interno). Sem exibir a tela de login novamente.
+- Token nunca gravado em LocalStorage; fica em memória e é consumido imediatamente.
+
+### Fase 4 — Logout federado e `/auth/refresh`
+- `auth-sso-logout`: encerra a sessão, limpa estado/cookies e registra auditoria.
+- `auth-refresh`: endpoint criado com contrato e validações mínimas, retornando "não habilitado" — arquitetura pronta, lógica futura.
+
+### Fase 5 — Auditoria e verificação
+- Todo evento SSO em `audit_logs` (modulo `sso`): usuário, data, IP, origem (`hsm_gestao`), sucesso/falha, motivo, `correlation_id`. Somente hash/prefixo do `jti` — nunca o token.
+- Verificação: login por senha continua funcionando; token inválido/expirado/replay é rejeitado com auditoria; token válido cai direto no dashboard.
+
+## Detalhes técnicos
+
+- HTTPS é garantido pela plataforma; o endpoint recusa chamadas não-HTTPS.
+- Sem Service Role no front-end: toda validação e emissão de sessão ocorre na Edge Function.
+- Nenhuma alteração em `useAuth`, guardas de rota, RLS, escalas ou permissões — apenas adições.
+- Configuração de provedores e `auto_provision` exposta em Configurações (Gestor Master) numa etapa seguinte, se desejado.
