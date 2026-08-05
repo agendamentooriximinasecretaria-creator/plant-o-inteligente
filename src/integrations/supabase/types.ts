@@ -1380,6 +1380,110 @@ export type Database = {
           },
         ]
       }
+      sso_providers: {
+        Row: {
+          allowed_algs: string[]
+          allowed_email_domains: string[]
+          ativo: boolean
+          audience: string
+          auto_provision: boolean
+          clock_skew_seconds: number
+          created_at: string
+          default_role: Database["public"]["Enums"]["app_role"]
+          id: string
+          issuer: string
+          jwks_url: string | null
+          logout_url: string | null
+          max_token_age_seconds: number
+          nome: string
+          public_key: string | null
+          require_jti: boolean
+          require_nonce: boolean
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          allowed_algs?: string[]
+          allowed_email_domains?: string[]
+          ativo?: boolean
+          audience: string
+          auto_provision?: boolean
+          clock_skew_seconds?: number
+          created_at?: string
+          default_role?: Database["public"]["Enums"]["app_role"]
+          id?: string
+          issuer: string
+          jwks_url?: string | null
+          logout_url?: string | null
+          max_token_age_seconds?: number
+          nome: string
+          public_key?: string | null
+          require_jti?: boolean
+          require_nonce?: boolean
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          allowed_algs?: string[]
+          allowed_email_domains?: string[]
+          ativo?: boolean
+          audience?: string
+          auto_provision?: boolean
+          clock_skew_seconds?: number
+          created_at?: string
+          default_role?: Database["public"]["Enums"]["app_role"]
+          id?: string
+          issuer?: string
+          jwks_url?: string | null
+          logout_url?: string | null
+          max_token_age_seconds?: number
+          nome?: string
+          public_key?: string | null
+          require_jti?: boolean
+          require_nonce?: boolean
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sso_replay_guard: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          issuer: string
+          jti: string
+          nonce: string | null
+          provider_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          issuer: string
+          jti: string
+          nonce?: string | null
+          provider_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          issuer?: string
+          jti?: string
+          nonce?: string | null
+          provider_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sso_replay_guard_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "sso_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       swap_attachments: {
         Row: {
           analisado_em: string | null

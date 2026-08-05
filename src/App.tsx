@@ -35,6 +35,7 @@ const ValidarDocumentoPage = lazy(() => import("@/pages/ValidarDocumentoPage"));
 const DocumentosOficiaisPage = lazy(() => import("@/pages/DocumentosOficiaisPage"));
 const MigrationSupabasePage = lazy(() => import("@/pages/MigrationSupabasePage"));
 const MonitoramentoSistemaPage = lazy(() => import("@/pages/MonitoramentoSistemaPage"));
+const SsoCallbackPage = lazy(() => import("@/pages/SsoCallbackPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -119,6 +120,7 @@ const App = () => (
               <Routes>
                 <Route path="/login" element={<LoginRoute />} />
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
+                <Route path="/auth/sso" element={<SsoCallbackPage />} />
                 <Route path="/validar/:codigo" element={<ValidarAssinaturaPage />} />
                 <Route path="/validar-documento" element={<ValidarDocumentoPage />} />
                 <Route path="/validar-documento/:codigo" element={<ValidarDocumentoPage />} />
