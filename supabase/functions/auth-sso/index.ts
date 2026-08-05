@@ -1,6 +1,5 @@
 // Endpoint SSO — recebe um JWT emitido por um provedor autorizado (ex.: HSM Gestão),
 // valida integralmente o token e devolve um token de sessão de uso único.
-// O login convencional NÃO é afetado por este endpoint.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import {
   createRemoteJWKSet,
@@ -28,7 +27,6 @@ const jwksCache = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
 function getJwks(url: string) {
   let set = jwksCache.get(url);
   if (!set) {
-    // Cache + rotação de chaves suportadas nativamente pelo jose.
     set = createRemoteJWKSet(new URL(url), {
       cacheMaxAge: 10 * 60 * 1000,
       cooldownDuration: 30 * 1000,
@@ -75,7 +73,6 @@ Deno.serve(async (req) => {
   };
 
   try {
-    // HTTPS obrigatório na borda pública (a chamada interna do gateway usa http).
     const forwardedProto = req.headers.get("x-forwarded-proto");
     const url = new URL(req.url);
     const isSecure =
@@ -99,7 +96,6 @@ Deno.serve(async (req) => {
 
     const admin = serviceClient();
 
-    // Provedor: por slug informado ou pelo issuer do token.
     let header: { alg?: string; kid?: string };
     let unverifiedIssuer: string | undefined;
     try {
@@ -124,12 +120,10 @@ Deno.serve(async (req) => {
     const provider = providerRow as Provider | null;
     if (!provider) return await fail(401, "provedor_desconhecido_ou_inativo");
 
-    // Algoritmo: allowlist explícita (nunca "none", nunca algoritmo escolhido pelo cliente).
     const algs = (provider.allowed_algs ?? []).filter((a) => a && a.toLowerCase() !== "none");
     if (algs.length === 0) return await fail(500, "provedor_sem_algoritmos");
     if (!header.alg || !algs.includes(header.alg)) return await fail(401, "algoritmo_nao_permitido");
 
-    // Chave de verificação: HS256 (Secret Simétrico com Fallback), JWKS remoto ou Chave Pública (RS256)
     let keyOrJwks: Parameters<typeof jwtVerify>[1];
     if (header.alg === "HS256") {
       const secretStr = 
@@ -165,7 +159,6 @@ Deno.serve(async (req) => {
       return await fail(401, `verificacao_falhou:${code}`);
     }
 
-    // Expiração curta: idade máxima do token.
     const nowSec = Math.floor(Date.now() / 1000);
     if (typeof payload.iat === "number" && nowSec - payload.iat > provider.max_token_age_seconds) {
       return await fail(401, "token_muito_antigo");
@@ -178,12 +171,10 @@ Deno.serve(async (req) => {
     const nonce = typeof payload.nonce === "string" ? payload.nonce : null;
     if (provider.require_jti && !jti) return await fail(401, "jti_ausente");
     if (provider.require_nonce && !nonce) return await fail(401, "nonce_ausente");
-    // Se o cliente enviou o nonce esperado, ele deve casar com o do token.
     if (body.nonce && nonce && body.nonce !== nonce) return await fail(401, "nonce_divergente");
 
     const jtiHash = await digestPrefix(jti);
 
-    // Proteção contra replay: jti de uso único por issuer.
     if (jti) {
       const expiresAt = new Date(
         ((typeof payload.exp === "number" ? payload.exp : nowSec + provider.max_token_age_seconds) +
@@ -199,20 +190,19 @@ Deno.serve(async (req) => {
       if (replayError) {
         return await fail(401, "replay_detectado", { jti_hash: jtiHash });
       }
-      // Limpeza oportunista de registros expirados.
       void admin.from("sso_replay_guard").delete().lt("expires_at", new Date().toISOString());
     }
 
     const email = String(payload.email ?? "").trim().toLowerCase();
     if (!email || !email.includes("@")) return await fail(401, "email_ausente_no_token");
     if (
+      provider.allowed_email_domains &&
       provider.allowed_email_domains.length > 0 &&
       !provider.allowed_email_domains.some((d) => email.endsWith(`@${d.toLowerCase()}`))
     ) {
       return await fail(403, "dominio_email_nao_autorizado");
     }
 
-    // Localizar usuário pelo e-mail (fonte de verdade: profiles).
     const { data: profile, error: profileError } = await admin
       .from("profiles")
       .select("user_id, nome, ativo, role")
@@ -245,12 +235,12 @@ Deno.serve(async (req) => {
         user_id: userId,
         nome,
         email,
-        role: provider.default_role,
+        role: provider.default_role || "profissional",
         ativo: true,
       });
       if (insertProfileError) return await fail(500, "falha_criacao_perfil");
 
-      await admin.from("user_roles").insert({ user_id: userId, role: provider.default_role });
+      await admin.from("user_roles").insert({ user_id: userId, role: provider.default_role || "profissional" });
 
       void auditSso({
         acao: "sso_usuario_provisionado",
@@ -264,14 +254,29 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Sessão: mesmo mecanismo do login convencional. Geramos um token de uso único
-    // que o cliente troca por sessão; nenhum token de acesso é devolvido aqui.
-    const { data: link, error: linkError } = await admin.auth.admin.generateLink({
-      type: "magiclink",
-      email,
-    });
-    if (linkError || !link?.properties?.hashed_token) {
-      return await fail(500, "falha_geracao_sessao");
+    // Geração segura da sessão sem depender do SMTP/Mailer do Supabase
+    let hashedToken = "";
+    try {
+      const { data: link, error: linkError } = await admin.auth.admin.generateLink({
+        type: "magiclink",
+        email,
+        options: { redirectTo: "https://plantao-inteligente.vercel.app/dashboard" }
+      });
+      
+      if (linkError || !link?.properties?.hashed_token) {
+        throw new Error(linkError?.message || "falha_hashed_token");
+      }
+      hashedToken = link.properties.hashed_token;
+    } catch (e) {
+      // Fallback: se o generateLink falhar por SMTP, geramos um token de recuperação via Admin API
+      const { data: recovery, error: recError } = await admin.auth.admin.generateLink({
+        type: "recovery",
+        email,
+      });
+      if (recError || !recovery?.properties?.hashed_token) {
+        return await fail(500, "falha_geracao_sessao_detalhe", { error: String(e) });
+      }
+      hashedToken = recovery.properties.hashed_token;
     }
 
     await auditSso({
@@ -290,10 +295,10 @@ Deno.serve(async (req) => {
       correlation_id: correlationId,
       provider: provider.slug,
       email,
-      session_token: link.properties.hashed_token,
+      session_token: hashedToken,
       token_type: "magiclink",
     });
-  } catch (_e) {
-    return await fail(500, "erro_inesperado");
+  } catch (err: any) {
+    return await fail(500, "erro_inesperado", { mensagem: err?.message || String(err) });
   }
 });
