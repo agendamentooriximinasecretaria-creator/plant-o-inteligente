@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
     let query = admin.from("sso_providers").select("*").eq("ativo", true).limit(1);
     query = body.provider ? query.eq("slug", body.provider) : query.eq("issuer", unverifiedIssuer ?? "");
     const { data: providerRow, error: providerError } = await query.maybeSingle();
-    if (providerError) return await fail(500, "falha_consulta_provedor");
+    if (providerError) return await fail(500, "falha_consulta_provedor", { erro: providerError.message });
     const provider = providerRow as Provider | null;
     if (!provider) return await fail(401, "provedor_desconhecido_ou_inativo");
 
@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
       payload = verified.payload;
     } catch (e) {
       const code = (e as { code?: string }).code ?? "assinatura_ou_claims_invalidos";
-      return await fail(401, `verificacao_falhou:${code}`);
+      return await fail(401, `verificacao_falhou:${code}`, { detalhe: String(e) });
     }
 
     const nowSec = Math.floor(Date.now() / 1000);
@@ -188,7 +188,7 @@ Deno.serve(async (req) => {
         expires_at: expiresAt,
       });
       if (replayError) {
-        return await fail(401, "replay_detectado", { jti_hash: jtiHash });
+        return await fail(401, "replay_detectado", { jti_hash: jtiHash, erro: replayError.message });
       }
       void admin.from("sso_replay_guard").delete().lt("expires_at", new Date().toISOString());
     }
@@ -208,7 +208,8 @@ Deno.serve(async (req) => {
       .select("user_id, nome, ativo, role")
       .ilike("email", email)
       .maybeSingle();
-    if (profileError) return await fail(500, "falha_consulta_perfil");
+
+    if (profileError) return await fail(500, "falha_consulta_perfil", { erro: profileError.message });
 
     let userId = profile?.user_id as string | undefined;
     let userName = (profile?.nome as string | undefined) ?? email;
@@ -227,7 +228,9 @@ Deno.serve(async (req) => {
         email_confirm: true,
         user_metadata: { nome, sso_provider: provider.slug },
       });
-      if (createError || !created?.user) return await fail(500, "falha_criacao_usuario");
+      if (createError || !created?.user) {
+        return await fail(500, "falha_criacao_usuario", { erro: createError?.message });
+      }
       userId = created.user.id;
       userName = nome;
 
@@ -238,7 +241,9 @@ Deno.serve(async (req) => {
         role: provider.default_role || "profissional",
         ativo: true,
       });
-      if (insertProfileError) return await fail(500, "falha_criacao_perfil");
+      if (insertProfileError) {
+        return await fail(500, "falha_criacao_perfil", { erro: insertProfileError.message });
+      }
 
       await admin.from("user_roles").insert({ user_id: userId, role: provider.default_role || "profissional" });
 
@@ -254,29 +259,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Geração segura da sessão sem depender do SMTP/Mailer do Supabase
-    let hashedToken = "";
-    try {
-      const { data: link, error: linkError } = await admin.auth.admin.generateLink({
-        type: "magiclink",
-        email,
-        options: { redirectTo: "https://plantao-inteligente.vercel.app/dashboard" }
-      });
-      
-      if (linkError || !link?.properties?.hashed_token) {
-        throw new Error(linkError?.message || "falha_hashed_token");
-      }
-      hashedToken = link.properties.hashed_token;
-    } catch (e) {
-      // Fallback: se o generateLink falhar por SMTP, geramos um token de recuperação via Admin API
-      const { data: recovery, error: recError } = await admin.auth.admin.generateLink({
-        type: "recovery",
-        email,
-      });
-      if (recError || !recovery?.properties?.hashed_token) {
-        return await fail(500, "falha_geracao_sessao_detalhe", { error: String(e) });
-      }
-      hashedToken = recovery.properties.hashed_token;
+    // Garante a confirmação do e-mail no Auth do Supabase para impedir travamento no link de acesso
+    await admin.auth.admin.updateUserById(userId, { email_confirm: true });
+
+    // Geração da sessão sem depender do Mailer
+    const { data: link, error: linkError } = await admin.auth.admin.generateLink({
+      type: "magiclink",
+      email,
+    });
+
+    if (linkError || !link?.properties?.hashed_token) {
+      return await fail(500, "falha_geracao_sessao", { erro: linkError?.message });
     }
 
     await auditSso({
@@ -295,7 +288,7 @@ Deno.serve(async (req) => {
       correlation_id: correlationId,
       provider: provider.slug,
       email,
-      session_token: hashedToken,
+      session_token: link.properties.hashed_token,
       token_type: "magiclink",
     });
   } catch (err: any) {
