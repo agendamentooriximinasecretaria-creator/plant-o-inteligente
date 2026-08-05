@@ -10,6 +10,7 @@ import DocumentTemplatesManager from "@/components/document-templates/DocumentTe
 import SwapAttachmentSettingsManager from "@/components/SwapAttachmentSettingsManager";
 import CarimbosAssinaturasManager from "@/components/CarimbosAssinaturasManager";
 import { AdnSettingsManager } from "@/components/AdnSettingsManager";
+import { SsoProvidersManager } from "@/components/SsoProvidersManager";
 
 // Strip credentials/secrets before logging settings to audit trail.
 function sanitizeSettingForAudit(key: string, value: any): any {
@@ -195,6 +196,11 @@ export default function ConfiguracoesPage() {
         {/* Adicional Noturno (ADN) */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.048 }} className={sectionClass}>
           <AdnSettingsManager />
+        </motion.div>
+
+        {/* Login Federado (SSO) */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.049 }} className={sectionClass}>
+          <SsoProvidersManager />
         </motion.div>
 
 
