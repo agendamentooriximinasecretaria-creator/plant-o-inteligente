@@ -45,6 +45,7 @@ export interface AuditInput {
   detalhes?: Record<string, unknown>;
 }
 
+/** Registra um evento de SSO em audit_logs (status aceito: 'sucesso' | 'erro'). */
 export async function auditSso(input: AuditInput) {
   try {
     const admin = serviceClient();
