@@ -75,9 +75,15 @@ Deno.serve(async (req) => {
   };
 
   try {
-    // HTTPS obrigatório (a plataforma serve em HTTPS; recusamos qualquer outro esquema).
+    // HTTPS obrigatório na borda pública (a chamada interna do gateway usa http).
+    const forwardedProto = req.headers.get("x-forwarded-proto");
     const url = new URL(req.url);
-    if (url.protocol !== "https:") return await fail(400, "conexao_nao_segura");
+    const isSecure =
+      url.protocol === "https:" ||
+      forwardedProto === "https" ||
+      url.hostname === "localhost" ||
+      url.hostname === "127.0.0.1";
+    if (!isSecure) return await fail(400, "conexao_nao_segura");
 
     if (req.method !== "POST") return await fail(405, "metodo_nao_permitido");
 
