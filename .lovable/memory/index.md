@@ -1,0 +1,1 @@
+- [SSO federado HSM](mem://funcionalidades/sso-federado-hsm) — Login federado adicional via JWT/OIDC, endpoint auth-sso, anti-replay e auditoria; login tradicional intocado
