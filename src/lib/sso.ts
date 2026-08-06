@@ -6,6 +6,8 @@ const ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 export interface SsoExchangeResult {
   ok: boolean;
   error?: string;
+  detail?: string;
+  stage?: "edge" | "session";
   correlationId?: string;
   provider?: string;
 }
@@ -36,9 +38,16 @@ export async function exchangeSsoToken(
     const payload = await response.json().catch(() => null);
 
     if (!response.ok || !payload?.ok || !payload?.session_token) {
+      const detail =
+        payload?.detalhes?.detalhe ??
+        payload?.detalhe ??
+        (payload ? JSON.stringify(payload) : `HTTP ${response.status}`);
+      console.error("[sso] auth-sso falhou", { status: response.status, payload });
       return {
         ok: false,
+        stage: "edge",
         error: payload?.error ?? "Não foi possível concluir a autenticação SSO.",
+        detail: typeof detail === "string" ? detail : JSON.stringify(detail),
         correlationId: payload?.correlation_id,
       };
     }
@@ -49,16 +58,25 @@ export async function exchangeSsoToken(
     });
 
     if (error) {
+      console.error("[sso] verifyOtp falhou", error);
       return {
         ok: false,
+        stage: "session",
         error: "Não foi possível estabelecer a sessão.",
+        detail: `${error.name ?? "AuthError"}: ${error.message}`,
         correlationId: payload.correlation_id,
       };
     }
 
     return { ok: true, correlationId: payload.correlation_id, provider: payload.provider };
-  } catch {
-    return { ok: false, error: "Serviço de SSO indisponível." };
+  } catch (e) {
+    console.error("[sso] erro de rede", e);
+    return {
+      ok: false,
+      stage: "edge",
+      error: "Serviço de SSO indisponível.",
+      detail: e instanceof Error ? e.message : String(e),
+    };
   }
 }
 

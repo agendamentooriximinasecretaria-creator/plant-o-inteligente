@@ -13,6 +13,7 @@ export default function SsoCallbackPage() {
   const navigate = useNavigate();
   const { isReady, user, isProfessional } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [detail, setDetail] = useState<string | null>(null);
   const [correlationId, setCorrelationId] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const started = useRef(false);
@@ -40,6 +41,7 @@ export default function SsoCallbackPage() {
       const result = await exchangeSsoToken(token, { provider, nonce });
       if (!result.ok) {
         setError(result.error ?? "Falha na autenticação SSO.");
+        setDetail(result.detail ?? null);
         setCorrelationId(result.correlationId ?? null);
         return;
       }
@@ -64,6 +66,11 @@ export default function SsoCallbackPage() {
               Não foi possível entrar via SSO
             </h1>
             <p className="text-sm text-muted-foreground">{error}</p>
+            {detail && (
+              <pre className="text-xs font-mono text-left whitespace-pre-wrap break-all bg-muted text-muted-foreground rounded-lg p-3 max-h-48 overflow-auto">
+                {detail}
+              </pre>
+            )}
             {correlationId && (
               <p className="text-xs font-mono text-muted-foreground">Ref: {correlationId}</p>
             )}
