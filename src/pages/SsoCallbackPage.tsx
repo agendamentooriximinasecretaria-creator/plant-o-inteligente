@@ -66,6 +66,11 @@ export default function SsoCallbackPage() {
               Não foi possível entrar via SSO
             </h1>
             <p className="text-sm text-muted-foreground">{error}</p>
+            {detail && (
+              <pre className="text-xs font-mono text-left whitespace-pre-wrap break-all bg-muted text-muted-foreground rounded-lg p-3 max-h-48 overflow-auto">
+                {detail}
+              </pre>
+            )}
             {correlationId && (
               <p className="text-xs font-mono text-muted-foreground">Ref: {correlationId}</p>
             )}
