@@ -6,6 +6,8 @@ const ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 export interface SsoExchangeResult {
   ok: boolean;
   error?: string;
+  detail?: string;
+  stage?: "edge" | "session";
   correlationId?: string;
   provider?: string;
 }
