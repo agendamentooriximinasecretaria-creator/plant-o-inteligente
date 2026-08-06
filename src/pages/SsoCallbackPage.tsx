@@ -13,6 +13,7 @@ export default function SsoCallbackPage() {
   const navigate = useNavigate();
   const { isReady, user, isProfessional } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [detail, setDetail] = useState<string | null>(null);
   const [correlationId, setCorrelationId] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const started = useRef(false);
