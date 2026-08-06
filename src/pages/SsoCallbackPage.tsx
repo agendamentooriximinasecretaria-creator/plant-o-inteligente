@@ -41,6 +41,7 @@ export default function SsoCallbackPage() {
       const result = await exchangeSsoToken(token, { provider, nonce });
       if (!result.ok) {
         setError(result.error ?? "Falha na autenticação SSO.");
+        setDetail(result.detail ?? null);
         setCorrelationId(result.correlationId ?? null);
         return;
       }
