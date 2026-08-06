@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
 
   const fail = async (status: number, motivo: string, extra?: Record<string, unknown>) => {
     await registrarAudit("sso_login_falha", "erro", motivo, extra);
-    return json({ ok: false, correlation_id: correlationId, error: motivo }, status);
+    return json({ ok: false, correlation_id: correlationId, error: motivo, detalhes: extra ?? null }, status);
   };
 
   try {
