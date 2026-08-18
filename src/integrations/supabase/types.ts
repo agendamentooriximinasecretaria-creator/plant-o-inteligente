@@ -1235,6 +1235,7 @@ export type Database = {
           hora_fim: string
           hora_inicio: string
           id: string
+          intervalos: Json
           nome: string
           ordem: number
           sigla: string
@@ -1249,6 +1250,7 @@ export type Database = {
           hora_fim: string
           hora_inicio: string
           id?: string
+          intervalos?: Json
           nome: string
           ordem?: number
           sigla: string
@@ -1263,6 +1265,7 @@ export type Database = {
           hora_fim?: string
           hora_inicio?: string
           id?: string
+          intervalos?: Json
           nome?: string
           ordem?: number
           sigla?: string

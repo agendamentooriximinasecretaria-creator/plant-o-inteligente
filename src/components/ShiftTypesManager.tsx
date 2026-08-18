@@ -7,6 +7,11 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
+export interface ShiftInterval {
+  inicio: string;
+  fim: string;
+}
+
 export interface ShiftType {
   id: string;
   nome: string;
@@ -18,6 +23,15 @@ export interface ShiftType {
   ordem: number;
   ativo: boolean;
   gera_adicional_noturno: boolean;
+  intervalos?: ShiftInterval[] | null;
+}
+
+/** Faixas normalizadas de um tipo (fallback para hora_inicio/hora_fim em tipos antigos). */
+export function getIntervalos(t: Partial<ShiftType>): ShiftInterval[] {
+  const arr = Array.isArray(t.intervalos) ? t.intervalos.filter(i => i?.inicio && i?.fim) : [];
+  if (arr.length > 0) return arr.map(i => ({ inicio: i.inicio.slice(0, 5), fim: i.fim.slice(0, 5) }));
+  if (t.hora_inicio && t.hora_fim) return [{ inicio: t.hora_inicio.slice(0, 5), fim: t.hora_fim.slice(0, 5) }];
+  return [];
 }
 
 const COR_OPTIONS = [
@@ -46,9 +60,40 @@ const calcCarga = (ini: string, fim: string): number => {
   return Math.round((mins / 60) * 10) / 10;
 };
 
+const sumCarga = (ints: ShiftInterval[]) =>
+  Math.round(ints.reduce((acc, i) => acc + calcCarga(i.inicio, i.fim), 0) * 10) / 10;
+
+const toMin = (h: string) => {
+  const [a, b] = h.split(':').map(Number);
+  return (a || 0) * 60 + (b || 0);
+};
+
+/** Retorna mensagem de erro se as faixas forem inválidas ou sobrepostas. */
+const validarIntervalos = (ints: ShiftInterval[]): string | null => {
+  if (ints.length === 0) return 'Informe ao menos uma faixa de horário.';
+  for (const i of ints) {
+    if (!i.inicio || !i.fim) return 'Preencha início e fim de todas as faixas.';
+    if (calcCarga(i.inicio, i.fim) === 0) return 'Faixa de horário inválida (início igual ao fim).';
+  }
+  const ranges = ints.map(i => {
+    const s = toMin(i.inicio);
+    let e = toMin(i.fim);
+    if (e <= s) e += 24 * 60;
+    return { s, e };
+  });
+  for (let a = 0; a < ranges.length; a++) {
+    for (let b = a + 1; b < ranges.length; b++) {
+      const overlap = Math.min(ranges[a].e, ranges[b].e) - Math.max(ranges[a].s, ranges[b].s);
+      if (overlap > 0) return 'As faixas de horário não podem se sobrepor.';
+    }
+  }
+  return null;
+};
+
 const empty: Omit<ShiftType, 'id'> = {
   nome: '', sigla: '', hora_inicio: '07:00', hora_fim: '19:00',
   carga_horaria: 12, cor: 'primary', ordem: 0, ativo: true, gera_adicional_noturno: false,
+  intervalos: [{ inicio: '07:00', fim: '19:00' }],
 };
 
 export function ShiftTypesManager() {
@@ -70,8 +115,17 @@ export function ShiftTypesManager() {
 
   const saveMut = useMutation({
     mutationFn: async (payload: Omit<ShiftType, 'id'>) => {
-      const cargaCalc = calcCarga(payload.hora_inicio, payload.hora_fim);
-      const data = { ...payload, carga_horaria: payload.carga_horaria || cargaCalc };
+      const ints = (payload.intervalos || []).filter(i => i.inicio && i.fim);
+      const erro = validarIntervalos(ints);
+      if (erro) throw new Error(erro);
+      const cargaCalc = sumCarga(ints);
+      const data = {
+        ...payload,
+        intervalos: ints,
+        hora_inicio: ints[0].inicio,
+        hora_fim: ints[ints.length - 1].fim,
+        carga_horaria: payload.carga_horaria || cargaCalc,
+      };
       if (editingId) {
         const { error } = await sb.from('shift_types').update(data).eq('id', editingId);
         if (error) throw error;
@@ -117,6 +171,7 @@ export function ShiftTypesManager() {
       hora_fim: t.hora_fim.slice(0, 5), carga_horaria: t.carga_horaria,
       cor: t.cor, ordem: t.ordem, ativo: t.ativo,
       gera_adicional_noturno: t.gera_adicional_noturno ?? false,
+      intervalos: getIntervalos(t),
     });
     setModalOpen(true);
   };
@@ -162,7 +217,9 @@ export function ShiftTypesManager() {
                   <td className="py-2 px-2"><span className={`inline-block h-3 w-3 rounded-full ${colorDot(t.cor)}`} /></td>
                   <td className="py-2 px-2 font-medium text-foreground">{t.nome}</td>
                   <td className="py-2 px-2"><span className="font-mono text-xs px-1.5 py-0.5 rounded bg-muted">{t.sigla}</span></td>
-                  <td className="py-2 px-2 font-mono text-xs text-muted-foreground">{t.hora_inicio.slice(0,5)}–{t.hora_fim.slice(0,5)}</td>
+                  <td className="py-2 px-2 font-mono text-xs text-muted-foreground">
+                    {getIntervalos(t).map(i => `${i.inicio}–${i.fim}`).join(' + ')}
+                  </td>
                   <td className="py-2 px-2 text-muted-foreground">{t.carga_horaria}h</td>
                   <td className="py-2 px-2">
                     <span className={`status-badge text-[10px] ${t.ativo ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}>
@@ -205,17 +262,56 @@ export function ShiftTypesManager() {
                   {COR_OPTIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="text-sm font-medium text-foreground">Hora início *</label>
-                <input required type="time" value={form.hora_inicio}
-                  onChange={e => { const v = e.target.value; setForm(f => ({ ...f, hora_inicio: v, carga_horaria: calcCarga(v, f.hora_fim) })); }}
-                  className={inputClass} />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-foreground">Hora fim *</label>
-                <input required type="time" value={form.hora_fim}
-                  onChange={e => { const v = e.target.value; setForm(f => ({ ...f, hora_fim: v, carga_horaria: calcCarga(f.hora_inicio, v) })); }}
-                  className={inputClass} />
+              <div className="col-span-2 space-y-2">
+                <label className="text-sm font-medium text-foreground">Horários *</label>
+                {(form.intervalos || []).map((iv, idx) => (
+                  <div key={idx} className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <span className="text-[11px] text-muted-foreground">Início</span>
+                      <input required type="time" value={iv.inicio}
+                        onChange={e => {
+                          const v = e.target.value;
+                          setForm(f => {
+                            const ints = (f.intervalos || []).map((x, i) => i === idx ? { ...x, inicio: v } : x);
+                            return { ...f, intervalos: ints, carga_horaria: sumCarga(ints) };
+                          });
+                        }}
+                        className={inputClass} />
+                    </div>
+                    <div className="flex-1">
+                      <span className="text-[11px] text-muted-foreground">Fim</span>
+                      <input required type="time" value={iv.fim}
+                        onChange={e => {
+                          const v = e.target.value;
+                          setForm(f => {
+                            const ints = (f.intervalos || []).map((x, i) => i === idx ? { ...x, fim: v } : x);
+                            return { ...f, intervalos: ints, carga_horaria: sumCarga(ints) };
+                          });
+                        }}
+                        className={inputClass} />
+                    </div>
+                    <button type="button" title="Remover faixa"
+                      disabled={(form.intervalos || []).length <= 1}
+                      onClick={() => setForm(f => {
+                        const ints = (f.intervalos || []).filter((_, i) => i !== idx);
+                        return { ...f, intervalos: ints, carga_horaria: sumCarga(ints) };
+                      })}
+                      className="p-2 rounded-lg border border-border text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+                <button type="button"
+                  onClick={() => setForm(f => {
+                    const ints = [...(f.intervalos || []), { inicio: '14:00', fim: '18:00' }];
+                    return { ...f, intervalos: ints, carga_horaria: sumCarga(ints) };
+                  })}
+                  className="flex items-center gap-1.5 text-sm text-primary hover:underline">
+                  <Plus className="h-3.5 w-3.5" /> Adicionar horário
+                </button>
+                <p className="text-[11px] text-muted-foreground">
+                  Use mais de uma faixa para turno partido (ex.: 08:00–12:00 + 14:00–18:00).
+                </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-foreground">Carga horária (h)</label>
