@@ -217,7 +217,9 @@ export function ShiftTypesManager() {
                   <td className="py-2 px-2"><span className={`inline-block h-3 w-3 rounded-full ${colorDot(t.cor)}`} /></td>
                   <td className="py-2 px-2 font-medium text-foreground">{t.nome}</td>
                   <td className="py-2 px-2"><span className="font-mono text-xs px-1.5 py-0.5 rounded bg-muted">{t.sigla}</span></td>
-                  <td className="py-2 px-2 font-mono text-xs text-muted-foreground">{t.hora_inicio.slice(0,5)}–{t.hora_fim.slice(0,5)}</td>
+                  <td className="py-2 px-2 font-mono text-xs text-muted-foreground">
+                    {getIntervalos(t).map(i => `${i.inicio}–${i.fim}`).join(' + ')}
+                  </td>
                   <td className="py-2 px-2 text-muted-foreground">{t.carga_horaria}h</td>
                   <td className="py-2 px-2">
                     <span className={`status-badge text-[10px] ${t.ativo ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}>
