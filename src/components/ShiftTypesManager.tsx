@@ -115,8 +115,17 @@ export function ShiftTypesManager() {
 
   const saveMut = useMutation({
     mutationFn: async (payload: Omit<ShiftType, 'id'>) => {
-      const cargaCalc = calcCarga(payload.hora_inicio, payload.hora_fim);
-      const data = { ...payload, carga_horaria: payload.carga_horaria || cargaCalc };
+      const ints = (payload.intervalos || []).filter(i => i.inicio && i.fim);
+      const erro = validarIntervalos(ints);
+      if (erro) throw new Error(erro);
+      const cargaCalc = sumCarga(ints);
+      const data = {
+        ...payload,
+        intervalos: ints,
+        hora_inicio: ints[0].inicio,
+        hora_fim: ints[ints.length - 1].fim,
+        carga_horaria: payload.carga_horaria || cargaCalc,
+      };
       if (editingId) {
         const { error } = await sb.from('shift_types').update(data).eq('id', editingId);
         if (error) throw error;
