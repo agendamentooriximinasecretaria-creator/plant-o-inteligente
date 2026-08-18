@@ -60,9 +60,40 @@ const calcCarga = (ini: string, fim: string): number => {
   return Math.round((mins / 60) * 10) / 10;
 };
 
+const sumCarga = (ints: ShiftInterval[]) =>
+  Math.round(ints.reduce((acc, i) => acc + calcCarga(i.inicio, i.fim), 0) * 10) / 10;
+
+const toMin = (h: string) => {
+  const [a, b] = h.split(':').map(Number);
+  return (a || 0) * 60 + (b || 0);
+};
+
+/** Retorna mensagem de erro se as faixas forem inválidas ou sobrepostas. */
+const validarIntervalos = (ints: ShiftInterval[]): string | null => {
+  if (ints.length === 0) return 'Informe ao menos uma faixa de horário.';
+  for (const i of ints) {
+    if (!i.inicio || !i.fim) return 'Preencha início e fim de todas as faixas.';
+    if (calcCarga(i.inicio, i.fim) === 0) return 'Faixa de horário inválida (início igual ao fim).';
+  }
+  const ranges = ints.map(i => {
+    const s = toMin(i.inicio);
+    let e = toMin(i.fim);
+    if (e <= s) e += 24 * 60;
+    return { s, e };
+  });
+  for (let a = 0; a < ranges.length; a++) {
+    for (let b = a + 1; b < ranges.length; b++) {
+      const overlap = Math.min(ranges[a].e, ranges[b].e) - Math.max(ranges[a].s, ranges[b].s);
+      if (overlap > 0) return 'As faixas de horário não podem se sobrepor.';
+    }
+  }
+  return null;
+};
+
 const empty: Omit<ShiftType, 'id'> = {
   nome: '', sigla: '', hora_inicio: '07:00', hora_fim: '19:00',
   carga_horaria: 12, cor: 'primary', ordem: 0, ativo: true, gera_adicional_noturno: false,
+  intervalos: [{ inicio: '07:00', fim: '19:00' }],
 };
 
 export function ShiftTypesManager() {
