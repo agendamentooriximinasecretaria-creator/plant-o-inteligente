@@ -7,6 +7,11 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
+export interface ShiftInterval {
+  inicio: string;
+  fim: string;
+}
+
 export interface ShiftType {
   id: string;
   nome: string;
@@ -18,6 +23,15 @@ export interface ShiftType {
   ordem: number;
   ativo: boolean;
   gera_adicional_noturno: boolean;
+  intervalos?: ShiftInterval[] | null;
+}
+
+/** Faixas normalizadas de um tipo (fallback para hora_inicio/hora_fim em tipos antigos). */
+export function getIntervalos(t: Partial<ShiftType>): ShiftInterval[] {
+  const arr = Array.isArray(t.intervalos) ? t.intervalos.filter(i => i?.inicio && i?.fim) : [];
+  if (arr.length > 0) return arr.map(i => ({ inicio: i.inicio.slice(0, 5), fim: i.fim.slice(0, 5) }));
+  if (t.hora_inicio && t.hora_fim) return [{ inicio: t.hora_inicio.slice(0, 5), fim: t.hora_fim.slice(0, 5) }];
+  return [];
 }
 
 const COR_OPTIONS = [
