@@ -262,17 +262,56 @@ export function ShiftTypesManager() {
                   {COR_OPTIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="text-sm font-medium text-foreground">Hora início *</label>
-                <input required type="time" value={form.hora_inicio}
-                  onChange={e => { const v = e.target.value; setForm(f => ({ ...f, hora_inicio: v, carga_horaria: calcCarga(v, f.hora_fim) })); }}
-                  className={inputClass} />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-foreground">Hora fim *</label>
-                <input required type="time" value={form.hora_fim}
-                  onChange={e => { const v = e.target.value; setForm(f => ({ ...f, hora_fim: v, carga_horaria: calcCarga(f.hora_inicio, v) })); }}
-                  className={inputClass} />
+              <div className="col-span-2 space-y-2">
+                <label className="text-sm font-medium text-foreground">Horários *</label>
+                {(form.intervalos || []).map((iv, idx) => (
+                  <div key={idx} className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <span className="text-[11px] text-muted-foreground">Início</span>
+                      <input required type="time" value={iv.inicio}
+                        onChange={e => {
+                          const v = e.target.value;
+                          setForm(f => {
+                            const ints = (f.intervalos || []).map((x, i) => i === idx ? { ...x, inicio: v } : x);
+                            return { ...f, intervalos: ints, carga_horaria: sumCarga(ints) };
+                          });
+                        }}
+                        className={inputClass} />
+                    </div>
+                    <div className="flex-1">
+                      <span className="text-[11px] text-muted-foreground">Fim</span>
+                      <input required type="time" value={iv.fim}
+                        onChange={e => {
+                          const v = e.target.value;
+                          setForm(f => {
+                            const ints = (f.intervalos || []).map((x, i) => i === idx ? { ...x, fim: v } : x);
+                            return { ...f, intervalos: ints, carga_horaria: sumCarga(ints) };
+                          });
+                        }}
+                        className={inputClass} />
+                    </div>
+                    <button type="button" title="Remover faixa"
+                      disabled={(form.intervalos || []).length <= 1}
+                      onClick={() => setForm(f => {
+                        const ints = (f.intervalos || []).filter((_, i) => i !== idx);
+                        return { ...f, intervalos: ints, carga_horaria: sumCarga(ints) };
+                      })}
+                      className="p-2 rounded-lg border border-border text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+                <button type="button"
+                  onClick={() => setForm(f => {
+                    const ints = [...(f.intervalos || []), { inicio: '14:00', fim: '18:00' }];
+                    return { ...f, intervalos: ints, carga_horaria: sumCarga(ints) };
+                  })}
+                  className="flex items-center gap-1.5 text-sm text-primary hover:underline">
+                  <Plus className="h-3.5 w-3.5" /> Adicionar horário
+                </button>
+                <p className="text-[11px] text-muted-foreground">
+                  Use mais de uma faixa para turno partido (ex.: 08:00–12:00 + 14:00–18:00).
+                </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-foreground">Carga horária (h)</label>
