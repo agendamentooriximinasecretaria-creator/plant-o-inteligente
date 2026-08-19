@@ -852,24 +852,27 @@ export default function EscalaPage() {
         if (error) throw error;
         await logAudit('Plantão editado', 'escala', { id: editingId });
       } else {
+        // Turno partido: uma linha de plantão por faixa de horário do tipo
+        const faixas = faixasParaLancar(finalData);
         const payloads = finalData.profissional_ids.flatMap(pid => {
           const prof = (professionals as any[]).find(p => p.id === pid);
           return finalData.setor_ids.flatMap(sid => 
-            allDates.map(date => ({
+            allDates.flatMap(date => faixas.map(faixa => ({
               unidade_id: finalData.unidade_id, 
               setor_id: sid, 
               profissao: prof?.profissao || finalData.profissao_ids[0] as any,
               data: date, 
-              hora_inicio: finalData.hora_inicio, 
-              hora_fim: finalData.hora_fim,
-              carga_horaria: hours, 
+              hora_inicio: faixa.inicio, 
+              hora_fim: faixa.fim,
+              carga_horaria: calcHours(faixa.inicio, faixa.fim), 
               tipo_plantao: finalData.tipo_plantao,
               observacoes: finalData.observacoes || null, 
               status: finalData.status as any,
               profissional_id: pid
-            }))
+            })))
           );
         });
+
         const { error } = await supabase.from('shifts').insert(payloads);
         if (error) throw error;
         await logAudit('Plantões criados em lote', 'escala', { 
