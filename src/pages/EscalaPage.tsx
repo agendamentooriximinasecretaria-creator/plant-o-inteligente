@@ -680,7 +680,9 @@ export default function EscalaPage() {
   const revalidateServerSide = async (data: typeof form): Promise<{ allDates: string[] }> => {
     const limiteDia = Number(conflictRules?.limite_horas_dia ?? 24);
     const limiteSemana = Number(conflictRules?.limite_horas_semana ?? 60);
-    const novaCarga = calcHours(data.hora_inicio, data.hora_fim);
+    const faixasSubmit = faixasParaLancar(data);
+    // Carga total do dia = soma de todas as faixas (turno partido soma 4h + 4h = 8h)
+    const novaCarga = faixasSubmit.reduce((acc, f) => acc + calcHours(f.inicio, f.fim), 0);
     const erros: string[] = [];
 
 
