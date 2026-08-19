@@ -1920,11 +1920,12 @@ export default function EscalaPage() {
   // Aplica preset de tipo de plantão (preenche horários automaticamente)
   const applyTipoPreset = (tipo: string) => {
     const preset = TIPOS_PLANTAO.find(t => t.value === tipo);
+    const split = faixasDoTipo(tipo);
     setForm(f => ({
       ...f,
       tipo_plantao: tipo,
-      hora_inicio: preset?.start ?? f.hora_inicio,
-      hora_fim: preset?.end ?? f.hora_fim,
+      hora_inicio: split[0]?.inicio ?? preset?.start ?? f.hora_inicio,
+      hora_fim: split[0]?.fim ?? preset?.end ?? f.hora_fim,
     }));
     // Validação acontece via useEffect debouncado quando o form mudar.
   };
