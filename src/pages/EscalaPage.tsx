@@ -29,6 +29,7 @@ import SignActionButton from "@/components/SignActionButton";
 import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 import { calculateAdicionalNoturno } from "@/lib/utils";
 import { AdnConfig } from "@/components/AdnSettingsManager";
+import { getIntervalos, type ShiftInterval } from "@/components/ShiftTypesManager";
 
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -317,7 +318,7 @@ export default function EscalaPage() {
   });
 
   const TIPOS_PLANTAO = useMemo(() => {
-    if (tiposDB.length === 0) return TIPOS_PLANTAO_FALLBACK;
+    if (tiposDB.length === 0) return TIPOS_PLANTAO_FALLBACK.map(t => ({ ...t, intervalos: [{ inicio: t.start, fim: t.end }] as ShiftInterval[] }));
     return tiposDB.map((t: any) => ({
       value: t.nome,
       sigla: t.sigla,
@@ -325,8 +326,10 @@ export default function EscalaPage() {
       end: (t.hora_fim || '').slice(0, 5),
       carga: Number(t.carga_horaria) || 12,
       gera_adn: !!t.gera_adicional_noturno,
+      intervalos: getIntervalos(t),
     }));
   }, [tiposDB]);
+
 
   const tipoToSigla = (tipo?: string) => TIPOS_PLANTAO.find(t => t.value === tipo)?.sigla ?? (tipo?.[0]?.toUpperCase() ?? '?');
 
@@ -446,6 +449,25 @@ export default function EscalaPage() {
     if (diff <= 0) diff += 24 * 60;
     return diff / 60;
   };
+
+  /** Faixas de horário do tipo (turno partido) — vazio quando o tipo tem faixa única. */
+  const faixasDoTipo = useCallback((tipo: string): ShiftInterval[] => {
+    const t = TIPOS_PLANTAO.find(x => x.value === tipo);
+    const ints = ((t as any)?.intervalos || []).filter((i: any) => i?.inicio && i?.fim) as ShiftInterval[];
+    return ints.length > 1 ? ints : [];
+  }, [TIPOS_PLANTAO]);
+
+  /**
+   * Faixas efetivamente lançadas/validadas. Turno partido gera uma linha por faixa
+   * na criação; na edição continua editando apenas o registro (faixa) atual.
+   */
+  const faixasParaLancar = useCallback((d: { tipo_plantao: string; hora_inicio: string; hora_fim: string }): ShiftInterval[] => {
+    if (editingId) return [{ inicio: d.hora_inicio, fim: d.hora_fim }];
+    const f = faixasDoTipo(d.tipo_plantao);
+    return f.length > 1 ? f : [{ inicio: d.hora_inicio, fim: d.hora_fim }];
+  }, [editingId, faixasDoTipo]);
+
+
 
   // Carrega horas do mês para profissionais filtrados (para mostrar 24h/220h ao lado do nome)
   // Ordena: vinculados ao setor selecionado vêm primeiro
@@ -581,34 +603,39 @@ export default function EscalaPage() {
 
     const warnings: string[] = [];
     const restWarn: string[] = [];
+    const faixas = faixasParaLancar(form);
     for (const pid of form.profissional_ids) {
       for (const date of datesToCheck.slice(0, 10)) {
-        const { data: conflicts } = await supabase.rpc('check_shift_conflict', {
-          p_profissional_id: pid,
-          p_data: date,
-          p_hora_inicio: form.hora_inicio,
-          p_hora_fim: form.hora_fim,
-          p_exclude_id: editingId,
-        });
-        const prof = (professionals as any[]).find(p => p.id === pid);
-        if (conflicts && conflicts.length > 0) {
-          warnings.push(`⚠️ ${prof?.nome} (${new Date(date + 'T12:00:00').toLocaleDateString('pt-BR')}): já tem plantão ${conflicts[0].conflicting_start}-${conflicts[0].conflicting_end} ou folga.`);
-        }
-        // Verifica descanso mínimo
-        const { data: restData } = await sb.rpc('check_descanso_minimo', {
-          p_profissional_id: pid,
-          p_data: date,
-          p_hora_inicio: form.hora_inicio,
-          p_hora_fim: form.hora_fim,
-          p_descanso_horas: descansoMinimo,
-          p_exclude_id: editingId,
-        });
-        if (restData && restData.length > 0) {
-          const gap = Number(restData[0].gap_horas).toFixed(1);
-          restWarn.push(`🛌 ${prof?.nome} (${new Date(date + 'T12:00:00').toLocaleDateString('pt-BR')}): descanso de ${gap}h (mínimo ${descansoMinimo}h).`);
+        for (const faixa of faixas) {
+          const sufixo = faixas.length > 1 ? ` [${faixa.inicio}–${faixa.fim}]` : '';
+          const { data: conflicts } = await supabase.rpc('check_shift_conflict', {
+            p_profissional_id: pid,
+            p_data: date,
+            p_hora_inicio: faixa.inicio,
+            p_hora_fim: faixa.fim,
+            p_exclude_id: editingId,
+          });
+          const prof = (professionals as any[]).find(p => p.id === pid);
+          if (conflicts && conflicts.length > 0) {
+            warnings.push(`⚠️ ${prof?.nome} (${new Date(date + 'T12:00:00').toLocaleDateString('pt-BR')})${sufixo}: já tem plantão ${conflicts[0].conflicting_start}-${conflicts[0].conflicting_end} ou folga.`);
+          }
+          // Verifica descanso mínimo
+          const { data: restData } = await sb.rpc('check_descanso_minimo', {
+            p_profissional_id: pid,
+            p_data: date,
+            p_hora_inicio: faixa.inicio,
+            p_hora_fim: faixa.fim,
+            p_descanso_horas: descansoMinimo,
+            p_exclude_id: editingId,
+          });
+          if (restData && restData.length > 0) {
+            const gap = Number(restData[0].gap_horas).toFixed(1);
+            restWarn.push(`🛌 ${prof?.nome} (${new Date(date + 'T12:00:00').toLocaleDateString('pt-BR')})${sufixo}: descanso de ${gap}h (mínimo ${descansoMinimo}h).`);
+          }
         }
       }
     }
+
 
     // Descartar resultado se outra validação foi disparada nesse meio tempo
     if (gen !== undefined && gen !== validationGenRef.current) return;
@@ -653,7 +680,9 @@ export default function EscalaPage() {
   const revalidateServerSide = async (data: typeof form): Promise<{ allDates: string[] }> => {
     const limiteDia = Number(conflictRules?.limite_horas_dia ?? 24);
     const limiteSemana = Number(conflictRules?.limite_horas_semana ?? 60);
-    const novaCarga = calcHours(data.hora_inicio, data.hora_fim);
+    const faixasSubmit = faixasParaLancar(data);
+    // Carga total do dia = soma de todas as faixas (turno partido soma 4h + 4h = 8h)
+    const novaCarga = faixasSubmit.reduce((acc, f) => acc + calcHours(f.inicio, f.fim), 0);
     const erros: string[] = [];
 
 
@@ -718,17 +747,23 @@ export default function EscalaPage() {
       const semanaIniStr = semanaIni.toISOString().split('T')[0];
       const semanaFimStr = semanaFim.toISOString().split('T')[0];
 
-      const [conflictsRes, restRes, doDiaRes, doSemRes] = await Promise.all([
-        supabase.rpc('check_shift_conflict', {
-          p_profissional_id: pid, p_data: dateStr,
-          p_hora_inicio: data.hora_inicio, p_hora_fim: data.hora_fim,
-          p_exclude_id: editingId,
-        }),
-        supabase.rpc('check_descanso_minimo', {
-          p_profissional_id: pid, p_data: dateStr,
-          p_hora_inicio: data.hora_inicio, p_hora_fim: data.hora_fim,
-          p_descanso_horas: descansoMinimo, p_exclude_id: editingId,
-        }),
+      const faixaChecks = await Promise.all(faixasSubmit.map(async (faixa) => {
+        const [conflictsRes, restRes] = await Promise.all([
+          supabase.rpc('check_shift_conflict', {
+            p_profissional_id: pid, p_data: dateStr,
+            p_hora_inicio: faixa.inicio, p_hora_fim: faixa.fim,
+            p_exclude_id: editingId,
+          }),
+          supabase.rpc('check_descanso_minimo', {
+            p_profissional_id: pid, p_data: dateStr,
+            p_hora_inicio: faixa.inicio, p_hora_fim: faixa.fim,
+            p_descanso_horas: descansoMinimo, p_exclude_id: editingId,
+          }),
+        ]);
+        return { faixa, conflictsRes, restRes };
+      }));
+
+      const [doDiaRes, doSemRes] = await Promise.all([
         (() => {
           let q = supabase.from('shifts').select('carga_horaria')
             .eq('profissional_id', pid).eq('data', dateStr).neq('status', 'cancelado');
@@ -743,20 +778,23 @@ export default function EscalaPage() {
         })(),
       ]);
 
+      for (const { faixa, conflictsRes, restRes } of faixaChecks) {
+        const sufixo = faixasSubmit.length > 1 ? ` [${faixa.inicio}–${faixa.fim}]` : '';
+        if (conflictsRes.error) out.push(`${nome}${sufixo}: falha ao revalidar conflito (${conflictsRes.error.message}).`);
+        else if (conflictsRes.data && conflictsRes.data.length > 0) {
+          const c: any = conflictsRes.data[0];
+          out.push(`${nome}${sufixo}: já possui plantão ${c.conflicting_start}–${c.conflicting_end} neste dia.`);
+        }
 
-      if (conflictsRes.error) out.push(`${nome}: falha ao revalidar conflito (${conflictsRes.error.message}).`);
-      else if (conflictsRes.data && conflictsRes.data.length > 0) {
-        const c: any = conflictsRes.data[0];
-        out.push(`${nome}: já possui plantão ${c.conflicting_start}–${c.conflicting_end} neste dia.`);
-      }
-
-      if (restRes.error) out.push(`${nome}: falha ao revalidar descanso (${restRes.error.message}).`);
-      else if (restRes.data && restRes.data.length > 0 && !isMaster) {
-        const gap = Number((restRes.data[0] as any).gap_horas).toFixed(1);
-        out.push(`${nome}: descanso de ${gap}h (mínimo ${descansoMinimo}h).`);
+        if (restRes.error) out.push(`${nome}${sufixo}: falha ao revalidar descanso (${restRes.error.message}).`);
+        else if (restRes.data && restRes.data.length > 0 && !isMaster) {
+          const gap = Number((restRes.data[0] as any).gap_horas).toFixed(1);
+          out.push(`${nome}${sufixo}: descanso de ${gap}h (mínimo ${descansoMinimo}h).`);
+        }
       }
 
       const horasDia = (doDiaRes.data || []).reduce((s: number, r: any) => s + Number(r.carga_horaria || 0), 0) + novaCarga;
+
       if (horasDia > limiteDia && !isMaster) out.push(`${nome}: excede limite diário (${horasDia.toFixed(1)}h > ${limiteDia}h).`);
 
       const horasSem = (doSemRes.data || []).reduce((s: number, r: any) => s + Number(r.carga_horaria || 0), 0) + novaCarga;
@@ -814,24 +852,27 @@ export default function EscalaPage() {
         if (error) throw error;
         await logAudit('Plantão editado', 'escala', { id: editingId });
       } else {
+        // Turno partido: uma linha de plantão por faixa de horário do tipo
+        const faixas = faixasParaLancar(finalData);
         const payloads = finalData.profissional_ids.flatMap(pid => {
           const prof = (professionals as any[]).find(p => p.id === pid);
           return finalData.setor_ids.flatMap(sid => 
-            allDates.map(date => ({
+            allDates.flatMap(date => faixas.map(faixa => ({
               unidade_id: finalData.unidade_id, 
               setor_id: sid, 
               profissao: prof?.profissao || finalData.profissao_ids[0] as any,
               data: date, 
-              hora_inicio: finalData.hora_inicio, 
-              hora_fim: finalData.hora_fim,
-              carga_horaria: hours, 
+              hora_inicio: faixa.inicio, 
+              hora_fim: faixa.fim,
+              carga_horaria: calcHours(faixa.inicio, faixa.fim), 
               tipo_plantao: finalData.tipo_plantao,
               observacoes: finalData.observacoes || null, 
               status: finalData.status as any,
               profissional_id: pid
-            }))
+            })))
           );
         });
+
         const { error } = await supabase.from('shifts').insert(payloads);
         if (error) throw error;
         await logAudit('Plantões criados em lote', 'escala', { 
@@ -1802,8 +1843,8 @@ export default function EscalaPage() {
       setor_ids: sectorId ? [sectorId] : (filtros.setorId ? [filtros.setorId] : []),
       unidade_id: unidadeId || filtros.unidadeId || '',
       tipo_plantao: tipoDefault || emptyForm.tipo_plantao,
-      hora_inicio: preset?.start ?? emptyForm.hora_inicio,
-      hora_fim: preset?.end ?? emptyForm.hora_fim,
+      hora_inicio: faixasDoTipo(tipoDefault || emptyForm.tipo_plantao)[0]?.inicio ?? preset?.start ?? emptyForm.hora_inicio,
+      hora_fim: faixasDoTipo(tipoDefault || emptyForm.tipo_plantao)[0]?.fim ?? preset?.end ?? emptyForm.hora_fim,
     });
     setModalOpen(true);
   };
@@ -1879,11 +1920,12 @@ export default function EscalaPage() {
   // Aplica preset de tipo de plantão (preenche horários automaticamente)
   const applyTipoPreset = (tipo: string) => {
     const preset = TIPOS_PLANTAO.find(t => t.value === tipo);
+    const split = faixasDoTipo(tipo);
     setForm(f => ({
       ...f,
       tipo_plantao: tipo,
-      hora_inicio: preset?.start ?? f.hora_inicio,
-      hora_fim: preset?.end ?? f.hora_fim,
+      hora_inicio: split[0]?.inicio ?? preset?.start ?? f.hora_inicio,
+      hora_fim: split[0]?.fim ?? preset?.end ?? f.hora_fim,
     }));
     // Validação acontece via useEffect debouncado quando o form mudar.
   };
@@ -2593,15 +2635,35 @@ export default function EscalaPage() {
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-foreground">Tipo de plantão *</label>
                       <select value={form.tipo_plantao} onChange={e => applyTipoPreset(e.target.value)} className={inputClass}>
-                        {TIPOS_PLANTAO.map(t => <option key={t.value} value={t.value}>{t.value} ({t.start}–{t.end})</option>)}
+                        {TIPOS_PLANTAO.map(t => {
+                          const ints = ((t as any).intervalos || []).filter((i: any) => i?.inicio && i?.fim);
+                          const label = ints.length > 1 ? ints.map((i: any) => `${i.inicio}–${i.fim}`).join(' + ') : `${t.start}–${t.end}`;
+                          return <option key={t.value} value={t.value}>{t.value} ({label})</option>;
+                        })}
                       </select>
+                      {(() => {
+                        const split = faixasDoTipo(form.tipo_plantao);
+                        if (split.length < 2 || editingId) return null;
+                        const total = split.reduce((s, i) => s + calcHoursSafe(i.inicio, i.fim), 0);
+                        return (
+                          <p className="text-[11px] text-primary bg-primary/5 border border-primary/20 rounded-md px-2 py-1.5">
+                            Turno partido: serão lançados {split.length} plantões por dia — {split.map(i => `${i.inicio}–${i.fim}`).join(' + ')} (total {total.toFixed(1)}h).
+                          </p>
+                        );
+                      })()}
                       <div className="flex items-center gap-2 mt-1.5">
                         {(() => { const c = classificarTurno(form.tipo_plantao, form.hora_inicio, form.hora_fim); return (
                           <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded ${c.cls}`}>{c.label}</span>
                         ); })()}
-                        <span className="text-[11px] text-muted-foreground">Carga: <strong>{calcHoursSafe(form.hora_inicio, form.hora_fim).toFixed(1)}h</strong></span>
+                        <span className="text-[11px] text-muted-foreground">Carga: <strong>{(() => {
+                          const split = faixasDoTipo(form.tipo_plantao);
+                          return (split.length > 1 && !editingId
+                            ? split.reduce((s, i) => s + calcHoursSafe(i.inicio, i.fim), 0)
+                            : calcHoursSafe(form.hora_inicio, form.hora_fim)).toFixed(1);
+                        })()}h</strong></span>
                       </div>
                     </div>
+
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
