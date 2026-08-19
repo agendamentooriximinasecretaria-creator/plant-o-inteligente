@@ -603,34 +603,39 @@ export default function EscalaPage() {
 
     const warnings: string[] = [];
     const restWarn: string[] = [];
+    const faixas = faixasParaLancar(form);
     for (const pid of form.profissional_ids) {
       for (const date of datesToCheck.slice(0, 10)) {
-        const { data: conflicts } = await supabase.rpc('check_shift_conflict', {
-          p_profissional_id: pid,
-          p_data: date,
-          p_hora_inicio: form.hora_inicio,
-          p_hora_fim: form.hora_fim,
-          p_exclude_id: editingId,
-        });
-        const prof = (professionals as any[]).find(p => p.id === pid);
-        if (conflicts && conflicts.length > 0) {
-          warnings.push(`⚠️ ${prof?.nome} (${new Date(date + 'T12:00:00').toLocaleDateString('pt-BR')}): já tem plantão ${conflicts[0].conflicting_start}-${conflicts[0].conflicting_end} ou folga.`);
-        }
-        // Verifica descanso mínimo
-        const { data: restData } = await sb.rpc('check_descanso_minimo', {
-          p_profissional_id: pid,
-          p_data: date,
-          p_hora_inicio: form.hora_inicio,
-          p_hora_fim: form.hora_fim,
-          p_descanso_horas: descansoMinimo,
-          p_exclude_id: editingId,
-        });
-        if (restData && restData.length > 0) {
-          const gap = Number(restData[0].gap_horas).toFixed(1);
-          restWarn.push(`🛌 ${prof?.nome} (${new Date(date + 'T12:00:00').toLocaleDateString('pt-BR')}): descanso de ${gap}h (mínimo ${descansoMinimo}h).`);
+        for (const faixa of faixas) {
+          const sufixo = faixas.length > 1 ? ` [${faixa.inicio}–${faixa.fim}]` : '';
+          const { data: conflicts } = await supabase.rpc('check_shift_conflict', {
+            p_profissional_id: pid,
+            p_data: date,
+            p_hora_inicio: faixa.inicio,
+            p_hora_fim: faixa.fim,
+            p_exclude_id: editingId,
+          });
+          const prof = (professionals as any[]).find(p => p.id === pid);
+          if (conflicts && conflicts.length > 0) {
+            warnings.push(`⚠️ ${prof?.nome} (${new Date(date + 'T12:00:00').toLocaleDateString('pt-BR')})${sufixo}: já tem plantão ${conflicts[0].conflicting_start}-${conflicts[0].conflicting_end} ou folga.`);
+          }
+          // Verifica descanso mínimo
+          const { data: restData } = await sb.rpc('check_descanso_minimo', {
+            p_profissional_id: pid,
+            p_data: date,
+            p_hora_inicio: faixa.inicio,
+            p_hora_fim: faixa.fim,
+            p_descanso_horas: descansoMinimo,
+            p_exclude_id: editingId,
+          });
+          if (restData && restData.length > 0) {
+            const gap = Number(restData[0].gap_horas).toFixed(1);
+            restWarn.push(`🛌 ${prof?.nome} (${new Date(date + 'T12:00:00').toLocaleDateString('pt-BR')})${sufixo}: descanso de ${gap}h (mínimo ${descansoMinimo}h).`);
+          }
         }
       }
     }
+
 
     // Descartar resultado se outra validação foi disparada nesse meio tempo
     if (gen !== undefined && gen !== validationGenRef.current) return;
