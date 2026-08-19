@@ -1843,8 +1843,8 @@ export default function EscalaPage() {
       setor_ids: sectorId ? [sectorId] : (filtros.setorId ? [filtros.setorId] : []),
       unidade_id: unidadeId || filtros.unidadeId || '',
       tipo_plantao: tipoDefault || emptyForm.tipo_plantao,
-      hora_inicio: preset?.start ?? emptyForm.hora_inicio,
-      hora_fim: preset?.end ?? emptyForm.hora_fim,
+      hora_inicio: faixasDoTipo(tipoDefault || emptyForm.tipo_plantao)[0]?.inicio ?? preset?.start ?? emptyForm.hora_inicio,
+      hora_fim: faixasDoTipo(tipoDefault || emptyForm.tipo_plantao)[0]?.fim ?? preset?.end ?? emptyForm.hora_fim,
     });
     setModalOpen(true);
   };
