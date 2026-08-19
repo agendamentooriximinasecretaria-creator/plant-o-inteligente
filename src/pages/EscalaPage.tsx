@@ -747,17 +747,23 @@ export default function EscalaPage() {
       const semanaIniStr = semanaIni.toISOString().split('T')[0];
       const semanaFimStr = semanaFim.toISOString().split('T')[0];
 
-      const [conflictsRes, restRes, doDiaRes, doSemRes] = await Promise.all([
-        supabase.rpc('check_shift_conflict', {
-          p_profissional_id: pid, p_data: dateStr,
-          p_hora_inicio: data.hora_inicio, p_hora_fim: data.hora_fim,
-          p_exclude_id: editingId,
-        }),
-        supabase.rpc('check_descanso_minimo', {
-          p_profissional_id: pid, p_data: dateStr,
-          p_hora_inicio: data.hora_inicio, p_hora_fim: data.hora_fim,
-          p_descanso_horas: descansoMinimo, p_exclude_id: editingId,
-        }),
+      const faixaChecks = await Promise.all(faixasSubmit.map(async (faixa) => {
+        const [conflictsRes, restRes] = await Promise.all([
+          supabase.rpc('check_shift_conflict', {
+            p_profissional_id: pid, p_data: dateStr,
+            p_hora_inicio: faixa.inicio, p_hora_fim: faixa.fim,
+            p_exclude_id: editingId,
+          }),
+          supabase.rpc('check_descanso_minimo', {
+            p_profissional_id: pid, p_data: dateStr,
+            p_hora_inicio: faixa.inicio, p_hora_fim: faixa.fim,
+            p_descanso_horas: descansoMinimo, p_exclude_id: editingId,
+          }),
+        ]);
+        return { faixa, conflictsRes, restRes };
+      }));
+
+      const [doDiaRes, doSemRes] = await Promise.all([
         (() => {
           let q = supabase.from('shifts').select('carga_horaria')
             .eq('profissional_id', pid).eq('data', dateStr).neq('status', 'cancelado');
@@ -772,20 +778,23 @@ export default function EscalaPage() {
         })(),
       ]);
 
+      for (const { faixa, conflictsRes, restRes } of faixaChecks) {
+        const sufixo = faixasSubmit.length > 1 ? ` [${faixa.inicio}–${faixa.fim}]` : '';
+        if (conflictsRes.error) out.push(`${nome}${sufixo}: falha ao revalidar conflito (${conflictsRes.error.message}).`);
+        else if (conflictsRes.data && conflictsRes.data.length > 0) {
+          const c: any = conflictsRes.data[0];
+          out.push(`${nome}${sufixo}: já possui plantão ${c.conflicting_start}–${c.conflicting_end} neste dia.`);
+        }
 
-      if (conflictsRes.error) out.push(`${nome}: falha ao revalidar conflito (${conflictsRes.error.message}).`);
-      else if (conflictsRes.data && conflictsRes.data.length > 0) {
-        const c: any = conflictsRes.data[0];
-        out.push(`${nome}: já possui plantão ${c.conflicting_start}–${c.conflicting_end} neste dia.`);
-      }
-
-      if (restRes.error) out.push(`${nome}: falha ao revalidar descanso (${restRes.error.message}).`);
-      else if (restRes.data && restRes.data.length > 0 && !isMaster) {
-        const gap = Number((restRes.data[0] as any).gap_horas).toFixed(1);
-        out.push(`${nome}: descanso de ${gap}h (mínimo ${descansoMinimo}h).`);
+        if (restRes.error) out.push(`${nome}${sufixo}: falha ao revalidar descanso (${restRes.error.message}).`);
+        else if (restRes.data && restRes.data.length > 0 && !isMaster) {
+          const gap = Number((restRes.data[0] as any).gap_horas).toFixed(1);
+          out.push(`${nome}${sufixo}: descanso de ${gap}h (mínimo ${descansoMinimo}h).`);
+        }
       }
 
       const horasDia = (doDiaRes.data || []).reduce((s: number, r: any) => s + Number(r.carga_horaria || 0), 0) + novaCarga;
+
       if (horasDia > limiteDia && !isMaster) out.push(`${nome}: excede limite diário (${horasDia.toFixed(1)}h > ${limiteDia}h).`);
 
       const horasSem = (doSemRes.data || []).reduce((s: number, r: any) => s + Number(r.carga_horaria || 0), 0) + novaCarga;
