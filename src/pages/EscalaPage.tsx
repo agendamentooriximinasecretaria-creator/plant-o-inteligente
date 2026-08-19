@@ -2635,15 +2635,35 @@ export default function EscalaPage() {
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-foreground">Tipo de plantão *</label>
                       <select value={form.tipo_plantao} onChange={e => applyTipoPreset(e.target.value)} className={inputClass}>
-                        {TIPOS_PLANTAO.map(t => <option key={t.value} value={t.value}>{t.value} ({t.start}–{t.end})</option>)}
+                        {TIPOS_PLANTAO.map(t => {
+                          const ints = ((t as any).intervalos || []).filter((i: any) => i?.inicio && i?.fim);
+                          const label = ints.length > 1 ? ints.map((i: any) => `${i.inicio}–${i.fim}`).join(' + ') : `${t.start}–${t.end}`;
+                          return <option key={t.value} value={t.value}>{t.value} ({label})</option>;
+                        })}
                       </select>
+                      {(() => {
+                        const split = faixasDoTipo(form.tipo_plantao);
+                        if (split.length < 2 || editingId) return null;
+                        const total = split.reduce((s, i) => s + calcHoursSafe(i.inicio, i.fim), 0);
+                        return (
+                          <p className="text-[11px] text-primary bg-primary/5 border border-primary/20 rounded-md px-2 py-1.5">
+                            Turno partido: serão lançados {split.length} plantões por dia — {split.map(i => `${i.inicio}–${i.fim}`).join(' + ')} (total {total.toFixed(1)}h).
+                          </p>
+                        );
+                      })()}
                       <div className="flex items-center gap-2 mt-1.5">
                         {(() => { const c = classificarTurno(form.tipo_plantao, form.hora_inicio, form.hora_fim); return (
                           <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded ${c.cls}`}>{c.label}</span>
                         ); })()}
-                        <span className="text-[11px] text-muted-foreground">Carga: <strong>{calcHoursSafe(form.hora_inicio, form.hora_fim).toFixed(1)}h</strong></span>
+                        <span className="text-[11px] text-muted-foreground">Carga: <strong>{(() => {
+                          const split = faixasDoTipo(form.tipo_plantao);
+                          return (split.length > 1 && !editingId
+                            ? split.reduce((s, i) => s + calcHoursSafe(i.inicio, i.fim), 0)
+                            : calcHoursSafe(form.hora_inicio, form.hora_fim)).toFixed(1);
+                        })()}h</strong></span>
                       </div>
                     </div>
+
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
