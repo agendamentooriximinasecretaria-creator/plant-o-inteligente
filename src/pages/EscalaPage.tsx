@@ -450,6 +450,25 @@ export default function EscalaPage() {
     return diff / 60;
   };
 
+  /** Faixas de horário do tipo (turno partido) — vazio quando o tipo tem faixa única. */
+  const faixasDoTipo = useCallback((tipo: string): ShiftInterval[] => {
+    const t = TIPOS_PLANTAO.find(x => x.value === tipo);
+    const ints = ((t as any)?.intervalos || []).filter((i: any) => i?.inicio && i?.fim) as ShiftInterval[];
+    return ints.length > 1 ? ints : [];
+  }, [TIPOS_PLANTAO]);
+
+  /**
+   * Faixas efetivamente lançadas/validadas. Turno partido gera uma linha por faixa
+   * na criação; na edição continua editando apenas o registro (faixa) atual.
+   */
+  const faixasParaLancar = useCallback((d: { tipo_plantao: string; hora_inicio: string; hora_fim: string }): ShiftInterval[] => {
+    if (editingId) return [{ inicio: d.hora_inicio, fim: d.hora_fim }];
+    const f = faixasDoTipo(d.tipo_plantao);
+    return f.length > 1 ? f : [{ inicio: d.hora_inicio, fim: d.hora_fim }];
+  }, [editingId, faixasDoTipo]);
+
+
+
   // Carrega horas do mês para profissionais filtrados (para mostrar 24h/220h ao lado do nome)
   // Ordena: vinculados ao setor selecionado vêm primeiro
   const profissionaisFiltrados = useMemo(() => {
