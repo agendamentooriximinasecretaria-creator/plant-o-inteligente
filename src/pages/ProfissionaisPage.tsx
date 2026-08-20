@@ -95,7 +95,7 @@ export default function ProfissionaisPage() {
     channelId: "profissionais-realtime",
   });
 
-  const { data: professionals = [], isLoading, isError, refetch, isRefetching } = useQuery({
+  const { data: professionals = [], isLoading: isLoadingProfs, isError, refetch, isRefetching } = useQuery({
     queryKey: ['professionals'],
     queryFn: async () => {
       // PII-safe listing: explicit columns only, NO cpf/observacoes/banking/limites.
