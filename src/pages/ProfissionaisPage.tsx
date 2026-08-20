@@ -86,7 +86,7 @@ export default function ProfissionaisPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const confirm = useConfirm();
-  const { isMaster, isCoordinator } = useAuth();
+  const { isMaster, isCoordinator, isReady, session } = useAuth();
   const canDelete = isMaster || isCoordinator;
 
   useRealtimeInvalidation({
