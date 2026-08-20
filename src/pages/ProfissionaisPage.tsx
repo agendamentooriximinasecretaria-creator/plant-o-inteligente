@@ -107,6 +107,10 @@ export default function ProfissionaisPage() {
       if (error) throw error;
       return data;
     },
+    // Só consulta com sessão pronta (evita lista vazia exigindo refresh manual)
+    enabled: isReady && !!session,
+    refetchOnMount: 'always',
+    staleTime: 0,
   });
 
   const { data: systemSettings = {} } = useQuery({
