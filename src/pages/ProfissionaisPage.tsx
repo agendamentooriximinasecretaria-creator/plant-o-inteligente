@@ -113,6 +113,11 @@ export default function ProfissionaisPage() {
     staleTime: 0,
   });
 
+  // Mantém skeleton enquanto a sessão ainda não está pronta (não mostra lista vazia)
+  const isLoading = isLoadingProfs || !isReady;
+
+
+
   const { data: systemSettings = {} } = useQuery({
     queryKey: ['system-settings-rules'],
     queryFn: async () => {
