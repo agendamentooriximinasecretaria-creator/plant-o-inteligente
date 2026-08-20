@@ -86,7 +86,7 @@ export default function ProfissionaisPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const confirm = useConfirm();
-  const { isMaster, isCoordinator } = useAuth();
+  const { isMaster, isCoordinator, isReady, session } = useAuth();
   const canDelete = isMaster || isCoordinator;
 
   useRealtimeInvalidation({
@@ -95,7 +95,7 @@ export default function ProfissionaisPage() {
     channelId: "profissionais-realtime",
   });
 
-  const { data: professionals = [], isLoading, isError, refetch, isRefetching } = useQuery({
+  const { data: professionals = [], isLoading: isLoadingProfs, isError, refetch, isRefetching } = useQuery({
     queryKey: ['professionals'],
     queryFn: async () => {
       // PII-safe listing: explicit columns only, NO cpf/observacoes/banking/limites.
@@ -107,7 +107,16 @@ export default function ProfissionaisPage() {
       if (error) throw error;
       return data;
     },
+    // Só consulta com sessão pronta (evita lista vazia exigindo refresh manual)
+    enabled: isReady && !!session,
+    refetchOnMount: 'always',
+    staleTime: 0,
   });
+
+  // Mantém skeleton enquanto a sessão ainda não está pronta (não mostra lista vazia)
+  const isLoading = isLoadingProfs || !isReady;
+
+
 
   const { data: systemSettings = {} } = useQuery({
     queryKey: ['system-settings-rules'],
