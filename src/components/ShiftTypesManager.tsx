@@ -41,15 +41,34 @@ const COR_OPTIONS = [
   { value: 'destructive', label: 'Vermelho (24h)' },
   { value: 'accent', label: 'Roxo (Especial)' },
   { value: 'muted', label: 'Cinza (Outros)' },
+  { value: 'teal', label: 'Verde-água (Sobreaviso)' },
+  { value: 'sky', label: 'Azul claro (Manhã)' },
+  { value: 'indigo', label: 'Índigo (Tarde)' },
+  { value: 'violet', label: 'Violeta (Turno partido)' },
+  { value: 'fuchsia', label: 'Magenta (Extra)' },
+  { value: 'pink', label: 'Rosa (Ambulatório)' },
+  { value: 'rose', label: 'Rosé (Urgência)' },
+  { value: 'orange', label: 'Laranja (Reforço)' },
+  { value: 'amber', label: 'Âmbar (Treinamento)' },
+  { value: 'lime', label: 'Lima (Apoio)' },
+  { value: 'emerald', label: 'Esmeralda (Consulta)' },
+  { value: 'cyan', label: 'Ciano (Telemedicina)' },
+  { value: 'slate', label: 'Grafite (Administrativo)' },
+  { value: 'stone', label: 'Pedra (Neutro)' },
 ];
 
-const colorDot = (cor: string) => {
-  const map: Record<string, string> = {
-    success: 'bg-success', primary: 'bg-primary', warning: 'bg-warning',
-    destructive: 'bg-destructive', accent: 'bg-accent', muted: 'bg-muted-foreground',
-  };
-  return map[cor] || 'bg-muted-foreground';
+const COLOR_DOT_MAP: Record<string, string> = {
+  success: 'bg-success', primary: 'bg-primary', warning: 'bg-warning',
+  destructive: 'bg-destructive', accent: 'bg-accent', muted: 'bg-muted-foreground',
+  teal: 'bg-teal-500', sky: 'bg-sky-500', indigo: 'bg-indigo-500',
+  violet: 'bg-violet-500', fuchsia: 'bg-fuchsia-500', pink: 'bg-pink-500',
+  rose: 'bg-rose-500', orange: 'bg-orange-500', amber: 'bg-amber-500',
+  lime: 'bg-lime-500', emerald: 'bg-emerald-500', cyan: 'bg-cyan-500',
+  slate: 'bg-slate-500', stone: 'bg-stone-500',
 };
+
+const colorDot = (cor: string) => COLOR_DOT_MAP[cor] || 'bg-muted-foreground';
+
 
 const calcCarga = (ini: string, fim: string): number => {
   if (!ini || !fim) return 0;
@@ -253,8 +272,9 @@ export function ShiftTypesManager() {
                 <input required value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} placeholder="Ex: Diurno 12h" className={inputClass} />
               </div>
               <div>
-                <label className="text-sm font-medium text-foreground">Sigla * <span className="text-xs text-muted-foreground">(1-3 chars)</span></label>
-                <input required maxLength={3} value={form.sigla} onChange={e => setForm(f => ({ ...f, sigla: e.target.value.toUpperCase() }))} placeholder="D" className={inputClass} />
+                <label className="text-sm font-medium text-foreground">Sigla * <span className="text-xs text-muted-foreground">(1-10 chars)</span></label>
+                <input required maxLength={10} value={form.sigla} onChange={e => setForm(f => ({ ...f, sigla: e.target.value.toUpperCase() }))} placeholder="D12" className={inputClass} />
+
               </div>
               <div>
                 <label className="text-sm font-medium text-foreground">Cor no calendário</label>
