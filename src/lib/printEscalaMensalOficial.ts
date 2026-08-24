@@ -115,6 +115,21 @@ export interface MensalOpts {
   responsavelTecnico?: MensalResponsavel;
   codigoValidacao?: string;
   dataEmissao?: string;
+  /** Ordem manual dos setores (nomes). Setores fora da lista vão ao fim, em ordem alfabética. */
+  ordemSetores?: string[];
+}
+
+/** Ordena nomes de setor conforme a ordem manual informada em opts.ordemSetores. */
+function ordenarSetores(nomes: string[], ordem?: string[]): string[] {
+  const norm = (v: string) => (v || "").trim().toLowerCase();
+  const idx = new Map<string, number>();
+  (ordem || []).forEach((n, i) => idx.set(norm(n), i));
+  return [...nomes].sort((a, b) => {
+    const ia = idx.has(norm(a)) ? idx.get(norm(a))! : Number.MAX_SAFE_INTEGER;
+    const ib = idx.has(norm(b)) ? idx.get(norm(b))! : Number.MAX_SAFE_INTEGER;
+    if (ia !== ib) return ia - ib;
+    return a.localeCompare(b);
+  });
 }
 
 
@@ -325,7 +340,7 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
       // Header de Unidade
       linhasTr += `<tr class="group-header unidade"><td colspan="${totalCols}">UNIDADE: ${escapeHtml(u)}</td></tr>`;
       
-      const sortedSetores = Array.from(unidadeMap.keys()).sort();
+      const sortedSetores = ordenarSetores(Array.from(unidadeMap.keys()), opts.ordemSetores);
       for (const s of sortedSetores) {
         // Header de Setor
         linhasTr += `<tr class="group-header setor"><td colspan="${totalCols}">SETOR: ${escapeHtml(s)}</td></tr>`;
@@ -784,7 +799,7 @@ export async function gerarPdfEscalaMensalOficial(
     profsInBody.push(null);
 
     const unidadeMap = tree.get(u)!;
-    const sortedSetores = Array.from(unidadeMap.keys()).sort();
+    const sortedSetores = ordenarSetores(Array.from(unidadeMap.keys()), opts.ordemSetores);
     for (const s of sortedSetores) {
       body.push([{ content: `SETOR: ${s.toUpperCase()}`, colSpan: totalCols, styles: { fillColor: [241, 245, 249], fontStyle: "bold", halign: "left" } }]);
       profsInBody.push(null);

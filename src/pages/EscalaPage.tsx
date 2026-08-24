@@ -1093,6 +1093,7 @@ export default function EscalaPage() {
     responsavelNome: string;
     responsavelCargo: string;
     responsavelConselho: string;
+    ordemSetores: string[];
   };
 
   const _hojeRef = new Date();
@@ -1120,8 +1121,33 @@ export default function EscalaPage() {
     responsavelNome: '',
     responsavelCargo: 'Coordenação',
     responsavelConselho: '',
+    ordemSetores: [],
   });
   const [printBusy, setPrintBusy] = useState<null | 'view' | 'print' | 'pdf-open' | 'pdf-save'>(null);
+
+  // Lista de setores para ordenação manual no modelo "Escala Mensal Oficial"
+  const setoresOrdenaveis = useMemo(() => {
+    const nomes = (sectors as any[])
+      .filter((s: any) => !printForm.unidadeId || s.unidade_id === printForm.unidadeId)
+      .map((s: any) => s.nome as string);
+    const norm = (v: string) => (v || '').trim().toLowerCase();
+    const idx = new Map<string, number>();
+    printForm.ordemSetores.forEach((n, i) => idx.set(norm(n), i));
+    return [...nomes].sort((a, b) => {
+      const ia = idx.has(norm(a)) ? idx.get(norm(a))! : Number.MAX_SAFE_INTEGER;
+      const ib = idx.has(norm(b)) ? idx.get(norm(b))! : Number.MAX_SAFE_INTEGER;
+      if (ia !== ib) return ia - ib;
+      return a.localeCompare(b);
+    });
+  }, [sectors, printForm.unidadeId, printForm.ordemSetores]);
+
+  const moverSetor = (lista: string[], index: number, delta: number) => {
+    const next = [...lista];
+    const target = index + delta;
+    if (target < 0 || target >= next.length) return next;
+    [next[index], next[target]] = [next[target], next[index]];
+    return next;
+  };
 
   // Dados da instituição (system_settings.hospital)
   const { data: instituicaoCfg } = useQuery({
@@ -1572,6 +1598,7 @@ export default function EscalaPage() {
         // Substituições de placeholders no bloco de assinatura/carimbo
         opts.dataEmissao = new Date().toLocaleDateString("pt-BR");
         opts.codigoValidacao = `ESC-${Date.now().toString(36).toUpperCase()}`;
+        opts.ordemSetores = printForm.ordemSetores;
         const filename = `escala_oficial_${printForm.mesRef}`;
         if (acao === 'view') {
           const ok = abrirEscalaMensalOficial(cab, profs, tipos, opts, false);
@@ -3528,6 +3555,31 @@ export default function EscalaPage() {
                   onChange={e => setPrintForm(f => ({ ...f, mesRef: e.target.value }))}
 
                   className={inputClass} />
+              </section>
+            )}
+
+            {printForm.modelo === 'mensal_oficial' && !printForm.setorId && setoresOrdenaveis.length > 1 && (
+              <section>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold">Ordem dos setores</h4>
+                  <button type="button" onClick={() => setPrintForm(f => ({ ...f, ordemSetores: [] }))}
+                    className="text-xs text-primary hover:underline">Ordem alfabética</button>
+                </div>
+                <p className="text-xs text-muted-foreground mb-2">Define a sequência dos blocos de setor na visualização, impressão e PDF.</p>
+                <ul className="space-y-1">
+                  {setoresOrdenaveis.map((nome, i) => (
+                    <li key={nome} className="flex items-center gap-2 rounded-lg border border-border bg-card px-2 py-1.5">
+                      <span className="w-5 text-xs text-muted-foreground tabular-nums">{i + 1}.</span>
+                      <span className="flex-1 text-xs text-foreground truncate">{nome}</span>
+                      <button type="button" title="Subir" disabled={i === 0}
+                        onClick={() => setPrintForm(f => ({ ...f, ordemSetores: moverSetor(setoresOrdenaveis, i, -1) }))}
+                        className="px-1.5 py-0.5 rounded border border-border text-xs disabled:opacity-30 hover:bg-muted">▲</button>
+                      <button type="button" title="Descer" disabled={i === setoresOrdenaveis.length - 1}
+                        onClick={() => setPrintForm(f => ({ ...f, ordemSetores: moverSetor(setoresOrdenaveis, i, 1) }))}
+                        className="px-1.5 py-0.5 rounded border border-border text-xs disabled:opacity-30 hover:bg-muted">▼</button>
+                    </li>
+                  ))}
+                </ul>
               </section>
             )}
 
