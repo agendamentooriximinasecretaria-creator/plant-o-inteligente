@@ -272,8 +272,9 @@ export function ShiftTypesManager() {
                 <input required value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} placeholder="Ex: Diurno 12h" className={inputClass} />
               </div>
               <div>
-                <label className="text-sm font-medium text-foreground">Sigla * <span className="text-xs text-muted-foreground">(1-3 chars)</span></label>
-                <input required maxLength={3} value={form.sigla} onChange={e => setForm(f => ({ ...f, sigla: e.target.value.toUpperCase() }))} placeholder="D" className={inputClass} />
+                <label className="text-sm font-medium text-foreground">Sigla * <span className="text-xs text-muted-foreground">(1-10 chars)</span></label>
+                <input required maxLength={10} value={form.sigla} onChange={e => setForm(f => ({ ...f, sigla: e.target.value.toUpperCase() }))} placeholder="D12" className={inputClass} />
+
               </div>
               <div>
                 <label className="text-sm font-medium text-foreground">Cor no calendário</label>
