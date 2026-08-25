@@ -816,9 +816,11 @@ export async function gerarPdfEscalaMensalOficial(
 
         const sortedList = setorMap.get(pName)!.sort((a, b) => a.nome.localeCompare(b.nome));
         for (const p of sortedList) {
-          const conselhoText = p.conselho && p.conselho !== "Não inf." ? p.conselho : "Não informado";
+          const conselhoText = opts.incluirConselho === false
+            ? ""
+            : (p.conselho && p.conselho !== "Não inf." ? p.conselho : "Não informado");
           const nomeCol = {
-            content: `${p.nome}\n${p.profissao || ""}\n${conselhoText}`,
+            content: [p.nome, p.profissao || "", conselhoText].filter(Boolean).join("\n"),
             styles: { halign: "left" as const, fontSize: 6.5, cellPadding: 1 }
           };
 
