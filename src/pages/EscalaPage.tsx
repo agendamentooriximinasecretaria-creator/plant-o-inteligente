@@ -1526,6 +1526,7 @@ export default function EscalaPage() {
       adnLabel: adnConfig?.label,
       adnDecimals: adnConfig?.display?.decimals,
       incluirObservacoesRodape: printForm.incluirObservacoesRodape,
+      incluirConselho: printForm.incluirConselho,
       totalLabel: printForm.totalLabel,
       responsavel: responsavel || {
         nome: profileName || user?.email || "",

@@ -110,6 +110,8 @@ export interface MensalOpts {
   adnLabel?: string;
   adnDecimals?: number;
   incluirObservacoesRodape: boolean;
+  /** Exibe conselho/registro do profissional na coluna de nome. Default: true */
+  incluirConselho?: boolean;
   totalLabel?: "TOTAL" | "ADN";
   responsavel?: MensalResponsavel;
   responsavelTecnico?: MensalResponsavel;
@@ -373,7 +375,9 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
             }).join("");
             
             const total = opts.incluirTotalHoras ? `${p.totalHoras}h` : `${p.totalPlantoes}`;
-            const conselho = p.conselho && p.conselho !== "Não inf." ? `<span class="cons">${escapeHtml(p.conselho)}</span>` : `<span class="cons" style="color:#999;font-style:italic">Não informado</span>`;
+            const conselho = opts.incluirConselho === false
+              ? ""
+              : (p.conselho && p.conselho !== "Não inf." ? `<span class="cons">${escapeHtml(p.conselho)}</span>` : `<span class="cons" style="color:#999;font-style:italic">Não informado</span>`);
             
             linhasTr += `<tr class="row-prof" style="background-color: ${profs.indexOf(p) % 2 === 0 ? '#fff' : '#f9fafb'}">
               <td class="nome">${escapeHtml(p.nome)}${conselho}</td>
@@ -812,9 +816,11 @@ export async function gerarPdfEscalaMensalOficial(
 
         const sortedList = setorMap.get(pName)!.sort((a, b) => a.nome.localeCompare(b.nome));
         for (const p of sortedList) {
-          const conselhoText = p.conselho && p.conselho !== "Não inf." ? p.conselho : "Não informado";
+          const conselhoText = opts.incluirConselho === false
+            ? ""
+            : (p.conselho && p.conselho !== "Não inf." ? p.conselho : "Não informado");
           const nomeCol = {
-            content: `${p.nome}\n${p.profissao || ""}\n${conselhoText}`,
+            content: [p.nome, p.profissao || "", conselhoText].filter(Boolean).join("\n"),
             styles: { halign: "left" as const, fontSize: 6.5, cellPadding: 1 }
           };
 
