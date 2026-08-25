@@ -110,6 +110,8 @@ export interface MensalOpts {
   adnLabel?: string;
   adnDecimals?: number;
   incluirObservacoesRodape: boolean;
+  /** Exibe conselho/registro do profissional na coluna de nome. Default: true */
+  incluirConselho?: boolean;
   totalLabel?: "TOTAL" | "ADN";
   responsavel?: MensalResponsavel;
   responsavelTecnico?: MensalResponsavel;
