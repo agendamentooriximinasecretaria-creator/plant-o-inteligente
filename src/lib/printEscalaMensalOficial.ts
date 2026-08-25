@@ -375,7 +375,9 @@ function buildHtml(cab: MensalCabecalho, profs: MensalProfissional[], tipos: Men
             }).join("");
             
             const total = opts.incluirTotalHoras ? `${p.totalHoras}h` : `${p.totalPlantoes}`;
-            const conselho = p.conselho && p.conselho !== "Não inf." ? `<span class="cons">${escapeHtml(p.conselho)}</span>` : `<span class="cons" style="color:#999;font-style:italic">Não informado</span>`;
+            const conselho = opts.incluirConselho === false
+              ? ""
+              : (p.conselho && p.conselho !== "Não inf." ? `<span class="cons">${escapeHtml(p.conselho)}</span>` : `<span class="cons" style="color:#999;font-style:italic">Não informado</span>`);
             
             linhasTr += `<tr class="row-prof" style="background-color: ${profs.indexOf(p) % 2 === 0 ? '#fff' : '#f9fafb'}">
               <td class="nome">${escapeHtml(p.nome)}${conselho}</td>
