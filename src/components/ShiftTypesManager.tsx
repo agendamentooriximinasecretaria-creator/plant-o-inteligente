@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
 import { Plus, Trash2, Edit, Save, X, Loader2, GripVertical } from "lucide-react";
 import { toast } from "sonner";
+import { ADN_MODO_OPTIONS, normalizeAdnModo, type AdnModo } from "@/lib/adn";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
@@ -23,8 +24,10 @@ export interface ShiftType {
   ordem: number;
   ativo: boolean;
   gera_adicional_noturno: boolean;
+  adn_modo?: AdnModo;
   intervalos?: ShiftInterval[] | null;
 }
+
 
 /** Faixas normalizadas de um tipo (fallback para hora_inicio/hora_fim em tipos antigos). */
 export function getIntervalos(t: Partial<ShiftType>): ShiftInterval[] {
