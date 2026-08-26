@@ -345,11 +345,23 @@ export function ShiftTypesManager() {
                   onChange={e => setForm(f => ({ ...f, ordem: Number(e.target.value) }))} className={inputClass} />
               </div>
               <div className="col-span-2 space-y-3 pt-1">
-                <div className="flex items-center gap-2">
-                  <input type="checkbox" id="gera_adn" checked={form.gera_adicional_noturno}
-                    onChange={e => setForm(f => ({ ...f, gera_adicional_noturno: e.target.checked }))} className="rounded" />
-                  <label htmlFor="gera_adn" className="text-sm font-medium text-foreground">Gera Adicional Noturno (ADN)</label>
+                <div>
+                  <label className="text-sm font-medium text-foreground">Adicional Noturno (ADN)</label>
+                  <select
+                    value={form.adn_modo || 'auto'}
+                    onChange={e => {
+                      const v = e.target.value as AdnModo;
+                      setForm(f => ({ ...f, adn_modo: v, gera_adicional_noturno: v !== 'nunca' }));
+                    }}
+                    className={inputClass}
+                  >
+                    {ADN_MODO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    {ADN_MODO_OPTIONS.find(o => o.value === (form.adn_modo || 'auto'))?.hint}
+                  </p>
                 </div>
+
                 <div className="flex items-center gap-2">
                   <input type="checkbox" id="ativo" checked={form.ativo}
                     onChange={e => setForm(f => ({ ...f, ativo: e.target.checked }))} className="rounded" />
