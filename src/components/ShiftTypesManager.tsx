@@ -199,7 +199,9 @@ export function ShiftTypesManager() {
       hora_fim: t.hora_fim.slice(0, 5), carga_horaria: t.carga_horaria,
       cor: t.cor, ordem: t.ordem, ativo: t.ativo,
       gera_adicional_noturno: t.gera_adicional_noturno ?? false,
+      adn_modo: normalizeAdnModo(t),
       intervalos: getIntervalos(t),
+
     });
     setModalOpen(true);
   };
