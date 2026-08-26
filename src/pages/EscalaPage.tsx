@@ -1339,27 +1339,17 @@ export default function EscalaPage() {
           .replace(/[^a-z0-9]/g, '')
           .trim();
         
-        const isPlantonista = cargoNormalizado.includes('plantonista');
-        
-        // Verifica elegibilidade ADN com base nas novas configurações
-        let elegivelADN = false;
-        if (adnConfig && adnConfig.enabled) {
-          const byFlag = adnConfig.eligibility.by_flag && (!!prof.recebe_adicional_noturno || !!prof.is_plantonista);
-          const byRole = adnConfig.eligibility.by_role && adnConfig.eligibility.roles.some(r => {
-            const rNorm = r.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').trim();
-            return cargoNormalizado === rNorm || (prof.cargo || '').toLowerCase().trim() === r.toLowerCase().trim();
-          });
-          const byProfession = adnConfig.eligibility.by_profession && adnConfig.eligibility.professions.includes(prof.profissao);
-          const sectorName = (s.sectors as any)?.nome;
-          const bySector = adnConfig.eligibility.by_sector && adnConfig.eligibility.sectors.includes(sectorName);
+        const isPlantonista = cargoNormalizado.includes('plantonista') || !!prof.is_plantonista;
 
-          elegivelADN = byFlag || byRole || byProfession || bySector;
-          // Veto manual: se o profissional foi explicitamente desmarcado, NÃO recebe ADN
-          if (prof.recebe_adicional_noturno === false) elegivelADN = false;
-        } else if (!adnConfig) {
-          // Fallback para regra antiga se não houver config
-          elegivelADN = !!prof.recebe_adicional_noturno || !!prof.is_plantonista || isPlantonista;
-        }
+        // Elegibilidade ADN — fonte única (veto absoluto se desmarcado no cadastro)
+        const elegivelADN = isElegivelAdn({
+          recebeAdn: prof.recebe_adicional_noturno,
+          plantonista: isPlantonista,
+          cargo: prof.cargo,
+          profissao: prof.profissao,
+          setor: (s.sectors as any)?.nome,
+          adnConfig,
+        });
 
         row = {
           id: profId,
@@ -1395,30 +1385,19 @@ export default function EscalaPage() {
       if (s.status !== 'cancelado' && !isAusencia) {
         row.totalHoras += carga;
         row.totalPlantoes += 1;
-        
-        // Cálculo ADN (Adicional Noturno) - Regra configurável
-        if (row.elegivelADN && carga > 0) {
-          const shiftName = s.tipo_plantao;
-          const generatesADN = !adnConfig?.shift_types?.length || (shiftName && adnConfig.shift_types.includes(shiftName));
-          
-          if (generatesADN) {
-            if (!adnConfig || adnConfig.calculation_type === 'hours') {
-              const adnHoras = calculateAdicionalNoturno(
-                s.hora_inicio, 
-                s.hora_fim, 
-                adnConfig?.start_time || "23:00", 
-                adnConfig?.end_time || "07:00"
-              );
-              row.totalADN += adnHoras;
-            } else if (adnConfig.calculation_type === 'shifts') {
-              // Verifica se o plantão tem alguma hora noturna para contar como plantão noturno
-              const adnHoras = calculateAdicionalNoturno(s.hora_inicio, s.hora_fim, adnConfig.start_time, adnConfig.end_time);
-              if (adnHoras > 0) row.totalADN += 1;
-            } else if (adnConfig.calculation_type === 'fixed_per_shift') {
-              const adnHoras = calculateAdicionalNoturno(s.hora_inicio, s.hora_fim, adnConfig.start_time, adnConfig.end_time);
-              if (adnHoras > 0) row.totalADN += (adnConfig.fixed_value || 0);
-            }
-          }
+
+        // Cálculo ADN — respeita o modo do tipo de plantão
+        if (row.elegivelADN) {
+          row.totalADN += calcularAdnPlantao({
+            hora_inicio: s.hora_inicio,
+            hora_fim: s.hora_fim,
+            carga,
+            tipo_plantao: s.tipo_plantao,
+            adn_modo: TIPOS_PLANTAO.find(t => t.value === s.tipo_plantao)?.adn_modo,
+            adnConfig,
+          });
+        }
+      }
     }
 
     if (adnConfig?.calculation_type === 'fixed_total') {
@@ -1428,6 +1407,7 @@ export default function EscalaPage() {
         }
       }
     }
+
 
 
 
