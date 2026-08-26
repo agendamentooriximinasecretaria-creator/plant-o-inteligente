@@ -143,13 +143,17 @@ export function ShiftTypesManager() {
       const erro = validarIntervalos(ints);
       if (erro) throw new Error(erro);
       const cargaCalc = sumCarga(ints);
+      const modo: AdnModo = payload.adn_modo || 'nunca';
       const data = {
         ...payload,
         intervalos: ints,
         hora_inicio: ints[0].inicio,
         hora_fim: ints[ints.length - 1].fim,
         carga_horaria: payload.carga_horaria || cargaCalc,
+        adn_modo: modo,
+        gera_adicional_noturno: modo !== 'nunca',
       };
+
       if (editingId) {
         const { error } = await sb.from('shift_types').update(data).eq('id', editingId);
         if (error) throw error;
