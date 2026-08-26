@@ -13,13 +13,32 @@ Duas falhas somadas:
 
 ## Correção proposta
 
-- Passar a elegibilidade do profissional sem misturar com "plantonista": o valor de `recebe_adicional_noturno` vai puro para a grade, e a condição de plantonista continua existindo apenas como critério adicional (nunca sobrepondo o desmarcado). Quem está desmarcado passa a mostrar "—".
-- Somar ADN somente quando o **tipo de plantão** tiver "Gera Adicional Noturno" ativado. Assim FERIADO, MANHÃ/TARDE, Diurno 12h e Sobreaviso deixam de gerar ADN; Noturno 12h, Noite, Plantão 24h e ADN continuam gerando.
-- Aplicar a mesma regra nos três lugares que calculam ADN, para visualização, impressão e PDF ficarem idênticos.
+### 1. Regra de elegibilidade limpa (profissional)
+
+- O valor de `recebe_adicional_noturno` passa **puro** para a grade, sem mistura com "plantonista".
+- "Plantonista" (flag ou cargo) continua existindo apenas como **critério adicional** de inclusão, nunca sobrepondo o desmarcado.
+- Quem está desmarcado mostra sempre **"—"** na coluna ADN (tela, impressão e PDF).
+
+### 2. Tipo de plantão manda no ADN (solução para o FERIADO)
+
+Em vez de deduzir ADN só pelo horário, o tipo de plantão passa a ser a autoridade — com três comportamentos escolhidos no cadastro do tipo ("Adicional Noturno" no modal Tipo de Plantão):
+
+- **Nunca gerar ADN** — o tipo é ignorado no cálculo, mesmo cruzando a madrugada. É o modo indicado para FERIADO, Folga, Sobreaviso e ausências. Resolve o caso dos 8.0h.
+- **Automático pelo horário** (padrão atual) — soma apenas as horas dentro da faixa noturna configurada.
+- **Sempre gerar ADN** — o tipo gera ADN integral do plantão, útil para tipos noturnos fechados.
+
+Assim ninguém precisa mexer em horário de plantão nem criar tipos duplicados: basta marcar "Nunca gerar ADN" no FERIADO. Os tipos existentes migram sozinhos: quem hoje tem a caixinha "Gera ADN" ligada vira "Automático pelo horário", quem tem desligada vira "Nunca gerar ADN" — o que já corrige FERIADO, MANHÃ/TARDE, Diurno 12h, Sobreaviso e Folga.
+
+### 3. Uma única fonte de cálculo
+
+O ADN passa a ser calculado por uma função compartilhada, usada pela grade da tela, pela Escala Mensal Oficial e pelo PDF, para os três resultados serem sempre idênticos.
 
 ## Detalhes técnicos
 
-1. `src/pages/EscalaPage.tsx` (~linha 2503): `recebe_adn` passa a ser apenas `professionals.recebe_adicional_noturno`; `is_plantonista`/cargo entram em campo separado usado só como critério adicional em `adnConfig.eligibility.by_flag`.
-2. `src/components/schedule/MonthlyConsolidatedGrid.tsx` (bloco ~200-222): condicionar o acúmulo de ADN a `s.gera_adn === true` (o campo já é recebido e hoje não é usado) e manter o veto `recebe_adn === false`.
-3. `src/pages/EscalaPage.tsx` (bloco ~1341-1420, dados da Escala Mensal Oficial/PDF): incluir `gera_adicional_noturno` no mapeamento do tipo e exigir essa flag antes de somar ADN; manter o veto quando `recebe_adicional_noturno === false` e não usar `is_plantonista` para reverter o veto.
-4. Nenhuma alteração de banco: os tipos de plantão e os cadastros já estão corretos.
+1. Migração: adicionar `adn_modo text not null default 'auto'` em `public.shift_types` (valores `nunca` | `auto` | `sempre`), preenchendo `nunca` onde `gera_adicional_noturno` é falso e `auto` onde é verdadeiro. A coluna antiga é mantida por compatibilidade.
+2. `src/components/ShiftTypesManager.tsx`: substituir o checkbox "Gera Adicional Noturno" por um select com as três opções, gravando `adn_modo` (e espelhando `gera_adicional_noturno = adn_modo !== 'nunca'`).
+3. Nova função em `src/lib/adn.ts`: `calcularAdnPlantao({ hora_inicio, hora_fim, carga, adn_modo, adnConfig })` encapsulando o veto por modo, `carga > 0`, filtro `adnConfig.shift_types` e os tipos de cálculo (`hours`, `shifts`, `fixed_per_shift`).
+4. `src/pages/EscalaPage.tsx` (~2503): `recebe_adn` = apenas `professionals.recebe_adicional_noturno`; enviar `is_plantonista`/cargo em campo separado (`plantonista`) e `adn_modo` do tipo; ajustar `TIPOS_PLANTAO` (~328) para expor `adn_modo`.
+5. `src/components/schedule/MonthlyConsolidatedGrid.tsx` (~160-230) e `src/pages/EscalaPage.tsx` (~1341-1420, dados da oficial/PDF): usar `calcularAdnPlantao`; elegibilidade = `recebe_adn === true` (ou critérios de `adnConfig`), com veto absoluto quando `recebe_adn === false`; `elegivelAdn` falso renderiza "—".
+6. Sem alteração nas telas de impressão além do consumo dos totais já corrigidos.
+
