@@ -1227,6 +1227,7 @@ export type Database = {
       }
       shift_types: {
         Row: {
+          adn_modo: string
           ativo: boolean
           carga_horaria: number
           cor: string | null
@@ -1242,6 +1243,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          adn_modo?: string
           ativo?: boolean
           carga_horaria?: number
           cor?: string | null
@@ -1257,6 +1259,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          adn_modo?: string
           ativo?: boolean
           carga_horaria?: number
           cor?: string | null
