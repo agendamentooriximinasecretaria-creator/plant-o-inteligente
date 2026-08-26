@@ -155,26 +155,18 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
           .replace(/[\u0300-\u036f]/g, '')
           .replace(/[^a-z0-9]/g, '')
           .trim();
-        
-        const isPlantonista = cargoNormalizado.includes('plantonista');
-        
-        // Verifica elegibilidade ADN com base nas configurações
-        let elegivelAdn = false;
-        if (adnConfig && adnConfig.enabled) {
-          const byFlag = adnConfig.eligibility.by_flag && (!!s.recebe_adn);
-          const byRole = adnConfig.eligibility.by_role && adnConfig.eligibility.roles.some(r => {
-            const rNorm = r.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').trim();
-            return cargoNormalizado === rNorm || (s.cargo || '').toLowerCase().trim() === r.toLowerCase().trim();
-          });
-          const byProfession = adnConfig.eligibility.by_profession && adnConfig.eligibility.professions.includes(s.profissao || '');
-          const bySector = adnConfig.eligibility.by_sector && adnConfig.eligibility.sectors.includes(s.setor_nome || '');
-          
-          elegivelAdn = byFlag || byRole || byProfession || bySector;
-          if (s.recebe_adn === false) elegivelAdn = false;
-        } else if (!adnConfig) {
-          elegivelAdn = !!s.recebe_adn || isPlantonista;
-        }
-        
+
+        const isPlantonista = cargoNormalizado.includes('plantonista') || !!s.plantonista;
+
+        const elegivelAdn = isElegivelAdn({
+          recebeAdn: s.recebe_adn,
+          plantonista: isPlantonista,
+          cargo: s.cargo,
+          profissao: s.profissao,
+          setor: s.setor_nome,
+          adnConfig,
+        });
+
         row = { 
           id: profId, 
           nome: s.profissional_nome || "Sem nome", 
@@ -199,26 +191,18 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
       if (s.status !== "cancelado" && !isAusencia) {
         row.horas += carga;
 
-        // Cálculo do ADN (Adicional Noturno) - Regra configurável
-        if (row.elegivelAdn && carga > 0) {
-          const shiftName = s.tipo_plantao;
-          const generatesADN = !adnConfig?.shift_types?.length || (shiftName && adnConfig.shift_types.includes(shiftName));
-          
-          if (generatesADN) {
-            if (!adnConfig || adnConfig.calculation_type === 'hours') {
-              const adnHoras = calculateAdicionalNoturno(
-                s.hora_inicio, 
-                s.hora_fim, 
-                adnConfig?.start_time || "23:00", 
-                adnConfig?.end_time || "07:00"
-              );
-              row.adn += adnHoras;
-            } else if (adnConfig.calculation_type === 'shifts') {
-              const adnHoras = calculateAdicionalNoturno(s.hora_inicio, s.hora_fim, adnConfig.start_time, adnConfig.end_time);
-              if (adnHoras > 0) row.adn += 1;
-            } else if (adnConfig.calculation_type === 'fixed_per_shift') {
-              const adnHoras = calculateAdicionalNoturno(s.hora_inicio, s.hora_fim, adnConfig.start_time, adnConfig.end_time);
-              if (adnHoras > 0) row.adn += (adnConfig.fixed_value || 0);
+        // Cálculo do ADN — fonte única, respeita o modo do tipo de plantão
+        if (row.elegivelAdn) {
+          row.adn += calcularAdnPlantao({
+            hora_inicio: s.hora_inicio,
+            hora_fim: s.hora_fim,
+            carga,
+            tipo_plantao: s.tipo_plantao,
+            adn_modo: s.adn_modo ?? (tipos.find(t => t.value === s.tipo_plantao)?.adn_modo),
+            adnConfig,
+          });
+        }
+      }
     }
 
     if (adnConfig?.calculation_type === 'fixed_total') {
@@ -234,11 +218,7 @@ export const MonthlyConsolidatedGrid = memo(function MonthlyConsolidatedGrid({ s
         }
       }
     }
-          }
-        }
 
-      }
-    }
 
     // Converte para array ordenado para renderização
     const result: { type: 'header-unidade' | 'header-setor' | 'header-profissao' | 'row', label?: string, row?: ProfRow, key: string }[] = [];
