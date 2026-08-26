@@ -1,6 +1,6 @@
 import { useMemo, useState, memo } from "react";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertTriangle, Info } from "lucide-react";
-import { calculateAdicionalNoturno } from "@/lib/utils";
+import { calcularAdnPlantao, isElegivelAdn, type AdnModo } from "@/lib/adn";
 import { AdnConfig } from "@/components/AdnSettingsManager";
 
 
@@ -20,7 +20,10 @@ export interface MonthlyShift {
   carga_horaria?: number;
   status?: string;
   recebe_adn?: boolean;
+  /** Critério adicional de elegibilidade (flag is_plantonista / cargo). */
+  plantonista?: boolean;
   gera_adn?: boolean;
+  adn_modo?: AdnModo | string | null;
 }
 
 export interface TipoPlantaoLegenda {
@@ -30,7 +33,9 @@ export interface TipoPlantaoLegenda {
   end?: string;
   carga?: number;
   gera_adn?: boolean;
+  adn_modo?: AdnModo | string | null;
 }
+
 
 interface Props {
   shifts: MonthlyShift[];
