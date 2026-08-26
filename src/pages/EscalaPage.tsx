@@ -318,7 +318,7 @@ export default function EscalaPage() {
   });
 
   const TIPOS_PLANTAO = useMemo(() => {
-    if (tiposDB.length === 0) return TIPOS_PLANTAO_FALLBACK.map(t => ({ ...t, intervalos: [{ inicio: t.start, fim: t.end }] as ShiftInterval[] }));
+    if (tiposDB.length === 0) return TIPOS_PLANTAO_FALLBACK.map(t => ({ ...t, adn_modo: 'auto' as const, intervalos: [{ inicio: t.start, fim: t.end }] as ShiftInterval[] }));
     return tiposDB.map((t: any) => ({
       value: t.nome,
       sigla: t.sigla,
@@ -326,9 +326,11 @@ export default function EscalaPage() {
       end: (t.hora_fim || '').slice(0, 5),
       carga: Number(t.carga_horaria) || 12,
       gera_adn: !!t.gera_adicional_noturno,
+      adn_modo: normalizeAdnModo(t),
       intervalos: getIntervalos(t),
     }));
   }, [tiposDB]);
+
 
 
   const tipoToSigla = (tipo?: string) => TIPOS_PLANTAO.find(t => t.value === tipo)?.sigla ?? (tipo?.[0]?.toUpperCase() ?? '?');
