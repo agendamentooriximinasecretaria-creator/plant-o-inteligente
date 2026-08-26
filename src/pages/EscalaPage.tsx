@@ -27,7 +27,7 @@ import { resolveSignatureData, resolveRTForUnidade, resolveGestorMasterForUnidad
 import { imprimirComprovantePlantao, type ComprovantePlantaoData } from "@/lib/printComprovantePlantao";
 import SignActionButton from "@/components/SignActionButton";
 import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
-import { calculateAdicionalNoturno } from "@/lib/utils";
+import { calcularAdnPlantao, isElegivelAdn, normalizeAdnModo } from "@/lib/adn";
 import { AdnConfig } from "@/components/AdnSettingsManager";
 import { getIntervalos, type ShiftInterval } from "@/components/ShiftTypesManager";
 
@@ -318,7 +318,7 @@ export default function EscalaPage() {
   });
 
   const TIPOS_PLANTAO = useMemo(() => {
-    if (tiposDB.length === 0) return TIPOS_PLANTAO_FALLBACK.map(t => ({ ...t, intervalos: [{ inicio: t.start, fim: t.end }] as ShiftInterval[] }));
+    if (tiposDB.length === 0) return TIPOS_PLANTAO_FALLBACK.map(t => ({ ...t, adn_modo: 'auto' as const, intervalos: [{ inicio: t.start, fim: t.end }] as ShiftInterval[] }));
     return tiposDB.map((t: any) => ({
       value: t.nome,
       sigla: t.sigla,
@@ -326,9 +326,11 @@ export default function EscalaPage() {
       end: (t.hora_fim || '').slice(0, 5),
       carga: Number(t.carga_horaria) || 12,
       gera_adn: !!t.gera_adicional_noturno,
+      adn_modo: normalizeAdnModo(t),
       intervalos: getIntervalos(t),
     }));
   }, [tiposDB]);
+
 
 
   const tipoToSigla = (tipo?: string) => TIPOS_PLANTAO.find(t => t.value === tipo)?.sigla ?? (tipo?.[0]?.toUpperCase() ?? '?');
@@ -1336,27 +1338,17 @@ export default function EscalaPage() {
           .replace(/[^a-z0-9]/g, '')
           .trim();
         
-        const isPlantonista = cargoNormalizado.includes('plantonista');
-        
-        // Verifica elegibilidade ADN com base nas novas configurações
-        let elegivelADN = false;
-        if (adnConfig && adnConfig.enabled) {
-          const byFlag = adnConfig.eligibility.by_flag && (!!prof.recebe_adicional_noturno || !!prof.is_plantonista);
-          const byRole = adnConfig.eligibility.by_role && adnConfig.eligibility.roles.some(r => {
-            const rNorm = r.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').trim();
-            return cargoNormalizado === rNorm || (prof.cargo || '').toLowerCase().trim() === r.toLowerCase().trim();
-          });
-          const byProfession = adnConfig.eligibility.by_profession && adnConfig.eligibility.professions.includes(prof.profissao);
-          const sectorName = (s.sectors as any)?.nome;
-          const bySector = adnConfig.eligibility.by_sector && adnConfig.eligibility.sectors.includes(sectorName);
+        const isPlantonista = cargoNormalizado.includes('plantonista') || !!prof.is_plantonista;
 
-          elegivelADN = byFlag || byRole || byProfession || bySector;
-          // Veto manual: se o profissional foi explicitamente desmarcado, NÃO recebe ADN
-          if (prof.recebe_adicional_noturno === false) elegivelADN = false;
-        } else if (!adnConfig) {
-          // Fallback para regra antiga se não houver config
-          elegivelADN = !!prof.recebe_adicional_noturno || !!prof.is_plantonista || isPlantonista;
-        }
+        // Elegibilidade ADN — fonte única (veto absoluto se desmarcado no cadastro)
+        const elegivelADN = isElegivelAdn({
+          recebeAdn: prof.recebe_adicional_noturno,
+          plantonista: isPlantonista,
+          cargo: prof.cargo,
+          profissao: prof.profissao,
+          setor: (s.sectors as any)?.nome,
+          adnConfig,
+        });
 
         row = {
           id: profId,
@@ -1392,30 +1384,19 @@ export default function EscalaPage() {
       if (s.status !== 'cancelado' && !isAusencia) {
         row.totalHoras += carga;
         row.totalPlantoes += 1;
-        
-        // Cálculo ADN (Adicional Noturno) - Regra configurável
-        if (row.elegivelADN && carga > 0) {
-          const shiftName = s.tipo_plantao;
-          const generatesADN = !adnConfig?.shift_types?.length || (shiftName && adnConfig.shift_types.includes(shiftName));
-          
-          if (generatesADN) {
-            if (!adnConfig || adnConfig.calculation_type === 'hours') {
-              const adnHoras = calculateAdicionalNoturno(
-                s.hora_inicio, 
-                s.hora_fim, 
-                adnConfig?.start_time || "23:00", 
-                adnConfig?.end_time || "07:00"
-              );
-              row.totalADN += adnHoras;
-            } else if (adnConfig.calculation_type === 'shifts') {
-              // Verifica se o plantão tem alguma hora noturna para contar como plantão noturno
-              const adnHoras = calculateAdicionalNoturno(s.hora_inicio, s.hora_fim, adnConfig.start_time, adnConfig.end_time);
-              if (adnHoras > 0) row.totalADN += 1;
-            } else if (adnConfig.calculation_type === 'fixed_per_shift') {
-              const adnHoras = calculateAdicionalNoturno(s.hora_inicio, s.hora_fim, adnConfig.start_time, adnConfig.end_time);
-              if (adnHoras > 0) row.totalADN += (adnConfig.fixed_value || 0);
-            }
-          }
+
+        // Cálculo ADN — respeita o modo do tipo de plantão
+        if (row.elegivelADN) {
+          row.totalADN += calcularAdnPlantao({
+            hora_inicio: s.hora_inicio,
+            hora_fim: s.hora_fim,
+            carga,
+            tipo_plantao: s.tipo_plantao,
+            adn_modo: TIPOS_PLANTAO.find(t => t.value === s.tipo_plantao)?.adn_modo,
+            adnConfig,
+          });
+        }
+      }
     }
 
     if (adnConfig?.calculation_type === 'fixed_total') {
@@ -1427,9 +1408,6 @@ export default function EscalaPage() {
     }
 
 
-
-      }
-    }
 
     const profs = Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
 
@@ -2500,8 +2478,11 @@ export default function EscalaPage() {
               hora_fim: s.hora_fim,
               carga_horaria: Number(s.carga_horaria || 0),
               status: s.status,
-              recebe_adn: (s.professionals as any)?.recebe_adicional_noturno || (s.professionals as any)?.is_plantonista || String((s.professionals as any)?.cargo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').trim().includes('plantonista'),
+              recebe_adn: (s.professionals as any)?.recebe_adicional_noturno ?? undefined,
+              plantonista: !!(s.professionals as any)?.is_plantonista || String((s.professionals as any)?.cargo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').trim().includes('plantonista'),
               gera_adn: TIPOS_PLANTAO.find(t => t.value === s.tipo_plantao)?.gera_adn,
+              adn_modo: TIPOS_PLANTAO.find(t => t.value === s.tipo_plantao)?.adn_modo,
+
             }))}
             tipos={TIPOS_PLANTAO}
             initialMonth={filtros.dataIni ? filtros.dataIni.slice(0, 7) : undefined}

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auditLog";
 import { Plus, Trash2, Edit, Save, X, Loader2, GripVertical } from "lucide-react";
 import { toast } from "sonner";
+import { ADN_MODO_OPTIONS, normalizeAdnModo, type AdnModo } from "@/lib/adn";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
@@ -23,8 +24,10 @@ export interface ShiftType {
   ordem: number;
   ativo: boolean;
   gera_adicional_noturno: boolean;
+  adn_modo?: AdnModo;
   intervalos?: ShiftInterval[] | null;
 }
+
 
 /** Faixas normalizadas de um tipo (fallback para hora_inicio/hora_fim em tipos antigos). */
 export function getIntervalos(t: Partial<ShiftType>): ShiftInterval[] {
@@ -112,8 +115,10 @@ const validarIntervalos = (ints: ShiftInterval[]): string | null => {
 const empty: Omit<ShiftType, 'id'> = {
   nome: '', sigla: '', hora_inicio: '07:00', hora_fim: '19:00',
   carga_horaria: 12, cor: 'primary', ordem: 0, ativo: true, gera_adicional_noturno: false,
+  adn_modo: 'nunca',
   intervalos: [{ inicio: '07:00', fim: '19:00' }],
 };
+
 
 export function ShiftTypesManager() {
   const sb = supabase as any;
@@ -138,13 +143,17 @@ export function ShiftTypesManager() {
       const erro = validarIntervalos(ints);
       if (erro) throw new Error(erro);
       const cargaCalc = sumCarga(ints);
+      const modo: AdnModo = payload.adn_modo || 'nunca';
       const data = {
         ...payload,
         intervalos: ints,
         hora_inicio: ints[0].inicio,
         hora_fim: ints[ints.length - 1].fim,
         carga_horaria: payload.carga_horaria || cargaCalc,
+        adn_modo: modo,
+        gera_adicional_noturno: modo !== 'nunca',
       };
+
       if (editingId) {
         const { error } = await sb.from('shift_types').update(data).eq('id', editingId);
         if (error) throw error;
@@ -190,7 +199,9 @@ export function ShiftTypesManager() {
       hora_fim: t.hora_fim.slice(0, 5), carga_horaria: t.carga_horaria,
       cor: t.cor, ordem: t.ordem, ativo: t.ativo,
       gera_adicional_noturno: t.gera_adicional_noturno ?? false,
+      adn_modo: normalizeAdnModo(t),
       intervalos: getIntervalos(t),
+
     });
     setModalOpen(true);
   };
@@ -345,11 +356,23 @@ export function ShiftTypesManager() {
                   onChange={e => setForm(f => ({ ...f, ordem: Number(e.target.value) }))} className={inputClass} />
               </div>
               <div className="col-span-2 space-y-3 pt-1">
-                <div className="flex items-center gap-2">
-                  <input type="checkbox" id="gera_adn" checked={form.gera_adicional_noturno}
-                    onChange={e => setForm(f => ({ ...f, gera_adicional_noturno: e.target.checked }))} className="rounded" />
-                  <label htmlFor="gera_adn" className="text-sm font-medium text-foreground">Gera Adicional Noturno (ADN)</label>
+                <div>
+                  <label className="text-sm font-medium text-foreground">Adicional Noturno (ADN)</label>
+                  <select
+                    value={form.adn_modo || 'auto'}
+                    onChange={e => {
+                      const v = e.target.value as AdnModo;
+                      setForm(f => ({ ...f, adn_modo: v, gera_adicional_noturno: v !== 'nunca' }));
+                    }}
+                    className={inputClass}
+                  >
+                    {ADN_MODO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    {ADN_MODO_OPTIONS.find(o => o.value === (form.adn_modo || 'auto'))?.hint}
+                  </p>
                 </div>
+
                 <div className="flex items-center gap-2">
                   <input type="checkbox" id="ativo" checked={form.ativo}
                     onChange={e => setForm(f => ({ ...f, ativo: e.target.checked }))} className="rounded" />
