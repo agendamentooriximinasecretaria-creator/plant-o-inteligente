@@ -2479,8 +2479,11 @@ export default function EscalaPage() {
               hora_fim: s.hora_fim,
               carga_horaria: Number(s.carga_horaria || 0),
               status: s.status,
-              recebe_adn: (s.professionals as any)?.recebe_adicional_noturno || (s.professionals as any)?.is_plantonista || String((s.professionals as any)?.cargo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').trim().includes('plantonista'),
+              recebe_adn: (s.professionals as any)?.recebe_adicional_noturno ?? undefined,
+              plantonista: !!(s.professionals as any)?.is_plantonista || String((s.professionals as any)?.cargo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').trim().includes('plantonista'),
               gera_adn: TIPOS_PLANTAO.find(t => t.value === s.tipo_plantao)?.gera_adn,
+              adn_modo: TIPOS_PLANTAO.find(t => t.value === s.tipo_plantao)?.adn_modo,
+
             }))}
             tipos={TIPOS_PLANTAO}
             initialMonth={filtros.dataIni ? filtros.dataIni.slice(0, 7) : undefined}
