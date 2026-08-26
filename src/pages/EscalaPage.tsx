@@ -27,7 +27,6 @@ import { resolveSignatureData, resolveRTForUnidade, resolveGestorMasterForUnidad
 import { imprimirComprovantePlantao, type ComprovantePlantaoData } from "@/lib/printComprovantePlantao";
 import SignActionButton from "@/components/SignActionButton";
 import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
-import { calculateAdicionalNoturno } from "@/lib/utils";
 import { calcularAdnPlantao, isElegivelAdn, normalizeAdnModo } from "@/lib/adn";
 import { AdnConfig } from "@/components/AdnSettingsManager";
 import { getIntervalos, type ShiftInterval } from "@/components/ShiftTypesManager";
