@@ -1410,10 +1410,6 @@ export default function EscalaPage() {
 
 
 
-
-      }
-    }
-
     const profs = Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
 
     const setorNome = printForm.setorId
