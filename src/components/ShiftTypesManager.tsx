@@ -115,8 +115,10 @@ const validarIntervalos = (ints: ShiftInterval[]): string | null => {
 const empty: Omit<ShiftType, 'id'> = {
   nome: '', sigla: '', hora_inicio: '07:00', hora_fim: '19:00',
   carga_horaria: 12, cor: 'primary', ordem: 0, ativo: true, gera_adicional_noturno: false,
+  adn_modo: 'nunca',
   intervalos: [{ inicio: '07:00', fim: '19:00' }],
 };
+
 
 export function ShiftTypesManager() {
   const sb = supabase as any;
